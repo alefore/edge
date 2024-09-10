@@ -48,10 +48,11 @@ struct ParsedLine {
 ValueOrError<ParsedLine> Parse(const Line& line) {
   return VisitOptional(
       [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
-        return ParsedLine{.key = DictionaryKey(line.Substring(
-                              ColumnNumber(), first_space.ToDelta())),
-                          .value = DictionaryValue{line.Substring(
-                              first_space + ColumnNumberDelta(1))}};
+        return ParsedLine{
+            .key = DictionaryKey(
+                line.Substring(ColumnNumber(), first_space.ToDelta()).read()),
+            .value = DictionaryValue{
+                line.Substring(first_space + ColumnNumberDelta(1)).read()}};
       },
       [] {
         return ValueOrError<ParsedLine>(Error{LazyString{L"No space found."}});

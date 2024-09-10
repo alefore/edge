@@ -14,6 +14,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Observers;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
@@ -80,7 +81,7 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
 }
 
 namespace {
-LazyString GetSymbol(const Range& range, const LineSequence& contents) {
+SingleLine GetSymbol(const Range& range, const LineSequence& contents) {
   return contents.at(range.begin().line)
       .Substring(range.begin().column,
                  range.end().column - range.begin().column);
@@ -91,7 +92,7 @@ void PrepareTokenPartition(
     std::unordered_map<language::text::Range, size_t>& output_token_id,
     std::vector<std::set<language::text::Range>>& output_token_partition) {
   std::vector<NonNull<const ParseTree*>> trees = {tree};
-  std::unordered_map<LazyString, size_t> contents_to_id;
+  std::unordered_map<SingleLine, size_t> contents_to_id;
   while (!trees.empty()) {
     NonNull<const ParseTree*> head = trees.back();
     trees.pop_back();

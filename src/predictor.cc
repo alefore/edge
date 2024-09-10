@@ -98,8 +98,10 @@ ValueOrError<PredictResults> BuildResults(
         ColumnNumberDelta current_size =
             std::min(ColumnNumberDelta(common_prefix.value().size()),
                      line.EndColumn().ToDelta());
+        // TODO(easy, 2024-09-10): Get rid of std::wstring. Use SingleLine and
+        // StartsWith and LowerCase.
         std::wstring current =
-            line.Substring(ColumnNumber(0), current_size).ToString();
+            line.Substring(ColumnNumber(0), current_size).read().ToString();
 
         auto prefix_end =
             mismatch(common_prefix->begin(), common_prefix->end(),
@@ -565,10 +567,12 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
       tree.range().begin().line == tree.range().end().line) {
     CHECK_LE(tree.range().begin().column, tree.range().end().column);
     auto line = buffer.LineAt(tree.range().begin().line);
+    // TODO(trivial, 2024-09-10): Avoid call to ToString.
     auto word =
         line->Substring(tree.range().begin().column,
                         std::min(tree.range().end().column, line->EndColumn()) -
                             tree.range().begin().column)
+            .read()
             .ToString();
     if (!word.empty()) {
       DVLOG(5) << "Found leave: " << word;

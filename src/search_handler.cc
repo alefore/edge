@@ -32,6 +32,7 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -137,10 +138,14 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
   return a.matches == b.matches && a.search_completion == b.search_completion;
 }
 
-std::wstring RegexEscape(LazyString str) {
+std::wstring RegexEscape(SingleLine str) {
   std::wstring results;
+  // TODO(easy, 2024-09-10): Define as an std::unordered_set, to make lookups
+  // faster?
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
-  ForEachColumn(str, [&](ColumnNumber, wchar_t c) {
+  // TODO(easy, 2024-09-10): Define ForEachColumn for SingleString and use it
+  // directly.
+  ForEachColumn(str.read(), [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == std::wstring::npos) {
       results.push_back('\\');
     }
@@ -165,7 +170,8 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
       positions | std::views::take(required_positions) |
           std::views::transform([&](LineColumn& position) -> std::wstring {
             CHECK_LT(position.line, buffer.EndLine());
-            auto line = buffer.LineAt(position.line);
+            std::optional<Line> line = buffer.LineAt(position.line);
+            CHECK(line.has_value());
             CHECK_LT(position.column, line->EndColumn());
             return RegexEscape(line->Substring(position.column));
           }),

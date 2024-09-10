@@ -52,12 +52,12 @@ class Line {
   bool empty() const;
 
   wint_t get(language::lazy_string::ColumnNumber column) const;
-  language::lazy_string::LazyString Substring(
+  language::lazy_string::SingleLine Substring(
       language::lazy_string::ColumnNumber column,
       language::lazy_string::ColumnNumberDelta length) const;
 
   // Returns the substring from pos to the end of the string.
-  language::lazy_string::LazyString Substring(
+  language::lazy_string::SingleLine Substring(
       language::lazy_string::ColumnNumber column) const;
 
   std::wstring ToString() const { return contents().read().ToString(); }

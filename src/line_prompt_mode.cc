@@ -97,7 +97,7 @@ const Identifier kIdentifierName{LazyString{L"name"}};
 const Identifier kIdentifierActive{LazyString{L"active"}};
 const Identifier kIdentifierDirectory{LazyString{L"directory"}};
 
-LazyString GetPredictInput(const OpenBuffer& buffer) {
+SingleLine GetPredictInput(const OpenBuffer& buffer) {
   Range range =
       buffer.FindPartialRange(Modifiers{.structure = Structure::kLine,
                                         .direction = Direction::kBackwards},
@@ -1134,7 +1134,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                 prompt_state->options().predictor,
                 PredictorInput{
                     .editor = prompt_state->editor_state(),
-                    .input = GetPredictInput(buffer),
+                    .input = GetPredictInput(buffer).read(),
                     .input_column = buffer.position().column,
                     .source_buffers = prompt_state->options().source_buffers,
                     .progress_channel = std::move(progress_channel),

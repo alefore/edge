@@ -180,7 +180,8 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           infrastructure::screen::VisualOverlay{
-              .content = line.Substring(match.second.column, kQueryLength),
+              .content =
+                  line.Substring(match.second.column, kQueryLength).read(),
               .modifiers = {LineModifier::kUnderline},
               .behavior =
                   infrastructure::screen::VisualOverlay::Behavior::kToggle}));

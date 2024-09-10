@@ -72,14 +72,12 @@ wint_t Line::get(ColumnNumber column) const {
   return data_->contents.read().get(column);
 }
 
-LazyString Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {
-  // TODO(trivial, 2024-09-10): Return the SingleLine.
-  return contents().read().Substring(column, delta);
+SingleLine Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {
+  return contents().Substring(column, delta);
 }
 
-LazyString Line::Substring(ColumnNumber column) const {
-  // TODO(trivial, 2024-09-10): Return the SingleLine.
-  return contents().read().Substring(column);
+SingleLine Line::Substring(ColumnNumber column) const {
+  return contents().Substring(column);
 }
 
 const std::map<LazyString, LineMetadataEntry>& Line::metadata() const {

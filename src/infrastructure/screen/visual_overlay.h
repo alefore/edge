@@ -15,6 +15,7 @@
 
 namespace afc::infrastructure::screen {
 struct VisualOverlay {
+  // TODO(easy, 2024-09-10): Replace LazyString with SingleLine.
   std::variant<language::lazy_string::LazyString,
                language::lazy_string::ColumnNumberDelta>
       content = language::lazy_string::ColumnNumberDelta(1);
