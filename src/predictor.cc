@@ -24,6 +24,7 @@ extern "C" {
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
 #include "src/language/text/sorted_line_sequence.h"
 #include "src/language/wstring.h"
@@ -61,6 +62,9 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::Token;
+using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -561,20 +565,20 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
 }
 
 void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
-                    std::set<std::wstring>* words) {
+                    std::set<SingleLine>* words) {
   DCHECK(words != nullptr);
   if (tree.children().empty() &&
       tree.range().begin().line == tree.range().end().line) {
     CHECK_LE(tree.range().begin().column, tree.range().end().column);
-    auto line = buffer.LineAt(tree.range().begin().line);
-    // TODO(trivial, 2024-09-10): Avoid call to ToString.
-    auto word =
-        line->Substring(tree.range().begin().column,
-                        std::min(tree.range().end().column, line->EndColumn()) -
-                            tree.range().begin().column)
-            .read()
-            .ToString();
-    if (!word.empty()) {
+    std::optional<Line> line = buffer.LineAt(tree.range().begin().line);
+    CHECK(line.has_value());
+    // TODO(easy, 2024-09-10): Figure out why we need word.read().IsEmpty();
+    // we should be able to just do: word.IsEmpty().
+    if (SingleLine word = line->Substring(
+            tree.range().begin().column,
+            std::min(tree.range().end().column, line->EndColumn()) -
+                tree.range().begin().column);
+        !word.read().IsEmpty()) {
       DVLOG(5) << "Found leave: " << word;
       words->insert(word);
     }
@@ -589,15 +593,15 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
     return futures::Past(
         PredictorOutput({.contents = SortedLineSequenceUniqueLines(
                              SortedLineSequence(LineSequence()))}));
-  std::set<std::wstring> words;
+  std::set<SingleLine> words;
   for (const OpenBuffer& buffer : input.source_buffers | gc::view::Value) {
     RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
-    // TODO(easy, 2024-09-03): Get rid of ToString. Instead, use
-    // TokenizeBySpaces.
-    std::wistringstream keywords(
-        buffer.ReadLazyString(buffer_variables::language_keywords).ToString());
-    words.insert(std::istream_iterator<std::wstring, wchar_t>(keywords),
-                 std::istream_iterator<std::wstring, wchar_t>());
+    std::ranges::copy(TokenizeBySpaces(buffer.ReadLazyString(
+                          buffer_variables::language_keywords)) |
+                          std::views::transform([](const Token& token) {
+                            return SingleLine{token.value};
+                          }),
+                      std::inserter(words, words.end()));
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName{LazyString{L"Dictionary"}}});
@@ -605,7 +609,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   // directly, to avoid the need to call MaterializeVector.
   dictionary.ptr()->AppendLines(container::MaterializeVector(
       words |
-      std::views::transform([](std::wstring word) { return Line(word); })));
+      std::views::transform([](SingleLine word) { return Line(word); })));
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }
