@@ -27,14 +27,17 @@ using ::operator<<;
 
 LineSequence::LineSequence(LineSequenceIterator a, LineSequenceIterator b)
     : LineSequence(std::invoke([&] {
-        CHECK(a != b);
         Lines::Ptr output = nullptr;
         while (a != b) {
-          output = Lines::PushBack(output, Line(*a)).get_shared();
+          output = Lines::PushBack(std::move(output), Line(*a)).get_shared();
           ++a;
         }
-        // This is safe because we've validated that inputs isn't empty.
-        return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
+        return VisitPointer(
+            std::move(output),
+            [](NonNull<Lines::Ptr> lines) {
+              return LineSequence(std::move(lines));
+            },
+            [] { return LineSequence(); });
       })) {}
 
 /* static */ LineSequence LineSequence::ForTests(
