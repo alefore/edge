@@ -49,7 +49,7 @@ LazyString ToLazyString(const BufferName& p) {
       p);
 }
 std::ostream& operator<<(std::ostream& os, const BufferName& p) {
-  os << ToLazyString(p).ToString();
+  os << ToLazyString(p);
   return os;
 }
 
