@@ -9,6 +9,7 @@
 #include "src/concurrent/protected.h"
 #include "src/language/container.h"
 #include "src/language/gc_view.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 #include "src/vm/callbacks.h"
@@ -27,6 +28,7 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::math::numbers::Number;
 
 namespace afc::vm {
@@ -207,9 +209,9 @@ void Environment::CaseInsensitiveLookup(
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
+      LazyString lower_case_symbol = LowerCase(symbol.read());
       for (auto& item : data.table)
-        if (wcscasecmp(item.first.read().ToString().c_str(),
-                       symbol.read().ToString().c_str()) == 0)
+        if (LowerCase(item.first.read()) == lower_case_symbol)
           std::ranges::copy(item.second | std::views::values | gc::view::Root,
                             std::back_inserter(*output));
     });
