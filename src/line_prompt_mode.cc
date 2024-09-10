@@ -331,9 +331,8 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
 }());
 
 LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
-  EscapedMap::Map data = {{kIdentifierPrompt, std::move(input)}};
-  for (auto& [name, feature] : GetCurrentFeatures(editor))
-    data.insert({name, feature});
+  EscapedMap::Map data = GetCurrentFeatures(editor);
+  data.insert({kIdentifierPrompt, std::move(input)});
   return EscapedMap{std::move(data)}.Serialize();
 }
 
