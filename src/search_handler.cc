@@ -48,24 +48,20 @@ namespace {
 typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
-std::vector<ColumnNumber> GetMatches(const std::wstring& line,
+std::vector<ColumnNumber> GetMatches(const LazyString& line,
                                      const RegexPattern& pattern) {
-  size_t start = 0;
+  ColumnNumber start;
   std::vector<ColumnNumber> output;
-  while (start < line.size()) {
+  while (start.ToDelta() < line.size()) {
     size_t match = std::wstring::npos;
-    std::wstring line_substr = line.substr(start);
-
     std::wsmatch pattern_match;
+    std::wstring line_substr = line.Substring(start).ToString();
     std::regex_search(line_substr, pattern_match, pattern);
-    if (!pattern_match.empty()) {
-      match = pattern_match.position();
-    }
-    if (match == std::wstring::npos) {
-      return output;
-    }
-    output.push_back(ColumnNumber(start + match));
-    start += match + 1;
+    if (!pattern_match.empty()) match = pattern_match.position();
+    if (match == std::wstring::npos) return output;
+    start += ColumnNumberDelta{static_cast<int>(match)};
+    output.push_back(start);
+    ++start;
   }
   return output;
 }
@@ -96,12 +92,13 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
 
   std::vector<LineColumn> positions;
   contents.EveryLine([&](LineNumber position, const Line& line) {
-    auto matches = GetMatches(line.ToString(), pattern);
     size_t initial_size = positions.size();
     std::ranges::copy(
-        matches | std::views::transform([position](ColumnNumber column) {
-          return LineColumn(position, column);
-        }) | std::views::filter(predicate),
+        GetMatches(line.contents(), pattern) |
+            std::views::transform([position](ColumnNumber column) {
+              return LineColumn(position, column);
+            }) |
+            std::views::filter(predicate),
         std::back_inserter(positions));
     if (positions.size() > initial_size)
       options.progress_channel->Push(ProgressInformation{
