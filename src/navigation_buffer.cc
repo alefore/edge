@@ -28,6 +28,7 @@ using afc::language::Success;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -50,7 +51,8 @@ void AddContents(const OpenBuffer& source, const Line& input,
   auto characters_trimmed =
       ColumnNumberDelta(input.contents().size() - trim.size());
   auto initial_length = line_options->EndColumn().ToDelta();
-  line_options->set_contents(line_options->contents().Append(trim));
+  line_options->set_contents(
+      SingleLine{line_options->contents()}.Append(SingleLine{trim}));
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
       line_options->set_modifiers(m.first + initial_length - characters_trimmed,
@@ -59,7 +61,7 @@ void AddContents(const OpenBuffer& source, const Line& input,
   }
 }
 
-void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
+void AppendLine(OpenBuffer& source, SingleLine padding, LineColumn position,
                 OpenBuffer& target) {
   LineBuilder options;
   options.set_contents(padding);
@@ -70,20 +72,21 @@ void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
 }
 
 void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
-                 LazyString padding, OpenBuffer& target) {
+                 SingleLine padding, OpenBuffer& target) {
   for (size_t i = 0; i < tree.children().size(); i++) {
     auto& child = tree.children()[i];
     if (child.range().begin().line + LineNumberDelta(1) ==
             child.range().end().line ||
         depth_left == 0 || child.children().empty()) {
       LineBuilder options;
-      options.set_contents(padding);
+      options.set_contents(SingleLine{padding});
       AddContents(source, *source.LineAt(child.range().begin().line), &options);
-      options.set_contents(options.contents().Append(
+      // TODO(trivial, 2024-09-10): Avoid the need to wrap SingleLine here.
+      options.set_contents(SingleLine{options.contents()}.Append(
           child.range().begin().line + LineNumberDelta(1) <
                   child.range().end().line
-              ? LazyString{L" ... "}
-              : LazyString{L" "}));
+              ? SingleLine{LazyString{L" ... "}}
+              : SingleLine{LazyString{L" "}}));
       if (i + 1 >= tree.children().size() ||
           child.range().end().line !=
               tree.children()[i + 1].range().begin().line) {
@@ -99,8 +102,8 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
 
     AppendLine(source, padding, child.range().begin(), target);
     if (depth_left > 0) {
-      DisplayTree(source, depth_left - 1, child, LazyString{L"  "} + padding,
-                  target);
+      DisplayTree(source, depth_left - 1, child,
+                  SingleLine{LazyString{L"  "}} + padding, target);
     }
     if (i + 1 >= tree.children().size() ||
         child.range().end().line !=
@@ -136,7 +139,7 @@ futures::Value<PossibleError> GenerateContents(
       depth_value.has_value()) {
     FUTURES_ASSIGN_OR_RETURN(depth, depth_value->ptr()->get_number().ToSizeT());
   }
-  DisplayTree(source->ptr().value(), depth, tree.value(), LazyString(), target);
+  DisplayTree(source->ptr().value(), depth, tree.value(), SingleLine{}, target);
   return futures::Past(Success());
 }
 

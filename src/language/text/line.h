@@ -86,8 +86,8 @@ class Line {
 
  private:
   struct Data {
-    language::lazy_string::LazyString contents =
-        language::lazy_string::LazyString();
+    language::lazy_string::SingleLine contents =
+        language::lazy_string::SingleLine{};
 
     // Columns without an entry here reuse the last present value. If no
     // previous value, assume afc::infrastructure::screen::LineModifierSet().

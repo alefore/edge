@@ -14,6 +14,7 @@ using afc::language::Observers;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -45,8 +46,8 @@ std::vector<Line> CreateLineInstances(LazyString contents,
       VLOG(8) << "Adding line from " << line_start << " to " << i;
 
       LineBuilder line_options;
-      line_options.set_contents(
-          contents.Substring(line_start, ColumnNumber(i) - line_start));
+      line_options.set_contents(SingleLine{
+          contents.Substring(line_start, ColumnNumber(i) - line_start)});
       line_options.set_modifiers(ColumnNumber(0), modifiers);
       lines_to_insert.emplace_back(std::move(line_options).Build());
 
@@ -57,7 +58,7 @@ std::vector<Line> CreateLineInstances(LazyString contents,
   VLOG(8) << "Adding last line from " << line_start << " to "
           << contents.size();
   LineBuilder line_options;
-  line_options.set_contents(contents.Substring(line_start));
+  line_options.set_contents(SingleLine{contents.Substring(line_start)});
   line_options.set_modifiers(ColumnNumber(0), modifiers);
   lines_to_insert.emplace_back(std::move(line_options).Build());
   return lines_to_insert;

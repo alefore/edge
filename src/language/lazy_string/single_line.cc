@@ -11,6 +11,18 @@ namespace afc::language::lazy_string {
   return EmptyValue{};
 }
 
+SingleLine SingleLine::Substring(ColumnNumber a) const {
+  return SingleLine{read().Substring(a)};
+}
+
+SingleLine SingleLine::Substring(ColumnNumber a, ColumnNumberDelta b) const {
+  return SingleLine{read().Substring(a, b)};
+}
+
+SingleLine SingleLine::Append(SingleLine other) const {
+  return SingleLine{read().Append(other.read())};
+}
+
 SingleLine operator+(const SingleLine& a, const SingleLine& b) {
   return SingleLine{a.read() + b.read()};
 }

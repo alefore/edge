@@ -14,6 +14,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
@@ -112,7 +113,7 @@ class LineBuilder {
   void ClearModifiers();
 
   language::lazy_string::LazyString contents() const;
-  void set_contents(language::lazy_string::LazyString);
+  void set_contents(language::lazy_string::SingleLine);
 
  private:
   explicit LineBuilder(Line::Data);

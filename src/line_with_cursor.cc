@@ -20,6 +20,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumberDelta;
@@ -190,8 +191,10 @@ LineWithCursor LineWithCursor::View(
         VLOG(8) << "Print character: " << c;
         output_column += ColumnNumberDelta(wcwidth(c));
         if (output_column.ToDelta() <= options.width)
-          line_output.set_contents(line_output.contents() +
-                                   LazyString{std::wstring(1, c)});
+          line_output.set_contents(
+              // TODO(trivial, 2024-09-10): Get rid of wrapper SingleLine:
+              SingleLine{line_output.contents()} +
+              SingleLine{LazyString{ColumnNumberDelta{1}, c}});
     }
   }
 

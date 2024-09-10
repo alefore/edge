@@ -31,10 +31,11 @@ namespace afc::language::text {
 
 using ::operator<<;
 
-Line::Line(LazyString contents)
-    : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
+Line::Line(LazyString contents) : Line(SingleLine{std::move(contents)}) {}
+
 Line::Line(SingleLine contents)
-    : Line(Data{.contents = std::move(contents).read(), .metadata = {}}) {}
+    : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
+
 Line::Line(std::wstring contents) : Line(LazyString{std::move(contents)}) {}
 
 Line::Line(const Line& line)
@@ -58,7 +59,7 @@ size_t Line::ComputeHash(const Line::Data& data) {
           }));
 }
 
-LazyString Line::contents() const { return data_->contents; }
+LazyString Line::contents() const { return data_->contents.read(); }
 
 ColumnNumber Line::EndColumn() const {
   return ColumnNumber(0) + data_->contents.size();
@@ -68,7 +69,7 @@ bool Line::empty() const { return EndColumn().IsZero(); }
 
 wint_t Line::get(ColumnNumber column) const {
   CHECK_LT(column, EndColumn());
-  return data_->contents.get(column);
+  return data_->contents.read().get(column);
 }
 
 LazyString Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {

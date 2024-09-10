@@ -20,6 +20,7 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::language::text {
 
@@ -162,12 +163,12 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
                                const LineModifierSet& c_modifiers) {
   ValidateInvariants();
   VLOG(4) << "Start SetCharacter: " << column;
-  auto str = LazyString{std::wstring(1, c)};
+  SingleLine str{LazyString{ColumnNumberDelta{1}, c}};
   if (column >= EndColumn()) {
     column = EndColumn();
     data_.contents = std::move(data_.contents).Append(std::move(str));
   } else {
-    LazyString suffix = data_.contents.Substring(column + ColumnNumberDelta(1));
+    SingleLine suffix = data_.contents.Substring(column + ColumnNumberDelta(1));
     data_.contents = std::move(data_.contents)
                          .Substring(ColumnNumber(0), column.ToDelta())
                          .Append(std::move(str))
@@ -296,7 +297,7 @@ const bool line_set_character_tests_registration = tests::Register(
 void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
   set_contents(data_.contents.Substring(ColumnNumber(0), column.ToDelta()) +
-               LazyString{L" "} + data_.contents.Substring(column));
+               SingleLine{LazyString{L" "}} + data_.contents.Substring(column));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : data_.modifiers) {
@@ -313,7 +314,8 @@ void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(!modifier.contains(LineModifier::kReset));
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
-  data_.contents = std::move(data_.contents) + LazyString{std::wstring(1, c)};
+  data_.contents = std::move(data_.contents) +
+                   SingleLine{LazyString{ColumnNumberDelta{1}, c}};
   SetMetadata({});
   ValidateInvariants();
 }
@@ -478,9 +480,9 @@ void LineBuilder::set_modifiers(
 
 void LineBuilder::ClearModifiers() { data_.modifiers.clear(); }
 
-LazyString LineBuilder::contents() const { return data_.contents; }
+LazyString LineBuilder::contents() const { return data_.contents.read(); }
 
-void LineBuilder::set_contents(LazyString value) {
+void LineBuilder::set_contents(SingleLine value) {
   data_.contents = std::move(value);
 }
 

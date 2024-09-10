@@ -11,7 +11,12 @@ struct SingleLineValidator {
 };
 
 class SingleLine
-    : public GhostType<SingleLine, LazyString, SingleLineValidator> {};
+    : public GhostType<SingleLine, LazyString, SingleLineValidator> {
+ public:
+  SingleLine Substring(ColumnNumber) const;
+  SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
+  SingleLine Append(SingleLine) const;
+};
 
 SingleLine operator+(const SingleLine& a, const SingleLine& b);
 }  // namespace afc::language::lazy_string
