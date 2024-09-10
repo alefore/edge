@@ -130,7 +130,8 @@ LineWithCursor LineWithCursor::View(
   for (ColumnNumber output_column;
        input_column <= input_end && output_column.ToDelta() < options.width;
        ++input_column) {
-    wint_t c = input_column < input_end ? options.line.get(input_column) : L' ';
+    wchar_t c =
+        input_column < input_end ? options.line.get(input_column) : L' ';
     CHECK(c != '\n');
 
     ColumnNumber current_position =
@@ -188,7 +189,6 @@ LineWithCursor LineWithCursor::View(
       }
 
       default:
-        VLOG(8) << "Print character: " << c;
         output_column += ColumnNumberDelta(wcwidth(c));
         if (output_column.ToDelta() <= options.width)
           line_output.set_contents(

@@ -480,7 +480,7 @@ void LineBuilder::set_modifiers(
 
 void LineBuilder::ClearModifiers() { data_.modifiers.clear(); }
 
-LazyString LineBuilder::contents() const { return data_.contents.read(); }
+SingleLine LineBuilder::contents() const { return data_.contents; }
 
 void LineBuilder::set_contents(SingleLine value) {
   data_.contents = std::move(value);
