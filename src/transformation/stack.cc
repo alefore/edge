@@ -133,7 +133,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
 template <typename Iterator>
 futures::Value<EmptyValue> ApplyStackDirectly(
     Iterator begin, Iterator end, Input& input,
-    NonNull<std::shared_ptr<Log>> trace, std::shared_ptr<Result> output) {
+    NonNull<std::shared_ptr<Log>> trace,
+    NonNull<std::shared_ptr<Result>> output) {
   return futures::ForEach(
              begin, end,
              [output, &input,
@@ -313,8 +314,9 @@ const bool analyze_content_tests_registration = tests::Register(
 }  // namespace
 
 futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
-  auto output = std::make_shared<Result>(input.position);
-  auto copy = std::make_shared<Stack>(parameters);
+  NonNull<std::shared_ptr<Result>> output =
+      MakeNonNullShared<Result>(input.position);
+  NonNull<std::shared_ptr<Stack>> copy = MakeNonNullShared<Stack>(parameters);
   NonNull<std::shared_ptr<Log>> trace =
       input.buffer.log().NewChild(LazyString{L"ApplyBase(Stack)"});
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
@@ -349,7 +351,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                                 analyze_content_lines_limit)))))
                             .Build());
                   }
-                  return futures::Past(std::move(*output));
+                  return futures::Past(std::move(output.value()));
                 });
           }
           case Stack::PostTransformationBehavior::kDeleteRegion:
@@ -400,7 +402,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                          buffer_variables::path)}},
                     .existing_buffer_behavior =
                         ForkCommandOptions::ExistingBufferBehavior::kIgnore});
-            return futures::Past(std::move(*output));
+            return futures::Past(std::move(output.value()));
           }
           case Stack::PostTransformationBehavior::kCommandCpp:
             return HandleCommandCpp(std::move(input), delete_transformation);
@@ -430,12 +432,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                       output)
                 .Transform([output, final_position](EmptyValue) {
                   output->position = final_position;
-                  return std::move(*output);
+                  return std::move(output.value());
                 });
           }
           case Stack::PostTransformationBehavior::kCursorOnEachLine: {
             if (input.mode == Input::Mode::kPreview) {
-              return futures::Past(std::move(*output));
+              return futures::Past(std::move(output.value()));
             }
             struct Cursors cursors {
               .cursors = {},
@@ -449,7 +451,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           }
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
-        return futures::Past(std::move(*output));
+        return futures::Past(std::move(output.value()));
       });
 }
 
