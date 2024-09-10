@@ -415,7 +415,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                             std::min(LineNumber(std::max(line_input, 0)),
                                      LineNumber(0) + buffer->lines_size() -
                                          LineNumberDelta(1));
-                        return buffer->contents().at(line).ToString();
+                        return buffer->contents().at(line).contents();
                       })
           .ptr());
 
