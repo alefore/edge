@@ -40,6 +40,8 @@ src/buffer_subtypes.cc \
 src/buffer_subtypes.h \
 src/buffer_syntax_parser.cc \
 src/buffer_syntax_parser.h \
+src/buffer_transformation_adapter.cc \
+src/buffer_transformation_adapter.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/buffer_vm.cc \

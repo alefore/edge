@@ -22,6 +22,7 @@ extern "C" {
 
 #include "src/buffer_contents_util.h"
 #include "src/buffer_registry.h"
+#include "src/buffer_transformation_adapter.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
 #include "src/editor.h"
@@ -275,50 +276,6 @@ using namespace afc::vm;
   output.ptr()->Initialize(output.ptr());
   return output;
 }
-
-class TransformationInputAdapterImpl : public transformation::Input::Adapter {
- public:
-  TransformationInputAdapterImpl(OpenBuffer& buffer) : buffer_(buffer) {}
-
-  const LineSequence contents() const override {
-    return buffer_.contents().snapshot();
-  }
-
-  void SetActiveCursors(std::vector<LineColumn> positions) override {
-    buffer_.set_active_cursors(std::move(positions));
-  }
-
-  LineColumn InsertInPosition(
-      const LineSequence& contents_to_insert, const LineColumn& input_position,
-      const std::optional<LineModifierSet>& modifiers) override {
-    return buffer_.InsertInPosition(contents_to_insert, input_position,
-                                    modifiers);
-  }
-
-  void AddError(Error error) override {
-    buffer_.status().SetInformationText(Line(error.read()));
-  }
-
-  void AddFragment(LineSequence fragment) override {
-    gc::Root<OpenBuffer> fragments_buffer =
-        buffer_.editor().buffer_registry().MaybeAdd(
-            FragmentsBuffer{}, [&editor = buffer_.editor()] {
-              return OpenBuffer::New(
-                  {.editor = editor, .name = FragmentsBuffer{}});
-            });
-    fragments_buffer.ptr()->WaitForEndOfFile().Transform(
-        [fragments_buffer, fragment](EmptyValue) {
-          fragments_buffer.ptr()->AppendLine(vm::EscapedMap{
-              std::multimap<Identifier, LazyString>{
-                  {Identifier{LazyString{L"fragment:"}},
-                   fragment.ToLazyString()}}}.Serialize());
-          return futures::Past(EmptyValue{});
-        });
-  }
-
- private:
-  OpenBuffer& buffer_;
-};
 
 class OpenBufferMutableLineSequenceObserver
     : public MutableLineSequenceObserver {
