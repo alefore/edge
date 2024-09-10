@@ -176,6 +176,8 @@ src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
 src/language/lazy_string/lowercase.cc \
 src/language/lazy_string/lowercase.h \
+src/language/lazy_string/single_line.cc \
+src/language/lazy_string/single_line.h \
 src/language/lazy_string/tokenize.cc \
 src/language/lazy_string/tokenize.h \
 src/language/lazy_string/tokenize_test.cc \
