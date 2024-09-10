@@ -21,9 +21,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
           [] {
             auto value = TokenizeBySpaces(LazyString{L"alejandro"});
             CHECK_EQ(value.size(), 1ul);
-            // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
-            // the operator<<?
-            CHECK(value[0].value == LazyString{L"alejandro"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(0));
             CHECK_EQ(value[0].end, ColumnNumber(9));
           }},
@@ -34,15 +32,15 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
                 TokenizeBySpaces(LazyString{L"alejandro forero cuervo"});
             CHECK_EQ(value.size(), 3ul);
 
-            CHECK(value[0].value == LazyString{L"alejandro"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(0));
             CHECK_EQ(value[0].end, ColumnNumber(9));
 
-            CHECK(value[1].value == LazyString{L"forero"});
+            CHECK_EQ(value[1].value, LazyString{L"forero"});
             CHECK_EQ(value[1].begin, ColumnNumber(10));
             CHECK_EQ(value[1].end, ColumnNumber(16));
 
-            CHECK(value[2].value == LazyString{L"cuervo"});
+            CHECK_EQ(value[2].value, LazyString{L"cuervo"});
             CHECK_EQ(value[2].begin, ColumnNumber(17));
             CHECK_EQ(value[2].end, ColumnNumber(23));
           }},
@@ -51,7 +49,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
           [] {
             auto value = TokenizeBySpaces(LazyString{L"  alejandro  "});
             CHECK_EQ(value.size(), 1ul);
-            CHECK(value[0].value == LazyString{L"alejandro"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(2));
             CHECK_EQ(value[0].end, ColumnNumber(11));
           }},
@@ -62,15 +60,15 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
                 LazyString{L"  alejandro   forero   cuervo   "});
             CHECK_EQ(value.size(), 3ul);
 
-            CHECK(value[0].value == LazyString{L"alejandro"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(2));
             CHECK_EQ(value[0].end, ColumnNumber(11));
 
-            CHECK(value[1].value == LazyString{L"forero"});
+            CHECK_EQ(value[1].value, LazyString{L"forero"});
             CHECK_EQ(value[1].begin, ColumnNumber(14));
             CHECK_EQ(value[1].end, ColumnNumber(20));
 
-            CHECK(value[2].value == LazyString{L"cuervo"});
+            CHECK_EQ(value[2].value, LazyString{L"cuervo"});
             CHECK_EQ(value[2].begin, ColumnNumber(23));
             CHECK_EQ(value[2].end, ColumnNumber(29));
           }},
@@ -80,7 +78,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
             auto value = TokenizeBySpaces(LazyString{L"\"alejandro\""});
             CHECK_EQ(value.size(), 1ul);
 
-            CHECK(value[0].value == LazyString{L"alejandro"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(0));
             CHECK_EQ(value[0].end, ColumnNumber(11));
           }},
@@ -90,7 +88,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
             auto value = TokenizeBySpaces(LazyString{L"  \"alejandro\"  "});
             CHECK_EQ(value.size(), 1ul);
 
-            CHECK(value[0].value == LazyString{L"alejandro"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(2));
             CHECK_EQ(value[0].end, ColumnNumber(13));
           }},
@@ -101,7 +99,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
                 TokenizeBySpaces(LazyString{L"\"alejandro forero cuervo\""});
             CHECK_EQ(value.size(), 1ul);
 
-            CHECK(value[0].value == LazyString{L"alejandro forero cuervo"});
+            CHECK_EQ(value[0].value, LazyString{L"alejandro forero cuervo"});
             CHECK_EQ(value[0].begin, ColumnNumber(0));
             CHECK_EQ(value[0].end, ColumnNumber(25));
           }},
@@ -112,15 +110,15 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
                 LazyString{L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo"});
             CHECK_EQ(value.size(), 3ul);
 
-            CHECK(value[0].value == LazyString{L"a l e j a n d r o"});
+            CHECK_EQ(value[0].value, LazyString{L"a l e j a n d r o"});
             CHECK_EQ(value[0].begin, ColumnNumber(0));
             CHECK_EQ(value[0].end, ColumnNumber(19));
 
-            CHECK(value[1].value == LazyString{L"f o r e r o"});
+            CHECK_EQ(value[1].value, LazyString{L"f o r e r o"});
             CHECK_EQ(value[1].begin, ColumnNumber(22));
             CHECK_EQ(value[1].end, ColumnNumber(35));
 
-            CHECK(value[2].value == LazyString{L"cuervo"});
+            CHECK_EQ(value[2].value, LazyString{L"cuervo"});
             CHECK_EQ(value[2].begin, ColumnNumber(36));
             CHECK_EQ(value[2].end, ColumnNumber(42));
           }},
@@ -128,11 +126,11 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
         auto value = TokenizeBySpaces(LazyString{L"alejandro for\"ero"});
         CHECK_EQ(value.size(), 2ul);
 
-        CHECK(value[0].value == LazyString{L"alejandro"});
+        CHECK_EQ(value[0].value, LazyString{L"alejandro"});
         CHECK_EQ(value[0].begin, ColumnNumber(0));
         CHECK_EQ(value[0].end, ColumnNumber(9));
 
-        CHECK(value[1].value == LazyString{L"forero"});
+        CHECK_EQ(value[1].value, LazyString{L"forero"});
         CHECK_EQ(value[1].begin, ColumnNumber(10));
         CHECK_EQ(value[1].end, ColumnNumber(17));
       }}});
