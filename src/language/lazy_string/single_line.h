@@ -12,6 +12,8 @@ struct SingleLineValidator {
 
 class SingleLine
     : public GhostType<SingleLine, LazyString, SingleLineValidator> {};
+
+SingleLine operator+(const SingleLine& a, const SingleLine& b);
 }  // namespace afc::language::lazy_string
 
 #endif

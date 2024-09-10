@@ -15,6 +15,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 
@@ -38,7 +39,9 @@ class Line {
  public:
   Line() : Line(Line::Data{}) {}
 
+  // TODO(2024-01-24): Get rid of this function.
   explicit Line(language::lazy_string::LazyString text);
+  explicit Line(language::lazy_string::SingleLine text);
   // TODO(2024-01-24): Get rid of this function.
   explicit Line(std::wstring text);
 

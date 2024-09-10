@@ -10,4 +10,8 @@ namespace afc::language::lazy_string {
     return Error{LazyString{L"SingleLine contained newline character."}};
   return EmptyValue{};
 }
+
+SingleLine operator+(const SingleLine& a, const SingleLine& b) {
+  return SingleLine{a.read() + b.read()};
+}
 }  // namespace afc::language::lazy_string

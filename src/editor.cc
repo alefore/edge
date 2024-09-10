@@ -79,6 +79,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -843,22 +844,22 @@ void EditorState::PushPosition(LineColumn position) {
                     });
 
       std::move(future_positions_buffer)
-          .Transform(
-              [line_to_insert =
-                   Line(LazyString{position.ToString()} + LazyString{L" "} +
-                        buffer->ptr()->ReadLazyString(buffer_variables::name))](
-                  gc::Root<OpenBuffer> positions_buffer_root) {
-                OpenBuffer& positions_buffer =
-                    positions_buffer_root.ptr().value();
-                positions_buffer.CheckPosition();
-                CHECK_LE(positions_buffer.position().line,
-                         LineNumber(0) + positions_buffer.contents().size());
-                positions_buffer.InsertLine(
-                    positions_buffer.current_position_line(), line_to_insert);
-                CHECK_LE(positions_buffer.position().line,
-                         LineNumber(0) + positions_buffer.contents().size());
-                return Success();
-              });
+          .Transform([line_to_insert =
+                          Line(SingleLine{LazyString{position.ToString()}} +
+                               SingleLine{LazyString{L" "}} +
+                               SingleLine{buffer->ptr()->ReadLazyString(
+                                   buffer_variables::name)})](
+                         gc::Root<OpenBuffer> positions_buffer_root) {
+            OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
+            positions_buffer.CheckPosition();
+            CHECK_LE(positions_buffer.position().line,
+                     LineNumber(0) + positions_buffer.contents().size());
+            positions_buffer.InsertLine(
+                positions_buffer.current_position_line(), line_to_insert);
+            CHECK_LE(positions_buffer.position().line,
+                     LineNumber(0) + positions_buffer.contents().size());
+            return Success();
+          });
   }
 }
 

@@ -14,25 +14,27 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::compute_hash;
+using afc::language::Error;
+using afc::language::MakeHashableIteratorRange;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+
 namespace afc::language::text {
-namespace lazy_string = language::lazy_string;
 
 using ::operator<<;
 
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::compute_hash;
-using language::Error;
-using language::MakeHashableIteratorRange;
-using language::MakeNonNullShared;
-using language::NonNull;
-using lazy_string::ColumnNumber;
-using lazy_string::ColumnNumberDelta;
-using lazy_string::LazyString;
-
 Line::Line(LazyString contents)
     : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
+Line::Line(SingleLine contents)
+    : Line(Data{.contents = std::move(contents).read(), .metadata = {}}) {}
 Line::Line(std::wstring contents) : Line(LazyString{std::move(contents)}) {}
 
 Line::Line(const Line& line)
@@ -85,14 +87,13 @@ LazyString LineMetadataEntry::get_value() const {
   return value.get_copy().value_or(initial_value);
 }
 
-const std::map<language::lazy_string::ColumnNumber,
-               afc::infrastructure::screen::LineModifierSet>&
+const std::map<ColumnNumber, afc::infrastructure::screen::LineModifierSet>&
 Line::modifiers() const {
   return data_->modifiers;
 }
 
 afc::infrastructure::screen::LineModifierSet Line::modifiers_at_position(
-    language::lazy_string::ColumnNumber column) const {
+    ColumnNumber column) const {
   if (data_->modifiers.empty()) return LineModifierSet{};
   auto bound = data_->modifiers.lower_bound(column);
   if (bound != data_->modifiers.end() && bound->first == column)
@@ -151,7 +152,6 @@ std::ostream& operator<<(std::ostream& os, const Line& line) {
 namespace std {
 std::size_t hash<afc::language::text::LineMetadataEntry>::operator()(
     const afc::language::text::LineMetadataEntry& m) const {
-  return std::hash<afc::language::lazy_string::LazyString>{}(
-      m.value.get_copy().value_or(m.initial_value));
+  return std::hash<LazyString>{}(m.value.get_copy().value_or(m.initial_value));
 }
 }  // namespace std
