@@ -269,6 +269,12 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value < other.value;
   }
 
+  inline External& operator+=(
+      const GhostType<External, Internal, Validator>& other) {
+    value += other.value;
+    return *static_cast<External*>(this);
+  }
+
   template <typename T>
   auto operator/(const T& other) const {
     return External::New(value / other);
