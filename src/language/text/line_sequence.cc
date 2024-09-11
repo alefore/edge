@@ -27,6 +27,24 @@ namespace afc::language::text {
 
 using ::operator<<;
 
+/* static */ LineSequence LineSequence::BreakLines(LazyString input) {
+  Lines::Ptr output = nullptr;
+  ColumnNumber start;
+  for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
+    wchar_t c = input.get(i);
+    CHECK_GE(i, start);
+    if (c == '\n') {
+      output =
+          Lines::PushBack(std::move(output),
+                          Line{SingleLine{input.Substring(start, i - start)}})
+              .get_shared();
+      start = i + ColumnNumberDelta(1);
+    }
+  }
+  return LineSequence(Lines::PushBack(
+      std::move(output), Line{SingleLine{LazyString{input.Substring(start)}}}));
+}
+
 LineSequence::LineSequence(LineSequenceIterator a, LineSequenceIterator b)
     : LineSequence(std::invoke([&] {
         Lines::Ptr output = nullptr;

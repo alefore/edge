@@ -38,6 +38,7 @@ class LineSequence {
   LineSequence(LineSequenceIterator a, LineSequenceIterator b);
   static LineSequence ForTests(std::vector<std::wstring> inputs);
   static LineSequence WithLine(Line line);
+  static LineSequence BreakLines(lazy_string::LazyString);
 
   // Returns a new LineSequence that contains a subset of the current one.
   LineSequence ViewRange(language::text::Range range) const;
