@@ -50,9 +50,14 @@ static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
 class CppTreeParser : public parsers::LineOrientedTreeParser {
+  const NonNull<std::unique_ptr<TreeParser>> words_parser_;
+  const std::unordered_set<SingleLine> keywords_;
+  const std::unordered_set<SingleLine> typos_;
+  const IdentifierBehavior identifier_behavior_;
+
  public:
-  CppTreeParser(std::unordered_set<LazyString> keywords,
-                std::unordered_set<LazyString> typos,
+  CppTreeParser(std::unordered_set<SingleLine> keywords,
+                std::unordered_set<SingleLine> typos,
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"},
@@ -210,9 +215,9 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                          .contents()
                          .Substring(original_position.column, length);
     LineModifierSet modifiers;
-    if (keywords_.find(str.read()) != keywords_.end()) {
+    if (keywords_.contains(str)) {
       modifiers.insert(LineModifier::kCyan);
-    } else if (typos_.find(str.read()) != typos_.end()) {
+    } else if (typos_.contains(str)) {
       modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
@@ -307,18 +312,13 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     }
     return output;
   }
-
-  const NonNull<std::unique_ptr<TreeParser>> words_parser_;
-  const std::unordered_set<LazyString> keywords_;
-  const std::unordered_set<LazyString> typos_;
-  const IdentifierBehavior identifier_behavior_;
 };
 
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
-    std::unordered_set<LazyString> keywords,
-    std::unordered_set<LazyString> typos,
+    std::unordered_set<SingleLine> keywords,
+    std::unordered_set<SingleLine> typos,
     IdentifierBehavior identifier_behavior) {
   return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),
                                           identifier_behavior);

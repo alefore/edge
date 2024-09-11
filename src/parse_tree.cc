@@ -288,12 +288,12 @@ class NullTreeParser : public TreeParser {
 
 class WordsTreeParser : public TreeParser {
   const std::unordered_set<wchar_t> symbol_characters_;
-  const std::unordered_set<LazyString> typos_;
+  const std::unordered_set<SingleLine> typos_;
   const NonNull<std::unique_ptr<TreeParser>> delegate_;
 
  public:
   WordsTreeParser(LazyString symbol_characters,
-                  std::unordered_set<LazyString> typos,
+                  std::unordered_set<SingleLine> typos,
                   NonNull<std::unique_ptr<TreeParser>> delegate)
       : symbol_characters_(
             container::MaterializeUnorderedSet(symbol_characters)),
@@ -323,9 +323,7 @@ class WordsTreeParser : public TreeParser {
             contents.contents().Substring(begin, column - begin);
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
-        // TODO(trivial, 2024-09-10): Avoid the need to call `read`.
-        if (typos_.contains(keyword.read()))
-          child.InsertModifier(LineModifier::kRed);
+        if (typos_.contains(keyword)) child.InsertModifier(LineModifier::kRed);
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));
       }
@@ -375,7 +373,7 @@ NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
 }
 
 NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
-    LazyString symbol_characters, std::unordered_set<LazyString> typos,
+    LazyString symbol_characters, std::unordered_set<SingleLine> typos,
     NonNull<std::unique_ptr<TreeParser>> delegate) {
   return MakeNonNullUnique<WordsTreeParser>(
       std::move(symbol_characters), std::move(typos), std::move(delegate));

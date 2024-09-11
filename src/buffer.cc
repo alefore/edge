@@ -671,11 +671,15 @@ void OpenBuffer::UpdateTreeParser() {
                 ParserId{ReadLazyString(buffer_variables::tree_parser)},
             .typos_set = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(ReadLazyString(buffer_variables::typos)) |
-                std::views::transform(&Token::value)),
+                std::views::transform(&Token::value) |
+                std::views::transform(
+                    [](LazyString i) { return SingleLine{i}; })),
             .language_keywords = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(
                     ReadLazyString(buffer_variables::language_keywords)) |
-                std::views::transform(&Token::value)),
+                std::views::transform(&Token::value) |
+                std::views::transform(
+                    [](LazyString i) { return SingleLine{i}; })),
             .symbol_characters =
                 ReadLazyString(buffer_variables::symbol_characters),
             .identifier_behavior =
