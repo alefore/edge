@@ -138,8 +138,8 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
   return a.matches == b.matches && a.search_completion == b.search_completion;
 }
 
-std::wstring RegexEscape(SingleLine str) {
-  std::wstring results;
+SingleLine RegexEscape(SingleLine str) {
+  SingleLine results;
   // TODO(easy, 2024-09-10): Define as an std::unordered_set, to make lookups
   // faster?
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
@@ -147,17 +147,16 @@ std::wstring RegexEscape(SingleLine str) {
   // directly.
   ForEachColumn(str.read(), [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == std::wstring::npos) {
-      results.push_back('\\');
+      results += SingleLine{LazyString{L"\\"}};
     }
-    results.push_back(c);
+    results += SingleLine{LazyString{ColumnNumberDelta(1), c}};
   });
   return results;
 }
 
-// TODO(trivial, 2024-09-11): Change `matches` to contain SingleLine.
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
                              size_t required_positions,
-                             std::set<std::wstring>& matches) {
+                             std::set<SingleLine>& matches) {
   ASSIGN_OR_RETURN(std::vector<LineColumn> positions,
                    buffer.status().LogErrors(SearchHandler(
                        input.editor.modifiers().direction,
@@ -169,7 +168,7 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
   if (!positions.empty()) buffer.set_position(positions[0]);
   std::ranges::copy(
       positions | std::views::take(required_positions) |
-          std::views::transform([&](LineColumn& position) -> std::wstring {
+          std::views::transform([&](LineColumn& position) -> SingleLine {
             CHECK_LT(position.line, buffer.EndLine());
             std::optional<Line> line = buffer.LineAt(position.line);
             CHECK(line.has_value());
@@ -184,15 +183,14 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   // TODO(2023-10-08, easy): This whole function could probably be optimized. We
   // could probably add matches directly to the sorted contents; or, at least,
   // build the sorted contents from matches directly.
-  std::set<std::wstring> matches;
+  std::set<SingleLine> matches;
   static constexpr int kMatchesLimit = 100;
   for (OpenBuffer& search_buffer : input.source_buffers | gc::view::Value)
     SearchInBuffer(input, search_buffer, kMatchesLimit, matches);
   MutableLineSequence output_contents;
   std::ranges::copy(
-      std::move(matches) | std::views::transform([](std::wstring match) {
-        return Line{SingleLine{LazyString{match}}};
-      }),
+      std::move(matches) |
+          std::views::transform([](SingleLine match) { return Line{match}; }),
       std::back_inserter(output_contents));
   output_contents.MaybeEraseEmptyFirstLine();
   TRACK_OPERATION(SearchHandlerPredictor_sort);
