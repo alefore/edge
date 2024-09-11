@@ -283,19 +283,7 @@ void MutableLineSequence::FoldNextLine(LineNumber position) {
 }
 
 void MutableLineSequence::push_back(std::wstring str) {
-  ColumnNumber start;
-  for (ColumnNumber i; i < ColumnNumber(str.size()); ++i) {
-    wchar_t c = str[i.read()];
-    CHECK_GE(i, start);
-    if (c == '\n') {
-      // TODO(easy, 2024-09-11): Change push_back to receive a LazyString
-      // directly. Rename it to something that indicates that this breaks lines.
-      push_back(Line{SingleLine{
-          LazyString{str.substr(start.read(), (i - start).read())}}});
-      start = i + ColumnNumberDelta(1);
-    }
-  }
-  push_back(Line{SingleLine{LazyString{str.substr(start.read())}}});
+  append_back(LineSequence::BreakLines(LazyString{str}));
 }
 
 namespace {
