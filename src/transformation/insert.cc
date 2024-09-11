@@ -132,25 +132,21 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
       Identifier{LazyString{L"set_text"}},
       vm::NewCallback(
           pool, vm::PurityType{.writes_external_outputs = true},
-          [](NonNull<std::shared_ptr<Insert>> options, std::wstring text) {
+          [](NonNull<std::shared_ptr<Insert>> options, LazyString text) {
             MutableLineSequence output;
             ColumnNumber line_start;
-            for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
-                 ++i) {
-              if (text[i.read()] == L'\n') {
+            for (ColumnNumber i; i.ToDelta() < text.size(); ++i) {
+              if (text.get(i) == L'\n') {
                 VLOG(8) << "Adding line from " << line_start << " to " << i;
-                // TODO(trivial, 2024-09-11): Receive text as a LazyString.
                 // TODO(trivial, 2024-09-11): Move the break-line functionality
                 // into MutableLineSequence. I actually think ... it's already
                 // there (in push_back(std::wstring)).
-                output.push_back(Line{SingleLine{LazyString{
-                    text.substr(line_start.read(),
-                                (ColumnNumber(i) - line_start).read())}}});
+                output.push_back(Line{
+                    SingleLine{text.Substring(line_start, i - line_start)}});
                 line_start = ColumnNumber(i) + ColumnNumberDelta(1);
               }
             }
-            output.push_back(
-                Line{SingleLine{LazyString{text.substr(line_start.read())}}});
+            output.push_back(Line{SingleLine{text.Substring(line_start)}});
             output.EraseLines(LineNumber(), LineNumber(1),
                               MutableLineSequence::ObserverBehavior::kHide);
             options->contents_to_insert = output.snapshot();
