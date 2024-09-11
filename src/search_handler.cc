@@ -16,6 +16,7 @@
 
 namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
+namespace container = afc::language::container;
 
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
@@ -140,15 +141,14 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
 
 SingleLine RegexEscape(SingleLine str) {
   SingleLine results;
-  // TODO(easy, 2024-09-10): Define as an std::unordered_set, to make lookups
-  // faster?
-  static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
+  static const std::unordered_set<wchar_t> literal_characters =
+      container::MaterializeUnorderedSet(std::wstring{L" ()<>{}+_-;\"':,?#%"});
+
   // TODO(easy, 2024-09-10): Define ForEachColumn for SingleLine and use it
   // directly.
   ForEachColumn(str.read(), [&](ColumnNumber, wchar_t c) {
-    if (!iswalnum(c) && literal_characters.find(c) == std::wstring::npos) {
+    if (!iswalnum(c) && literal_characters.contains(c))
       results += SingleLine{LazyString{L"\\"}};
-    }
     results += SingleLine{LazyString{ColumnNumberDelta(1), c}};
   });
   return results;
