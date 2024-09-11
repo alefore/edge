@@ -1914,9 +1914,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     LazyString line = GetCurrentToken(
         {.contents = buffer.contents().snapshot(),
          .line_column = adjusted_position,
-         // TODO(trivial, 2024-09-11): Avoid call to ToString():
-         .token_characters =
-             buffer.Read(buffer_variables::path_characters).ToString()});
+         .token_characters = language::container::MaterializeUnorderedSet(
+             buffer.Read(buffer_variables::path_characters))});
 
     if (FindLastNotOf(line, {L'/', L'.', L':'}) == std::nullopt) {
       // If there are only slashes, colons or dots, it's probably not very
