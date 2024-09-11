@@ -152,7 +152,10 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
     --value_end;
     DECLARE_OR_RETURN(Identifier id, Identifier::New(token.value.Substring(
                                          ColumnNumber{0}, colon->ToDelta())));
-    output.insert({id, input.Substring(value_start, value_end - value_start)});
+    DECLARE_OR_RETURN(EscapedString parsed_value,
+                      EscapedString::Parse(input.Substring(
+                          value_start, value_end - value_start)));
+    output.insert({id, parsed_value.OriginalString()});
   }
 
   return EscapedMap{output};

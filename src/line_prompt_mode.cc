@@ -409,57 +409,39 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
       return !abort_value.has_value();
     }
 
-    std::visit(
-        overload{
-            [range](Error error) {
-              LOG(INFO) << AugmentError(
-                  LazyString{L"Unescaping string: "} + range.first->second,
-                  error);
-            },
-            [&](vm::EscapedString cpp_string) {
-              VLOG(8) << "Considering history value: "
-                      << cpp_string.EscapedRepresentation();
-              LazyString prompt_value = cpp_string.OriginalString();
-              if (FindFirstColumnWithPredicate(prompt_value, [](ColumnNumber,
-                                                                wchar_t c) {
-                    return c == L'\n';
-                  }).has_value()) {
-                VLOG(5) << "Ignoring value that contains a new line character.";
-                return;
-              }
-              std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-                  prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-              // TODO(easy, 2022-11-26): Get rid of call ToString.
-              math::naive_bayes::Event event_key(
-                  cpp_string.OriginalString().ToString());
-              std::vector<math::naive_bayes::FeaturesSet>* features_output =
-                  nullptr;
-              if (filter_tokens.empty()) {
-                VLOG(6) << "Accepting value (empty filters): "
-                        << line.contents();
-                features_output = &history_data[event_key];
-              } else if (auto match =
-                             FindFilterPositions(filter_tokens, line_tokens);
-                         match.has_value()) {
-                VLOG(5) << "Accepting value, produced a match: "
-                        << line.contents();
-                features_output = &history_data[event_key];
-                history_prompt_tokens.insert(
-                    {event_key, std::move(match.value())});
-              } else {
-                VLOG(6) << "Ignoring value, no match: " << line.contents();
-                return;
-              }
-              math::naive_bayes::FeaturesSet current_features;
-              // TODO(easy, 2024-09-10): Get rid of call ToString.
-              for (auto& [key, value] : *line_keys)
-                if (key != kIdentifierPrompt)
-                  current_features.insert(math::naive_bayes::Feature(
-                      key.read().ToString() + L":" +
-                      QuoteString(value).ToString()));
-              features_output->push_back(std::move(current_features));
-            }},
-        vm::EscapedString::Parse(range.first->second));
+    LazyString prompt_value = range.first->second;
+    VLOG(8) << "Considering history value: " << prompt_value;
+    if (FindFirstColumnWithPredicate(prompt_value, [](ColumnNumber, wchar_t c) {
+          return c == L'\n';
+        }).has_value()) {
+      VLOG(5) << "Ignoring value that contains a new line character.";
+      return true;
+    }
+    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+        prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+    // TODO(easy, 2022-11-26): Get rid of call ToString.
+    math::naive_bayes::Event event_key(prompt_value.ToString());
+    std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
+    if (filter_tokens.empty()) {
+      VLOG(6) << "Accepting value (empty filters): " << line.contents();
+      features_output = &history_data[event_key];
+    } else if (auto match = FindFilterPositions(filter_tokens, line_tokens);
+               match.has_value()) {
+      VLOG(5) << "Accepting value, produced a match: " << line.contents();
+      features_output = &history_data[event_key];
+      history_prompt_tokens.insert({event_key, std::move(match.value())});
+    } else {
+      VLOG(6) << "Ignoring value, no match: " << line.contents();
+      return true;
+    }
+    math::naive_bayes::FeaturesSet current_features;
+    // TODO(easy, 2024-09-10): Get rid of call ToString.
+    for (auto& [key, value] : *line_keys)
+      if (key != kIdentifierPrompt)
+        current_features.insert(math::naive_bayes::Feature(
+            key.read().ToString() + L":" + QuoteString(value).ToString()));
+    features_output->push_back(std::move(current_features));
+
     return !abort_value.has_value();
   });
 
