@@ -29,7 +29,6 @@ struct Input {
             modifiers) = 0;
     virtual void AddError(language::Error) = 0;
     virtual void AddFragment(language::text::LineSequence contents) = 0;
-    virtual futures::Value<language::text::LineSequence> FindFragment() = 0;
   };
 
   explicit Input(Adapter& adapter, editor::OpenBuffer& input_buffer);

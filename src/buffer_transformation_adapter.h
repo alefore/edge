@@ -9,6 +9,7 @@
 
 namespace afc::editor {
 class OpenBuffer;
+class EditorState;
 class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   OpenBuffer& buffer_;
 
@@ -29,7 +30,9 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   void AddError(language::Error error) override;
 
   void AddFragment(language::text::LineSequence fragment) override;
-  futures::Value<language::text::LineSequence> FindFragment() override;
+
+  static futures::Value<language::text::LineSequence> FindFragment(
+      EditorState&);
 };
 }  // namespace afc::editor
 

@@ -95,9 +95,11 @@ void TransformationInputAdapterImpl::AddFragment(LineSequence fragment) {
       });
 }
 
-futures::Value<LineSequence> TransformationInputAdapterImpl::FindFragment() {
-  return GetFragmentsBuffer(buffer_.editor())
-      .Transform([](gc::Root<OpenBuffer> fragments_buffer) {
+/* static */
+futures::Value<LineSequence> TransformationInputAdapterImpl::FindFragment(
+    EditorState& editor) {
+  return GetFragmentsBuffer(editor).Transform(
+      [](gc::Root<OpenBuffer> fragments_buffer) {
         return std::visit(
             overload{// TODO(trivial, 2024-09-10): Don't ignore the error.
                      [](Error) { return LineSequence{}; },

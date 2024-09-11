@@ -4,6 +4,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_registry.h"
+#include "src/buffer_transformation_adapter.h"
 #include "src/editor.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
@@ -15,6 +16,7 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
+using afc::language::text::LineSequence;
 
 namespace afc::editor::transformation {
 
@@ -24,13 +26,12 @@ std::wstring Paste::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> Paste::Apply(
     CompositeTransformation::Input input) const {
-  return VisitOptional(
-      [&](gc::Root<OpenBuffer> paste_buffer) {
-        DVLOG(6) << "Inserting: "
-                 << paste_buffer.ptr()->contents().snapshot().ToLazyString();
+  return TransformationInputAdapterImpl::FindFragment(input.editor)
+      .Transform([input](LineSequence paste_data) {
+        DVLOG(6) << "Inserting: " << paste_data.ToLazyString();
         return futures::Past(
             CompositeTransformation::Output{transformation::Insert{
-                .contents_to_insert = paste_buffer.ptr()->contents().snapshot(),
+                .contents_to_insert = paste_data,
                 .modifiers = {.insertion = input.modifiers.insertion,
                               .repetitions = input.modifiers.repetitions},
                 .modifiers_set =
@@ -44,12 +45,7 @@ futures::Value<CompositeTransformation::Output> Paste::Apply(
                       LOG(FATAL) << "Invalid input mode.";
                       return std::nullopt;
                     })}});
-      },
-      [] {
-        VLOG(5) << "Paste buffer not found.";
-        return futures::Past(CompositeTransformation::Output{});
-      },
-      input.editor.buffer_registry().Find(PasteBuffer{}));
+      });
 }
 
 }  // namespace afc::editor::transformation
