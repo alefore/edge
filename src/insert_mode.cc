@@ -639,7 +639,7 @@ class InsertMode : public InputReceiver {
           break;
         ResetScrollBehavior();
         current_insertion_->AppendToLine(current_insertion_->EndLine(),
-                                         Line{LazyString{L" "}});
+                                         Line{SingleLine{LazyString{L" "}}});
         ForEachActiveBuffer(
             buffers_, {' '},
             [modify_mode = options_.editor_state.modifiers().insertion,
