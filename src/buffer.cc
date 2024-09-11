@@ -124,6 +124,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::text::DelegatingMutableLineSequenceObserver;
 using afc::language::text::Line;
@@ -593,8 +594,8 @@ void OpenBuffer::SignalEndOfFile() {
 
 void OpenBuffer::SendEndOfFileToProcess() {
   if (fd() == nullptr) {
-    status().SetInformationText(
-        Line(L"No active subprocess for current buffer."));
+    status().SetInformationText(Line{
+        SingleLine{LazyString{L"No active subprocess for current buffer."}}});
     return;
   }
   if (Read(buffer_variables::pts)) {
@@ -606,7 +607,7 @@ void OpenBuffer::SendEndOfFileToProcess() {
               strerror(errno))}}.Build());
       return;
     }
-    status().SetInformationText(Line(L"EOF sent"));
+    status().SetInformationText(Line{SingleLine{LazyString{L"EOF sent"}}});
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
       status().SetInformationText(LineBuilder{
@@ -615,7 +616,7 @@ void OpenBuffer::SendEndOfFileToProcess() {
               strerror(errno))}}.Build());
       return;
     }
-    status().SetInformationText(Line(L"shutdown sent"));
+    status().SetInformationText(Line{SingleLine{LazyString{L"shutdown sent"}}});
   }
 }
 
@@ -1425,7 +1426,7 @@ void OpenBuffer::CreateCursor() {
       range.set_begin(tmp_first);
     }
   }
-  status_.SetInformationText(Line(L"Cursor created."));
+  status_.SetInformationText(Line{SingleLine{LazyString{L"Cursor created."}}});
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position,
@@ -1697,7 +1698,8 @@ const struct timespec OpenBuffer::time_last_exit() const {
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {
-  status_.SetInformationText(Line(std::to_wstring(signal.read())));
+  status_.SetInformationText(
+      Line{SingleLine{LazyString{std::to_wstring(signal.read())}}});
   if (file_adapter_->WriteSignal(signal)) return;
 
   switch (signal.read()) {

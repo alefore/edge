@@ -134,7 +134,10 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
               .contents_to_insert = LineSequence::WithLine(
-                  Line(results.value().common_prefix.value()))});
+                  // TODO(easy, 2024-09-11): Change common_prefix to use
+                  // SingleLine.
+                  Line{SingleLine{
+                      LazyString{results.value().common_prefix.value()}}})});
           return output;
         });
   }

@@ -13,15 +13,17 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+
 namespace afc::language::text {
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
 
 using ::operator<<;
 
@@ -45,7 +47,8 @@ LineSequence::LineSequence(LineSequenceIterator a, LineSequenceIterator b)
   CHECK(!inputs.empty());
   Lines::Ptr output = nullptr;
   for (const std::wstring& input : inputs)
-    output = Lines::PushBack(output, Line(input)).get_shared();
+    output = Lines::PushBack(output, Line{SingleLine{LazyString{input}}})
+                 .get_shared();
   // This is safe because we've validated that inputs isn't empty.
   return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
 }

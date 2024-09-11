@@ -69,6 +69,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -120,8 +121,8 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
     return;
   }
   if (S_ISDIR(stat_buffer.st_mode)) {
-    buffer.status().SetInformationText(
-        Line(L"🌷Directory changed in disk since last read."));
+    buffer.status().SetInformationText(Line{SingleLine{
+        LazyString{L"🌷Directory changed in disk since last read."}}});
   } else {
     buffer.status().InsertError(
         Error{LazyString{L"🌷File changed in disk since last read."}});

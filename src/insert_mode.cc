@@ -79,6 +79,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -176,9 +177,9 @@ class TestsHelper {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
     OpenBuffer& buffer = buffer_root.ptr().value();
     buffer.AppendToLastLine(LazyString{L"foobarhey"});
-    buffer.AppendRawLine(Line(L"  foxbarnowl"));
-    buffer.AppendRawLine(Line(L"  aaaaa "));
-    buffer.AppendRawLine(Line(L"  alejo forero "));
+    buffer.AppendRawLine(Line{SingleLine{LazyString{L"  foxbarnowl"}}});
+    buffer.AppendRawLine(Line{SingleLine{LazyString{L"  aaaaa "}}});
+    buffer.AppendRawLine(Line{SingleLine{LazyString{L"  alejo forero "}}});
     return buffer_root;
   }();
 
@@ -422,7 +423,8 @@ class InsertMode : public InputReceiver {
             [options = options_, old_literal](OpenBuffer& buffer) {
               if (buffer.fd() != nullptr) {
                 if (old_literal) {
-                  buffer.status().SetInformationText(Line(L"ESC"));
+                  buffer.status().SetInformationText(
+                      Line{SingleLine{LazyString{L"ESC"}}});
                 } else {
                   buffer.status().Reset();
                 }
@@ -561,7 +563,7 @@ class InsertMode : public InputReceiver {
           DLOG(INFO) << "Set literal.";
           status_expiration_for_literal_ =
               options_.editor_state.status().SetExpiringInformationText(
-                  Line(L"<literal>"));
+                  Line{SingleLine{LazyString{L"<literal>"}}});
           return;
         }
         break;
@@ -699,8 +701,8 @@ class InsertMode : public InputReceiver {
           TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
           return buffer_root.ptr()
               ->ApplyToCursors(transformation::Insert{
-                  .contents_to_insert =
-                      LineSequence::WithLine(Line(consumed_input)),
+                  .contents_to_insert = LineSequence::WithLine(
+                      Line{SingleLine{LazyString{consumed_input}}}),
                   .modifiers = {.insertion = options.editor_state.modifiers()
                                                  .insertion}})
               .Transform([buffer_root, completion_model_supplier](EmptyValue) {
@@ -735,8 +737,9 @@ class InsertMode : public InputReceiver {
               .Transform(
                   ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
-    current_insertion_->AppendToLine(current_insertion_->EndLine(),
-                                     Line(consumed_input));
+    current_insertion_->AppendToLine(
+        current_insertion_->EndLine(),
+        Line{SingleLine{LazyString{consumed_input}}});
     return consumed_input.size();
   }
 
@@ -803,7 +806,8 @@ class InsertMode : public InputReceiver {
               break;
             case Modifiers::ModifyMode::kOverwrite:
               stack.push_back(transformation::Insert{
-                  .contents_to_insert = LineSequence::WithLine(Line(L" ")),
+                  .contents_to_insert = LineSequence::WithLine(
+                      Line{SingleLine{LazyString{L" "}}}),
                   .final_position =
                       direction == Direction::kBackwards
                           ? transformation::Insert::FinalPosition::kStart
@@ -1044,7 +1048,8 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   }
   for (OpenBuffer& buffer : options.buffers.value() | gc::view::Value)
     buffer.status().SetInformationText(
-        Line(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
+        buffer.fd() == nullptr ? Line{SingleLine{LazyString{L"🔡"}}}
+                               : Line{SingleLine{LazyString{L"🔡 (raw)"}}});
 
   std::optional<gc::Root<InputReceiver>> optional_old_input_receiver =
       options.editor_state.set_keyboard_redirect(

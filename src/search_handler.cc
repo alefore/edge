@@ -143,7 +143,7 @@ std::wstring RegexEscape(SingleLine str) {
   // TODO(easy, 2024-09-10): Define as an std::unordered_set, to make lookups
   // faster?
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
-  // TODO(easy, 2024-09-10): Define ForEachColumn for SingleString and use it
+  // TODO(easy, 2024-09-10): Define ForEachColumn for SingleLine and use it
   // directly.
   ForEachColumn(str.read(), [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == std::wstring::npos) {
@@ -154,6 +154,7 @@ std::wstring RegexEscape(SingleLine str) {
   return results;
 }
 
+// TODO(trivial, 2024-09-11): Change `matches` to contain SingleLine.
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
                              size_t required_positions,
                              std::set<std::wstring>& matches) {
@@ -189,8 +190,9 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     SearchInBuffer(input, search_buffer, kMatchesLimit, matches);
   MutableLineSequence output_contents;
   std::ranges::copy(
-      std::move(matches) |
-          std::views::transform([](std::wstring match) { return Line(match); }),
+      std::move(matches) | std::views::transform([](std::wstring match) {
+        return Line{SingleLine{LazyString{match}}};
+      }),
       std::back_inserter(output_contents));
   output_contents.MaybeEraseEmptyFirstLine();
   TRACK_OPERATION(SearchHandlerPredictor_sort);
@@ -401,7 +403,8 @@ void HandleSearchResults(
   }
 
   if (results->empty()) {
-    buffer.status().SetInformationText(Line(L"🔍 No results."));
+    buffer.status().SetInformationText(
+        Line{SingleLine{LazyString{L"🔍 No results."}}});
     audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
                            {audio::Frequency(659.25), audio::Frequency(440.0),
                             audio::Frequency(440.0)});
@@ -418,7 +421,7 @@ void HandleSearchResults(
   size_t size = results->size();
   buffer.status().SetInformationText(
       size == 1
-          ? Line(L"🔍 1 result.")
+          ? Line{SingleLine{LazyString{L"🔍 1 result."}}}
           : LineBuilder{LazyString{ColumnNumberDelta(
                                        1 + static_cast<size_t>(log2(size))),
                                    L'🔍'} +

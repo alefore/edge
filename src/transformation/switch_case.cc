@@ -12,16 +12,19 @@
 #include "src/transformation/type.h"
 #include "src/transformation/vm.h"
 
-namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::MutableLineSequence;
 
+namespace afc::editor {
 std::wstring SwitchCaseTransformation::Serialize() const {
   return L"SwitchCaseTransformation();";
 }
@@ -41,7 +44,8 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       wchar_t c = line.get(i.column);
       contents_to_insert.AppendToLine(
           contents_to_insert.EndLine(),
-          Line(std::wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
+          Line{SingleLine{LazyString{
+              ColumnNumberDelta{1}, iswupper(c) ? towlower(c) : towupper(c)}}});
       i.column++;
     }
   }

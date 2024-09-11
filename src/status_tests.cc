@@ -10,6 +10,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 
 namespace afc::editor {
@@ -36,7 +37,8 @@ const bool prompt_tests_registration = tests::Register(
         Status status(editor->audio_player());
         gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
         status.set_prompt(LazyString{L">"}, prompt);
-        auto value = status.SetExpiringInformationText(Line(L"Foobar"));
+        auto value = status.SetExpiringInformationText(
+            Line{SingleLine{LazyString{L"Foobar"}}});
         CHECK(status.text().ToString() == L">");
         value = nullptr;
         CHECK(status.text().ToString() == L">");

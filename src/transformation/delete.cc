@@ -34,6 +34,7 @@ using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -139,7 +140,8 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
             } else {
               // TODO: insert it again?  Actually, only let it
               // be erased in the other case?
-              buffer.ptr()->status().SetInformationText(Line(L"Ignored."));
+              buffer.ptr()->status().SetInformationText(
+                  Line{SingleLine{LazyString{L"Ignored."}}});
             }
             return futures::Past(EmptyValue());
           },

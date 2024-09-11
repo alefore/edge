@@ -33,6 +33,7 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
@@ -388,7 +389,8 @@ class SearchCommand : public Command {
       Range range =
           buffer.FindPartialRange(editor.modifiers(), buffer.position());
       if (range.empty()) {
-        buffer.status().SetInformationText(Line(L"Unable to extract region."));
+        buffer.status().SetInformationText(
+            Line{SingleLine{LazyString{L"Unable to extract region."}}});
         return std::nullopt;
       }
       CHECK_LE(range.begin(), range.end());

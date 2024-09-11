@@ -7,12 +7,16 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
-#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 
 namespace container = afc::language::container;
+
 using afc::language::text::Line;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
 
@@ -63,9 +67,10 @@ void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
     for (auto& [position, mark] : source_target_marks.marks) {
       ExpiredMark expired_mark{
           .source_buffer = source,
-          .source_line_content = mark.source_line > source_buffer.EndLine()
-                                     ? Line(L"(expired)")
-                                     : source_buffer.at(mark.source_line),
+          .source_line_content =
+              mark.source_line > source_buffer.EndLine()
+                  ? Line{SingleLine{LazyString{L"(expired)"}}}
+                  : source_buffer.at(mark.source_line),
           .target_buffer = mark.target_buffer,
           .target_line_column = mark.target_line_column};
       source_target_marks.expired_marks.insert({position, expired_mark});

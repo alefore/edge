@@ -63,10 +63,13 @@ const bool tests_registration =
       return std::vector<tests::Test>{
           {.name = L"TwoRowsShort", .callback = [&] {
              auto output = Build(
-                 RepeatLine(LineWithCursor{.line = Line(L"top")},
+                 RepeatLine(LineWithCursor{.line = Line{SingleLine{
+                                               LazyString{L"top"}}}},
                             LineNumberDelta(2))
-                     .Append(RepeatLine(LineWithCursor{.line = Line(L"bottom")},
-                                        LineNumberDelta(2))));
+                     .Append(RepeatLine(
+                         LineWithCursor{
+                             .line = Line{SingleLine{LazyString{L"bottom"}}}},
+                         LineNumberDelta(2))));
              CHECK_EQ(output.size(), 4ul);
              CHECK_EQ(output[0], LazyString{L"top"});
              CHECK_EQ(output[1], LazyString{L"top"});

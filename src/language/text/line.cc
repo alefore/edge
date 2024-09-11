@@ -36,8 +36,6 @@ Line::Line(LazyString contents) : Line(SingleLine{std::move(contents)}) {}
 Line::Line(SingleLine contents)
     : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
 
-Line::Line(std::wstring contents) : Line(LazyString{std::move(contents)}) {}
-
 Line::Line(const Line& line)
     : data_(line.data_), hash_(ComputeHash(data_.value())) {}
 

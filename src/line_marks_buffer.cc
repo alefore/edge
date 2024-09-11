@@ -19,6 +19,7 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -50,7 +51,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
              data.second.source_line <
                  LineNumber(0) + source->second.ptr()->contents().size())
                 ? source->second.ptr()->contents().at(data.second.source_line)
-                : Line(L"(dead mark)")});
+                : Line{SingleLine{LazyString{L"(dead mark)"}}}});
   }
   for (const std::pair<const LineColumn, LineMarks::ExpiredMark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))
@@ -76,7 +77,8 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
 futures::Value<PossibleError> GenerateContents(const EditorState& editor,
                                                OpenBuffer& buffer) {
   LOG(INFO) << "LineMarksBuffer: Generate contents";
-  MutableLineSequence output = MutableLineSequence::WithLine(Line(L"# Marks"));
+  MutableLineSequence output =
+      MutableLineSequence::WithLine(Line{SingleLine{LazyString{L"# Marks"}}});
 
   output.push_back(L"");
 

@@ -20,6 +20,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::language::text {
 void NullMutableLineSequenceObserver::LinesInserted(LineNumber,
@@ -287,11 +288,14 @@ void MutableLineSequence::push_back(std::wstring str) {
     wchar_t c = str[i.read()];
     CHECK_GE(i, start);
     if (c == '\n') {
-      push_back(Line(str.substr(start.read(), (i - start).read())));
+      // TODO(easy, 2024-09-11): Change push_back to receive a LazyString
+      // directly. Rename it to something that indicates that this breaks lines.
+      push_back(Line{SingleLine{
+          LazyString{str.substr(start.read(), (i - start).read())}}});
       start = i + ColumnNumberDelta(1);
     }
   }
-  push_back(Line(str.substr(start.read())));
+  push_back(Line{SingleLine{LazyString{str.substr(start.read())}}});
 }
 
 namespace {

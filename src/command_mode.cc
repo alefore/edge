@@ -82,6 +82,7 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::OutgoingLink;
@@ -431,8 +432,8 @@ class ResetStateCommand : public Command {
     editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
       buffer.work_queue()->DeleteLater(
-          AddSeconds(Now(), 0.2),
-          buffer.status().SetExpiringInformationText(Line(L"❌ ESC")));
+          AddSeconds(Now(), 0.2), buffer.status().SetExpiringInformationText(
+                                      Line{SingleLine{LazyString{L"❌ ESC"}}}));
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());

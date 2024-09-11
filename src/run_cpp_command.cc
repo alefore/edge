@@ -48,6 +48,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -90,7 +91,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
               std::ostringstream oss;
               oss << "Evaluation result: " << value.ptr().value();
               buffer.ptr()->status().SetInformationText(
-                  Line(FromByteString(oss.str())));
+                  Line{SingleLine{LazyString{FromByteString(oss.str())}}});
               return Success();
             })
             .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });

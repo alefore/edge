@@ -29,6 +29,7 @@ using afc::language::overload;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -176,7 +177,8 @@ class HelpCommand : public Command {
                                     const OpenBuffer& buffer) {
     LOG(INFO) << "Generating help contents.";
     MutableLineSequence output;
-    output.AppendToLine(LineNumber(), Line(L"# Edge - Help"));
+    output.AppendToLine(LineNumber(),
+                        Line{SingleLine{LazyString{L"# Edge - Help"}}});
     output.push_back(L"");
 
     ShowCommands(commands, output);

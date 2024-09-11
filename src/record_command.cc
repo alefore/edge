@@ -27,6 +27,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 
 namespace afc::editor {
@@ -47,10 +48,12 @@ class RecordCommand : public Command {
           OpenBuffer& buffer = buffer_root.ptr().value();
           if (buffer.HasTransformationStack()) {
             buffer.PopTransformationStack();
-            buffer.status().SetInformationText(Line(L"Recording: stop"));
+            buffer.status().SetInformationText(
+                Line{SingleLine{LazyString{L"Recording: stop"}}});
           } else {
             buffer.PushTransformationStack();
-            buffer.status().SetInformationText(Line(L"Recording: start"));
+            buffer.status().SetInformationText(
+                Line{SingleLine{LazyString{L"Recording: start"}}});
           }
           buffer.ResetMode();
         },

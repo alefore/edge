@@ -624,8 +624,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
               }
             }
             LOG(INFO) << "Terminating.";
-            status().SetInformationText(
-                Line(L"Exit: All buffers closed, shutting down."));
+            status().SetInformationText(Line{SingleLine{
+                LazyString{L"Exit: All buffers closed, shutting down."}}});
             exit_value_ = data->exit_value;
             return futures::Past(EmptyValue());
           }

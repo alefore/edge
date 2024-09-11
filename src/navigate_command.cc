@@ -29,6 +29,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -316,8 +317,8 @@ NavigateState InitialState(EditorState& editor_state) {
       return position.line.read();
     };
   } else {
-    editor_state.status().SetInformationText(
-        Line(L"Navigate not handled for current mode."));
+    editor_state.status().SetInformationText(Line{
+        SingleLine{LazyString{L"Navigate not handled for current mode."}}});
   }
   return initial_state;
 }

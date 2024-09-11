@@ -12,17 +12,19 @@
 #include "src/transformation/vm.h"
 #include "src/vm/escape.h"
 
-namespace afc {
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::MutableLineSequence;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::MutableLineSequence;
+
+namespace afc {
 namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
@@ -137,12 +139,18 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
                  ++i) {
               if (text[i.read()] == L'\n') {
                 VLOG(8) << "Adding line from " << line_start << " to " << i;
-                output.push_back(Line(text.substr(
-                    line_start.read(), (ColumnNumber(i) - line_start).read())));
+                // TODO(trivial, 2024-09-11): Receive text as a LazyString.
+                // TODO(trivial, 2024-09-11): Move the break-line functionality
+                // into MutableLineSequence. I actually think ... it's already
+                // there (in push_back(std::wstring)).
+                output.push_back(Line{SingleLine{LazyString{
+                    text.substr(line_start.read(),
+                                (ColumnNumber(i) - line_start).read())}}});
                 line_start = ColumnNumber(i) + ColumnNumberDelta(1);
               }
             }
-            output.push_back(Line(text.substr(line_start.read())));
+            output.push_back(
+                Line{SingleLine{LazyString{text.substr(line_start.read())}}});
             output.EraseLines(LineNumber(), LineNumber(1),
                               MutableLineSequence::ObserverBehavior::kHide);
             options->contents_to_insert = output.snapshot();

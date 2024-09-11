@@ -69,6 +69,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumnDelta;
 
@@ -142,22 +143,29 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
 
 const Line& GetGreetingMessage() {
   static const std::vector<Line> errors({
-      Line(L"Welcome to Edge!"),
-      Line(L"Edge, your favorite text editor."),
-      Line(L"📎 It looks like you're writing a letter. Would you like help?"),
-      Line(L"Edge, a text editor."),
-      Line(L"All modules are now active."),
-      Line(L"Booting up Edge. . . . . . . . . . . . . DONE"),
-      Line(L"What are you up to today?"),
-      Line(L"Stop trying to calm the storm. Calm yourself, the storm will "
-           L"pass."),
-      Line(L"Learn to be indifferent to what makes no difference."),
-      Line(L"Whatever can happen at any time can happen today."),
-      Line(L"The trouble is, you think you have time."),
-      Line(L"Happiness is here, and now."),
-      Line(L"The journey of a thousand miles begins with a single step."),
-      Line(L"Every moment is a fresh beginning."),
-      Line(L"Action is the foundational key to all success."),
+      Line{SingleLine{LazyString{L"Welcome to Edge!"}}},
+      Line{SingleLine{LazyString{L"Edge, your favorite text editor."}}},
+      Line{SingleLine{LazyString{
+          L"📎 It looks like you're writing a letter. Would you like help?"}}},
+      Line{SingleLine{LazyString{L"Edge, a text editor."}}},
+      Line{SingleLine{LazyString{L"All modules are now active."}}},
+      Line{SingleLine{
+          LazyString{L"Booting up Edge. . . . . . . . . . . . . DONE"}}},
+      Line{SingleLine{LazyString{L"What are you up to today?"}}},
+      Line{SingleLine{LazyString{
+          L"Stop trying to calm the storm. Calm yourself, the storm will"
+          L"pass."}}},
+      Line{SingleLine{
+          LazyString{L"Learn to be indifferent to what makes no difference."}}},
+      Line{SingleLine{
+          LazyString{L"Whatever can happen at any time can happen today."}}},
+      Line{SingleLine{LazyString{L"The trouble is, you think you have time."}}},
+      Line{SingleLine{LazyString{L"Happiness is here, and now."}}},
+      Line{SingleLine{LazyString{
+          L"The journey of a thousand miles begins with a single step."}}},
+      Line{SingleLine{LazyString{L"Every moment is a fresh beginning."}}},
+      Line{SingleLine{
+          LazyString{L"Action is the foundational key to all success."}}},
   });
   return errors.at(rand() % errors.size());
 }
