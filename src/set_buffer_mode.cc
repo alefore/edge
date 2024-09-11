@@ -474,6 +474,8 @@ std::optional<gc::Root<InputReceiver>> NewSetBufferMode(EditorState& editor) {
     return std::nullopt;
   }
 
+  initial_value.operations.push_back(
+      Operation{.type = Operation::Type::kForward});
   return editor.gc_pool().NewRoot<InputReceiver>(
       MakeNonNullUnique<CommandArgumentMode<Data>>(
           CommandArgumentMode<Data>::Options{
