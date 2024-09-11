@@ -6,7 +6,8 @@
 
 #include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
@@ -21,6 +22,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -239,7 +241,8 @@ class TestObserver : public afc::language::text::MutableLineSequenceObserver {
 void TestCursorsMove() {
   std::vector<TestObserver::Message> messages;
   MutableLineSequence contents(MakeNonNullUnique<TestObserver>(messages));
-  contents.set_line(LineNumber(0), Line(L"aleandro forero cuervo"));
+  contents.set_line(LineNumber(0),
+                    Line{SingleLine{LazyString{L"aleandro forero cuervo"}}});
   CHECK_EQ(messages.size(), 0ul);
   contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
   CHECK_EQ(messages.size(), 1ul);

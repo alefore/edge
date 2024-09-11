@@ -7,12 +7,14 @@
 #include "src/editor.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/extended_char.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 #include "src/terminal.h"
 
 using namespace afc::editor;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::VectorExtendedChar;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 
 unsigned int NextRandom() {
@@ -31,7 +33,7 @@ unsigned int NextRandom() {
 
 void SendInput(EditorState* editor_state, std::wstring input) {
   VLOG(5) << "Input: " << input;
-  editor_state->ProcessInput(VectorExtendedChar(input));
+  editor_state->ProcessInput(VectorExtendedChar(LazyString{input}));
 }
 
 void RandomModifiers(EditorState* editor_state) {
