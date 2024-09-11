@@ -1396,8 +1396,11 @@ SeekInput OpenBuffer::NewSeekInput(Structure structure, Direction direction,
       .contents = contents().snapshot(),
       .structure = structure,
       .direction = direction,
-      .line_prefix_characters = Read(buffer_variables::line_prefix_characters),
-      .symbol_characters = Read(buffer_variables::symbol_characters),
+      .line_prefix_characters =
+          // TODO(trivial, 2024-09-11): Avoid call to ToString.
+      Read(buffer_variables::line_prefix_characters).ToString(),
+      // TODO(trivial, 2024-09-11): Avoid call to ToString.
+      .symbol_characters = Read(buffer_variables::symbol_characters).ToString(),
       .parse_tree = parse_tree(),
       .cursors = FindCursors(L""),
       .position = position,
@@ -1561,7 +1564,6 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   }
 
   LOG(INFO) << "After repetitions: " << output_begin << " to " << output_end;
-  ;
   switch (modifiers.boundary_end) {
     case Modifiers::CURRENT_POSITION:
       break;
@@ -1912,7 +1914,9 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     LazyString line = GetCurrentToken(
         {.contents = buffer.contents().snapshot(),
          .line_column = adjusted_position,
-         .token_characters = buffer.Read(buffer_variables::path_characters)});
+         // TODO(trivial, 2024-09-11): Avoid call to ToString():
+         .token_characters =
+             buffer.Read(buffer_variables::path_characters).ToString()});
 
     if (FindLastNotOf(line, {L'/', L'.', L':'}) == std::nullopt) {
       // If there are only slashes, colons or dots, it's probably not very
@@ -2229,9 +2233,9 @@ const LazyString& OpenBuffer::ReadLazyString(
   return variables_.string_variables.Get(variable);
 }
 
-std::wstring OpenBuffer::Read(const EdgeVariable<LazyString>* variable) const {
-  // TODO(easy, 2024-08-27): Get rid of ToString. Just return the LazyString.
-  return ReadLazyString(variable).ToString();
+const LazyString& OpenBuffer::Read(
+    const EdgeVariable<LazyString>* variable) const {
+  return ReadLazyString(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<LazyString>* variable,

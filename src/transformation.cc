@@ -16,6 +16,8 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::FindFirstOf;
+using language::lazy_string::LazyString;
 using language::text::LineColumn;
 
 namespace {
@@ -26,16 +28,15 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
   }
 
   futures::Value<Output> Apply(Input input) const override {
-    const std::wstring& superfluous_characters =
+    const LazyString& superfluous_characters =
         input.buffer.Read(buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer.LineAt(input.position.line);
     if (!line.has_value()) return futures::Past(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
-           superfluous_characters.find(line->get(
-               column - ColumnNumberDelta(1))) != std::wstring::npos) {
+           FindFirstOf(superfluous_characters,
+                       {line->get(column - ColumnNumberDelta(1))}))
       --column;
-    }
     if (column == line->EndColumn()) return futures::Past(Output());
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);

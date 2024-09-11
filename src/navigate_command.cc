@@ -281,11 +281,11 @@ NavigateState InitialState(EditorState& editor_state) {
       auto contents = buffer.LineAt(position.line);
       auto contents_str = contents->ToString();
       size_t previous_space = contents_str.find_last_not_of(
-          buffer.Read(buffer_variables::symbol_characters),
+          buffer.Read(buffer_variables::symbol_characters).ToString(),
           buffer.position().column.read());
 
       size_t next_space = contents_str.find_first_not_of(
-          buffer.Read(buffer_variables::symbol_characters),
+          buffer.Read(buffer_variables::symbol_characters).ToString(),
           buffer.position().column.read());
       return SearchRange(
           previous_space == std::wstring::npos ? 0 : previous_space + 1,

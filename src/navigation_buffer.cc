@@ -45,9 +45,10 @@ const vm::Identifier kDepthSymbol{LazyString{L"navigation_buffer_depth"}};
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  LineBuilder* line_options) {
-  LazyString trim =
-      TrimLeft(input.contents().read(),
-               source.Read(buffer_variables::line_prefix_characters));
+  LazyString trim = TrimLeft(
+      input.contents().read(),
+      // TODO(trivial, 2024-09-11): Avoid call to ToString.
+      source.Read(buffer_variables::line_prefix_characters).ToString());
   CHECK_LE(trim.size(), input.contents().size());
   auto characters_trimmed =
       ColumnNumberDelta(input.contents().size() - trim.size());

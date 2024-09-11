@@ -204,7 +204,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
             noise_regexp = output.Read(buffer_variables::directory_noise)]()
                -> ValueOrError<LineSequence> {
         DECLARE_OR_RETURN(BackgroundReadDirOutput results,
-                          ReadDir(path, std::wregex(noise_regexp)));
+                          ReadDir(path, std::wregex(noise_regexp.ToString())));
 
         TRACK_OPERATION(GenerateDirectoryListing_BuildingMarkdown);
         MutableLineSequence builder;

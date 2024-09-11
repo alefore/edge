@@ -40,7 +40,8 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
   std::vector<InputKey> spec = {path, path, path};
   std::vector<Color> flag = flags::GenerateFlags(
       spec, color_values,
-      {{path, InputValue(buffer.Read(buffer_variables::path))}});
+      // TODO(trivial, 2024-09-11): Avoid call to ToString.
+      {{path, InputValue(buffer.Read(buffer_variables::path).ToString())}});
   CHECK_EQ(flag.size(), spec.size());
   return container::MaterializeVector(flag |
                                       std::views::transform([](Color color) {

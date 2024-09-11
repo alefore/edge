@@ -63,9 +63,8 @@ LazyString GetBufferContext(const OpenBuffer& buffer) {
           .read();
     }
   }
-  // TODO(trivial, 2024-08-28): Switch this to ReadLazyString, avoid explicit
-  // conversion below.
-  std::wstring name = buffer.Read(buffer_variables::name);
+  // TODO(trivial, 2024-08-28): Avoid call to ToString below:
+  std::wstring name = buffer.Read(buffer_variables::name).ToString();
   std::replace(name.begin(), name.end(), L'\n', L' ');
   return LazyString{name};
 }

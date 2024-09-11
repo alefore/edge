@@ -712,7 +712,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             if (columns_width[j] > prefix_width) {
               LineBuilder visible_string = GetBufferVisibleString(
                   columns_width[j] - prefix_width,
-                  buffer.Read(buffer_variables::name),
+                  // TODO(trivial, 2024-09-11): Get rid of call to ToString.
+                  buffer.Read(buffer_variables::name).ToString(),
                   buffer.contents().snapshot(),
                   buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                  : LineModifierSet{},
