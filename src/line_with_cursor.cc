@@ -195,8 +195,7 @@ LineWithCursor LineWithCursor::View(
         output_column += ColumnNumberDelta(wcwidth(c));
         if (output_column.ToDelta() <= options.width)
           line_output.set_contents(
-              // TODO(trivial, 2024-09-10): Get rid of wrapper SingleLine:
-              SingleLine{line_output.contents()} +
+              line_output.contents() +
               SingleLine{LazyString{ColumnNumberDelta{1}, c}});
     }
   }
