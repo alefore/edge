@@ -49,7 +49,7 @@ class Line {
   language::lazy_string::ColumnNumber EndColumn() const;
   bool empty() const;
 
-  wint_t get(language::lazy_string::ColumnNumber column) const;
+  wchar_t get(language::lazy_string::ColumnNumber column) const;
   language::lazy_string::SingleLine Substring(
       language::lazy_string::ColumnNumber column,
       language::lazy_string::ColumnNumberDelta length) const;

@@ -65,7 +65,7 @@ ColumnNumber Line::EndColumn() const {
 
 bool Line::empty() const { return EndColumn().IsZero(); }
 
-wint_t Line::get(ColumnNumber column) const {
+wchar_t Line::get(ColumnNumber column) const {
   CHECK_LT(column, EndColumn());
   return data_->contents.read().get(column);
 }
