@@ -10,7 +10,7 @@ using language::NonNull;
 using language::overload;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
+using language::lazy_string::SingleLine;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -52,7 +52,7 @@ namespace {
 void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
                         LineBuilder& output_line) {
   ColumnNumberDelta length =
-      std::visit(overload{[&](LazyString input) { return input.size(); },
+      std::visit(overload{[&](SingleLine input) { return input.size(); },
                           [&](ColumnNumberDelta l) { return l; }},
                  overlay.content);
 
@@ -107,7 +107,7 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
         modifiers.insert({column + length, last_modifiers});
   }
 
-  std::visit(overload{[&](LazyString input) {
+  std::visit(overload{[&](SingleLine input) {
                         for (ColumnNumberDelta i; i < input.size(); ++i)
                           output_line.SetCharacter(
                               column + i, input.get(ColumnNumber() + i), {});
