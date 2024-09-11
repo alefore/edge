@@ -6,6 +6,8 @@
 namespace container = afc::language::container;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -64,104 +66,113 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
      {.name = L"NormalConsumed",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"alejandro"), ColumnNumber(), ColumnNumberDelta(80),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(9));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejandro"}}},
+                                   ColumnNumber(), ColumnNumberDelta(80),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(9));
           }},
      {.name = L"NormalOverflow",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"alejandro"), ColumnNumber(), ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(6));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejandro"}}},
+                                   ColumnNumber(), ColumnNumberDelta(6),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(6));
           }},
      {.name = L"SimpleWide",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"a🦋lejandro"), ColumnNumber(),
-                                   ColumnNumberDelta(6),
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"a🦋lejandro"}}},
+                                   ColumnNumber(), ColumnNumberDelta(6),
                                    LineWrapStyle::kBreakWords,
                                    {}) == ColumnNumberDelta(5));
           }},
      {.name = L"WideConsumed",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"a🦋o"), ColumnNumber(), ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(3));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"a🦋o"}}},
+                                   ColumnNumber(), ColumnNumberDelta(6),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(3));
           }},
      {.name = L"CharacterDoesNotFit",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(5));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejo🦋"}}},
+                                   ColumnNumber(), ColumnNumberDelta(6),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(5));
           }},
      {.name = L"CharacterAtBorder",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(7),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(6));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejo🦋"}}},
+                                   ColumnNumber(), ColumnNumberDelta(7),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(6));
           }},
      {.name = L"SingleWidthNormalCharacter",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(1),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(1));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejo🦋"}}},
+                                   ColumnNumber(), ColumnNumberDelta(1),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(1));
           }},
      {.name = L"SingleWidthWide",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"🦋"), ColumnNumber(), ColumnNumberDelta(1),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(1));
+            CHECK(LineOutputLength(Line{SingleLine{LazyString{L"🦋"}}},
+                                   ColumnNumber(), ColumnNumberDelta(1),
+                                   LineWrapStyle::kBreakWords,
+                                   {}) == ColumnNumberDelta(1));
           }},
      {.name = L"ManyWideOverflow",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
-                                   ColumnNumberDelta(5),
-                                   LineWrapStyle::kBreakWords,
-                                   {}) == ColumnNumberDelta(2));
+            CHECK(LineOutputLength(
+                      Line{SingleLine{LazyString{L"🦋🦋🦋🦋abcdef"}}},
+                      ColumnNumber(), ColumnNumberDelta(5),
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(2));
           }},
      {.name = L"ManyWideOverflowAfter",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
-                                   ColumnNumberDelta(10),
-                                   LineWrapStyle::kBreakWords,
-                                   {}) == ColumnNumberDelta(6));
+            CHECK(LineOutputLength(
+                      Line{SingleLine{LazyString{L"🦋🦋🦋🦋abcdef"}}},
+                      ColumnNumber(), ColumnNumberDelta(10),
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(6));
           }},
      {.name = L"ManyWideOverflowExact",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
-                                   ColumnNumberDelta(4),
-                                   LineWrapStyle::kBreakWords,
-                                   {}) == ColumnNumberDelta(2));
+            CHECK(LineOutputLength(
+                      Line{SingleLine{LazyString{L"🦋🦋🦋🦋abcdef"}}},
+                      ColumnNumber(), ColumnNumberDelta(4),
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(2));
           }},
      {.name = L"ContentBasedWrapFits",
       .callback =
           [] {
             CHECK(LineOutputLength(
-                      Line(L"abcde"), ColumnNumber(), ColumnNumberDelta(10),
-                      LineWrapStyle::kContentBased,
+                      Line{SingleLine{LazyString{L"abcde"}}}, ColumnNumber(),
+                      ColumnNumberDelta(10), LineWrapStyle::kContentBased,
                       symbol_characters_for_testing) == ColumnNumberDelta(5));
           }},
      {.name = L"ContentBasedWrapLineWithSpaces",
       .callback =
           [] {
             CHECK(LineOutputLength(
-                      Line(L"abcde fghijklmnopqrstuv"), ColumnNumber(),
-                      ColumnNumberDelta(10), LineWrapStyle::kContentBased,
+                      Line{SingleLine{LazyString{L"abcde fghijklmnopqrstuv"}}},
+                      ColumnNumber(), ColumnNumberDelta(10),
+                      LineWrapStyle::kContentBased,
                       symbol_characters_for_testing) == ColumnNumberDelta(6));
           }},
      {.name = L"ContentBasedWrapLineTooLong", .callback = [] {
         CHECK(LineOutputLength(
-                  Line(L"abcdefghijklmnopqrstuv"), ColumnNumber(),
-                  ColumnNumberDelta(10), LineWrapStyle::kContentBased,
+                  Line{SingleLine{LazyString{L"abcdefghijklmnopqrstuv"}}},
+                  ColumnNumber(), ColumnNumberDelta(10),
+                  LineWrapStyle::kContentBased,
                   symbol_characters_for_testing) == ColumnNumberDelta(10));
       }}});
 }  // namespace
@@ -203,36 +214,39 @@ const bool break_line_for_output_tests_registration = tests::Register(
      {.name = L"Fits",
       .callback =
           [] {
-            CHECK(BreakLineForOutput(Line(L"foo"), ColumnNumberDelta(10),
+            CHECK(BreakLineForOutput(Line{SingleLine{LazyString{L"foo"}}},
+                                     ColumnNumberDelta(10),
                                      LineWrapStyle::kBreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(3)}}));
           }},
      {.name = L"FitsExactly",
       .callback =
           [] {
-            CHECK(BreakLineForOutput(Line(L"foobar"), ColumnNumberDelta(6),
+            CHECK(BreakLineForOutput(Line{SingleLine{LazyString{L"foobar"}}},
+                                     ColumnNumberDelta(6),
                                      LineWrapStyle::kBreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(6)}}));
           }},
      {.name = L"Breaks",
       .callback =
           [] {
-            CHECK(BreakLineForOutput(Line(L"foobarheyyou"),
-                                     ColumnNumberDelta(3),
-                                     LineWrapStyle::kBreakWords, {}) ==
-                  std::list<ColumnRange>({
-                      {ColumnNumber(0), ColumnNumber(3)},
-                      {ColumnNumber(3), ColumnNumber(6)},
-                      {ColumnNumber(6), ColumnNumber(9)},
-                      {ColumnNumber(9), ColumnNumber(12)},
-                  }));
+            CHECK(BreakLineForOutput(
+                      Line{SingleLine{LazyString{L"foobarheyyou"}}},
+                      ColumnNumberDelta(3), LineWrapStyle::kBreakWords,
+                      {}) == std::list<ColumnRange>({
+                                 {ColumnNumber(0), ColumnNumber(3)},
+                                 {ColumnNumber(3), ColumnNumber(6)},
+                                 {ColumnNumber(6), ColumnNumber(9)},
+                                 {ColumnNumber(9), ColumnNumber(12)},
+                             }));
           }},
      {.name = L"BreaksContentBased",
       .callback =
           [] {
-            CHECK(BreakLineForOutput(Line(L"foo bar hey"), ColumnNumberDelta(5),
-                                     LineWrapStyle::kContentBased,
-                                     symbol_characters_for_testing) ==
+            CHECK(BreakLineForOutput(
+                      Line{SingleLine{LazyString{L"foo bar hey"}}},
+                      ColumnNumberDelta(5), LineWrapStyle::kContentBased,
+                      symbol_characters_for_testing) ==
                   std::list<ColumnRange>({
                       {ColumnNumber(0), ColumnNumber(4)},
                       {ColumnNumber(4), ColumnNumber(8)},
@@ -240,9 +254,10 @@ const bool break_line_for_output_tests_registration = tests::Register(
                   }));
           }},
      {.name = L"BreaksMultipleSpaces", .callback = [] {
-        CHECK(BreakLineForOutput(Line(L"foo     bar hey"), ColumnNumberDelta(5),
-                                 LineWrapStyle::kContentBased,
-                                 symbol_characters_for_testing) ==
+        CHECK(BreakLineForOutput(
+                  Line{SingleLine{LazyString{L"foo     bar hey"}}},
+                  ColumnNumberDelta(5), LineWrapStyle::kContentBased,
+                  symbol_characters_for_testing) ==
               std::list<ColumnRange>({
                   {ColumnNumber(0), ColumnNumber(5)},
                   {ColumnNumber(8), ColumnNumber(12)},

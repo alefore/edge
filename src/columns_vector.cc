@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
@@ -24,6 +25,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -175,8 +177,9 @@ const bool buffer_tests_registration = tests::Register(
             ColumnsVector columns_vector;
             for (int i = 0; i < 5; i++)
               columns_vector.push_back(
-                  {.lines = RepeatLine({.line = Line(L"foo bar")},
-                                       LineNumberDelta(5)),
+                  {.lines = RepeatLine(
+                       {.line = Line{SingleLine{LazyString{L"foo bar"}}}},
+                       LineNumberDelta(5)),
                    .width = ColumnNumberDelta(10)});
             LineWithCursor::Generator::Vector produce =
                 OutputFromColumnsVector(std::move(columns_vector));
@@ -195,11 +198,13 @@ const bool buffer_tests_registration = tests::Register(
             ColumnsVector columns_vector;
             columns_vector.push_back(
                 {.lines =
-                     RepeatLine({.line = Line(L"foo")}, LineNumberDelta(1)),
+                     RepeatLine({.line = Line{SingleLine{LazyString{L"foo"}}}},
+                                LineNumberDelta(1)),
                  .width = ColumnNumberDelta(3)});
             columns_vector.push_back(
                 {.lines =
-                     RepeatLine({.line = Line(L"bar")}, LineNumberDelta(10)),
+                     RepeatLine({.line = Line{SingleLine{LazyString{L"bar"}}}},
+                                LineNumberDelta(10)),
                  .width = ColumnNumberDelta(10)});
             LineWithCursor::Generator::Vector output =
                 OutputFromColumnsVector(std::move(columns_vector));
@@ -216,7 +221,8 @@ const bool buffer_tests_registration = tests::Register(
         columns_vector.push_back(
             ColumnsVector::Column{.lines = {}, .width = ColumnNumberDelta(5)});
         columns_vector.push_back(ColumnsVector::Column{
-            .lines = RepeatLine({.line = Line(L"bar")}, LineNumberDelta(10)),
+            .lines = RepeatLine({.line = Line{SingleLine{LazyString{L"bar"}}}},
+                                LineNumberDelta(10)),
             .padding = {std::vector<std::optional<ColumnsVector::Padding>>(
                 5, ColumnsVector::Padding{.modifiers = {},
                                           .head = LazyString(),
