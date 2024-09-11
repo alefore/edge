@@ -642,11 +642,6 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    operation::TopCommand(), editor_state,
                    {operation::CommandReachQuery{}})
                    .ptr());
-  commands.Add({L'r'}, operation::NewTopLevelCommand(
-                           L"reach", LazyString{L"starts a new reach command"},
-                           operation::TopCommand(), editor_state, {})
-                           .ptr());
-
   commands.Add(
       {L'R'},
       editor_state.gc_pool()

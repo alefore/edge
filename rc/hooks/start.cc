@@ -91,7 +91,7 @@ editor.AddBinding("aO", "Frames: Toggle the buffer sort order", []() -> void {
     editor.set_buffer_sort_order("last_visit");
   editor.SetStatus("Sort order: " + editor.buffer_sort_order());
 });
-editor.AddBinding("G", "Frames: Set the active buffer",
+editor.AddBinding("r", "Frames: Set the active buffer",
                   []() -> void { editor.EnterSetBufferMode(); });
 
 ////////////////////////////////////////////////////////////////////////////////
