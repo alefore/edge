@@ -87,6 +87,8 @@ src/editor_vm.cc \
 src/editor_vm.h \
 src/editor_variables.cc \
 src/editor_variables.h \
+src/fragments.cc \
+src/fragments.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \

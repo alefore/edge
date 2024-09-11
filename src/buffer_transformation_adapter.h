@@ -30,9 +30,6 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   void AddError(language::Error error) override;
 
   void AddFragment(language::text::LineSequence fragment) override;
-
-  static futures::Value<language::text::LineSequence> FindFragment(
-      EditorState&);
 };
 }  // namespace afc::editor
 
