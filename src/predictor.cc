@@ -334,7 +334,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
             [path_input, search_paths, noise_regex](
                 NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
                 DeleteNotification::Value abort_value) mutable {
-              if (!path_input.IsEmpty() &&
+              if (!path_input.empty() &&
                   path_input.get(ColumnNumber{}) == L'/') {
                 search_paths = {Path::Root()};
               } else {
@@ -572,13 +572,11 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
     CHECK_LE(tree.range().begin().column, tree.range().end().column);
     std::optional<Line> line = buffer.LineAt(tree.range().begin().line);
     CHECK(line.has_value());
-    // TODO(easy, 2024-09-10): Figure out why we need word.read().IsEmpty();
-    // we should be able to just do: word.IsEmpty().
     if (SingleLine word = line->Substring(
             tree.range().begin().column,
             std::min(tree.range().end().column, line->EndColumn()) -
                 tree.range().begin().column);
-        !word.read().IsEmpty()) {
+        !word.empty()) {
       DVLOG(5) << "Found leave: " << word;
       words->insert(word);
     }

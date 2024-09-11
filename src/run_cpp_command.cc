@@ -470,8 +470,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   SearchNamespaces search_namespaces(buffer->ptr().value());
   return std::visit(
       overload{[&](Error error) {
-                 if (!error.read().IsEmpty())
-                   buffer->ptr()->status().Set(error);
+                 if (!error.read().empty()) buffer->ptr()->status().Set(error);
                  return Past(ValueOrError<gc::Root<vm::Value>>(
                      Error{LazyString{L"Unable to parse command"}}));
                },

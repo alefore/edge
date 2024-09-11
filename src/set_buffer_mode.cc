@@ -143,7 +143,7 @@ bool CharConsumer(ExtendedChar c, Data& data) {
         CHECK(!data.operations.empty());
         CHECK(data.operations.back().type == Operation::Type::kFilter ||
               data.operations.back().type == Operation::Type::kSearch);
-        if (data.operations.back().text_input.IsEmpty()) {
+        if (data.operations.back().text_input.empty()) {
           data.operations.pop_back();
         }
         return true;

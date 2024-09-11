@@ -61,7 +61,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      LazyString input_name) {
   LazyString name = Trim(input_name, {L' '});
   LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
-  if (name.IsEmpty()) return futures::Past(EmptyValue());
+  if (name.empty()) return futures::Past(EmptyValue());
 
   std::vector<gc::Root<OpenBuffer>> active_buffers =
       editor_state.active_buffers();

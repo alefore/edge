@@ -101,7 +101,7 @@ std::vector<URL> GetLocalFileURLsWithExtensions(
                  std::vector<Token> extensions =
                      TokenizeBySpaces(file_context_extensions);
                  for (const Token& extension_token : extensions) {
-                   CHECK(!extension_token.value.IsEmpty());
+                   CHECK(!extension_token.value.empty());
                    output.push_back(URL::FromPath(
                        Path::WithExtension(path, extension_token.value)));
                  }

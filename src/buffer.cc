@@ -2101,7 +2101,7 @@ OpenBuffer::FreezeDiskState() {
 
 bool OpenBuffer::dirty() const {
   return (disk_state_ == DiskState::kStale &&
-          (!ReadLazyString(buffer_variables::path).IsEmpty() ||
+          (!ReadLazyString(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
          child_pid_.has_value() ||
@@ -2154,7 +2154,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
       output.insert({BufferFlagKey{LazyString{L"↓"}}, BufferFlagValue{}});
     }
     if (LazyString pts_path = ReadLazyString(buffer_variables::pts_path);
-        !pts_path.IsEmpty())
+        !pts_path.empty())
       output.insert(
           {BufferFlagKey{LazyString{L"💻"}}, BufferFlagValue{pts_path}});
   }
@@ -2191,7 +2191,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
                        std::to_wstring(child_exit_status_.value())}}});
   }
 
-  if (LazyString marks = GetLineMarksText(); !marks.IsEmpty()) {
+  if (LazyString marks = GetLineMarksText(); !marks.empty()) {
     output.insert(
         {BufferFlagKey{marks}, BufferFlagValue{}});  // TODO: Show better?
   }

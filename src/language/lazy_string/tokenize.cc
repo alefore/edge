@@ -28,7 +28,7 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
   Token token;
   auto push = [&](ColumnNumber end) {
-    if (!token.value.IsEmpty()) {
+    if (!token.value.empty()) {
       token.end = end;
       output.push_back(std::move(token));
     }

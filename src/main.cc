@@ -256,7 +256,7 @@ int main(int argc, const char** argv) {
   global_editor_state =
       std::make_unique<EditorState>(args, audio_player.value());
 
-  if (!args.benchmark.IsEmpty()) {
+  if (!args.benchmark.empty()) {
     // TODO(2024-09-05, trivial): Avoid this stupid conversion to std::wstring.
     afc::tests::RunBenchmark(args.benchmark.ToString());
     exit(0);
@@ -302,7 +302,7 @@ int main(int argc, const char** argv) {
   }
 
   LazyString commands_to_run = CommandsToRun(args);
-  if (!commands_to_run.IsEmpty()) {
+  if (!commands_to_run.empty()) {
     if (connected_to_parent) {
       commands_to_run += LazyString{L"editor.SendExitTo("} +
                          afc::vm::EscapedString::FromString(server_path.read())

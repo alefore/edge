@@ -149,8 +149,8 @@ LazyString LazyString::SubstringWithRangeChecks(ColumnNumber column,
 }
 
 LazyString LazyString::Append(LazyString suffix) const {
-  if (IsEmpty()) return suffix;
-  if (suffix.IsEmpty()) return *this;
+  if (empty()) return suffix;
+  if (suffix.empty()) return *this;
   return LazyString(MakeNonNullShared<AppendImpl>(AppendImpl::Tree::Append(
       AppendImpl::TreeFrom(*this), AppendImpl::TreeFrom(suffix))));
 }

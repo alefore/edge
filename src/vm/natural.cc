@@ -227,7 +227,7 @@ class ParseState {
   static bool IsQuotedString(const Token& token) { return token.has_quotes; }
 
   static bool IsLiteralNumber(const Token& token) {
-    CHECK(!token.value.IsEmpty());
+    CHECK(!token.value.empty());
     // TODO(2023-12-15, trivial): Handle `-` and `.`.
     return FindFirstColumnWithPredicate(token.value,
                                         [](ColumnNumber, wchar_t c) {

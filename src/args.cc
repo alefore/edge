@@ -157,9 +157,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Accept(L"path", L"Path to the pipe in which to run the server")
           .Set(&CommandLineValues::server_path,
                [](LazyString input) -> ValueOrError<std::optional<Path>> {
-                 if (input.IsEmpty()) {
-                   return Success(std::optional<Path>());
-                 }
+                 if (input.empty()) return Success(std::optional<Path>());
                  ValueOrError<Path> output = Path::New(input);
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
@@ -293,11 +291,11 @@ LazyString CommandsToRun(CommandLineValues args) {
   LazyString commands_to_run =
       args.commands_to_run +
       LazyString{L"VectorBuffer buffers_to_watch = VectorBuffer();\n"};
-  bool start_shell = args.commands_to_run.IsEmpty();
+  bool start_shell = args.commands_to_run.empty();
   for (LazyString path : args.naked_arguments) {
     LazyString full_path;
-    if (!path.IsEmpty() && std::wstring(L"/~").find(path.get(ColumnNumber{})) !=
-                               std::wstring::npos) {
+    if (!path.empty() && std::wstring(L"/~").find(path.get(ColumnNumber{})) !=
+                             std::wstring::npos) {
       LOG(INFO) << L"Will open an absolute path: " << path;
       full_path = path;
     } else {

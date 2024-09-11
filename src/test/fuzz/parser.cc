@@ -20,6 +20,7 @@ extern "C" {
 
 using namespace afc::editor;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::MutableLineSequence;
@@ -27,10 +28,11 @@ using afc::language::text::MutableLineSequence;
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
   auto parser = NewCppTreeParser(
-      {LazyString{L"auto"}, LazyString{L"int"}, LazyString{L"char"},
-       LazyString{L"if"}, LazyString{L"while"}, LazyString{L"const"},
-       LazyString{L"for"}},
-      {LazyString{L"optoins"}}, IdentifierBehavior::kNone);
+      {SingleLine{LazyString{L"auto"}}, SingleLine{LazyString{L"int"}},
+       SingleLine{LazyString{L"char"}}, SingleLine{LazyString{L"if"}},
+       SingleLine{LazyString{L"while"}}, SingleLine{LazyString{L"const"}},
+       SingleLine{LazyString{L"for"}}},
+      {SingleLine{LazyString{L"optoins"}}}, IdentifierBehavior::kNone);
 
   std::wifstream input(argv[1]);
 

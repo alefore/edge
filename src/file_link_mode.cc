@@ -531,7 +531,7 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->pattern.has_value() &&
-      !resolve_path_output->pattern->IsEmpty()) {
+      !resolve_path_output->pattern->empty()) {
     SearchOptions search_options =
         SearchOptions{.starting_position = buffer.ptr()->position(),
                       .search_query = resolve_path_output->pattern.value()};

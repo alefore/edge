@@ -68,14 +68,13 @@ void SerializeCall(LazyString name, std::vector<LazyString> arguments,
   output.AppendString(name, LineModifierSet{LineModifier::kCyan});
   output.AppendString(LazyString{L"("}, LineModifierSet{LineModifier::kDim});
   LazyString separator;
-  std::ranges::for_each(
-      arguments |
-          std::views::filter([](const LazyString& a) { return !a.IsEmpty(); }),
-      [&](const LazyString& a) {
-        output.AppendString(separator, LineModifierSet{LineModifier::kDim});
-        output.AppendString(a, std::nullopt);
-        separator = LazyString{L", "};
-      });
+  std::ranges::for_each(arguments | std::views::filter(&LazyString::empty),
+                        [&](const LazyString& a) {
+                          output.AppendString(
+                              separator, LineModifierSet{LineModifier::kDim});
+                          output.AppendString(a, std::nullopt);
+                          separator = LazyString{L", "};
+                        });
   output.AppendString(LazyString{L")"}, LineModifierSet{LineModifier::kDim});
 }
 
@@ -304,7 +303,7 @@ transformation::Stack GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachQuery reach_query) {
-  if (reach_query.query.IsEmpty()) return transformation::Stack{};
+  if (reach_query.query.empty()) return transformation::Stack{};
   transformation::Stack transformation;
   transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
@@ -763,7 +762,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
                .description = Description{LazyString{L"Backspace"}},
-               .active = !output->query.IsEmpty(),
+               .active = !output->query.empty(),
                .handler = [output](ExtendedChar) {
                  output->query = output->query.Substring(
                      ColumnNumber{},
@@ -815,7 +814,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
                .description = Description{LazyString{L"Backspace"}},
-               .active = !output->input.IsEmpty(),
+               .active = !output->input.empty(),
                .handler =
                    [output](ExtendedChar) {
                      output->input = output->input.Substring(
@@ -1224,7 +1223,7 @@ class OperationMode : public EditorMode {
 LazyString CommandArgumentRepetitions::ToString() const {
   LazyString output;
   for (auto& r : get_list()) {
-    if (!output.IsEmpty() && r > 0) output += LazyString{L"+"};
+    if (!output.empty() && r > 0) output += LazyString{L"+"};
     output += LazyString{std::to_wstring(r)};
   }
   return output;

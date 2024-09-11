@@ -31,10 +31,9 @@ Line FrameLine(FrameOutputProducerOptions options) {
   LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
   output.AppendString(LazyString{L"──"}, line_modifiers);
-  if (!options.title.IsEmpty()) {
+  if (!options.title.empty())
     output.AppendString(LazyString{L" "} + options.title + LazyString{L" "},
                         title_modifiers);
-  }
   if (options.position_in_parent.has_value()) {
     output.AppendString(LazyString{L"─("}, line_modifiers);
     // Add 1 because that matches what the repetitions do. Humans

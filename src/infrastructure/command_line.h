@@ -415,7 +415,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
 
   while (!args_data.input.empty()) {
     LazyString cmd = args_data.input.front();
-    if (cmd.IsEmpty()) {
+    if (cmd.empty()) {
       args_data.input.pop_front();
       continue;
     }

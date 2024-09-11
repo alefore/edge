@@ -39,7 +39,7 @@ using ::operator<<;
 
 /* static */ language::PossibleError PathComponentValidator::Validate(
     const LazyString& input) {
-  if (input.IsEmpty()) return Error{LazyString{L"Component can't be empty."}};
+  if (input.empty()) return Error{LazyString{L"Component can't be empty."}};
   if (FindFirstOf(input, {L'/'}).has_value())
     return Error{LazyString{L"Component can't contain a slash: "} +
                  LazyString{input}};
@@ -182,10 +182,8 @@ const bool path_component_extension_tests_registration = tests::Register(
      {.name = L"Empty",
       .callback =
           [] {
-            CHECK(PathComponent::FromString(L"foo.")
-                      .extension()
-                      .value()
-                      .IsEmpty());
+            CHECK(
+                PathComponent::FromString(L"foo.").extension().value().empty());
           }},
      {.name = L"Present", .callback = [] {
         CHECK(PathComponent::FromString(L"foo.md").extension().value() ==
@@ -431,7 +429,7 @@ ValueOrError<AbsolutePath> Path::Resolve() const {
 }
 
 PossibleError PathValidator::Validate(const LazyString& path) {
-  if (path.IsEmpty()) return Error{LazyString{L"Path can not be empty."}};
+  if (path.empty()) return Error{LazyString{L"Path can not be empty."}};
   return Success();
 }
 
@@ -443,12 +441,9 @@ Path Path::Root() {
 }
 
 ValueOrError<AbsolutePath> AbsolutePath::FromString(LazyString path) {
-  if (path.IsEmpty()) {
-    return Error{LazyString{L"Path can't be empty"}};
-  }
-  if (path.get(ColumnNumber{}) != L'/') {
+  if (path.empty()) return Error{LazyString{L"Path can't be empty"}};
+  if (path.get(ColumnNumber{}) != L'/')
     return Error{LazyString{L"Absolute path must start with /"}};
-  }
   return Success(AbsolutePath(std::move(path)));
 }
 

@@ -198,8 +198,7 @@ futures::Value<PossibleError> GenerateContents(
 
     if (LazyString children_path =
             target.ReadLazyString(buffer_variables::children_path);
-        !children_path.IsEmpty() &&
-        chdir(children_path.ToBytes().c_str()) == -1)
+        !children_path.empty() && chdir(children_path.ToBytes().c_str()) == -1)
       LOG(FATAL) << children_path
                  << ": chdir failed: " << std::string(strerror(errno));
 
@@ -546,7 +545,7 @@ class ForkEditorCommand : public Command {
           LazyString base_command = context_command_output.ptr()->get_string();
           if (prompt_state.base_command == base_command)
             return ColorizePromptOptions{};
-          if (base_command.IsEmpty()) {
+          if (base_command.empty()) {
             prompt_state.base_command = std::nullopt;
             return ColorizePromptOptions{
                 .context = ColorizePromptOptions::ContextClear()};

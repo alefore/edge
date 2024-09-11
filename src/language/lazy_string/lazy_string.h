@@ -42,7 +42,7 @@ class LazyString {
 
   wchar_t get(ColumnNumber pos) const { return data_->get(pos); }
   ColumnNumberDelta size() const { return data_->size(); }
-  bool IsEmpty() const { return data_->size().IsZero(); }
+  bool empty() const { return data_->size().IsZero(); }
 
   std::wstring ToString() const;
 

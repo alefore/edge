@@ -398,7 +398,7 @@ class ActivateLink : public Command {
                         [&](gc::Root<OpenBuffer> target) {
                           if (LazyString path = target.ptr()->ReadLazyString(
                                   buffer_variables::path);
-                              !path.IsEmpty())
+                              !path.empty())
                             AddLineToHistory(editor_state, HistoryFileFiles(),
                                              path);
                           editor_state.AddBuffer(

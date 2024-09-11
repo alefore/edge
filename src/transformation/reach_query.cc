@@ -134,7 +134,7 @@ futures::Value<CompositeTransformation::Output> GoTo(
 
 futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     CompositeTransformation::Input input) const {
-  if (query_.IsEmpty() || query_.size() > kQueryLength + ColumnNumberDelta(1))
+  if (query_.empty() || query_.size() > kQueryLength + ColumnNumberDelta(1))
     return futures::Past(Output{});
 
   PositionIdentifierMap matches = FindIdentifiers(

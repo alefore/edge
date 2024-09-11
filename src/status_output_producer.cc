@@ -92,7 +92,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     output.AppendString(LazyString{L" 🧭 "}, {{LineModifier::kDim}});
 
     if (LazyString marks_text = options.buffer->GetLineMarksText();
-        !marks_text.IsEmpty()) {
+        !marks_text.empty()) {
       output.AppendString(marks_text);
       output.AppendCharacter(' ', {});
     }
@@ -152,7 +152,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       oss << options.modifiers.structure;
       structure = LazyString{FromByteString(oss.str())};
     }
-    if (!structure.IsEmpty()) {
+    if (!structure.empty()) {
       if (options.modifiers.sticky_structure)
         structure = UpperCase(std::move(structure));
       flags[BufferFlagKey{LazyString{L"St:"}}] = BufferFlagValue{structure};

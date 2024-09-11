@@ -180,7 +180,7 @@ void TestCases() {
       editor_state.current_buffer()->ptr()->OptionalCurrentLine()->ToString() ==
       L"alejo forero");
   editor_state.ProcessInput(VectorExtendedChar(LazyString{L"gde\n"}));
-  CHECK(editor_state.current_buffer()->ptr()->ToString().IsEmpty());
+  CHECK(editor_state.current_buffer()->ptr()->ToString().empty());
 
   editor_state.ProcessInput(
       VectorExtendedChar(LazyString{L"ialejandro\nforero\ncuervo"}));

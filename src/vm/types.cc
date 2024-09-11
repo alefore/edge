@@ -85,18 +85,16 @@ namespace gc = language::gc;
 
 /* static */ PossibleError IdentifierValidator::Validate(
     const LazyString& input) {
-  if (input.IsEmpty()) return Error{LazyString{L"Identifier can't be empty."}};
+  if (input.empty()) return Error{LazyString{L"Identifier can't be empty."}};
   // TODO(2024-08-27): Improve the validation? The presence of '~' is
   // questionable. Maybe we should validate that it only occurs in the
   // beginning? We should probably also validate that numbers don't occur in the
   // beginning.
-  static const std::wstring allow_list_str =
-      L"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-      L"abcdefghijklmnopqrstuvwxyz"
-      L"0123456789"
-      L"_~";
-  static const std::unordered_set<wchar_t> allow_list(allow_list_str.begin(),
-                                                      allow_list_str.end());
+  static const auto allow_list = container::MaterializeUnorderedSet(
+      std::wstring{L"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                   L"abcdefghijklmnopqrstuvwxyz"
+                   L"0123456789"
+                   L"_~"});
   if (std::optional<ColumnNumber> position = FindFirstNotOf(input, allow_list);
       position.has_value())
     return Error{LazyString{L"Invalid character found inside identifier: "} +

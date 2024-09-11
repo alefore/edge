@@ -174,7 +174,7 @@ Line Status::prompt_extra_information_line() const {
                                   : empty;
       options.AppendString(key.read(), modifiers);
       if (!std::holds_alternative<LazyString>(value.value) ||
-          !std::get<LazyString>(value.value).IsEmpty()) {
+          !std::get<LazyString>(value.value).empty()) {
         options.AppendString(LazyString{L":"}, dim);
         options.AppendString(
             std::visit(
