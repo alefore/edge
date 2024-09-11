@@ -17,6 +17,7 @@ using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::overload;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
@@ -46,6 +47,8 @@ void TransformationInputAdapterImpl::AddError(Error error) {
 }
 
 namespace {
+const vm::Identifier kIdentifierFragment{LazyString{L"fragment"}};
+
 futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
   return VisitOptional(
       [](gc::Root<OpenBuffer> output) { return futures::Past(output); },
@@ -86,9 +89,29 @@ void TransformationInputAdapterImpl::AddFragment(LineSequence fragment) {
       .Transform([fragment](gc::Root<OpenBuffer> fragments_buffer) {
         fragments_buffer.ptr()->AppendLine(vm::EscapedMap{
             std::multimap<vm::Identifier, LazyString>{
-                {vm::Identifier{LazyString{L"fragment"}},
+                {kIdentifierFragment,
                  fragment.ToLazyString()}}}.Serialize());
         return futures::Past(EmptyValue{});
+      });
+}
+
+futures::Value<LineSequence> TransformationInputAdapterImpl::FindFragment() {
+  return GetFragmentsBuffer(buffer_.editor())
+      .Transform([](gc::Root<OpenBuffer> fragments_buffer) {
+        return std::visit(
+            overload{// TODO(trivial, 2024-09-10): Don't ignore the error.
+                     [](Error) { return LineSequence{}; },
+                     [](EscapedMap parsed_map) {
+                       auto it = parsed_map.read().find(kIdentifierFragment);
+                       if (it == parsed_map.read().end()) return LineSequence{};
+                       return LineSequence::BreakLines(it->second);
+                     }},
+            EscapedMap::Parse(fragments_buffer.ptr()
+                                  ->contents()
+                                  .snapshot()
+                                  .back()
+                                  .contents()
+                                  .read()));
       });
 }
 }  // namespace afc::editor
