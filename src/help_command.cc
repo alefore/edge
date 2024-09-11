@@ -190,19 +190,22 @@ class HelpCommand : public Command {
     output.push_back(L"");
 
     DescribeVariables(
-        L"bool", buffer, output, buffer_variables::BoolStruct(),
+        SingleLine{LazyString{L"bool"}}, buffer, output,
+        buffer_variables::BoolStruct(),
         [](const bool& value) {
           return value ? LazyString{L"true"} : LazyString{L"false"};
         },
         &OpenBuffer::Read);
     DescribeVariables(
-        L"string", buffer, output, buffer_variables::StringStruct(),
+        SingleLine{LazyString{L"string"}}, buffer, output,
+        buffer_variables::StringStruct(),
         [](const LazyString& value) {
           return LazyString{L"`"} + value + LazyString{L"`"};
         },
         &OpenBuffer::ReadLazyString);
     DescribeVariables(
-        L"int", buffer, output, buffer_variables::IntStruct(),
+        SingleLine{LazyString{L"int"}}, buffer, output,
+        buffer_variables::IntStruct(),
         [](const int& value) { return LazyString{std::to_wstring(value)}; },
         &OpenBuffer::Read);
 
@@ -314,18 +317,12 @@ class HelpCommand : public Command {
 
   // TODO(trivial, 2024-08-27): Once OpenBuffer::Read returns a LazyString,
   // get rid of parameter reader.
-  // TODO(easy, 2024-09-11): Turn type_name into SingleLine. Avoid wrapping it
-  // below.
   template <typename T, typename C>
   static void DescribeVariables(
-      std::wstring type_name, const OpenBuffer& source,
+      SingleLine type_name, const OpenBuffer& source,
       MutableLineSequence& output, EdgeStruct<T>* variables, C print,
       const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
-    // TODO(easy, 2024-09-06): Receive type_name as LazyString and remove
-    // conversion below.
-    StartSection(
-        SingleLine{LazyString{L"### "}} + SingleLine{LazyString{type_name}},
-        output);
+    StartSection(SingleLine{LazyString{L"### "}} + type_name, output);
     for (const auto& variable : variables->variables()) {
       output.push_back(LineBuilder{LazyString{L"#### "} +
                                    LazyString{variable.second->name()}}
