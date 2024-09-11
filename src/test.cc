@@ -48,7 +48,8 @@ void Clear(EditorState* editor_state) {
           ->second,
       CommandArgumentModeApplyMode::kFinal);
 
-  editor_state->ProcessInput(VectorExtendedChar(L"eegde999999999999999\n"));
+  editor_state->ProcessInput(
+      VectorExtendedChar(LazyString{L"eegde999999999999999\n"}));
   editor_state->ProcessInput({ControlChar::kEscape});
   editor_state->current_buffer()->ptr()->Set(buffer_variables::multiple_cursors,
                                              false);
@@ -143,45 +144,46 @@ void TestCases() {
   EditorState editor_state(CommandLineValues(), audio_player.value());
   CHECK(!editor_state.has_current_buffer());
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i\n"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK(editor_state.has_current_buffer());
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "\n");
-  editor_state.ProcessInput(VectorExtendedChar(L"ib"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ib"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"k"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"k"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "\nb");
-  editor_state.ProcessInput(VectorExtendedChar(L".u"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L".u"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "\nb");
 
   // Caused a crash (found by fuzz testing).
-  editor_state.ProcessInput(VectorExtendedChar(L"5i\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"5i\n"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"+"));
-  editor_state.ProcessInput(VectorExtendedChar(L"3k"));
-  editor_state.ProcessInput(VectorExtendedChar(L"iblah"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"+"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"3k"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"iblah"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"+_"));
-  editor_state.ProcessInput(VectorExtendedChar(L"j."));
-  editor_state.ProcessInput(VectorExtendedChar(L"u"));
-  editor_state.ProcessInput(VectorExtendedChar(L"i"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"+_"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"j."}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"u"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i"}));
   editor_state.ProcessInput({ControlChar::kBackspace, ControlChar::kEscape});
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i"}));
   CHECK(editor_state.has_current_buffer());
-  editor_state.ProcessInput(VectorExtendedChar(L"alejo"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"alejo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"i forero"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i forero"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK(
       editor_state.current_buffer()->ptr()->OptionalCurrentLine()->ToString() ==
       L"alejo forero");
-  editor_state.ProcessInput(VectorExtendedChar(L"gde\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"gde\n"}));
   CHECK(editor_state.current_buffer()->ptr()->ToString().IsEmpty());
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejandro\nforero\ncuervo"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ialejandro\nforero\ncuervo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->contents().size(),
            LineNumberDelta(3));
@@ -189,42 +191,42 @@ void TestCases() {
            LineNumber(2));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_col(),
            ColumnNumber(sizeof("cuervo") - 1));
-  editor_state.ProcessInput(VectorExtendedChar(L"ehhh"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ehhh"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(1));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_col(),
            ColumnNumber(sizeof("cuervo") - 1 - 2));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"k"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"k"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(0));
-  editor_state.ProcessInput(VectorExtendedChar(L"kkkkk"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"kkkkk"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(0));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"3g"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"3g"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_col(),
            ColumnNumber(3 - 1));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"rg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"rg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_col(),
            ColumnNumber(sizeof("alejandro") - 1));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"erg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"erg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(2));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"egg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"egg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_col(),
            ColumnNumber(0));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"d2e]\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"d2e]\n"}));
   CHECK_EQ(editor_state.current_buffer()
                ->ptr()
                ->OptionalCurrentLine()
@@ -232,23 +234,23 @@ void TestCases() {
                .ToBytes(),
            "cuervo");
 
-  editor_state.ProcessInput(VectorExtendedChar(L"pp"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"pp"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->contents().size(),
            LineNumberDelta(5));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"erg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"erg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(4));
-  editor_state.ProcessInput(VectorExtendedChar(L"eg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"eg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(0));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"eel"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"eel"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(1));
 
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"d3\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"d3\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->current_position_line(),
            LineNumber(1));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
@@ -258,75 +260,76 @@ void TestCases() {
   Clear(&editor_state);
 
   editor_state.ProcessInput(
-      VectorExtendedChar(L"ialejandro forero cuervo\n\n"));
+      VectorExtendedChar(LazyString{L"ialejandro forero cuervo\n\n"}));
   editor_state.ProcessInput(
-      VectorExtendedChar(L"0123456789abcdefghijklmnopqrstuvwxyz"));
+      VectorExtendedChar(LazyString{L"0123456789abcdefghijklmnopqrstuvwxyz"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"2h2h2h2h2l2l2l2l2l2h2h2h2hegg"));
+      VectorExtendedChar(LazyString{L"2h2h2h2h2l2l2l2l2l2h2h2h2hegg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(0));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"2l2l2l2l2l"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"2l2l2l2l2l"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(10));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"3b"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"3b"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(4));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"2rb"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"2rb"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(8));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"eb"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"eb"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(2));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"gf1f3f5f7f9"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"gf1f3f5f7f9"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(9));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"b"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"b"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(7));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"10g"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"10g"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(9));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"/123\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"/123\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(2));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(1));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"egd1000000000000000000\n"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"egd1000000000000000000\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(0));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejo forero\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ialejo forero\n"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"kg"
-                         L"d3\n"
-                         L"rg"
-                         L"jp"));
+      VectorExtendedChar(LazyString{L"kg"
+                                    L"d3\n"
+                                    L"rg"
+                                    L"jp"}));
   editor_state.ProcessInput(
-      VectorExtendedChar(L"krg"
-                         L"j"
-                         L"rfa"));
+      VectorExtendedChar(LazyString{L"krg"
+                                    L"j"
+                                    L"rfa"}));
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(
-      VectorExtendedChar(L"ihey there hey hey man yes ahoheyblah."));
+  editor_state.ProcessInput(VectorExtendedChar(
+      LazyString{L"ihey there hey hey man yes ahoheyblah."}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(0));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"gw/"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"gw/"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
@@ -334,10 +337,10 @@ void TestCases() {
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejo"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ialejo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"jjjj"));
-  editor_state.ProcessInput(VectorExtendedChar(L"/alejo\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"jjjj"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"/alejo\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
@@ -346,37 +349,38 @@ void TestCases() {
   Clear(&editor_state);
 
   // VM Tests.
-  editor_state.ProcessInput(VectorExtendedChar(L"i0123456789"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i0123456789"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().line,
            LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(10));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"aCSetPositionColumn(4);;\n"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"aCSetPositionColumn(4);;\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(4));
   editor_state.ProcessInput(
-      VectorExtendedChar(L"aCSetPositionColumn(4 - 1);;\n"));
+      VectorExtendedChar(LazyString{L"aCSetPositionColumn(4 - 1);;\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(3));
-  editor_state.ProcessInput(
-      VectorExtendedChar(L"aCSetPositionColumn(8 - 2 * 3 + 5);;\n"));
+  editor_state.ProcessInput(VectorExtendedChar(
+      LazyString{L"aCSetPositionColumn(8 - 2 * 3 + 5);;\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position().column,
            ColumnNumber(7));
 
   Clear(&editor_state);
 
   // Test for undo after normal delete line.
-  editor_state.ProcessInput(VectorExtendedChar(L"i12345\n67890"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i12345\n67890"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "12345\n67890");
 
-  editor_state.ProcessInput(VectorExtendedChar(L"egg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"egg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(), LineColumn());
 
-  editor_state.ProcessInput(VectorExtendedChar(L"de5\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"de5\n"}));
   CHECK(IsEmpty(&editor_state));
 
   editor_state.ProcessInput({L'u'});
@@ -387,19 +391,20 @@ void TestCases() {
 
   // Test for insertion at EOF.
   CHECK_EQ(editor_state.current_buffer()->ptr()->EndLine(), LineNumber(0));
-  editor_state.ProcessInput(VectorExtendedChar(L"55ji\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"55ji\n"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->EndLine(), LineNumber(1));
 
   Clear(&editor_state);
 
   // Test for uppercase switch
-  editor_state.ProcessInput(VectorExtendedChar(L"ialeJAnDRo\nfoRero"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ialeJAnDRo\nfoRero"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"kg~5\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"kg~5\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "ALEjanDRo\nfoRero");
-  editor_state.ProcessInput(VectorExtendedChar(L"~W\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"~W\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "ALEjaNdrO\nfoRero");
 
@@ -407,43 +412,44 @@ void TestCases() {
 
   // Test that delete word across multiple lines works.
   editor_state.ProcessInput(
-      VectorExtendedChar(L"ialejandro\n\n\n\n  forero cuervo"));
+      VectorExtendedChar(LazyString{L"ialejandro\n\n\n\n  forero cuervo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alejandro\n\n\n\n  forero cuervo");
 
-  editor_state.ProcessInput(VectorExtendedChar(L"egg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"egg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(), LineColumn());
 
-  editor_state.ProcessInput(VectorExtendedChar(L"rg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"rg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(),
            LineColumn(LineNumber(0), ColumnNumber(9)));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"dw)\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"dw)\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alejandroforero cuervo");
 
   Clear(&editor_state);
 
   // Test multiple cursors.
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejandro\nforero\ncuervo"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ialejandro\nforero\ncuervo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alejandro\nforero\ncuervo");
 
-  editor_state.ProcessInput(VectorExtendedChar(L"g"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"g"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(),
            LineColumn(LineNumber(2)));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"+eg"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"+eg"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(), LineColumn());
 
-  editor_state.ProcessInput(VectorExtendedChar(L"w+"));
-  editor_state.ProcessInput(VectorExtendedChar(L"_"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"w+"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"_"}));
   CHECK(editor_state.current_buffer()->ptr()->Read(
       buffer_variables::multiple_cursors));
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i1234 "));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i1234 "}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "1234 alejandro\n1234 forero\n1234 cuervo");
@@ -451,92 +457,98 @@ void TestCases() {
 
   // Test multiple cursors in same line, movement.
   LOG(INFO) << "Multiple cursors test: start";
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejandro forero cuervo"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ialejandro forero cuervo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alejandro forero cuervo");
-  editor_state.ProcessInput(VectorExtendedChar(L"rfc+gw+"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"rfc+gw+"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"avmultiple_cursors\n"));
-  editor_state.ProcessInput(VectorExtendedChar(L"ll"));
-  editor_state.ProcessInput(VectorExtendedChar(L"i["));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"avmultiple_cursors\n"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ll"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i["}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "al[ejandro fo[rero cu[ervo");
 
   editor_state.ProcessInput(
-      VectorExtendedChar(L"d\n"
-                         L"l"
-                         L"dr\n"
-                         L"l"));
-  editor_state.ProcessInput(VectorExtendedChar(L"i)"));
+      VectorExtendedChar(LazyString{L"d\n"
+                                    L"l"
+                                    L"dr\n"
+                                    L"l"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i)"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "al[a)ndro fo[r)o cu[v)o");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i123\n56\n789"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i123\n56\n789"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput({L'h', L'+'});  // Leave a cursor at 9.
-  editor_state.ProcessInput(VectorExtendedChar(L"khh"));  // Cursor at 5).
-  editor_state.ProcessInput(VectorExtendedChar(L"i4"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"khh"}));  // Cursor at 5).
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i4"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "123\n456\n789");
-  editor_state.ProcessInput(VectorExtendedChar(L"+"));  // Leave a cursor at 5).
   editor_state.ProcessInput(
-      VectorExtendedChar(L"kll"));  // Leave cursor at end of first line).
+      VectorExtendedChar(LazyString{L"+"}));  // Leave a cursor at 5).
+  editor_state.ProcessInput(VectorExtendedChar(
+      LazyString{L"kll"}));  // Leave cursor at end of first line).
   // Bugs happen here! Did the cursors get adjusted?
-  editor_state.ProcessInput(VectorExtendedChar(L"d\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"d\n"}));
   editor_state.ProcessInput(
-      VectorExtendedChar(L"_"
-                         L"ix"));
+      VectorExtendedChar(LazyString{L"_"
+                                    L"ix"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "123x4x56\n78x9");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ioo"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ioo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"/o\n"
-                         L"cl"
-                         L"-"));
+      VectorExtendedChar(LazyString{L"/o\n"
+                                    L"cl"
+                                    L"-"}));
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i\n"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput({L'k', L'~'});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "\n");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i\n-"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i\n-"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"k~"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"k~"}));
 
   Clear(&editor_state);
 
   // Can cancel the search prompt.
-  editor_state.ProcessInput(VectorExtendedChar(L"/"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"/"}));
   editor_state.ProcessInput({ControlChar::kEscape});
 
   Clear(&editor_state);
 
   // Search switching cursors.
-  editor_state.ProcessInput(VectorExtendedChar(L"i0123456789"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i0123456789"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput({L'g'});
   editor_state.ProcessInput({L'+'});  // Cursors: 0, *)0
   editor_state.ProcessInput(
-      VectorExtendedChar(L"2l"
-                         L"+"));                         // Cursors: 0, 2, *2
-  editor_state.ProcessInput(VectorExtendedChar(L"2l"));  // Cursors: 0, 2, *)4
-  editor_state.ProcessInput(VectorExtendedChar(L"ch"));  // Cursors: 0, *2, )4
-  editor_state.ProcessInput(VectorExtendedChar(L"i-"));
+      VectorExtendedChar(LazyString{L"2l"
+                                    L"+"}));  // Cursors: 0, 2, *2
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"2l"}));  // Cursors: 0, 2, *)4
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ch"}));  // Cursors: 0, *2, )4
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i-"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "01-23456789");
@@ -544,147 +556,151 @@ void TestCases() {
   Clear(&editor_state);
 
   // Behavior with moving past end of line.
-  editor_state.ProcessInput(VectorExtendedChar(L"i0123\n0123456789"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"i0123\n0123456789"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"k3h"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"k3h"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(),
            LineColumn(LineNumber(), ColumnNumber(1)));
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"i01\n23\n45\n67\n89\n"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"i01\n23\n45\n67\n89\n"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"3k"));  // Cursor at line "45").
-  editor_state.ProcessInput(VectorExtendedChar(L"de]\n"));
+      VectorExtendedChar(LazyString{L"3k"}));  // Cursor at line "45").
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"de]\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "01\n23\n67\n89\n");
-  editor_state.ProcessInput(VectorExtendedChar(L"."));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"."}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "01\n23\n89\n");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ia"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ia"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"h"));
-  editor_state.ProcessInput(VectorExtendedChar(L"d)\n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"h"}));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"d)\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "a");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ia\nbcd"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ia\nbcd"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"k"
-                         L"dW)\n"));
+      VectorExtendedChar(LazyString{L"k"
+                                    L"dW)\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "abcd");
 
   Clear(&editor_state);
 
   // Triggered a crash in earlier versions.
-  editor_state.ProcessInput(VectorExtendedChar(L"rei"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"rei"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput({L'j'});
 
   Clear(&editor_state);
 
   // Triggered a crash in earlier versions.
-  editor_state.ProcessInput(VectorExtendedChar(L"wr3g"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"wr3g"}));
 
   Clear(&editor_state);
 
   // Tests that lines are aligned (based on previous line).
-  editor_state.ProcessInput(VectorExtendedChar(L"i a\nb"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i a\nb"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            " a\n b");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ia\nb"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ia\nb"}));
   editor_state.ProcessInput({ControlChar::kEscape});
-  editor_state.ProcessInput(VectorExtendedChar(L"kh2w/"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"kh2w/"}));
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"af \n"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"af \n"}));
 
   Clear(&editor_state);
 
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "");
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejo"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ialejo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"dwr\n"
-                         L"p"
-                         L"3h"));
+      VectorExtendedChar(LazyString{L"dwr\n"
+                                    L"p"
+                                    L"3h"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "alejo");
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(),
            LineColumn(LineNumber(0), ColumnNumber(2)));
-  editor_state.ProcessInput(VectorExtendedChar(L"p"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"p"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alalejoejo");
-  editor_state.ProcessInput(VectorExtendedChar(L"u"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"u"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(), "alejo");
   CHECK_EQ(editor_state.current_buffer()->ptr()->position(),
            LineColumn(LineNumber(0), ColumnNumber(2)));
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejo\nforero"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"ialejo\nforero"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   // One cursor at beginning of each line.
   editor_state.ProcessInput({L'g', L'+', L'k', L'_'});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"fo"
-                         L"d\n"));
+      VectorExtendedChar(LazyString{L"fo"
+                                    L"d\n"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alej\nfrero");
 
   Clear(&editor_state);
 
-  // Tests that undoing a delete leaves the cursor at the original position.
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejandro cuervo"));
+  // Tests that undoing a delete leaves the cursor at the original
+  // position.
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ialejandro cuervo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"rf "
-                         L"d\n"
-                         L"g"
-                         L"u"
-                         L"i forero"));
+      VectorExtendedChar(LazyString{L"rf "
+                                    L"d\n"
+                                    L"g"
+                                    L"u"
+                                    L"i forero"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "alejandro forero cuervo");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"3iab"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"3iab"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "ababab");
-  editor_state.ProcessInput(VectorExtendedChar(L"."));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"."}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "abababababab");
-  editor_state.ProcessInput(VectorExtendedChar(L"u"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"u"}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "ababab");
-  editor_state.ProcessInput(VectorExtendedChar(L"3."));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"3."}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "abababababababababababab");
 
   Clear(&editor_state);
 
   // Test that cursors in the stack of cursors are updated properly.
-  editor_state.ProcessInput(VectorExtendedChar(L"i12345"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"i12345"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"/.\n"));  // A cursor in every character.
+      VectorExtendedChar(LazyString{L"/.\n"}));  // A cursor in every character.
   editor_state.ProcessInput(
-      VectorExtendedChar(L"C+"
-                         L"="
-                         L"eialejo"));  // Add a new line.
+      VectorExtendedChar(LazyString{L"C+"
+                                    L"="
+                                    L"eialejo"}));  // Add a new line.
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput({L'C', L'-', L'_', L'i', L'-'});
   editor_state.ProcessInput({ControlChar::kEscape});
@@ -693,19 +709,20 @@ void TestCases() {
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"ialejandro forero cuervo"));
+  editor_state.ProcessInput(
+      VectorExtendedChar(LazyString{L"ialejandro forero cuervo"}));
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(
-      VectorExtendedChar(L"g"
-                         L"dw\n"
-                         L"l"
-                         L"."));
+      VectorExtendedChar(LazyString{L"g"
+                                    L"dw\n"
+                                    L"l"
+                                    L"."}));
   CHECK_EQ(editor_state.current_buffer()->ptr()->ToString().ToBytes(),
            "  cuervo");
 
   Clear(&editor_state);
 
-  editor_state.ProcessInput(VectorExtendedChar(L"al"));
+  editor_state.ProcessInput(VectorExtendedChar(LazyString{L"al"}));
 
   Clear(&editor_state);
 }
