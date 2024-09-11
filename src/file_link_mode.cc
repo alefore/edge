@@ -501,9 +501,9 @@ gc::Root<OpenBuffer> CreateBuffer(
       };
 
   gc::Root<OpenBuffer> buffer = VisitOptional(
-      [&](Path path) {
+      [&](Path) {
         return options.editor_state.buffer_registry().MaybeAdd(
-            BufferFileId{path}, [&] {
+            buffer_options->name, [&] {
               gc::Root<OpenBuffer> output =
                   OpenBuffer::New(buffer_options.value());
               output.ptr()->Set(buffer_variables::persist_state, true);
