@@ -34,7 +34,8 @@ void BufferRegistry::Add(const BufferName& name,
   // TODO(2024-05-30, trivial): Detect errors if a server already was there.
   if (std::holds_alternative<FuturePasteBuffer>(name) ||
       std::holds_alternative<HistoryBufferName>(name) ||
-      std::holds_alternative<PasteBuffer>(name))
+      std::holds_alternative<PasteBuffer>(name) ||
+      std::holds_alternative<FragmentsBuffer>(name))
     retained_buffers_.insert_or_assign(name, buffer.Lock()->ptr());
   buffer_map_.insert_or_assign(name, std::move(buffer));
 }
