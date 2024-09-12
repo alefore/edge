@@ -121,8 +121,7 @@ LazyString::LazyString(ColumnNumberDelta times, wchar_t c)
 }
 
 std::wstring LazyString::ToString() const {
-  static Tracker tracker(L"LazyString::ToString");
-  auto call = tracker.Call();
+  INLINE_TRACKER(LazyString_ToString);
   std::wstring output(size().read(), 0);
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.read()] = c; });

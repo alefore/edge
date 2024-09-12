@@ -582,8 +582,7 @@ ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
 
 LineWithCursor::Generator::Vector ProduceBuffersList(
     NonNull<std::shared_ptr<BuffersListOptions>> options) {
-  static Tracker tracker(L"BuffersList::ProduceBuffersList");
-  auto call = tracker.Call();
+  INLINE_TRACKER(BuffersList__ProduceBuffersList);
 
   // We reserve space for the largest number, and extra space for the `progress`
   // character, and an extra space at the end.
@@ -833,8 +832,7 @@ struct Layout {
 
 Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
                       size_t buffers_count) {
-  static Tracker tracker(L"BuffersPerLine");
-  auto call = tracker.Call();
+  INLINE_TRACKER(BuffersPerLine);
 
   if (buffers_count == 0 || maximum_lines.IsZero()) {
     return Layout{.buffers_per_line = 0, .lines = LineNumberDelta(0)};
@@ -937,8 +935,7 @@ const bool buffers_per_line_tests_registration = tests::Register(
 
 LineWithCursor::Generator::Vector BuffersList::GetLines(
     Widget::OutputProducerOptions options) const {
-  static Tracker tracker(L"BuffersList::GetLines");
-  auto call = tracker.Call();
+  INLINE_TRACKER(BuffersList__GetLines);
 
   Layout layout = BuffersPerLine(options.size.line / 2, options.size.column,
                                  buffers_.size());
@@ -996,8 +993,7 @@ void BuffersList::SetBuffersToShow(std::optional<size_t> buffers_to_show) {
 }
 
 void BuffersList::Update() {
-  static Tracker tracker(L"BuffersList::Update");
-  auto call = tracker.Call();
+  INLINE_TRACKER(BuffersList__Update);
 
   auto order_predicate =
       buffer_sort_order_ == BufferSortOrder::kLastVisit
