@@ -280,9 +280,7 @@ std::vector<Event> Sort(const History& history,
   // compute a small value epsilon and use:
   //
   //     p(eᵢ, F) = p(eᵢ) Πj max(epsilon, p(fⱼ | eᵢ))
-  static infrastructure::Tracker tracker(
-      L"NaiveBayes::SortByProportionalProbability");
-  auto call = tracker.Call();
+  TRACK_OPERATION(NaiveBayes_SortByProportionalProbability);
 
   // probability_of_feature_given_event[eᵢ][fⱼ] represents a value p(fⱼ | eᵢ):
   // the probability of fⱼ given eᵢ.

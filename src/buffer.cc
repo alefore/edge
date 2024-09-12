@@ -88,7 +88,6 @@ using afc::infrastructure::PathComponent;
 using afc::infrastructure::ProcessId;
 using afc::infrastructure::RegularFileAdapter;
 using afc::infrastructure::TerminalAdapter;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::UnixSignal;
 using afc::infrastructure::UpdateIfMillisecondsHavePassed;
 using afc::infrastructure::screen::CursorsSet;
@@ -789,16 +788,14 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
 }
 
 void OpenBuffer::StartNewLine(Line line) {
-  static Tracker tracker(L"OpenBuffer::StartNewLine");
-  auto tracker_call = tracker.Call();
+  TRACK_OPERATION(OpenBuffer_StartNewLine);
   AppendLines({std::move(line)});
 }
 
 void OpenBuffer::AppendLines(
     std::vector<Line> lines,
     language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
-  static Tracker top_tracker(L"OpenBuffer::AppendLines");
-  auto top_tracker_call = top_tracker.Call();
+  TRACK_OPERATION(OpenBuffer_AppendLines);
 
   auto lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
@@ -808,8 +805,7 @@ void OpenBuffer::AppendLines(
       UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
       observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
-    static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
-    auto tracker_call = tracker.Call();
+    TRACK_OPERATION(OpenBuffer_StartNewLine_ScanForMarks);
     ResolvePathOptions<EmptyValue>::New(
         editor(), MakeNonNullShared<FileSystemDriver>(editor().thread_pool()))
         .Transform(
@@ -1107,8 +1103,7 @@ void OpenBuffer::AppendToLastLine(LazyString str) {
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {
-  static Tracker tracker(L"OpenBuffer::AppendToLastLine");
-  auto tracker_call = tracker.Call();
+  TRACK_OPERATION(OpenBuffer_AppendToLastLine);
   auto follower = GetEndPositionFollower();
   LineBuilder options(contents_.back());
   options.Append(LineBuilder(std::move(line)));
@@ -1749,11 +1744,10 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
           auto follower = GetEndPositionFollower();
           AppendToLastLine(lines_to_insert.front());
           // TODO: Avoid the linear complexity operation in the next line.
-          // However, according to `tracker_erase`, it doesn't seem to matter
-          // much.
-          static Tracker tracker_erase(
-              L"FileDescriptorReader::InsertLines::Erase");
-          auto tracker_erase_call = tracker_erase.Call();
+          // However, according to `tracker_erase_call`, it doesn't
+          // matter much.
+          auto tracker_erase_call =
+              INLINE_TRACKER(FileDescriptorReader_InsertLines_Erase);
           lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
           tracker_erase_call = nullptr;
 

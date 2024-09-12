@@ -30,7 +30,6 @@
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
@@ -105,8 +104,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
     const std::vector<BufferContentsViewLayout::Line>& screen_lines,
     const Widget::OutputProducerOptions& output_producer_options,
     const size_t sections_count) {
-  static Tracker tracker(L"LinesSpanView");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LinesSpanView);
 
   LineWithCursor::Generator::Vector buffer_output =
       ProduceBufferView(buffer, screen_lines, output_producer_options);
@@ -440,8 +438,7 @@ BufferWidget::BufferWidget(Options options) : options_(std::move(options)) {}
 
 LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
     OutputProducerOptions options) const {
-  static Tracker tracker(L"BufferWidget::CreateOutput");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferWidget_CreateOutput);
 
   return VisitPointer(
       options_.buffer.Lock(),

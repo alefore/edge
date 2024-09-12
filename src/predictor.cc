@@ -43,7 +43,6 @@ using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathJoin;
-using afc::infrastructure::Tracker;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -254,8 +253,7 @@ void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
                    DeleteNotification::Value& abort_value,
                    MutableLineSequence& output_lines,
                    PredictorOutput& predictor_output) {
-  static Tracker top_tracker(L"FilePredictor::ScanDirectory");
-  auto top_call = top_tracker.Call();
+  TRACK_OPERATION(FilePredictor_ScanDirectory);
 
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.

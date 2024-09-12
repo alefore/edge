@@ -13,7 +13,6 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;

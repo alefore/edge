@@ -14,7 +14,6 @@
 #include "src/tests/tests.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumber;
@@ -109,8 +108,7 @@ LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
 /* static */
 LineWithCursor LineWithCursor::View(
     const LineWithCursor::ViewOptions& options) {
-  static Tracker tracker(L"LineWithCursor::View");
-  auto tracker_call = tracker.Call();
+  TRACK_OPERATION(LineWithCursor_View);
 
   VLOG(5) << "Producing output of line: " << options.line.ToString();
 

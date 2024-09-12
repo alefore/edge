@@ -23,7 +23,6 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::VisualOverlay;
@@ -227,8 +226,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     const OpenBuffer& buffer,
     const std::vector<BufferContentsViewLayout::Line>& lines,
     const Widget::OutputProducerOptions& output_producer_options) {
-  static Tracker tracker(L"ProduceBufferView");
-  auto call = tracker.Call();
+  TRACK_OPERATION(ProduceBufferView);
 
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 

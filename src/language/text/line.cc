@@ -14,7 +14,6 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::compute_hash;
@@ -122,8 +121,7 @@ Line::Line(Line::Data data)
     CHECK(!m.second.contains(LineModifier::kReset));
   }
 #if 0
-  static Tracker tracker(L"Line::ValidateInvariants");
-  auto call = tracker.Call();
+  TRACK_OPERATION(Line_ValidateInvariants);
   ForEachColumn(Pointer(data_->contents).Reference(),
                 [&contents = data_->contents](ColumnNumber, wchar_t c) {
                   CHECK(c != L'\n')

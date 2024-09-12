@@ -11,7 +11,6 @@
 #include "src/language/wstring.h"
 
 using afc::infrastructure::FileDescriptor;
-using afc::infrastructure::Tracker;
 using afc::language::EmptyValue;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -61,10 +60,8 @@ void FileDescriptorReader::Register(
     if (characters_read == 0) return std::move(options_->receive_end_of_file)();
     low_buffer_length_ += characters_read;
 
-    static Tracker chars_tracker(
-        L"FileDescriptorReader::ReadData::UnicodeConversion");
-    auto chars_tracker_call = chars_tracker.Call();
-
+    auto chars_tracker_call =
+        INLINE_TRACKER(FileDescriptorReader_ReadData_UnicodeConversion);
     const char* low_buffer_tmp = low_buffer_.get();
     int output_characters =
         mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr);

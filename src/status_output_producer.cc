@@ -22,7 +22,6 @@
 
 namespace afc::editor {
 namespace {
-using infrastructure::Tracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using language::FromByteString;
@@ -254,8 +253,7 @@ auto status_basic_info_tests_registration = tests::Register(
 }  // namespace
 
 LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
-  static Tracker tracker(L"StatusOutput");
-  auto call = tracker.Call();
+  TRACK_OPERATION(StatusOutputProducer_StatusOutput);
 
   const LineNumberDelta info_lines =
       options.status.GetType() == Status::Type::kPrompt ||

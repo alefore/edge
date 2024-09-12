@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
@@ -12,7 +13,6 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
@@ -140,8 +140,7 @@ void MutableLineSequence::insert_line(LineNumber line_position, Line line,
 }
 
 void MutableLineSequence::set_line(LineNumber position, Line line) {
-  static Tracker tracker(L"MutableLineSequence::set_line");
-  auto tracker_call = tracker.Call();
+  TRACK_OPERATION(MutableLineSequence_set_line);
 
   if (position.ToDelta() >= size()) {
     return push_back(line);

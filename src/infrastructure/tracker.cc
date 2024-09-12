@@ -41,7 +41,11 @@ Tracker::Tracker(std::wstring name)
       }()),
       data_(Tracker::Data{std::move(name), 0, 0.0}) {}
 
-Tracker::~Tracker() { lock_trackers()->erase(trackers_it_); }
+Tracker::~Tracker() {
+  LOG(FATAL) << "Internal error: afc::infrastructure::Tracker instances should "
+                "never be deleted: "
+             << data_.lock([](Data& data) { return data.name; });
+}
 
 std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
   data_.lock([](Data& data) {

@@ -36,7 +36,6 @@ namespace container = afc::language::container;
 using afc::futures::Past;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::VisualOverlayMap;
@@ -187,8 +186,7 @@ void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
-  static Tracker top_tracker(L"ExecuteTransformation");
-  auto top_call = top_tracker.Call();
+  TRACK_OPERATION(ExecuteTransformation);
 
   auto buffers_transformed =
       std::make_shared<std::vector<gc::Root<OpenBuffer>>>();
@@ -196,8 +194,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
       .ForEachActiveBuffer([transformation = std::move(transformation),
                             buffers_transformed,
                             application_type](OpenBuffer& buffer) {
-        static Tracker tracker(L"ExecuteTransformation::ApplyTransformation");
-        auto call = tracker.Call();
+        TRACK_OPERATION(ExecuteTransformation_ApplyTransformation);
         buffers_transformed->push_back(buffer.NewRoot());
         return buffer.ApplyToCursors(
             transformation,
@@ -210,8 +207,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
       })
       .Transform([buffers_transformed](EmptyValue) {
         return UndoCallback([buffers_transformed] {
-          static Tracker tracker(L"ExecuteTransformation::Undo");
-          auto call = tracker.Call();
+          TRACK_OPERATION(ExecuteTransformation_Undo);
           return futures::ForEach(
                      buffers_transformed->begin(), buffers_transformed->end(),
                      [buffers_transformed](gc::Root<OpenBuffer> buffer) {
@@ -354,8 +350,7 @@ class State {
   }
 
   void Push(Command command) {
-    static Tracker tracker(L"State::Push");
-    auto call = tracker.Call();
+    TRACK_OPERATION(State_Push);
     commands_.push_back(command);
     Update(ApplicationType::kPreview);
   }
@@ -375,8 +370,7 @@ class State {
   void Update() { Update(ApplicationType::kPreview); }
 
   void Commit() {
-    static Tracker tracker(L"State::Commit");
-    auto call = tracker.Call();
+    TRACK_OPERATION(State_Commit);
     // We make a copy because Update may delete us.
     EditorState& editor_state = editor_state_;
     Update(ApplicationType::kCommit);
@@ -384,8 +378,7 @@ class State {
   }
 
   void RunUndoCallback() {
-    static Tracker tracker(L"State::RunUndoCallback");
-    auto call = tracker.Call();
+    TRACK_OPERATION(State_RunUndoCallback);
     const EditorState& editor = editor_state_;
     const std::optional<gc::Root<InputReceiver>> keyboard_redirect =
         editor.keyboard_redirect();
@@ -402,8 +395,7 @@ class State {
   }
 
   void UndoLast() {
-    static Tracker tracker(L"State::UndoLast");
-    auto call = tracker.Call();
+    TRACK_OPERATION(State_UndoLast);
     commands_.pop_back();
     if (commands_.empty()) Push(CommandReach());
     RunUndoCallback();
@@ -429,8 +421,7 @@ class State {
 
  private:
   futures::Value<EmptyValue> Update(ApplicationType application_type) {
-    static Tracker tracker(L"State::Update");
-    auto call = tracker.Call();
+    TRACK_OPERATION(State_Update);
     CHECK(!commands_.empty());
     RunUndoCallback();
     std::shared_ptr<UndoCallback> original_undo_callback = undo_callback_;
@@ -458,8 +449,7 @@ class State {
       if (separator.has_value()) stack.push_back(separator.value());
       stack.push_back(std::visit(
           [&](auto t) -> transformation::Variant {
-            static Tracker tracker(L"State::PrepareStack::GetTransformation");
-            auto call = tracker.Call();
+            TRACK_OPERATION(State_PrepareStack_GetTransformation);
             return GetTransformation(operation_scope_, stack, t);
           },
           command));

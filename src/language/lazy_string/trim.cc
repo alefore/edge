@@ -7,11 +7,9 @@
 #include "src/tests/tests.h"
 
 namespace afc::language::lazy_string {
-using infrastructure::Tracker;
 
 LazyString TrimLeft(LazyString source, std::wstring space_characters) {
-  static Tracker tracker(L"LazyString::StringTrimLeft");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LazyString_StringTrimLeft);
   return source.Substring(
       FindFirstColumnWithPredicate(source, [&](ColumnNumber, wchar_t c) {
         return space_characters.find(c) == std::wstring::npos;

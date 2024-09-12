@@ -19,7 +19,6 @@
 namespace gc = afc::language::gc;
 
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::Tracker;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
@@ -229,8 +228,7 @@ std::wstring GotoTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
     CompositeTransformation::Input input) const {
-  static Tracker tracker(L"GotoTransformation::Apply");
-  auto call = tracker.Call();
+  TRACK_OPERATION(GotoTransformation_Apply);
   auto position = ComputeGoToPosition(input.modifiers.structure, input.buffer,
                                       input.modifiers, input.position, calls_);
   return futures::Past(

@@ -4,6 +4,15 @@
 // Example:
 //
 //     TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForMark);
+//
+// The operation will finish when the scope (in which this expression was added)
+// is exited.
+//
+// If you to explicitly control when the operation finishes:
+//
+//     auto call = INLINE_TRACKER(MyTrackerName);
+//     …  heavy processing here …
+//     call = nullptr;  // The operation finished.
 
 #ifndef __AFC_EDITOR_SRC_TRACKERS_H__
 #define __AFC_EDITOR_SRC_TRACKERS_H__
@@ -16,7 +25,6 @@
 #include "src/concurrent/protected.h"
 
 namespace afc::infrastructure {
-
 // When an operation starts, just call tracker. Capture the returned value and
 // discard it when the operation completes:
 //
@@ -25,6 +33,8 @@ namespace afc::infrastructure {
 //       auto call = tracker.Call();
 //       ... heavy evaluation ...
 //     }
+//
+// Prefer to use the TRACK_OPERATION or INLINE_TRACKER macros.
 //
 // This class is thread-safe.
 class Tracker {
@@ -40,6 +50,10 @@ class Tracker {
   static std::list<Data> GetData();
 
   Tracker(std::wstring name);
+  // Deleting a Tracker crashes the program. We deliberately prefer to force our
+  // customers to retain (leak) Tracker instances; otherwise, we may have issues
+  // with potential reuse of already deleted objects during shutdown (yay, C++'s
+  // static initialization order fiasco).
   ~Tracker();
 
   std::unique_ptr<bool, std::function<void(bool*)>> Call();
@@ -53,11 +67,11 @@ class Tracker {
 #define LSTR(x) L##x
 
 #define INLINE_TRACKER(tracker_name)                           \
-  ([] {                                                        \
+  std::invoke([] {                                             \
     static afc::infrastructure::Tracker* internal_tracker =    \
         new afc::infrastructure::Tracker(LSTR(#tracker_name)); \
     return internal_tracker->Call();                           \
-  }())
+  })
 
 #define TRACK_OPERATION(tracker_name) \
   auto tracker_name##_call = INLINE_TRACKER(tracker_name)

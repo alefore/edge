@@ -22,7 +22,6 @@ using afc::concurrent::OperationFactory;
 using afc::concurrent::Protected;
 using afc::concurrent::ThreadPool;
 using afc::infrastructure::CountDownTimer;
-using afc::infrastructure::Tracker;
 using afc::language::EraseIf;
 using afc::language::NonNull;
 

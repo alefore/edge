@@ -11,7 +11,6 @@ extern "C" {
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::Screen;
 using afc::language::MakeNonNullUnique;
@@ -68,8 +67,7 @@ class ScreenCurses : public Screen {
     move(position.line.read(), position.column.read());
   }
   void WriteString(const LazyString& s) override {
-    static Tracker tracker(L"ScreenCurses::WriteString");
-    auto call = tracker.Call();
+    TRACK_OPERATION(ScreenCurses_WriteString);
     addwstr(s.ToString().c_str());
   }
 

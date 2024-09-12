@@ -10,7 +10,6 @@
 
 namespace afc::language::lazy_string {
 namespace {
-using infrastructure::Tracker;
 using ::operator<<;
 
 class EmptyStringImpl : public LazyStringImpl {
@@ -121,7 +120,7 @@ LazyString::LazyString(ColumnNumberDelta times, wchar_t c)
 }
 
 std::wstring LazyString::ToString() const {
-  INLINE_TRACKER(LazyString_ToString);
+  TRACK_OPERATION(LazyString_ToString);
   std::wstring output(size().read(), 0);
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.read()] = c; });

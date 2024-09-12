@@ -2,7 +2,6 @@
 
 #include <glog/logging.h>
 
-#include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
 #include "src/lru_cache.h"
@@ -11,7 +10,6 @@
 #include "src/seek.h"
 
 namespace afc::editor {
-using infrastructure::Tracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullUnique;

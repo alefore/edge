@@ -149,8 +149,7 @@ class PlayerImpl : public Player {
   }
 
   bool PlayNextFrame() {
-    static infrastructure::Tracker tracker(L"audio::Player::PlayNextFrame");
-    auto call = tracker.Call();
+    TRACK_OPERATION(audio_Player_PlayNextFrame);
 
     std::unique_ptr<Frame> new_frame;
     int iterations = frame_length_ * format_.rate;

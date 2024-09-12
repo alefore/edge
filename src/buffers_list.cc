@@ -26,7 +26,6 @@ namespace container = afc::language::container;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EraseIf;
@@ -584,7 +583,7 @@ ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
 
 LineWithCursor::Generator::Vector ProduceBuffersList(
     NonNull<std::shared_ptr<BuffersListOptions>> options) {
-  INLINE_TRACKER(BuffersList__ProduceBuffersList);
+  TRACK_OPERATION(BuffersList__ProduceBuffersList);
 
   // We reserve space for the largest number, and extra space for the `progress`
   // character, and an extra space at the end.
@@ -835,7 +834,7 @@ struct Layout {
 
 Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
                       size_t buffers_count) {
-  INLINE_TRACKER(BuffersPerLine);
+  TRACK_OPERATION(BuffersPerLine);
 
   if (buffers_count == 0 || maximum_lines.IsZero()) {
     return Layout{.buffers_per_line = 0, .lines = LineNumberDelta(0)};
@@ -938,7 +937,7 @@ const bool buffers_per_line_tests_registration = tests::Register(
 
 LineWithCursor::Generator::Vector BuffersList::GetLines(
     Widget::OutputProducerOptions options) const {
-  INLINE_TRACKER(BuffersList__GetLines);
+  TRACK_OPERATION(BuffersList__GetLines);
 
   Layout layout = BuffersPerLine(options.size.line / 2, options.size.column,
                                  buffers_.size());
@@ -996,7 +995,7 @@ void BuffersList::SetBuffersToShow(std::optional<size_t> buffers_to_show) {
 }
 
 void BuffersList::Update() {
-  INLINE_TRACKER(BuffersList__Update);
+  TRACK_OPERATION(BuffersList__Update);
 
   auto order_predicate =
       buffer_sort_order_ == BufferSortOrder::kLastVisit

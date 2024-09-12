@@ -8,7 +8,6 @@
 #include "src/parsers/markdown.h"
 
 using afc::futures::DeleteNotification;
-using afc::infrastructure::Tracker;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;

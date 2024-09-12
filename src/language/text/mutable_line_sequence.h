@@ -210,9 +210,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   template <typename Callback>
   void TransformLine(language::text::LineNumber line_number,
                      Callback callback) {
-    static infrastructure::Tracker tracker(
-        L"MutableLineSequence::TransformLine");
-    auto tracker_call = tracker.Call();
+    TRACK_OPERATION(MutableLineSequence_TransformLine);
     CHECK_LE(line_number, EndLine());
     language::text::LineBuilder options(at(line_number));
     callback(options);

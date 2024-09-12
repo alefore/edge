@@ -27,7 +27,6 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::infrastructure::Path;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
@@ -73,8 +72,7 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
 
 LazyString DrawTree(LineNumber line, LineNumberDelta lines_size,
                     const ParseTree& root) {
-  static Tracker tracker(L"BufferMetadataOutput::DrawTree");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput_DrawTree);
 
   // Route along the tree where each child ends after previous line.
   std::vector<const ParseTree*> route_begin;
@@ -204,8 +202,7 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
 
 LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
                                  LineNumber line) {
-  static Tracker tracker(L"BufferMetadataOutput::ComputeCursorsSuffix");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput_ComputeCursorsSuffix);
 
   const CursorsSet& cursors = options.buffer.active_cursors();
   if (cursors.size() <= 1) {
@@ -246,8 +243,7 @@ class Rows : public GhostType<Rows, size_t> {};
 
 LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                                    LineNumber line) {
-  static Tracker tracker(L"BufferMetadataOutput::ComputeScrollBarSuffix");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput_ComputeScrollBarSuffix);
 
   LineNumberDelta lines_size = options.buffer.lines_size();
   LineNumberDelta lines_shown = LineNumberDelta(options.screen_lines.size());
@@ -353,8 +349,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
 Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
                            LineNumber line) {
-  static Tracker tracker(L"BufferMetadataOutput::GetDefaultInformation");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput_GetDefaultInformation);
 
   LineBuilder line_options;
 
@@ -395,8 +390,7 @@ std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                 LineRange range) {
-  static Tracker top_tracker(L"BufferMetadataOutput::Prepare");
-  auto top_call = top_tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput_Prepare);
 
   std::list<MetadataLine> output;
   const Line& contents = options.buffer.contents().at(range.line());
@@ -437,9 +431,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
           std::views::transform(
               contents.metadata(),
               [](const std::pair<LazyString, LineMetadataEntry>& item) {
-                static Tracker tracker(
-                    L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
-                auto call = tracker.Call();
+                TRACK_OPERATION(
+                    BufferMetadataOutput_Prepare_VisitContentsMetadata);
                 return item.first +
                        (item.first.empty() ? LazyString{} : LazyString{L":"}) +
                        item.second.get_value();
@@ -450,9 +443,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                   LineBuilder(metadata).Build(),
                                   MetadataLine::Type::kLineContents});
 
-  static Tracker tracker_generic_marks_logic(
-      L"BufferMetadataOutput::Prepare::GenericMarksLogic");
-  auto call_generic_marks_logic = tracker_generic_marks_logic.Call();
+  auto call_generic_marks_logic =
+      INLINE_TRACKER(BufferMetadataOutput_Prepare_GenericMarksLogic);
 
   std::list<LineMarks::Mark> marks =
       PushMarks(options.buffer.GetLineMarks(), range.read());
@@ -491,9 +483,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         options.buffer.editor().buffer_registry().Find(mark.source_buffer));
 
   for (const auto& mark : expired_marks) {
-    static Tracker tracker(
-        L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
-    auto call = tracker.Call();
+    TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForExpiredMark);
     if (const Line& mark_contents = mark.source_line_content;
         !marks_strings.contains(mark_contents.contents())) {
       LineBuilder wrapper(LazyString{L"👻 "});
@@ -833,8 +823,7 @@ std::vector<LineBuilder> ComputePrefixLines(
 
 ColumnsVector::Column BufferMetadataOutput(
     BufferMetadataOutputOptions options) {
-  static Tracker tracker(L"BufferMetadataOutput");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput);
 
   const LineNumberDelta screen_size(options.screen_lines.size());
   if (screen_size.IsZero()) return {};

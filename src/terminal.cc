@@ -20,7 +20,6 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::Screen;
@@ -87,8 +86,7 @@ LineWithCursor::Generator::Vector GetLines(
 
 void Terminal::Display(const EditorState& editor_state, Screen& screen,
                        const EditorState::ScreenState& screen_state) {
-  static Tracker tracker(L"Terminal::Display");
-  auto call = tracker.Call();
+  TRACK_OPERATION(Terminal_Display);
 
   if (screen_state.needs_hard_redraw) {
     screen.HardRefresh();
@@ -130,8 +128,7 @@ void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
 
 void Terminal::WriteLine(Screen& screen, LineNumber line,
                          LineWithCursor::Generator generator) {
-  static Tracker tracker(L"Terminal::WriteLine");
-  auto call = tracker.Call();
+  TRACK_OPERATION(Terminal_WriteLine);
 
   if (hashes_current_lines_.size() <= line.read()) {
     CHECK_LT(line.ToDelta(), screen.size().line);
@@ -165,8 +162,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
 
 Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
                                              ColumnNumberDelta width) {
-  static Tracker top_tracker(L"Terminal::GetLineDrawer");
-  auto top_call = top_tracker.Call();
+  TRACK_OPERATION(Terminal_GetLineDrawer);
 
   Terminal::LineDrawer output;
   std::vector<decltype(LineDrawer::draw_callback)> functions;
@@ -206,8 +202,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
     }
 
     if (start != input_column) {
-      static Tracker tracker(L"Terminal::GetLineDrawer: Call WriteString");
-      auto call = tracker.Call();
+      TRACK_OPERATION(Terminal_GetLineDrawer_WriteString);
       SingleLine str = line_with_cursor.line.contents().Substring(
           start, input_column - start);
       functions.push_back(
