@@ -50,14 +50,14 @@ namespace {
 typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
-std::vector<ColumnNumber> GetMatches(const LazyString& line,
+std::vector<ColumnNumber> GetMatches(const SingleLine& line,
                                      const RegexPattern& pattern) {
   ColumnNumber start;
   std::vector<ColumnNumber> output;
   while (start.ToDelta() < line.size()) {
     size_t match = std::wstring::npos;
     std::wsmatch pattern_match;
-    std::wstring line_substr = line.Substring(start).ToString();
+    std::wstring line_substr = line.Substring(start).read().ToString();
     std::regex_search(line_substr, pattern_match, pattern);
     if (!pattern_match.empty()) match = pattern_match.position();
     if (match == std::wstring::npos) return output;
