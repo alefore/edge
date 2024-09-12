@@ -351,7 +351,7 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"WaitForClose"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
-          [](EditorState& editor_arg,
+          [](EditorState&,
              NonNull<
                  std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
                  buffers_to_wait) {
@@ -359,9 +359,8 @@ gc::Root<Environment> BuildEditorEnvironment(
                        std::make_shared<
                            std::vector<futures::Value<EmptyValue>>>(
                            buffers_to_wait->lock(
-                               [&editor_arg](
-                                   const std::vector<gc::Ptr<OpenBuffer>>&
-                                       buffers) {
+                               [](const std::vector<gc::Ptr<OpenBuffer>>&
+                                      buffers) {
                                  return container::MaterializeVector(
                                      buffers |
                                      std::views::transform(
