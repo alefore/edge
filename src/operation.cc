@@ -67,13 +67,13 @@ void SerializeCall(LazyString name, std::vector<LazyString> arguments,
   output.AppendString(name, LineModifierSet{LineModifier::kCyan});
   output.AppendString(LazyString{L"("}, LineModifierSet{LineModifier::kDim});
   LazyString separator;
-  std::ranges::for_each(arguments | std::views::filter(&LazyString::empty),
-                        [&](const LazyString& a) {
-                          output.AppendString(
-                              separator, LineModifierSet{LineModifier::kDim});
-                          output.AppendString(a, std::nullopt);
-                          separator = LazyString{L", "};
-                        });
+  std::ranges::for_each(
+      arguments | std::views::filter(std::not_fn(&LazyString::empty)),
+      [&](const LazyString& a) {
+        output.AppendString(separator, LineModifierSet{LineModifier::kDim});
+        output.AppendString(a, std::nullopt);
+        separator = LazyString{L", "};
+      });
   output.AppendString(LazyString{L")"}, LineModifierSet{LineModifier::kDim});
 }
 
