@@ -350,10 +350,7 @@ class HelpCommand : public Command {
   static void CommandLineVariables(MutableLineSequence& output) {
     StartSection(SingleLine{LazyString{L"## Command line arguments"}}, output);
     using command_line_arguments::Handler;
-    auto handlers = CommandLineArgs();
-    for (auto& h : handlers) {
-      // TODO(easy, 2024-09-06): Change aliases() to return LazyString and
-      // remove conversion.
+    for (const Handler<CommandLineValues>& h : CommandLineArgs()) {
       StartSection(
           SingleLine{LazyString{L"### "}} + h.aliases()[0].GetSingleLine(),
           output);
@@ -373,7 +370,7 @@ class HelpCommand : public Command {
         case Handler<CommandLineValues>::VariableType::kNone:
           break;
       }
-      output.push_back(h.help());
+      output.append_back(LineSequence::BreakLines(h.help()));
       output.push_back(L"");
     }
   }

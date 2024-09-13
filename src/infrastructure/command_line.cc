@@ -22,7 +22,18 @@ FlagName::FlagName(std::wstring input)
 const LazyString& FlagName::GetLazyString() const {
   return GetSingleLine().read();
 }
+
 const SingleLine& FlagName::GetSingleLine() const { return read().read(); }
+
+FlagShortHelp::FlagShortHelp(NonEmptySingleLine input)
+    : language::GhostType<FlagShortHelp, NonEmptySingleLine>(input) {}
+
+FlagShortHelp::FlagShortHelp(std::wstring input)
+    : FlagShortHelp(NonEmptySingleLine{SingleLine{LazyString{input}}}) {}
+
+const LazyString& FlagShortHelp::GetLazyString() const {
+  return read().read().read();
+}
 
 void HonorStandardArguments(const StandardArguments& arguments) {
   if (!arguments.tests_filter.empty()) {

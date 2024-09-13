@@ -61,6 +61,14 @@ struct FlagName
   const language::lazy_string::SingleLine& GetSingleLine() const;
 };
 
+struct FlagShortHelp
+    : public language::GhostType<FlagShortHelp,
+                                 language::lazy_string::NonEmptySingleLine> {
+  FlagShortHelp(language::lazy_string::NonEmptySingleLine input);
+  FlagShortHelp(std::wstring input);  // For convenience.
+  const language::lazy_string::LazyString& GetLazyString() const;
+};
+
 // ParsedValues should inherit from `StandardArguments`. This contains standard
 // fields that the command-line parsing logic uses.
 struct StandardArguments {
@@ -96,12 +104,13 @@ class Handler {
     using command_line_arguments::FlagName;
     return {
         Handler<ParsedValues>({FlagName{L"help"}, FlagName{L"h"}},
-                              L"Display help and exit")
+                              FlagShortHelp{L"Display help and exit"})
             .SetHelp(
                 L"The `--help` command-line argument displays a brief overview "
                 L"of the available command line arguments and exits.")
             .Run([](ParsingData<ParsedValues>* data) { DisplayHelp(data); }),
-        Handler<ParsedValues>({FlagName{L"tests"}}, L"Unit tests behavior")
+        Handler<ParsedValues>({FlagName{L"tests"}},
+                              FlagShortHelp{L"Unit tests behavior"})
             .Require(
                 L"behavior",
                 L"The behavior for tests. Valid values are `run` and `list`.")
@@ -119,7 +128,7 @@ class Handler {
                        language::lazy_string::LazyString{input}};
                  }),
         Handler<ParsedValues>({FlagName{L"tests_filter"}},
-                              L"Run specific tests")
+                              FlagShortHelp{L"Run specific tests"})
             .Require(
                 L"name",
                 L"Specifies the name of a test to run (\"<group>.<name>\"). "
@@ -127,7 +136,7 @@ class Handler {
             .PushBackTo(&ParsedValues::tests_filter)};
   }
 
-  Handler(std::vector<FlagName> aliases, std::wstring short_help)
+  Handler(std::vector<FlagName> aliases, FlagShortHelp short_help)
       : aliases_(std::move(aliases)), short_help_(short_help) {}
 
   Handler<ParsedValues>& Transform(
@@ -282,12 +291,16 @@ class Handler {
   }
 
   const std::vector<FlagName>& aliases() const { return aliases_; }
-  const std::wstring& short_help() const { return short_help_; }
+  const FlagShortHelp& short_help() const { return short_help_; }
   Handler<ParsedValues>& SetHelp(std::wstring help) {
     help_ = std::move(help);
     return *this;
   }
-  std::wstring help() const { return help_.empty() ? short_help_ : help_; }
+  language::lazy_string::LazyString help() const {
+    // TODO(trivial, 2024-09-13): Avoid need to wrap help_.
+    return help_.empty() ? short_help_.GetLazyString()
+                         : language::lazy_string::LazyString{help_};
+  }
   std::wstring argument() const { return name_; }
   std::wstring argument_description() const { return argument_description_; }
   VariableType argument_type() const { return type_; }
@@ -354,13 +367,13 @@ class Handler {
                                    ? padding - initial_table[i].size()
                                    : 1,
                                ' ')
-                << language::ToByteString(handler->short_help()) << "\n";
+                << handler->short_help().GetLazyString() << "\n";
     }
     exit(0);
   }
 
   std::vector<FlagName> aliases_;
-  std::wstring short_help_;
+  FlagShortHelp short_help_;
   std::wstring help_;
 
   VariableType type_ = VariableType::kNone;
