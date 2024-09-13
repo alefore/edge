@@ -215,13 +215,13 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier{LazyString{L"SetVariablePrompt"}},
-      vm::NewCallback(pool, kPurityTypeUnknown,
-                      [](EditorState& editor_arg, LazyString variable) {
-                        // TODO(trivial, urgent, 2024-09-13): Rather than crash,
-                        // handler error if variable has multiple lines.
-                        SetVariableCommandHandler(editor_arg,
-                                                  SingleLine{variable});
-                      })
+      vm::NewCallback(
+          pool, kPurityTypeUnknown,
+          [](EditorState& editor_arg, LazyString input) -> PossibleError {
+            DECLARE_OR_RETURN(SingleLine variable, SingleLine::New(input));
+            SetVariableCommandHandler(editor_arg, variable);
+            return Success();
+          })
           .ptr());
 
   editor_type.ptr()->AddField(
