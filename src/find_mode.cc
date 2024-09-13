@@ -63,12 +63,12 @@ std::optional<ColumnNumber> FindTransformation::SeekOnce(
 
   // Seek until we're at a different character:
   while (start < times && column + direction * start < line.EndColumn() &&
-         line.get(column + direction * start) == static_cast<wint_t>(c_))
+         line.get(column + direction * start) == c_)
     ++start;
 
   while (start < times) {
     if (column + direction * start < line.EndColumn() &&
-        line.get(column + direction * start) == static_cast<wint_t>(c_)) {
+        line.get(column + direction * start) == c_) {
       return column + direction * start;
     }
     ++start;
