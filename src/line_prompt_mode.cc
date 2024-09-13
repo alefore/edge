@@ -1093,15 +1093,16 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .new_line_handler =
           [prompt_state](OpenBuffer& buffer) {
-            // TODO(trivial, 2024-09-10): Avoid call to `read`.
-            LazyString input = buffer.CurrentLine().contents().read();
+            SingleLine input = buffer.CurrentLine().contents();
             AddLineToHistory(prompt_state->editor_state(),
-                             prompt_state->options().history_file, input);
+                             prompt_state->options().history_file,
+                             input.read());
             auto ensure_survival_of_current_closure =
                 prompt_state->editor_state().set_keyboard_redirect(
                     std::nullopt);
             prompt_state->Reset();
-            return prompt_state->options().handler(input);
+            // TODO(trivial, 2024-09-13): Avoid call to read().
+            return prompt_state->options().handler(input.read());
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {
