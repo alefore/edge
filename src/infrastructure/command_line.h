@@ -197,12 +197,8 @@ class Handler {
   Handler<ParsedValues>& Set(
       language::lazy_string::LazyString ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value()) {
-        // TODO(2024-09-05, easy): Change `current_value` to LazyString, remove
-        // this conversion.
-        (data->output.*field) =
-            language::lazy_string::LazyString{data->current_value.value()};
-      }
+      if (data->current_value.has_value())
+        (data->output.*field) = data->current_value.value();
     });
   }
 
