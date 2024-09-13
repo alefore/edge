@@ -96,8 +96,9 @@ CommandLineValues::CommandLineValues() : home_directory(GetHomeDirectory()) {
 }
 
 const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
+  using command_line_arguments::FlagName;
   static const std::vector<Handler<CommandLineValues>> handlers = {
-      Handler<CommandLineValues>({L"fork", L"f"},
+      Handler<CommandLineValues>({FlagName{L"fork"}, FlagName{L"f"}},
                                  L"Create a buffer running a shell command")
           .SetHelp(
               L"The `--fork` command-line argument must be followed by a shell "
@@ -109,7 +110,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Require(L"shellcmd", L"Shell command to run")
           .PushBackTo(&CommandLineValues::commands_to_fork),
 
-      Handler<CommandLineValues>({L"run"}, L"Run a VM command")
+      Handler<CommandLineValues>({FlagName{L"run"}}, L"Run a VM command")
           .SetHelp(
               L"The `--run` command-line argument must be followed by a string "
               L"with a VM command to run.\n\n"
@@ -120,7 +121,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Require(L"vmcmd", L"VM command to run")
           .AppendTo(&CommandLineValues::commands_to_run),
 
-      Handler<CommandLineValues>({L"load", L"l"},
+      Handler<CommandLineValues>({FlagName{L"load"}, FlagName{L"l"}},
                                  L"Load a file with VM commands")
           .Require(L"path", L"Path to file containing VM commands to run")
           .Transform([](LazyString value) {
@@ -131,7 +132,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           })
           .AppendTo(&CommandLineValues::commands_to_run),
 
-      Handler<CommandLineValues>({L"server", L"s"},
+      Handler<CommandLineValues>({FlagName{L"server"}, FlagName{L"s"}},
                                  L"Run in daemon mode (at an optional path)")
           .SetHelp(
               L"The `--server` command-line argument causes Edge to run in "
@@ -166,7 +167,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                })
           .Set(&CommandLineValues::server, true),
 
-      Handler<CommandLineValues>({L"client", L"c"},
+      Handler<CommandLineValues>({FlagName{L"client"}, FlagName{L"c"}},
                                  L"Connect to daemon at a given path")
           .Require(L"path",
                    L"Path to the pipe in which the daemon is listening")
@@ -179,18 +180,19 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                  return Success(OptionalFrom(output));
                }),
 
-      Handler<CommandLineValues>({L"mute"}, L"Disable audio output")
+      Handler<CommandLineValues>({FlagName{L"mute"}}, L"Disable audio output")
           .Set(&CommandLineValues::mute, true)
           .Accept(L"bool", L""),
 
-      Handler<CommandLineValues>({L"ao"}, L"Prompt for a path to open")
+      Handler<CommandLineValues>({FlagName{L"ao"}},
+                                 L"Prompt for a path to open")
           .Set(&CommandLineValues::prompt_for_path, true),
 
-      Handler<CommandLineValues>({L"bg"},
+      Handler<CommandLineValues>({FlagName{L"bg"}},
                                  L"Open buffers given to -f in background")
           .Set(&CommandLineValues::background, true),
 
-      Handler<CommandLineValues>({L"X"}, L"If nested, exit early")
+      Handler<CommandLineValues>({FlagName{L"X"}}, L"If nested, exit early")
           .SetHelp(
               L"When `edge` runs nested (i.e., under a parent instance), the "
               L"child instance will not create any buffers for any files that "
@@ -209,7 +211,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set(&CommandLineValues::nested_edge_behavior,
                CommandLineValues::NestedEdgeBehavior::kExitEarly),
 
-      Handler<CommandLineValues>({L"benchmark"}, L"Run a benchmark")
+      Handler<CommandLineValues>({FlagName{L"benchmark"}}, L"Run a benchmark")
           .Require(L"benchmark", L"The benchmark to run.")
           .Set<LazyString>(
               &CommandLineValues::benchmark,
@@ -227,7 +229,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                     LazyString{L")"}};
               }),
 
-      Handler<CommandLineValues>({L"view"}, L"Widget mode")
+      Handler<CommandLineValues>({FlagName{L"view"}}, L"Widget mode")
           .Require(L"mode",
                    L"The default view mode. Valid values are `all` and "
                    L"`default`.")
@@ -244,14 +246,14 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                              input};
               }),
 
-      Handler<CommandLineValues>({L"fps"}, L"Frames per second")
+      Handler<CommandLineValues>({FlagName{L"fps"}}, L"Frames per second")
           .Require(L"fps",
                    L"The maximum number of frames per second to render. If the "
                    L"state in the editor changes more frequently than this "
                    L"value, not all changes will be displaed.")
           .Set(&CommandLineValues::frames_per_second),
 
-      Handler<CommandLineValues>({L"p"},
+      Handler<CommandLineValues>({FlagName{L"p"}},
                                  L"Apply search paths to initial local paths.")
           .SetHelp(
               L"Apply search paths  initial local paths: local paths given on "
@@ -261,7 +263,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set(&CommandLineValues::initial_path_resolution_behavior,
                CommandLineValues::LocalPathResolutionBehavior::kAdvanced),
 
-      Handler<CommandLineValues>({L"prompt_history_read_only"},
+      Handler<CommandLineValues>({FlagName{L"prompt_history_read_only"}},
                                  L"Don't append new entries to prompt history.")
           .SetHelp(
               L"By default, Edge appends new values given to prompts (e.g., "
@@ -273,7 +275,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                CommandLineValues::HistoryFileBehavior::kReadOnly),
 
       Handler<CommandLineValues>(
-          {L"positions_history_read_only"},
+          {FlagName{L"positions_history_read_only"}},
           L"Don't append new entries to positions history.")
           .SetHelp(
               L"By default, Edge keeps track of positions you've visited in "

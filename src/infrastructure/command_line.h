@@ -40,6 +40,7 @@ extern "C" {
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -49,6 +50,8 @@ template <typename ParsedValues>
 class Handler;
 
 enum class TestsBehavior { kRunAndExit, kListAndExit, kIgnore };
+
+struct FlagName : public language::GhostType<FlagName, std::wstring> {};
 
 // ParsedValues should inherit from `StandardArguments`. This contains standard
 // fields that the command-line parsing logic uses.
@@ -82,13 +85,15 @@ class Handler {
   enum class VariableType { kRequired, kOptional, kNone };
 
   static std::vector<Handler<ParsedValues>> StandardHandlers() {
+    using command_line_arguments::FlagName;
     return {
-        Handler<ParsedValues>({L"help", L"h"}, L"Display help and exit")
+        Handler<ParsedValues>({FlagName{L"help"}, FlagName{L"h"}},
+                              L"Display help and exit")
             .SetHelp(
                 L"The `--help` command-line argument displays a brief overview "
                 L"of the available command line arguments and exits.")
             .Run([](ParsingData<ParsedValues>* data) { DisplayHelp(data); }),
-        Handler<ParsedValues>({L"tests"}, L"Unit tests behavior")
+        Handler<ParsedValues>({FlagName{L"tests"}}, L"Unit tests behavior")
             .Require(
                 L"behavior",
                 L"The behavior for tests. Valid values are `run` and `list`.")
@@ -105,7 +110,8 @@ class Handler {
                            L"`list`): "} +
                        language::lazy_string::LazyString{input}};
                  }),
-        Handler<ParsedValues>({L"tests_filter"}, L"Run specific tests")
+        Handler<ParsedValues>({FlagName{L"tests_filter"}},
+                              L"Run specific tests")
             .Require(
                 L"name",
                 L"Specifies the name of a test to run (\"<group>.<name>\"). "
@@ -113,8 +119,8 @@ class Handler {
             .PushBackTo(&ParsedValues::tests_filter)};
   }
 
-  Handler(std::vector<std::wstring> aliases, std::wstring short_help)
-      : aliases_(aliases), short_help_(short_help) {}
+  Handler(std::vector<FlagName> aliases, std::wstring short_help)
+      : aliases_(std::move(aliases)), short_help_(short_help) {}
 
   Handler<ParsedValues>& Transform(
       std::function<
@@ -267,7 +273,7 @@ class Handler {
     return *this;
   }
 
-  const std::vector<std::wstring>& aliases() const { return aliases_; }
+  const std::vector<FlagName>& aliases() const { return aliases_; }
   const std::wstring& short_help() const { return short_help_; }
   Handler<ParsedValues>& SetHelp(std::wstring help) {
     help_ = std::move(help);
@@ -306,8 +312,8 @@ class Handler {
     for (const Handler<ParsedValues>* handler : sorted_handlers) {
       std::wstring line;
       std::wstring prefix = L"  ";
-      for (const std::wstring& alias : handler->aliases()) {
-        line += prefix + L"-" + alias;
+      for (const FlagName& alias : handler->aliases()) {
+        line += prefix + L"-" + to_wstring(alias);
         prefix = L", ";
       }
       switch (handler->argument_type()) {
@@ -345,7 +351,7 @@ class Handler {
     exit(0);
   }
 
-  std::vector<std::wstring> aliases_;
+  std::vector<FlagName> aliases_;
   std::wstring short_help_;
   std::wstring help_;
 
@@ -404,8 +410,8 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     for (auto& alias : handlers[i].aliases()) {
       // TODO(trivial, 2024-09-07): Convert aliases to LazyString, avoid this
       // explicit conversion.
-      handlers_map[LazyString{L"-"} + LazyString{alias}] = i;
-      handlers_map[LazyString{L"--"} + LazyString{alias}] = i;
+      handlers_map[LazyString{L"-"} + LazyString{alias.read()}] = i;
+      handlers_map[LazyString{L"--"} + LazyString{alias.read()}] = i;
     }
   }
 

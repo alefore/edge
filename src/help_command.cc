@@ -355,7 +355,7 @@ class HelpCommand : public Command {
       // TODO(easy, 2024-09-06): Change aliases() to return LazyString and
       // remove conversion.
       StartSection(SingleLine{LazyString{L"### "}} +
-                       SingleLine{LazyString{h.aliases()[0]}},
+                       SingleLine{LazyString{h.aliases()[0].read()}},
                    output);
       switch (h.argument_type()) {
         case Handler<CommandLineValues>::VariableType::kRequired:
