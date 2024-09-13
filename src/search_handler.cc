@@ -144,9 +144,7 @@ SingleLine RegexEscape(SingleLine str) {
   static const std::unordered_set<wchar_t> literal_characters =
       container::MaterializeUnorderedSet(std::wstring{L" ()<>{}+_-;\"':,?#%"});
 
-  // TODO(easy, 2024-09-10): Define ForEachColumn for SingleLine and use it
-  // directly.
-  ForEachColumn(str.read(), [&](ColumnNumber, wchar_t c) {
+  ForEachColumn(str, [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.contains(c))
       results += SingleLine{LazyString{L"\\"}};
     results += SingleLine{LazyString{ColumnNumberDelta(1), c}};

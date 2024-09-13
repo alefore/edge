@@ -33,6 +33,11 @@ std::optional<ColumnNumber> FindFirstColumnWithPredicate(
 std::optional<ColumnNumber> FindLastNotOf(const SingleLine& input,
                                           std::unordered_set<wchar_t> chars);
 
+template <typename Callback>
+void ForEachColumn(const SingleLine& input, Callback&& callback) {
+  ForEachColumn(input.read(), std::forward<Callback>(callback));
+}
+
 SingleLine LowerCase(SingleLine input);
 }  // namespace afc::language::lazy_string
 

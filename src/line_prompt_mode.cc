@@ -289,10 +289,9 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
       });
 }
 
-// TODO(trivial, 2024-09-10): Receive `line` as SingleLine.
 ValueOrError<std::multimap<Identifier, LazyString>> ParseHistoryLine(
-    const LazyString& line) {
-  DECLARE_OR_RETURN(EscapedMap line_map, EscapedMap::Parse(line));
+    const SingleLine& line) {
+  DECLARE_OR_RETURN(EscapedMap line_map, EscapedMap::Parse(line.read()));
   std::multimap<Identifier, LazyString> output = line_map.read();
   std::multimap<Identifier, LazyString> synthetic_features =
       GetSyntheticFeatures(output);
@@ -304,9 +303,13 @@ auto parse_history_line_tests_registration = tests::Register(
     L"ParseHistoryLine",
     {{.name = L"BadQuote",
       .callback =
-          [] { CHECK(IsError(ParseHistoryLine(LazyString{L"prompt:\""}))); }},
+          [] {
+            CHECK(IsError(
+                ParseHistoryLine(SingleLine{LazyString{L"prompt:\""}})));
+          }},
      {.name = L"Empty", .callback = [] {
-        auto result = ValueOrDie(ParseHistoryLine(LazyString{L"prompt:\"\""}));
+        auto result = ValueOrDie(
+            ParseHistoryLine(SingleLine{LazyString{L"prompt:\"\""}}));
         CHECK_EQ(result.find(kIdentifierPrompt)->second, LazyString{});
       }}});
 
@@ -394,7 +397,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     };
     if (line.empty()) return true;
     ValueOrError<std::multimap<Identifier, LazyString>> line_keys_or_error =
-        ParseHistoryLine(line.contents().read());
+        ParseHistoryLine(line.contents());
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
