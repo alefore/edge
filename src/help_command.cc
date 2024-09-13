@@ -354,9 +354,9 @@ class HelpCommand : public Command {
     for (auto& h : handlers) {
       // TODO(easy, 2024-09-06): Change aliases() to return LazyString and
       // remove conversion.
-      StartSection(SingleLine{LazyString{L"### "}} +
-                       SingleLine{LazyString{h.aliases()[0].read()}},
-                   output);
+      StartSection(
+          SingleLine{LazyString{L"### "}} + h.aliases()[0].GetSingleLine(),
+          output);
       switch (h.argument_type()) {
         case Handler<CommandLineValues>::VariableType::kRequired:
           output.push_back(L"Required argument: " + h.argument() + L": " +

@@ -22,6 +22,13 @@ class SingleLine
   SingleLine Append(SingleLine) const;
 };
 
+struct NonEmptySingleLineValidator {
+  static language::PossibleError Validate(const SingleLine& input);
+};
+
+class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
+                                            NonEmptySingleLineValidator> {};
+
 SingleLine operator+(const SingleLine& a, const SingleLine& b);
 
 template <typename Predicate>

@@ -2,13 +2,28 @@
 
 #include "src/language/container.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/tests/tests.h"
 
 namespace container = afc::language::container;
 
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::command_line_arguments {
+
+FlagName::FlagName(NonEmptySingleLine input)
+    : language::GhostType<FlagName, NonEmptySingleLine>(input) {}
+
+FlagName::FlagName(std::wstring input)
+    : FlagName(NonEmptySingleLine{SingleLine{LazyString{input}}}) {}
+
+const LazyString& FlagName::GetLazyString() const {
+  return GetSingleLine().read();
+}
+const SingleLine& FlagName::GetSingleLine() const { return read().read(); }
+
 void HonorStandardArguments(const StandardArguments& arguments) {
   if (!arguments.tests_filter.empty()) {
     tests::Run(container::MaterializeVector(

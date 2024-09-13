@@ -12,6 +12,12 @@ namespace afc::language::lazy_string {
   return EmptyValue{};
 }
 
+/* static */ language::PossibleError NonEmptySingleLineValidator::Validate(
+    const SingleLine& input) {
+  if (input.empty()) return Error{LazyString{L"NonEmptySingleLine was empty."}};
+  return EmptyValue{};
+}
+
 wchar_t SingleLine::get(ColumnNumber a) const { return read().get(a); }
 
 SingleLine SingleLine::Substring(ColumnNumber a) const {

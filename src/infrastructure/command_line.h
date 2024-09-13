@@ -42,6 +42,7 @@ extern "C" {
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 
@@ -51,7 +52,14 @@ class Handler;
 
 enum class TestsBehavior { kRunAndExit, kListAndExit, kIgnore };
 
-struct FlagName : public language::GhostType<FlagName, std::wstring> {};
+struct FlagName
+    : public language::GhostType<FlagName,
+                                 language::lazy_string::NonEmptySingleLine> {
+  FlagName(language::lazy_string::NonEmptySingleLine input);
+  FlagName(std::wstring input);  // For convenience.
+  const language::lazy_string::LazyString& GetLazyString() const;
+  const language::lazy_string::SingleLine& GetSingleLine() const;
+};
 
 // ParsedValues should inherit from `StandardArguments`. This contains standard
 // fields that the command-line parsing logic uses.
@@ -407,11 +415,9 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
 
   std::map<LazyString, int> handlers_map;
   for (size_t i = 0; i < handlers.size(); i++) {
-    for (auto& alias : handlers[i].aliases()) {
-      // TODO(trivial, 2024-09-07): Convert aliases to LazyString, avoid this
-      // explicit conversion.
-      handlers_map[LazyString{L"-"} + LazyString{alias.read()}] = i;
-      handlers_map[LazyString{L"--"} + LazyString{alias.read()}] = i;
+    for (const FlagName& alias : handlers[i].aliases()) {
+      handlers_map[LazyString{L"-"} + alias.GetLazyString()] = i;
+      handlers_map[LazyString{L"--"} + alias.GetLazyString()] = i;
     }
   }
 
