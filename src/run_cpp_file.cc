@@ -25,13 +25,14 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::OutgoingLink;
 
 namespace afc::editor {
 namespace {
 futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
-                                                LazyString input) {
+                                                SingleLine input) {
   // TODO(easy): Honor `multiple_buffers`.
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
@@ -56,16 +57,16 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                  editor_state, MakeNonNullShared<FileSystemDriver>(
                                    editor_state.thread_pool()))
                  .Transform([input](ResolvePathOptions<EmptyValue> options) {
-                   options.path = input.ToString();
+                   options.path = input.read().ToString();
                    return ResolvePath(std::move(options));
                  }),
              [buffer, input](Error error) {
                buffer->ptr()->status().InsertError(
-                   Error{LazyString{L"🗱  File not found: "} + input});
+                   Error{LazyString{L"🗱  File not found: "} + input.read()});
                return futures::Past(error);
              })
-      .Transform([buffer, &editor_state,
-                  input](ResolvePathOutput<EmptyValue> resolved_path)
+      .Transform([buffer,
+                  &editor_state](ResolvePathOutput<EmptyValue> resolved_path)
                      -> futures::Value<PossibleError> {
         using futures::IterationControlCommand;
         auto index = MakeNonNullShared<size_t>(0);
@@ -111,7 +112,7 @@ class RunCppFileCommand : public Command {
          .initial_value = Line{buffer->ptr()->ReadLazyString(
              buffer_variables::editor_commands_path)},
          .handler =
-             [&editor = editor_state_](LazyString input) {
+             [&editor = editor_state_](SingleLine input) {
                return RunCppFileHandler(editor, input).ConsumeErrors([](Error) {
                  return futures::Past(EmptyValue());
                });

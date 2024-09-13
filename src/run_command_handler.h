@@ -60,7 +60,7 @@ language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                            const ForkCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
-    EditorState& editor_state, language::lazy_string::LazyString input);
+    EditorState& editor_state, language::lazy_string::SingleLine input);
 }  // namespace afc::editor
 
 #endif

@@ -39,6 +39,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -46,22 +47,22 @@ using afc::language::text::LineNumberDelta;
 namespace afc::editor {
 namespace {
 futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
-                                           LazyString name) {
+                                           SingleLine name) {
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor_state,
-                 .path = OptionalFrom(Path::New(name)),
+                 .path = OptionalFrom(Path::New(name.read())),
                  .insertion_type = BuffersList::AddBufferType::kVisit})
       .Transform([](gc::Root<OpenBuffer>) { return EmptyValue(); });
 }
 
 // Returns the buffer to show for context, or nullptr.
 futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
-    EditorState& editor, const PredictResults& results, LazyString line) {
+    EditorState& editor, const PredictResults& results, SingleLine line) {
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.predictor_output.found_exact_match) {
-    ValueOrError<Path> path_or_error = Path::New(line);
+    ValueOrError<Path> path_or_error = Path::New(line.read());
     Path* path = std::get_if<Path>(&path_or_error);
     if (path == nullptr) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
@@ -92,7 +93,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
 }
 
 ColorizePromptOptions DrawPath(
-    LazyString line, PredictResults results,
+    SingleLine line, PredictResults results,
     std::optional<gc::Root<OpenBuffer>> context_buffer) {
   ColorizePromptOptions output;
   VisitOptional(
@@ -136,16 +137,18 @@ ColorizePromptOptions DrawPath(
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
-    EditorState& editor, const LazyString& line,
+    EditorState& editor, const SingleLine& line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
-  return Predict(FilePredictor,
-                 PredictorInput{.editor = editor,
-                                .input = line,
-                                .input_column = ColumnNumber() + line.size(),
-                                .source_buffers = editor.active_buffers(),
-                                .progress_channel = std::move(progress_channel),
-                                .abort_value = std::move(abort_value)})
+  return Predict(
+             FilePredictor,
+             PredictorInput{.editor = editor,
+                            // TODO(trivial, 2024-09-13): Avoid call to read.
+                            .input = line.read(),
+                            .input_column = ColumnNumber() + line.size(),
+                            .source_buffers = editor.active_buffers(),
+                            .progress_channel = std::move(progress_channel),
+                            .abort_value = std::move(abort_value)})
       .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return StatusContext(editor, results.value(), line)

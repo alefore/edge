@@ -10,6 +10,7 @@
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
 #include "src/open_file_command.h"
@@ -43,6 +44,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::math::numbers::Number;
@@ -215,7 +217,10 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier{LazyString{L"SetVariablePrompt"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, LazyString variable) {
-                        SetVariableCommandHandler(editor_arg, variable);
+                        // TODO(trivial, urgent, 2024-09-13): Rather than crash,
+                        // handler error if variable has multiple lines.
+                        SetVariableCommandHandler(editor_arg,
+                                                  SingleLine{variable});
                       })
           .ptr());
 

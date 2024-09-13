@@ -57,7 +57,7 @@ struct PromptOptions {
   language::text::Line initial_value = language::text::Line{};
 
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
-      const language::lazy_string::LazyString& line,
+      const language::lazy_string::SingleLine& line,
       language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
       futures::DeleteNotification::Value abort_value)>;
 
@@ -67,7 +67,7 @@ struct PromptOptions {
 
   // Function to run when the prompt receives the final input.
   std::function<futures::Value<language::EmptyValue>(
-      language::lazy_string::LazyString)>
+      language::lazy_string::SingleLine)>
       handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was

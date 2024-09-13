@@ -838,8 +838,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                  }),
              options()
                  .colorize_options_provider(
-                     line.contents().read(),
-                     NewProgressChannel(status_value_viewer),
+                     line.contents(), NewProgressChannel(status_value_viewer),
                      abort_notification_value)
                  .Transform([shared_this = shared_from_this(),
                              abort_notification_value, line](
@@ -1025,7 +1024,7 @@ class LinePromptCommand : public Command {
           [&](Line line) {
             AddLineToHistory(editor_state_, options.history_file,
                              line.contents().read());
-            options.handler(line.contents().read());
+            options.handler(line.contents());
           },
           [] {});
     } else {
@@ -1087,7 +1086,7 @@ InsertModeOptions PromptState::insert_mode_options() {
               prompt_state->options().cancel_handler();
             } else {
               VLOG(5) << "Running handler on empty input.";
-              prompt_state->options().handler(LazyString());
+              prompt_state->options().handler(SingleLine{});
             }
             prompt_state->editor_state().set_keyboard_redirect(std::nullopt);
           },
@@ -1101,8 +1100,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                 prompt_state->editor_state().set_keyboard_redirect(
                     std::nullopt);
             prompt_state->Reset();
-            // TODO(trivial, 2024-09-13): Avoid call to read().
-            return prompt_state->options().handler(input.read());
+            return prompt_state->options().handler(input);
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {

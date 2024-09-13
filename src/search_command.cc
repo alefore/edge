@@ -108,7 +108,8 @@ void DoSearch(OpenBuffer& buffer, SearchOptions options) {
 }
 
 ColorizePromptOptions SearchResultsModifiers(
-    LazyString line, ValueOrError<SearchResultsSummary> result_or_error) {
+    const SingleLine& line,
+    ValueOrError<SearchResultsSummary> result_or_error) {
   LineModifierSet modifiers = std::visit(
       overload{[&](Error) { return LineModifierSet{LineModifier::kRed}; },
                [&](const SearchResultsSummary& result) -> LineModifierSet {
@@ -262,7 +263,7 @@ class SearchCommand : public Command {
              [&editor_state = editor_state_,
               buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
                   editor_state_.active_buffers())](
-                 const LazyString& line,
+                 const SingleLine& line,
                  NonNull<std::unique_ptr<ProgressChannel>>
                      parent_progress_channel,
                  DeleteNotification::Value abort_value) {
@@ -351,7 +352,7 @@ class SearchCommand : public Command {
                    });
              },
          .handler =
-             [&editor_state = editor_state_](LazyString input) {
+             [&editor_state = editor_state_](SingleLine input) {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
                      if (auto search_options = BuildPromptSearchOptions(
@@ -377,7 +378,7 @@ class SearchCommand : public Command {
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
-      LazyString input, OpenBuffer& buffer,
+      SingleLine input, OpenBuffer& buffer,
       DeleteNotification::Value abort_value) {
     auto& editor = buffer.editor();
     SearchOptions search_options{.search_query = std::move(input)};

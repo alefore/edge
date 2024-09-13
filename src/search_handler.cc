@@ -82,7 +82,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     std::function<bool(const LineColumn&)> predicate) {
   std::wregex pattern;
   try {
-    pattern = std::wregex(options.search_query.ToString(),
+    pattern = std::wregex(options.search_query.read().ToString(),
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
     Error error{LazyString{L"Regex failure: "} +
@@ -386,7 +386,7 @@ ValueOrError<LineColumn> GetNextMatch(Direction direction,
       results.has_value() && !results->empty())
     return results->at(0);
 
-  return Error{LazyString{L"No matches: "} + options.search_query};
+  return Error{LazyString{L"No matches: "} + options.search_query.read()};
 }
 
 void HandleSearchResults(

@@ -32,6 +32,7 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Trim;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -58,8 +59,9 @@ Predictor VariablesPredictor() {
 }  // namespace
 
 futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
-                                                     LazyString input_name) {
-  LazyString name = Trim(input_name, {L' '});
+                                                     SingleLine input_name) {
+  // TODO(trivial, 2024-09-13): Get rid of read():
+  LazyString name = Trim(input_name.read(), {L' '});
   LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
   if (name.empty()) return futures::Past(EmptyValue());
 
@@ -78,13 +80,16 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
          .history_file = history_file,
          .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
          .handler =
-             [&editor_state, var](LazyString input) {
+             [&editor_state, var](SingleLine input) {
                editor_state.ResetRepetitions();
                return editor_state.ForEachActiveBuffer(
                    [var, input](OpenBuffer& buffer) {
-                     buffer.Set(var, input);
+                     buffer.Set(var, input.read());
                      buffer.status().SetInformationText(
-                         LineBuilder(var->name() + LazyString{L" := "} + input)
+                         // TODO(trivial, 2024-09-13): Get rid of read():
+                         LineBuilder((SingleLine{var->name()} +
+                                      SingleLine{LazyString{L" := "}} + input)
+                                         .read())
                              .Build());
                      return futures::Past(EmptyValue());
                    });
@@ -112,9 +117,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
             .initial_value =
                 Line{LazyString{std::to_wstring(editor_state.Read(var))}},
             .handler =
-                [&editor_state, var, &default_error_status](LazyString input) {
+                [&editor_state, var, &default_error_status](SingleLine input) {
                   // TODO(easy, 2022-06-05): Get rid of ToString.
-                  std::wstringstream ss(input.ToString());
+                  std::wstringstream ss(input.read().ToString());
                   double value;
                   ss >> value;
                   if (ss.eof() && !ss.fail()) {
@@ -122,7 +127,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                   } else {
                     default_error_status.InsertError(
                         Error{LazyString{L"Invalid value for double value “"} +
-                              var->name() + LazyString{L"”: "} + input});
+                              var->name() + LazyString{L"”: "} + input.read()});
                   }
                   return futures::Past(EmptyValue());
                 },
@@ -155,11 +160,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .initial_value = Line{LazyString{
             std::to_wstring(active_buffers[0].ptr()->Read(var))}},
         .handler =
-            [&editor_state, var, &default_error_status](LazyString input) {
+            [&editor_state, var, &default_error_status](SingleLine input) {
               int value;
               try {
                 // TODO(easy, 2022-06-05): Get rid of ToString.
-                value = stoi(input.ToString());
+                value = stoi(input.read().ToString());
               } catch (const std::invalid_argument& ia) {
                 default_error_status.InsertError(
                     Error{LazyString{L"Invalid value for integer value “"} +
@@ -188,9 +193,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .initial_value = Line{LazyString{
             std::to_wstring(active_buffers[0].ptr()->Read(var))}},
         .handler =
-            [&editor_state, var, &default_error_status](LazyString input) {
+            [&editor_state, var, &default_error_status](SingleLine input) {
               // TODO(easy, 2022-06-05): Get rid of ToString.
-              std::wstringstream ss(input.ToString());
+              std::wstringstream ss(input.read().ToString());
               double value;
               ss >> value;
               if (ss.eof() && !ss.fail()) {
@@ -202,7 +207,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
               } else {
                 default_error_status.InsertError(
                     Error{LazyString{L"Invalid value for double value “"} +
-                          var->name() + LazyString{L"”: "} + input});
+                          var->name() + LazyString{L"”: "} + input.read()});
               }
               return futures::Past(EmptyValue());
             },
@@ -226,7 +231,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
             .history_file = HistoryFile{LazyString{L"variables"}},
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](
-                    const LazyString& line,
+                    const SingleLine& line,
                     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
                     DeleteNotification::Value abort_value)
                 -> futures::Value<ColorizePromptOptions> {
@@ -234,7 +239,8 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                          variables_predictor,
                          PredictorInput{
                              .editor = editor_state,
-                             .input = line,
+                             // TODO(trivial, 2024-09-13): Get rid of read().
+                             .input = line.read(),
                              .input_column = ColumnNumber() + line.size(),
                              .source_buffers = editor_state.active_buffers(),
                              .progress_channel = std::move(progress_channel),

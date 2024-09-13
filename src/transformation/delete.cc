@@ -134,8 +134,8 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
                 LazyString{L"? [yes/no] "},
       .history_file = HistoryFile{LazyString{L"confirmation"}},
       .handler =
-          [buffer = buffer.NewRoot(), observers](LazyString input) {
-            if (input == LazyString{L"yes"}) {
+          [buffer = buffer.NewRoot(), observers](SingleLine input) {
+            if (input == SingleLine{LazyString{L"yes"}}) {
               for (auto& o : observers) o();
             } else {
               // TODO: insert it again?  Actually, only let it

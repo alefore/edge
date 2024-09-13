@@ -292,8 +292,10 @@ const bool read_and_insert_tests_registration = tests::Register(
     });
 
 class Execute : public CompositeTransformation {
+  const SingleLine command_;
+
  public:
-  Execute(LazyString command) : command_(std::move(command)) {}
+  Execute(SingleLine command) : command_(std::move(command)) {}
 
   std::wstring Serialize() const override { return L"Execute();"; }
 
@@ -310,9 +312,6 @@ class Execute : public CompositeTransformation {
         })
         .ConsumeErrors([](Error) { return futures::Past(Output()); });
   }
-
- private:
-  const LazyString command_;
 };
 
 class ExpandTransformation : public CompositeTransformation {
@@ -393,7 +392,7 @@ class ExpandTransformation : public CompositeTransformation {
         output->Push(DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size() +
                                           ColumnNumberDelta(1)));
         transformation_future =
-            futures::Past(std::make_unique<Execute>(symbol.read()));
+            futures::Past(std::make_unique<Execute>(symbol));
       } break;
       case '.': {
         SingleLine query = GetToken(input, buffer_variables::path_characters);

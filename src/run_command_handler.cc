@@ -60,6 +60,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -467,14 +468,18 @@ class ForkEditorCommand : public Command {
           .history_file = HistoryFileCommands(),
           .colorize_options_provider =
               prompt_state->context_command_callback.has_value()
-                  ? ([prompt_state](const LazyString& line,
+                  ? ([prompt_state](const SingleLine& line,
                                     NonNull<std::unique_ptr<ProgressChannel>>,
                                     DeleteNotification::Value) {
-                      return PromptChange(prompt_state.value(), line);
+                      // TODO(trivial, 2024-09-13): Remove call to read():
+                      return PromptChange(prompt_state.value(), line.read());
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
-          .handler = std::bind_front(RunCommandHandler, std::ref(editor_state_),
-                                     0, 1, OptionalFrom(children_path)),
+          .handler =
+              [&editor = editor_state_, children_path](SingleLine input) {
+                return RunCommandHandler(
+                    editor, 0, 1, OptionalFrom(children_path), input.read());
+              },
           .predictor = TokenPredictor(FilePredictor)});
     } else if (editor_state_.structure() == Structure::kLine) {
       std::optional<gc::Root<OpenBuffer>> buffer =
@@ -687,25 +692,27 @@ gc::Root<Command> NewForkCommand(EditorState& editor_state) {
 
 futures::Value<EmptyValue> RunCommandHandler(
     EditorState& editor_state, std::map<std::wstring, LazyString> environment,
-    LazyString input, LazyString name_suffix) {
-  RunCommand(CommandBufferName{input + name_suffix}, environment, editor_state,
-             OptionalFrom(GetChildrenPath(editor_state)), input);
+    LazyString input, SingleLine name_suffix) {
+  RunCommand(
+      // TODO(trivial, 2024-09-13): Get rid of `read()`:
+      CommandBufferName{input + name_suffix.read()}, environment, editor_state,
+      OptionalFrom(GetChildrenPath(editor_state)), input);
   return futures::Past(EmptyValue());
 }
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
-                                                      LazyString input) {
+                                                      SingleLine input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
-        std::ranges::for_each(buffer.contents().snapshot(),
-                              [&editor_state, input](const Line& arg) {
-                                RunCommandHandler(
-                                    editor_state,
-                                    std::map<std::wstring, LazyString>{
-                                        {L"ARG", arg.contents().read()}},
-                                    input,
-                                    LazyString{L" "} + arg.contents().read());
-                              });
+        std::ranges::for_each(
+            buffer.contents().snapshot(),
+            [&editor_state, input](const Line& arg) {
+              RunCommandHandler(editor_state,
+                                std::map<std::wstring, LazyString>{
+                                    {L"ARG", arg.contents().read()}},
+                                input.read(),
+                                SingleLine{LazyString{L" "}} + arg.contents());
+            });
         return futures::Past(EmptyValue());
       })
       .Transform([&editor_state](EmptyValue) {

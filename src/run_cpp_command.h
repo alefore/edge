@@ -5,7 +5,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
-#include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 
 namespace afc {
@@ -33,7 +33,7 @@ class Command;
 //
 // In this case, that'd run something like: build("foo", "bar hey");
 futures::ValueOrError<language::gc::Root<vm::Value>> RunCppCommandShell(
-    const language::lazy_string::LazyString& command,
+    const language::lazy_string::SingleLine& command,
     EditorState& editor_state);
 
 language::gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
