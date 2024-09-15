@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "src/buffer_filter.h"
 #include "src/buffer_name.h"
 #include "src/command.h"
 #include "src/editor.h"
@@ -15,15 +16,6 @@
 #include "src/predictor.h"
 
 namespace afc::editor {
-
-struct TokenAndModifiers {
-  // The portion to colorize. The `value` field is ignored; instead, the
-  // corresponding portion from the value in `prompt` will be used.
-  language::lazy_string::Token token;
-  // Set of modifiers to apply.
-  infrastructure::screen::LineModifierSet modifiers;
-};
-
 struct ColorizePromptOptions {
   std::vector<TokenAndModifiers> tokens = {};
 

@@ -21,6 +21,8 @@ src/buffer_contents_view_layout.h \
 src/buffer_contents_view_layout.cc \
 src/buffer_display_data.cc \
 src/buffer_display_data.h \
+src/buffer_filter.cc \
+src/buffer_filter.h \
 src/buffer_flags.cc \
 src/buffer_flags.h \
 src/buffer_name.cc \
