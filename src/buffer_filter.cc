@@ -39,9 +39,9 @@ using afc::vm::EscapedMap;
 using afc::vm::Identifier;
 
 namespace afc::editor {
-const vm::Identifier& HistoryIdentifierPrompt() {
+const vm::Identifier& HistoryIdentifierValue() {
   static const vm::Identifier* output =
-      new vm::Identifier{language::lazy_string::LazyString{L"prompt"}};
+      new vm::Identifier{language::lazy_string::LazyString{L"value"}};
   return *output;
 }
 
@@ -210,12 +210,12 @@ auto parse_history_line_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(
-                IsError(ParseBufferLine(SingleLine{LazyString{L"prompt:\""}})));
+                IsError(ParseBufferLine(SingleLine{LazyString{L"value:\""}})));
           }},
      {.name = L"Empty", .callback = [] {
         auto result =
-            ValueOrDie(ParseBufferLine(SingleLine{LazyString{L"prompt:\"\""}}));
-        CHECK_EQ(result.find(HistoryIdentifierPrompt())->second, LazyString{});
+            ValueOrDie(ParseBufferLine(SingleLine{LazyString{L"value:\"\""}}));
+        CHECK_EQ(result.find(HistoryIdentifierValue())->second, LazyString{});
       }}});
 
 // TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
@@ -268,11 +268,11 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
 FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
   FilterSortBufferOutput output;
   if (input.abort_value.has_value()) return output;
-  // Sets of features for each unique `prompt` value in the history.
+  // Sets of features for each unique `value` value in the history.
   math::naive_bayes::History history_data;
-  // Tokens by parsing the `prompt` value in the history.
+  // Tokens by parsing the `value` value in the history.
   std::unordered_map<math::naive_bayes::Event, std::vector<Token>>
-      history_prompt_tokens;
+      history_value_tokens;
   std::vector<Token> filter_tokens = TokenizeBySpaces(input.filter);
   input.history.EveryLine([&](LineNumber, const Line& line) {
     VLOG(8) << "Considering line: " << line.contents();
@@ -295,27 +295,27 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
       return !input.abort_value.has_value();
     }
-    auto range = line_keys->equal_range(HistoryIdentifierPrompt());
-    int prompt_count = std::distance(range.first, range.second);
-    if (warn_if(prompt_count == 0,
-                Error{LazyString{L"Line is missing `prompt` section"}}) ||
-        warn_if(prompt_count != 1,
-                Error{LazyString{L"Line has multiple `prompt` sections"}})) {
+    auto range = line_keys->equal_range(HistoryIdentifierValue());
+    int value_count = std::distance(range.first, range.second);
+    if (warn_if(value_count == 0,
+                Error{LazyString{L"Line is missing `value` section"}}) ||
+        warn_if(value_count != 1,
+                Error{LazyString{L"Line has multiple `value` sections"}})) {
       return !input.abort_value.has_value();
     }
 
-    LazyString prompt_value = range.first->second;
-    VLOG(8) << "Considering history value: " << prompt_value;
-    if (FindFirstColumnWithPredicate(prompt_value, [](ColumnNumber, wchar_t c) {
+    LazyString value = range.first->second;
+    VLOG(8) << "Considering history value: " << value;
+    if (FindFirstColumnWithPredicate(value, [](ColumnNumber, wchar_t c) {
           return c == L'\n';
         }).has_value()) {
       VLOG(5) << "Ignoring value that contains a new line character.";
       return true;
     }
-    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-        prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+    std::vector<Token> line_tokens =
+        ExtendTokensToEndOfString(value, TokenizeNameForPrefixSearches(value));
     // TODO(easy, 2022-11-26): Get rid of call ToString.
-    math::naive_bayes::Event event_key(prompt_value.ToString());
+    math::naive_bayes::Event event_key(value.ToString());
     std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
     if (filter_tokens.empty()) {
       VLOG(6) << "Accepting value (empty filters): " << line.contents();
@@ -324,7 +324,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
                match.has_value()) {
       VLOG(5) << "Accepting value, produced a match: " << line.contents();
       features_output = &history_data[event_key];
-      history_prompt_tokens.insert({event_key, std::move(match.value())});
+      history_value_tokens.insert({event_key, std::move(match.value())});
     } else {
       VLOG(6) << "Ignoring value, no match: " << line.contents();
       return true;
@@ -332,7 +332,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     math::naive_bayes::FeaturesSet current_features;
     // TODO(easy, 2024-09-10): Get rid of call ToString.
     for (auto& [key, value] : *line_keys)
-      if (key != HistoryIdentifierPrompt())
+      if (key != HistoryIdentifierValue())
         current_features.insert(math::naive_bayes::Feature(
             key.read().ToString() + L":" + QuoteString(value).ToString()));
     features_output->push_back(std::move(current_features));
@@ -357,7 +357,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
        math::naive_bayes::Sort(history_data, current_features)) {
     output.lines.push_back(ColorizeLine(
         key.ReadLazyString(), container::MaterializeVector(
-                                  history_prompt_tokens[key] |
+                                  history_value_tokens[key] |
                                   std::views::transform([](const Token& token) {
                                     VLOG(6) << "Add token BOLD: " << token;
                                     return TokenAndModifiers{
@@ -389,7 +389,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 FilterSortBuffer(FilterSortBufferInput{
                     DeleteNotification::Never(), LazyString{L"quux"},
                     LineSequence::ForTests(
-                        {L"prompt:\"foobar\"", L"prompt:\"foo\""}),
+                        {L"value:\"foobar\"", L"value:\"foo\""}),
                     features});
             CHECK(output.lines.empty());
           }},
@@ -400,7 +400,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             FilterSortBufferOutput output =
                 FilterSortBuffer(FilterSortBufferInput{
                     DeleteNotification::Never(), LazyString{L"nbar"},
-                    LineSequence::ForTests({L"prompt:\"foo\\\\nbardo\""}),
+                    LineSequence::ForTests({L"value:\"foo\\\\nbardo\""}),
                     features});
             CHECK_EQ(output.lines.size(), 1ul);
             const Line& line = output.lines[0];
@@ -429,7 +429,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             FilterSortBufferOutput output =
                 FilterSortBuffer(FilterSortBufferInput{
                     DeleteNotification::Never(), LazyString{L"nbar"},
-                    LineSequence::ForTests({L"prompt:\"foo\\nbar\""}),
+                    LineSequence::ForTests({L"value:\"foo\\nbar\""}),
                     features});
             CHECK(output.lines.empty());
           }},
@@ -440,10 +440,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             FilterSortBufferOutput output =
                 FilterSortBuffer(FilterSortBufferInput{
                     DeleteNotification::Never(), LazyString{L"f"},
-                    LineSequence::ForTests({L"prompt:\"foobar \\\"",
-                                            L"prompt:\"foo\"",
-                                            L"prompt:\"foo\\n bar\"",
-                                            L"prompt:\"foo \\o bar \\\""}),
+                    LineSequence::ForTests(
+                        {L"value:\"foobar \\\"", L"value:\"foo\"",
+                         L"value:\"foo\\n bar\"", L"value:\"foo \\o bar \\\""}),
                     features});
             CHECK_EQ(output.lines.size(), 1ul);
             CHECK_EQ(output.lines[0].contents(), LazyString{L"foo"});
@@ -455,14 +454,14 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             FilterSortBufferOutput output =
                 FilterSortBuffer(FilterSortBufferInput{
                     DeleteNotification::Never(), LazyString{L"ls"},
-                    LineSequence::ForTests({L"prompt:\"ls\\n\""}), features});
+                    LineSequence::ForTests({L"value:\"ls\\n\""}), features});
             CHECK(output.lines.empty());
           }},
      {.name = L"HistoryWithEscapedNewLine", .callback = [] {
         std::multimap<Identifier, LazyString> features;
         FilterSortBufferOutput output = FilterSortBuffer(FilterSortBufferInput{
             DeleteNotification::Never(), LazyString{L"ls"},
-            LineSequence::ForTests({L"prompt:\"ls\\n\""}), features});
+            LineSequence::ForTests({L"value:\"ls\\n\""}), features});
         CHECK_EQ(output.lines.size(), 0ul);
       }}});
 }  // namespace

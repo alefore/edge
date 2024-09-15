@@ -12,7 +12,9 @@ class OpenBuffer;
 
 void AddFragment(EditorState& editor, language::text::LineSequence fragment);
 
-struct FindFragmentQuery {};
+struct FindFragmentQuery {
+  language::lazy_string::LazyString filter;
+};
 
 futures::Value<language::text::LineSequence> FindFragment(
     EditorState& editor, FindFragmentQuery query);

@@ -165,7 +165,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
 
 LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
   EscapedMap::Map data = GetCurrentFeatures(editor);
-  data.insert({HistoryIdentifierPrompt(), std::move(input)});
+  data.insert({HistoryIdentifierValue(), std::move(input)});
   return EscapedMap{std::move(data)}.Serialize();
 }
 

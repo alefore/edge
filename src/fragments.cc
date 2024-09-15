@@ -1,6 +1,7 @@
 #include "src/fragments.h"
 
 #include "src/buffer.h"
+#include "src/buffer_filter.h"
 #include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command_argument_mode.h"
@@ -13,6 +14,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
@@ -26,8 +28,6 @@ using afc::vm::EscapedMap;
 namespace afc::editor {
 
 namespace {
-const vm::Identifier kIdentifierFragment{LazyString{L"fragment"}};
-
 futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
   return VisitOptional(
       [](gc::Root<OpenBuffer> output) { return futures::Past(output); },
@@ -68,30 +68,42 @@ void AddFragment(EditorState& editor, LineSequence fragment) {
       [fragment](gc::Root<OpenBuffer> fragments_buffer) {
         fragments_buffer.ptr()->AppendLine(vm::EscapedMap{
             std::multimap<vm::Identifier, LazyString>{
-                {kIdentifierFragment,
+                {HistoryIdentifierValue(),
                  fragment.ToLazyString()}}}.Serialize());
         return futures::Past(EmptyValue{});
       });
 }
 
-futures::Value<language::text::LineSequence> FindFragment(EditorState& editor,
-                                                          FindFragmentQuery) {
+futures::Value<language::text::LineSequence> FindFragment(
+    EditorState& editor, FindFragmentQuery query) {
   return GetFragmentsBuffer(editor).Transform(
-      [](gc::Root<OpenBuffer> fragments_buffer) {
-        return std::visit(
-            overload{// TODO(trivial, 2024-09-10): Don't ignore the error.
-                     [](Error) { return LineSequence{}; },
-                     [](EscapedMap parsed_map) {
-                       auto it = parsed_map.read().find(kIdentifierFragment);
-                       if (it == parsed_map.read().end()) return LineSequence{};
-                       return LineSequence::BreakLines(it->second);
-                     }},
-            EscapedMap::Parse(fragments_buffer.ptr()
-                                  ->contents()
-                                  .snapshot()
-                                  .back()
-                                  .contents()
-                                  .read()));
+      [&editor, filter = query.filter](gc::Root<OpenBuffer> fragments_buffer) {
+        const LineSequence history =
+            fragments_buffer.ptr()->contents().snapshot();
+        if (filter.empty())
+          return std::visit(
+              overload{
+                  [](Error) { return futures::Past(LineSequence{}); },
+                  [](EscapedMap parsed_map) {
+                    auto it = parsed_map.read().find(HistoryIdentifierValue());
+                    if (it == parsed_map.read().end())
+                      return futures::Past(LineSequence{});
+                    return futures::Past(LineSequence::BreakLines(it->second));
+                  }},
+              EscapedMap::Parse(history.back().contents().read()));
+        return editor.thread_pool()
+            .Run(std::bind_front(FilterSortBuffer,
+                                 FilterSortBufferInput{
+                                     .abort_value = DeleteNotification::Never(),
+                                     .filter = filter,
+                                     .history = history,
+                                     .current_features = {}}))
+            .Transform([](FilterSortBufferOutput output) {
+              return output.lines.empty()
+                         ? LineSequence{}
+                         : LineSequence::BreakLines(
+                               output.lines.back().contents().read());
+            });
       });
 }
 }  // namespace afc::editor

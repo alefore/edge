@@ -12,7 +12,7 @@
 #include "src/vm/types.h"
 
 namespace afc::editor {
-const vm::Identifier& HistoryIdentifierPrompt();
+const vm::Identifier& HistoryIdentifierValue();
 const vm::Identifier& HistoryIdentifierExtension();
 const vm::Identifier& HistoryIdentifierName();
 const vm::Identifier& HistoryIdentifierActive();
@@ -20,7 +20,7 @@ const vm::Identifier& HistoryIdentifierDirectory();
 
 struct TokenAndModifiers {
   // The portion to colorize. The `value` field is ignored; instead, the
-  // corresponding portion from the value in `prompt` will be used.
+  // corresponding portion from `line` will be used.
   language::lazy_string::Token token;
   // Set of modifiers to apply.
   infrastructure::screen::LineModifierSet modifiers;
