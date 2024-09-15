@@ -94,7 +94,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
     delete_transformation->preview_modifiers = {LineModifier::kGreen,
                                                 LineModifier::kUnderline};
     return PreviewCppExpression(input.buffer, contents)
-        .ConsumeErrors([&input, delete_transformation](Error error) {
+        .ConsumeErrors([input, delete_transformation](Error error) {
           delete_transformation->preview_modifiers = {LineModifier::kRed,
                                                       LineModifier::kUnderline};
           input.adapter.AddError(error);
@@ -132,12 +132,12 @@ futures::Value<Result> HandleCommandCpp(Input input,
 
 template <typename Iterator>
 futures::Value<EmptyValue> ApplyStackDirectly(
-    Iterator begin, Iterator end, Input& input,
+    Iterator begin, Iterator end, Input input,
     NonNull<std::shared_ptr<Log>> trace,
     NonNull<std::shared_ptr<Result>> output) {
   return futures::ForEach(
              begin, end,
-             [output, &input,
+             [output, input,
               trace](const transformation::Variant& transformation) {
                trace->Append(LazyString{L"Transformation: "} +
                              LazyString{ToString(transformation)});
