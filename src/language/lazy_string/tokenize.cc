@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
@@ -25,6 +26,7 @@ std::ostream& operator<<(std::ostream& os, const Token& t) {
 }
 
 std::vector<Token> TokenizeBySpaces(const LazyString& command) {
+  INLINE_TRACKER(TokenizeBySpaces);
   std::vector<Token> output;
   Token token;
   auto push = [&](ColumnNumber end) {
