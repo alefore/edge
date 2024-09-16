@@ -190,7 +190,8 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                },
                [&](const types::String&) {
                  os << EscapedString::FromString(LazyString{value.get_string()})
-                           .CppRepresentation();
+                           .CppRepresentation()
+                           .read();
                },
                [&](const types::Symbol&) { os << ToString(value.type); },
                [&](const types::ObjectName&) { os << ToString(value.type); },
