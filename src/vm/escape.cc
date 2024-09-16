@@ -131,6 +131,7 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 
 /* static */ language::ValueOrError<EscapedMap> EscapedMap::Parse(
     language::lazy_string::LazyString input) {
+  INLINE_TRACKER(EscapedMap_Parse);
   std::multimap<Identifier, LazyString> output;
   for (const Token& token : TokenizeBySpaces(input)) {
     std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});
