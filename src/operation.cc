@@ -180,7 +180,13 @@ void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
 
 void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
   SerializeCall(kDescriptionPaste.read(),
-                std::vector<LazyString>{paste.repetitions.ToString()}, output);
+                std::vector<LazyString>{paste.repetitions.ToString(),
+                                        paste.query_input.has_value()
+                                            ? LazyString{L"\""} +
+                                                  paste.query_input.value() +
+                                                  LazyString{L"\""}
+                                            : LazyString{}},
+                output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -329,8 +335,11 @@ transformation::Stack GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandPaste paste) {
-  return ApplyRepetitions(paste.repetitions, std::nullopt,
-                          NonNull<std::shared_ptr<transformation::Paste>>{});
+  return ApplyRepetitions(
+      paste.repetitions, std::nullopt,
+      MakeNonNullShared<transformation::Paste>(
+          transformation::Paste{FindFragmentQuery{
+              .filter = paste.query_input.value_or(LazyString{})}}));
 }
 
 class State {
@@ -823,11 +832,46 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
+  if (output->query_input.has_value()) {
+    cmap.SetFallback(
+        {'\n', ControlChar::kEscape}, [output](ExtendedChar extended_c) {
+          std::visit(overload{[output](ControlChar c) {
+                                switch (c) {
+                                  case ControlChar::kBackspace:
+                                    if (output->query_input->empty())
+                                      output->query_input = std::nullopt;
+                                    else
+                                      output->query_input =
+                                          output->query_input->Substring(
+                                              ColumnNumber{},
+                                              output->query_input->size() -
+                                                  ColumnNumberDelta{1});
+                                    // TODO(trivial, 2024-09-16): Handle more
+                                    // control characters.
+                                  default:
+                                    break;
+                                }
+                              },
+                              [&](wchar_t c) {
+                                output->query_input =
+                                    output->query_input.value() +
+                                    LazyString{ColumnNumberDelta{1}, c};
+                              }},
+                     extended_c);
+        });
+    return;
+  }
   CheckRepetitionsChar(cmap, &output->repetitions);
-  cmap.Insert(L'p', {.category = KeyCommandsMap::Category::kRepetitions,
-                     .description = Description{LazyString{L"Paste"}},
+  cmap.Insert(
+          L'p',
+          {.category = KeyCommandsMap::Category::kRepetitions,
+           .description = Description{LazyString{L"Paste"}},
+           .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
+      .Insert(L'f', {.category = KeyCommandsMap::Category::kStringControl,
+                     .description = Description{LazyString{L"Filter"}},
                      .handler = [output](ExtendedChar) {
-                       output->repetitions.sum(1);
+                       CHECK(!output->query_input.has_value());
+                       output->query_input = LazyString{};
                      }});
 }
 

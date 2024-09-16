@@ -20,6 +20,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::text::LineSequence;
 
 namespace afc::editor::transformation {
+Paste::Paste(FindFragmentQuery query) : query_(std::move(query)) {}
 
 std::wstring Paste::Serialize() const {
   return LazyString{L"Paste()"}.ToString();
@@ -27,7 +28,7 @@ std::wstring Paste::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> Paste::Apply(
     CompositeTransformation::Input input) const {
-  return FindFragment(input.editor, FindFragmentQuery{})
+  return FindFragment(input.editor, query_)
       .Transform([input](LineSequence paste_data) {
         DVLOG(6) << "Inserting: " << paste_data.ToLazyString();
         return futures::Past(
