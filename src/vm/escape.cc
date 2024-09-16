@@ -166,16 +166,18 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 
 LazyString EscapedMap::Serialize() const {
   return Concatenate(
-      input_ | std::views::transform(
-                   [](std::pair<Identifier, EscapedString> data) -> LazyString {
-                     // TODO(trivial, 2024-09-16): Change Identifier to
-                     // SingleLine, avoid wrapping.
-                     // TODO(trivial, 2024-09-16): Return a SingleLine.
-                     return (SingleLine{data.first.read()} +
-                             SingleLine{LazyString{L":"}} +
-                             data.second.CppRepresentation())
-                         .read();
-                   }));
+      input_ |
+      std::views::transform(
+          [](std::pair<Identifier, EscapedString> data) -> LazyString {
+            // TODO(trivial, 2024-09-16): Change Identifier to
+            // SingleLine, avoid wrapping.
+            // TODO(trivial, 2024-09-16): Return a SingleLine.
+            return (SingleLine{data.first.read()} +
+                    SingleLine{LazyString{L":"}} +
+                    data.second.CppRepresentation())
+                .read();
+          }) |
+      Intersperse(LazyString{L" "}));
 }
 
 const EscapedMap::Map& EscapedMap::read() const { return input_; }
