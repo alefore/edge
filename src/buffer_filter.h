@@ -9,6 +9,7 @@
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
+#include "src/vm/escape.h"
 #include "src/vm/types.h"
 
 namespace afc::editor {
@@ -33,8 +34,7 @@ struct FilterSortBufferInput {
   futures::DeleteNotification::Value abort_value;
   language::lazy_string::LazyString filter;
   language::text::LineSequence history;
-  std::multimap<vm::Identifier, language::lazy_string::LazyString>
-      current_features;
+  std::multimap<vm::Identifier, vm::EscapedString> current_features;
 };
 
 struct FilterSortBufferOutput {

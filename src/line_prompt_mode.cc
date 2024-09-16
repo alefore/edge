@@ -87,6 +87,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::Range;
 using afc::vm::EscapedMap;
+using afc::vm::EscapedString;
 using afc::vm::Identifier;
 
 namespace afc::editor {
@@ -113,17 +114,20 @@ SingleLine GetPredictInput(const OpenBuffer& buffer) {
           range.begin().column);
 }
 
-std::multimap<Identifier, LazyString> GetCurrentFeatures(EditorState& editor) {
-  std::multimap<Identifier, LazyString> output;
+std::multimap<Identifier, EscapedString> GetCurrentFeatures(
+    EditorState& editor) {
+  std::multimap<Identifier, EscapedString> output;
   for (OpenBuffer& buffer :
        editor.buffer_registry().buffers() | gc::view::Value)
     if (buffer.Read(buffer_variables::show_in_buffers_list) &&
         editor.buffer_tree().GetBufferIndex(buffer).has_value())
-      output.insert({HistoryIdentifierName(),
-                     LazyString{buffer.Read(buffer_variables::name)}});
+      output.insert(
+          {HistoryIdentifierName(),
+           EscapedString{LazyString{buffer.Read(buffer_variables::name)}}});
   editor.ForEachActiveBuffer([&output](OpenBuffer& buffer) {
-    output.insert({HistoryIdentifierActive(),
-                   LazyString{buffer.Read(buffer_variables::name)}});
+    output.insert(
+        {HistoryIdentifierActive(),
+         EscapedString{LazyString{buffer.Read(buffer_variables::name)}}});
     return futures::Past(EmptyValue());
   });
   return output;
@@ -165,7 +169,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
 
 LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
   EscapedMap::Map data = GetCurrentFeatures(editor);
-  data.insert({HistoryIdentifierValue(), std::move(input)});
+  data.insert({HistoryIdentifierValue(), EscapedString{std::move(input)}});
   return EscapedMap{std::move(data)}.Serialize();
 }
 

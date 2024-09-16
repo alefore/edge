@@ -32,11 +32,13 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::lazy_string::TokenizeNameForPrefixSearches;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedMap;
+using afc::vm::EscapedString;
 using afc::vm::Identifier;
 
 namespace afc::editor {
@@ -73,9 +75,9 @@ const vm::Identifier& HistoryIdentifierDirectory() {
 namespace {
 // Generates additional features that are derived from the features returned by
 // GetCurrentFeatures (and thus don't need to be saved).
-std::multimap<Identifier, LazyString> GetSyntheticFeatures(
-    const std::multimap<Identifier, LazyString>& input) {
-  std::multimap<Identifier, LazyString> output;
+std::multimap<Identifier, EscapedString> GetSyntheticFeatures(
+    const std::multimap<Identifier, EscapedString>& input) {
+  std::multimap<Identifier, EscapedString> output;
   std::unordered_set<Path> directories;
   std::unordered_set<LazyString> extensions;
   VLOG(5) << "Generating features from input: " << input.size();
@@ -95,17 +97,17 @@ std::multimap<Identifier, LazyString> GetSyntheticFeatures(
                     [&](LazyString extension) { extensions.insert(extension); },
                     [] {}, path.extension());
               }},
-          Path::New(value));
+          Path::New(value.OriginalString()));
     }
   }
 
   VLOG(5) << "Generating features from directories.";
   for (auto& dir : directories)
-    output.insert({HistoryIdentifierDirectory(), dir.read()});
+    output.insert({HistoryIdentifierDirectory(), EscapedString{dir.read()}});
 
   VLOG(5) << "Generating features from extensions.";
   for (const LazyString& extension : extensions)
-    output.insert({HistoryIdentifierExtension(), extension});
+    output.insert({HistoryIdentifierExtension(), EscapedString{extension}});
 
   VLOG(5) << "Done generating synthetic features.";
   return output;
@@ -118,88 +120,94 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"ExtensionsSimple",
       .callback =
           [] {
-            std::multimap<Identifier, LazyString> input;
-            input.insert({HistoryIdentifierName(), LazyString{L"foo.cc"}});
+            std::multimap<Identifier, EscapedString> input;
+            input.insert({HistoryIdentifierName(),
+                          EscapedString{LazyString{L"foo.cc"}}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(HistoryIdentifierExtension()), 1ul);
             CHECK_EQ(output.find(HistoryIdentifierExtension())->second,
-                     LazyString{L"cc"});
+                     EscapedString{LazyString{L"cc"}});
           }},
      {.name = L"ExtensionsLongDirectory",
       .callback =
           [] {
-            std::multimap<Identifier, LazyString> input;
-            input.insert({HistoryIdentifierName(),
-                          LazyString{L"/home/alejo/src/edge/foo.cc"}});
+            std::multimap<Identifier, EscapedString> input;
+            input.insert(
+                {HistoryIdentifierName(),
+                 EscapedString{LazyString{L"/home/alejo/src/edge/foo.cc"}}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(HistoryIdentifierExtension()), 1ul);
             CHECK_EQ(output.find(HistoryIdentifierExtension())->second,
-                     LazyString{L"cc"});
+                     EscapedString{LazyString{L"cc"}});
           }},
      {.name = L"ExtensionsMultiple",
       .callback =
           [] {
-            std::multimap<Identifier, LazyString> input;
-            input.insert(
-                {HistoryIdentifierName(), LazyString{L"/home/alejo/foo.cc"}});
-            input.insert({HistoryIdentifierName(), LazyString{L"bar.cc"}});
-            input.insert(
-                {HistoryIdentifierName(), LazyString{L"/home/alejo/buffer.h"}});
+            std::multimap<Identifier, EscapedString> input;
             input.insert({HistoryIdentifierName(),
-                          LazyString{L"/home/alejo/README.md"}});
+                          EscapedString{LazyString{L"/home/alejo/foo.cc"}}});
+            input.insert({HistoryIdentifierName(),
+                          EscapedString{LazyString{L"bar.cc"}}});
+            input.insert({HistoryIdentifierName(),
+                          EscapedString{LazyString{L"/home/alejo/buffer.h"}}});
+            input.insert({HistoryIdentifierName(),
+                          EscapedString{LazyString{L"/home/alejo/README.md"}}});
             auto output = GetSyntheticFeatures(input);
             auto range = output.equal_range(HistoryIdentifierExtension());
             CHECK_EQ(std::distance(range.first, range.second), 3l);
             while (range.first != range.second) {
-              LazyString value = range.first->second;
-              CHECK(value == LazyString{L"cc"} || value == LazyString{L"h"} ||
-                    value == LazyString{L"md"});
+              EscapedString value = range.first->second;
+              CHECK(value == EscapedString{LazyString{L"cc"}} ||
+                    value == EscapedString{LazyString{L"h"}} ||
+                    value == EscapedString{LazyString{L"md"}});
               ++range.first;
             }
           }},
      {.name = L"DirectoryPlain",
       .callback =
           [] {
-            std::multimap<Identifier, LazyString> input;
-            input.insert({HistoryIdentifierName(), LazyString{L"foo.cc"}});
+            std::multimap<Identifier, EscapedString> input;
+            input.insert({HistoryIdentifierName(),
+                          EscapedString{LazyString{L"foo.cc"}}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(HistoryIdentifierDirectory()), 0ul);
           }},
      {.name = L"DirectoryPath",
       .callback =
           [] {
-            std::multimap<Identifier, LazyString> input;
-            input.insert({HistoryIdentifierName(),
-                          LazyString{L"/home/alejo/edge/foo.cc"}});
+            std::multimap<Identifier, EscapedString> input;
+            input.insert(
+                {HistoryIdentifierName(),
+                 EscapedString{LazyString{L"/home/alejo/edge/foo.cc"}}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(HistoryIdentifierDirectory()), 1ul);
             CHECK_EQ(output.find(HistoryIdentifierDirectory())->second,
-                     LazyString{L"/home/alejo/edge"});
+                     EscapedString{LazyString{L"/home/alejo/edge"}});
           }},
      {.name = L"DirectoryMultiple", .callback = [] {
-        std::multimap<Identifier, LazyString> input;
-        input.insert(
-            {HistoryIdentifierName(), LazyString{L"/home/alejo/edge/foo.cc"}});
-        input.insert(
-            {HistoryIdentifierName(), LazyString{L"/home/alejo/edge/bar.cc"}});
+        std::multimap<Identifier, EscapedString> input;
         input.insert({HistoryIdentifierName(),
-                      LazyString{L"/home/alejo/btc/input.txt"}});
+                      EscapedString{LazyString{L"/home/alejo/edge/foo.cc"}}});
+        input.insert({HistoryIdentifierName(),
+                      EscapedString{LazyString{L"/home/alejo/edge/bar.cc"}}});
+        input.insert({HistoryIdentifierName(),
+                      EscapedString{LazyString{L"/home/alejo/btc/input.txt"}}});
         auto output = GetSyntheticFeatures(input);
         auto range = output.equal_range(HistoryIdentifierDirectory());
         CHECK_EQ(std::distance(range.first, range.second), 2l);
         while (range.first != range.second) {
-          LazyString value = range.first->second;
-          CHECK(value == LazyString{L"/home/alejo/edge"} ||
-                value == LazyString{L"/home/alejo/btc"});
+          EscapedString value = range.first->second;
+          CHECK(value == EscapedString{LazyString{L"/home/alejo/edge"}} ||
+                value == EscapedString{LazyString{L"/home/alejo/btc"}});
           ++range.first;
         }
       }}});
 
-ValueOrError<std::multimap<Identifier, LazyString>> ParseBufferLine(
+ValueOrError<std::multimap<Identifier, EscapedString>> ParseBufferLine(
     const SingleLine& line) {
   DECLARE_OR_RETURN(EscapedMap line_map, EscapedMap::Parse(line.read()));
-  std::multimap<Identifier, LazyString> output = line_map.read();
-  std::multimap<Identifier, LazyString> synthetic_features =
+  std::multimap<Identifier, EscapedString> output = line_map.read();
+  std::multimap<Identifier, EscapedString> synthetic_features =
       GetSyntheticFeatures(output);
   output.insert(synthetic_features.begin(), synthetic_features.end());
   return output;
@@ -216,21 +224,18 @@ auto parse_history_line_tests_registration = tests::Register(
      {.name = L"Empty", .callback = [] {
         auto result =
             ValueOrDie(ParseBufferLine(SingleLine{LazyString{L"value:\"\""}}));
-        CHECK_EQ(result.find(HistoryIdentifierValue())->second, LazyString{});
+        CHECK_EQ(result.find(HistoryIdentifierValue())->second,
+                 EscapedString{});
       }}});
-
-// TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
-SingleLine QuoteString(LazyString src) {
-  return vm::EscapedString::FromString(src).CppRepresentation();
-}
 
 auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
   auto test = [](std::wstring name, std::wstring input,
                  std::wstring expected_output) {
-    return tests::Test({.name = name, .callback = [=] {
-                          CHECK(QuoteString(LazyString{input}) ==
-                                SingleLine{LazyString(expected_output)});
-                        }});
+    return tests::Test(
+        {.name = name, .callback = [=] {
+           CHECK_EQ(EscapedString(LazyString{input}).CppRepresentation(),
+                    SingleLine{LazyString(expected_output)});
+         }});
   };
   return std::vector<tests::Test>(
       {test(L"Simple", L"alejo", L"\"alejo\""),
@@ -293,7 +298,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       return condition;
     };
     if (line.empty()) return true;
-    ValueOrError<std::multimap<Identifier, LazyString>> line_keys_or_error =
+    ValueOrError<std::multimap<Identifier, EscapedString>> line_keys_or_error =
         ParseBufferLine(line.contents());
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
@@ -309,20 +314,15 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       return !input.abort_value.has_value();
     }
 
-    LazyString history_value = range.first->second;
+    EscapedString history_value = range.first->second;
     VLOG(8) << "Considering history value: " << history_value;
-    // TODO(trivial, 2024-09-16): Use FindFirstOf, much simpler.
-    if (FindFirstColumnWithPredicate(history_value, [](ColumnNumber,
-                                                       wchar_t c) {
-          return c == L'\n';
-        }).has_value()) {
-      VLOG(5) << "Ignoring value that contains a new line character.";
-      return true;
-    }
     std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-        history_value, TokenizeNameForPrefixSearches(history_value));
+        history_value.EscapedRepresentation().read(),
+        TokenizeNameForPrefixSearches(
+            history_value.EscapedRepresentation().read()));
     // TODO(easy, 2022-11-26): Get rid of call ToString.
-    math::naive_bayes::Event event_key(history_value.ToString());
+    math::naive_bayes::Event event_key(
+        history_value.EscapedRepresentation().read().ToString());
     std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
     if (filter_tokens.empty()) {
       VLOG(6) << "Accepting value (empty filters): " << line.contents();
@@ -340,9 +340,9 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     // TODO(easy, 2024-09-10): Get rid of call ToString.
     for (auto& [key, value] : *line_keys)
       if (key != HistoryIdentifierValue())
-        current_features.insert(
-            math::naive_bayes::Feature(key.read().ToString() + L":" +
-                                       QuoteString(value).read().ToString()));
+        current_features.insert(math::naive_bayes::Feature(
+            key.read().ToString() + L":" +
+            value.EscapedRepresentation().read().ToString()));
     features_output->push_back(std::move(current_features));
 
     return !input.abort_value.has_value();
@@ -355,12 +355,12 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
   // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : input.current_features)
     current_features.insert(math::naive_bayes::Feature(
-        (name.read() + LazyString{L":"} + QuoteString(value).read())
+        (name.read() + LazyString{L":"} + value.CppRepresentation().read())
             .ToString()));
   // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : GetSyntheticFeatures(input.current_features))
     current_features.insert(math::naive_bayes::Feature(
-        (name.read() + LazyString{L":"} + QuoteString(value).read())
+        (name.read() + LazyString{L":"} + value.CppRepresentation().read())
             .ToString()));
 
   for (math::naive_bayes::Event& key :
@@ -381,99 +381,102 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
 namespace {
 auto filter_sort_history_sync_tests_registration = tests::Register(
     L"FilterSortBuffer",
-    {{.name = L"EmptyFilter",
-      .callback =
-          [] {
-            std::multimap<Identifier, LazyString> features;
-            FilterSortBufferOutput output =
-                FilterSortBuffer(FilterSortBufferInput{
-                    DeleteNotification::Never(), LazyString{L""},
-                    LineSequence(), features});
-            CHECK(output.lines.empty());
-          }},
-     {.name = L"NoMatch",
-      .callback =
-          [] {
-            std::multimap<Identifier, LazyString> features;
-            FilterSortBufferOutput output =
-                FilterSortBuffer(FilterSortBufferInput{
-                    DeleteNotification::Never(), LazyString{L"quux"},
-                    LineSequence::ForTests(
-                        {L"value:\"foobar\"", L"value:\"foo\""}),
-                    features});
-            CHECK(output.lines.empty());
-          }},
-     {.name = L"MatchAfterEscape",
-      .callback =
-          [] {
-            std::multimap<Identifier, LazyString> features;
-            FilterSortBufferOutput output =
-                FilterSortBuffer(FilterSortBufferInput{
-                    DeleteNotification::Never(), LazyString{L"nbar"},
-                    LineSequence::ForTests({L"value:\"foo\\\\nbardo\""}),
-                    features});
-            CHECK_EQ(output.lines.size(), 1ul);
-            const Line& line = output.lines[0];
-            CHECK_EQ(line.contents(), SingleLine{LazyString{L"foo\\nbardo"}});
+    {
+        {.name = L"EmptyFilter",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L""},
+                       LineSequence(), features});
+               CHECK(output.lines.empty());
+             }},
+        {.name = L"NoMatch",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L"quux"},
+                       LineSequence::ForTests(
+                           {L"value:\"foobar\"", L"value:\"foo\""}),
+                       features});
+               CHECK(output.lines.empty());
+             }},
+        {.name = L"MatchAfterEscape",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L"nbar"},
+                       LineSequence::ForTests({L"value:\"foo\\nbardo\""}),
+                       features});
+               CHECK_EQ(output.lines.size(), 1ul);
+               const Line& line = output.lines[0];
+               CHECK_EQ(line.contents(),
+                        SingleLine{LazyString{L"foo\\nbardo"}});
 
-            const std::map<ColumnNumber, LineModifierSet> modifiers =
-                line.modifiers();
-            for (const auto& m : modifiers) {
-              LOG(INFO) << "Modifiers: " << m.first << ": " << m.second;
-            }
+               const std::map<ColumnNumber, LineModifierSet> modifiers =
+                   line.modifiers();
+               for (const auto& m : modifiers) {
+                 LOG(INFO) << "Modifiers: " << m.first << ": " << m.second;
+               }
 
-            {
-              auto s = GetValueOrDie(modifiers, ColumnNumber(4));
-              LOG(INFO) << "Modifiers found: " << s;
-              CHECK_EQ(s, LineModifierSet{LineModifier::kBold});
-            }
-            {
-              auto s = GetValueOrDie(modifiers, ColumnNumber(8));
-              CHECK_EQ(s, LineModifierSet{});
-            }
-          }},
-     {.name = L"MatchIncludingEscapeCorrectlyHandled",
-      .callback =
-          [] {
-            std::multimap<Identifier, LazyString> features;
-            FilterSortBufferOutput output =
-                FilterSortBuffer(FilterSortBufferInput{
-                    DeleteNotification::Never(), LazyString{L"nbar"},
-                    LineSequence::ForTests({L"value:\"foo\\nbar\""}),
-                    features});
-            CHECK(output.lines.empty());
-          }},
-     {.name = L"IgnoresInvalidEntries",
-      .callback =
-          [] {
-            std::multimap<Identifier, LazyString> features;
-            FilterSortBufferOutput output =
-                FilterSortBuffer(FilterSortBufferInput{
-                    DeleteNotification::Never(), LazyString{L"f"},
-                    LineSequence::ForTests(
-                        {L"value:\"foobar \\\"", L"value:\"foo\"",
-                         L"value:\"foo\\n bar\"", L"value:\"foo \\o bar \\\""}),
-                    features});
-            CHECK_EQ(output.lines.size(), 1ul);
-            CHECK_EQ(output.lines[0].contents(),
-                     SingleLine{LazyString{L"foo"}});
-          }},
-     {.name = L"HistoryWithRawNewLine",
-      .callback =
-          [] {
-            std::multimap<Identifier, LazyString> features;
-            FilterSortBufferOutput output =
-                FilterSortBuffer(FilterSortBufferInput{
-                    DeleteNotification::Never(), LazyString{L"ls"},
-                    LineSequence::ForTests({L"value:\"ls\\n\""}), features});
-            CHECK(output.lines.empty());
-          }},
-     {.name = L"HistoryWithEscapedNewLine", .callback = [] {
-        std::multimap<Identifier, LazyString> features;
-        FilterSortBufferOutput output = FilterSortBuffer(FilterSortBufferInput{
-            DeleteNotification::Never(), LazyString{L"ls"},
-            LineSequence::ForTests({L"value:\"ls\\n\""}), features});
-        CHECK_EQ(output.lines.size(), 0ul);
-      }}});
+               {
+                 auto s = GetValueOrDie(modifiers, ColumnNumber(4));
+                 LOG(INFO) << "Modifiers found: " << s;
+                 CHECK_EQ(s, LineModifierSet{LineModifier::kBold});
+               }
+               {
+                 auto s = GetValueOrDie(modifiers, ColumnNumber(8));
+                 CHECK_EQ(s, LineModifierSet{});
+               }
+             }},
+        {.name = L"MatchIncludingEscapeCorrectlyHandled",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L"nbar"},
+                       LineSequence::ForTests({L"value:\"foo\\nbar\""}),
+                       features});
+               CHECK_EQ(output.lines.size(), 1ul);
+               CHECK_EQ(output.lines[0].contents(),
+                        SingleLine{LazyString{L"foo\\nbar"}});
+             }},
+        {.name = L"IgnoresInvalidEntries",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L"f"},
+                       LineSequence::ForTests({L"value:\"foobar \\\"",
+                                               L"value:\"foo\"",
+                                               L"value:\"foo\\n bar\"",
+                                               L"value:\"foo \\o bar \\\""}),
+                       features});
+               CHECK_EQ(output.lines.size(), 2ul);
+               CHECK_EQ(output.lines[0].contents(),
+                        SingleLine{LazyString{L"foo\\n bar"}});
+               CHECK_EQ(output.lines[1].contents(),
+                        SingleLine{LazyString{L"foo"}});
+             }},
+        {.name = L"HistoryWithNewLine",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L"ls"},
+                       LineSequence::ForTests({L"value:\"ls\\n\""}), features});
+               CHECK_EQ(output.lines.size(), 1ul);
+               CHECK_EQ(output.lines[0].contents(),
+                        SingleLine{LazyString{L"ls\\n"}});
+             }},
+    });
 }  // namespace
 }  // namespace afc::editor

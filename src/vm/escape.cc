@@ -61,7 +61,7 @@ EscapedString::EscapedString(LineSequence input)
 // Returns an escaped representation.
 SingleLine EscapedString::EscapedRepresentation() const {
   SingleLine output;
-  ForEachColumn(input_, [&output](ColumnNumber, wchar_t c) {
+  ForEachColumn(read(), [&output](ColumnNumber, wchar_t c) {
     switch (c) {
       case '\n':
         output += SingleLine{LazyString{L"\\n"}};
@@ -88,9 +88,7 @@ SingleLine EscapedString::CppRepresentation() const {
 }
 
 // Returns the original (unescaped) string.
-LazyString EscapedString::OriginalString() const { return input_; }
-
-EscapedString::EscapedString(LazyString input) : input_(std::move(input)) {}
+LazyString EscapedString::OriginalString() const { return read(); }
 
 namespace {
 bool cpp_unescape_string_tests_registration =
@@ -136,7 +134,7 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 /* static */ language::ValueOrError<EscapedMap> EscapedMap::Parse(
     language::lazy_string::LazyString input) {
   INLINE_TRACKER(EscapedMap_Parse);
-  std::multimap<Identifier, LazyString> output;
+  EscapedMap::Map output;
   for (const Token& token : TokenizeBySpaces(input)) {
     std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});
     if (colon == std::nullopt)
@@ -160,7 +158,7 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
     DECLARE_OR_RETURN(EscapedString parsed_value,
                       EscapedString::Parse(input.Substring(
                           value_start, value_end - value_start)));
-    output.insert({id, parsed_value.OriginalString()});
+    output.insert({id, parsed_value});
   }
 
   return EscapedMap{output};
@@ -168,15 +166,16 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 
 LazyString EscapedMap::Serialize() const {
   return Concatenate(
-      input_ | std::views::transform([](std::pair<Identifier, LazyString> data)
-                                         -> LazyString {
-        // TODO(trivial, 2024-09-16): Change Identifier to SingleLine, avoid
-        // wrapping.
-        // TODO(trivial, 2024-09-16): Return a SingleLine.
-        return (SingleLine{data.first.read()} + SingleLine{LazyString{L":"}} +
-                EscapedString::FromString(data.second).CppRepresentation())
-            .read();
-      }));
+      input_ | std::views::transform(
+                   [](std::pair<Identifier, EscapedString> data) -> LazyString {
+                     // TODO(trivial, 2024-09-16): Change Identifier to
+                     // SingleLine, avoid wrapping.
+                     // TODO(trivial, 2024-09-16): Return a SingleLine.
+                     return (SingleLine{data.first.read()} +
+                             SingleLine{LazyString{L":"}} +
+                             data.second.CppRepresentation())
+                         .read();
+                   }));
 }
 
 const EscapedMap::Map& EscapedMap::read() const { return input_; }

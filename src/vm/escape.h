@@ -7,6 +7,7 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
@@ -14,8 +15,12 @@
 #include "src/vm/types.h"
 
 namespace afc::vm {
-class EscapedString {
+class EscapedString
+    : public language::GhostType<EscapedString,
+                                 language::lazy_string::LazyString> {
  public:
+  using GhostType::GhostType;
+
   static EscapedString FromString(language::lazy_string::LazyString input);
   explicit EscapedString(language::text::LineSequence input);
 
@@ -27,17 +32,11 @@ class EscapedString {
 
   // Returns the original (unescaped) string.
   language::lazy_string::LazyString OriginalString() const;
-
- private:
-  EscapedString(language::lazy_string::LazyString original_string);
-
-  // The original (unescaped) string.
-  language::lazy_string::LazyString input_;
 };
 
 class EscapedMap {
  public:
-  using Map = std::multimap<Identifier, language::lazy_string::LazyString>;
+  using Map = std::multimap<Identifier, EscapedString>;
 
  private:
   Map input_;
