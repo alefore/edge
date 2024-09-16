@@ -8,6 +8,7 @@
 #include "src/editor.h"
 #include "src/fragments.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/gc.h"
 #include "src/tests/tests.h"
 
@@ -28,8 +29,10 @@ std::wstring Paste::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> Paste::Apply(
     CompositeTransformation::Input input) const {
+  INLINE_TRACKER(Paste_Apply);
   return FindFragment(input.editor, query_)
       .Transform([input](LineSequence paste_data) {
+        INLINE_TRACKER(Paste_Apply_Insert);
         DVLOG(6) << "Inserting: " << paste_data.ToLazyString();
         return futures::Past(
             CompositeTransformation::Output{transformation::Insert{
