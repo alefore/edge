@@ -39,6 +39,9 @@ struct FilterSortBufferInput {
 
 struct FilterSortBufferOutput {
   std::vector<language::Error> errors;
+  // Lines found in the input (history). Each line contains an escaped string;
+  // customers should interpret them through EscapedString::Parse (to obtain the
+  // original unescaped string).
   std::vector<language::text::Line> lines;
 };
 
