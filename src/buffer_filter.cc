@@ -267,6 +267,7 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
 }
 
 FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
+  VLOG(4) << "Start matching: " << input.history.size();
   INLINE_TRACKER(FilterSortBuffer);
   FilterSortBufferOutput output;
 
@@ -278,6 +279,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       history_value_tokens;
   std::vector<Token> filter_tokens = TokenizeBySpaces(input.filter);
   input.history.EveryLine([&](LineNumber, const Line& line) {
+    INLINE_TRACKER(FilterSortBuffer_Input_History_EveryLine);
     VLOG(8) << "Considering line: " << line.contents();
     auto warn_if = [&](bool condition, Error error) {
       if (condition) {
