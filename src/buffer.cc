@@ -153,6 +153,8 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                                      std::vector<Line> lines) {
   if (buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
 
+  VLOG(8) << "UpdateLineMetadata: " << buffer.name()
+          << " lines: " << lines.size();
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
   for (Line& line : lines)
     if (line.metadata().empty() && !line.empty())
