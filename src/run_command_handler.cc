@@ -404,7 +404,7 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
         buffer->ptr()->ReadLazyString(buffer_variables::path);
   }
   name += LazyString{L" "} +
-          EscapedString::FromString(input).EscapedRepresentation();
+          EscapedString::FromString(input).EscapedRepresentation().read();
   RunCommand(CommandBufferName{name}, environment, editor_state, children_path,
              input);
   return futures::Past(EmptyValue());

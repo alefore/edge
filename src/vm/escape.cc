@@ -16,6 +16,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::text::LineSequence;
 
@@ -58,31 +59,32 @@ EscapedString::EscapedString(LineSequence input)
 }
 
 // Returns an escaped representation.
-LazyString EscapedString::EscapedRepresentation() const {
-  LazyString output;
+SingleLine EscapedString::EscapedRepresentation() const {
+  SingleLine output;
   ForEachColumn(input_, [&output](ColumnNumber, wchar_t c) {
     switch (c) {
       case '\n':
-        output += LazyString{L"\\n"};
+        output += SingleLine{LazyString{L"\\n"}};
         break;
       case '"':
-        output += LazyString{L"\\\""};
+        output += SingleLine{LazyString{L"\\\""}};
         break;
       case '\\':
-        output += LazyString{L"\\\\"};
+        output += SingleLine{LazyString{L"\\\\"}};
         break;
       case '\'':
-        output += LazyString{L"\\'"};
+        output += SingleLine{LazyString{L"\\'"}};
         break;
       default:
-        output += LazyString{ColumnNumberDelta(1), c};
+        output += SingleLine{LazyString{ColumnNumberDelta(1), c}};
     }
   });
   return output;
 }
 
-LazyString EscapedString::CppRepresentation() const {
-  return LazyString{L"\""} + EscapedRepresentation() + LazyString{L"\""};
+SingleLine EscapedString::CppRepresentation() const {
+  return SingleLine{LazyString{L"\""}} + EscapedRepresentation() +
+         SingleLine{LazyString{L"\""}};
 }
 
 // Returns the original (unescaped) string.
@@ -101,7 +103,8 @@ bool cpp_unescape_string_tests_registration =
                   LazyString{input},
                   ValueOrDie(EscapedString::Parse(
                                  EscapedString::FromString(LazyString{input})
-                                     .EscapedRepresentation()))
+                                     .EscapedRepresentation()
+                                     .read()))
                       .OriginalString());
             }};
       };
@@ -163,12 +166,16 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
   return EscapedMap{output};
 }
 
-language::lazy_string::LazyString EscapedMap::Serialize() const {
+LazyString EscapedMap::Serialize() const {
   return Concatenate(
-      input_ |
-      std::views::transform([](std::pair<Identifier, LazyString> data) {
-        return data.first.read() + LazyString{L":"} +
-               EscapedString::FromString(data.second).CppRepresentation();
+      input_ | std::views::transform([](std::pair<Identifier, LazyString> data)
+                                         -> LazyString {
+        // TODO(trivial, 2024-09-16): Change Identifier to SingleLine, avoid
+        // wrapping.
+        // TODO(trivial, 2024-09-16): Return a SingleLine.
+        return (SingleLine{data.first.read()} + SingleLine{LazyString{L":"}} +
+                EscapedString::FromString(data.second).CppRepresentation())
+            .read();
       }));
 }
 

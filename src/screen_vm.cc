@@ -93,7 +93,7 @@ class ScreenVm : public Screen {
 
   void WriteString(const LazyString& str) override {
     buffer_ += LazyString{L"screen.WriteString("} +
-               vm::EscapedString::FromString(str).CppRepresentation() +
+               vm::EscapedString::FromString(str).CppRepresentation().read() +
                LazyString{L");"};
   }
 

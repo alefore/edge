@@ -305,7 +305,8 @@ int main(int argc, const char** argv) {
     if (connected_to_parent) {
       commands_to_run += LazyString{L"editor.SendExitTo("} +
                          afc::vm::EscapedString::FromString(server_path.read())
-                             .CppRepresentation() +
+                             .CppRepresentation()
+                             .read() +
                          LazyString{L");"};
     }
 

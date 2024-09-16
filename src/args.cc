@@ -130,7 +130,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Transform([](LazyString value) {
             return LazyString{L"buffer.EvaluateFile("} +
                    vm::EscapedString::FromString(LazyString{value})
-                       .CppRepresentation() +
+                       .CppRepresentation()
+                       .read() +
                    LazyString{L");"};
           })
           .AppendTo(&CommandLineValues::commands_to_run),
@@ -328,7 +329,7 @@ LazyString CommandsToRun(CommandLineValues args) {
     }
     commands_to_run +=
         LazyString{L"buffers_to_watch.push_back(editor.OpenFile("} +
-        EscapedString::FromString(full_path).CppRepresentation() +
+        EscapedString::FromString(full_path).CppRepresentation().read() +
         LazyString{L", true));\n"};
     start_shell = false;
   }
@@ -337,7 +338,8 @@ LazyString CommandsToRun(CommandLineValues args) {
         LazyString{L"ForkCommandOptions options = ForkCommandOptions();\n"} +
         LazyString{L"options.set_command("} +
         EscapedString::FromString(LazyString{command_to_fork})
-            .CppRepresentation() +
+            .CppRepresentation()
+            .read() +
         LazyString{L");\noptions.set_insertion_type(\""} +
         LazyString{args.background ? L"skip" : L"search_or_create"} +
         LazyString{L"\");\n"} +
@@ -359,7 +361,8 @@ LazyString CommandsToRun(CommandLineValues args) {
         LazyString{L"Screen screen = RemoteScreen("} +
         EscapedString::FromString(
             LazyString{FromByteString(getenv(kEdgeParentAddress))})
-            .CppRepresentation() +
+            .CppRepresentation()
+            .read() +
         LazyString{L");\n"};
     start_shell = false;
   } else if (args.nested_edge_behavior ==

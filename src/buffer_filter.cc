@@ -220,7 +220,7 @@ auto parse_history_line_tests_registration = tests::Register(
       }}});
 
 // TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
-LazyString QuoteString(LazyString src) {
+SingleLine QuoteString(LazyString src) {
   return vm::EscapedString::FromString(src).CppRepresentation();
 }
 
@@ -229,7 +229,7 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
                  std::wstring expected_output) {
     return tests::Test({.name = name, .callback = [=] {
                           CHECK(QuoteString(LazyString{input}) ==
-                                LazyString(expected_output));
+                                SingleLine{LazyString(expected_output)});
                         }});
   };
   return std::vector<tests::Test>(
@@ -309,18 +309,20 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       return !input.abort_value.has_value();
     }
 
-    LazyString value = range.first->second;
-    VLOG(8) << "Considering history value: " << value;
-    if (FindFirstColumnWithPredicate(value, [](ColumnNumber, wchar_t c) {
+    LazyString history_value = range.first->second;
+    VLOG(8) << "Considering history value: " << history_value;
+    // TODO(trivial, 2024-09-16): Use FindFirstOf, much simpler.
+    if (FindFirstColumnWithPredicate(history_value, [](ColumnNumber,
+                                                       wchar_t c) {
           return c == L'\n';
         }).has_value()) {
       VLOG(5) << "Ignoring value that contains a new line character.";
       return true;
     }
-    std::vector<Token> line_tokens =
-        ExtendTokensToEndOfString(value, TokenizeNameForPrefixSearches(value));
+    std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+        history_value, TokenizeNameForPrefixSearches(history_value));
     // TODO(easy, 2022-11-26): Get rid of call ToString.
-    math::naive_bayes::Event event_key(value.ToString());
+    math::naive_bayes::Event event_key(history_value.ToString());
     std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
     if (filter_tokens.empty()) {
       VLOG(6) << "Accepting value (empty filters): " << line.contents();
@@ -338,8 +340,9 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     // TODO(easy, 2024-09-10): Get rid of call ToString.
     for (auto& [key, value] : *line_keys)
       if (key != HistoryIdentifierValue())
-        current_features.insert(math::naive_bayes::Feature(
-            key.read().ToString() + L":" + QuoteString(value).ToString()));
+        current_features.insert(
+            math::naive_bayes::Feature(key.read().ToString() + L":" +
+                                       QuoteString(value).read().ToString()));
     features_output->push_back(std::move(current_features));
 
     return !input.abort_value.has_value();
@@ -352,11 +355,13 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
   // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : input.current_features)
     current_features.insert(math::naive_bayes::Feature(
-        (name.read() + LazyString{L":"} + QuoteString(value)).ToString()));
+        (name.read() + LazyString{L":"} + QuoteString(value).read())
+            .ToString()));
   // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : GetSyntheticFeatures(input.current_features))
     current_features.insert(math::naive_bayes::Feature(
-        (name.read() + LazyString{L":"} + QuoteString(value)).ToString()));
+        (name.read() + LazyString{L":"} + QuoteString(value).read())
+            .ToString()));
 
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features)) {

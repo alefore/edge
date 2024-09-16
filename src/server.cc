@@ -110,7 +110,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
 
   commands_to_run +=
       LazyString{L"\n;Unlink("} +
-      vm::EscapedString::FromString(path_str).CppRepresentation() +
+      vm::EscapedString::FromString(path_str).CppRepresentation().read() +
       LazyString{L");\n"};
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
             << path_str << ": " << commands_to_run;

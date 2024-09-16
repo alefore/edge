@@ -103,7 +103,8 @@ std::wstring ToStringBase(const Insert& options) {
       LazyString{L"InsertTransformationBuilder()"} + LazyString{L".set_text("} +
       vm::EscapedString::FromString(
           options.contents_to_insert.at(LineNumber(0)).contents().read())
-          .CppRepresentation() +
+          .CppRepresentation()
+          .read() +
       LazyString{L")"} + LazyString{L".set_modifiers("} +
       LazyString{options.modifiers.Serialize()} + LazyString{L")"};
   if (options.position.has_value()) {

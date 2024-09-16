@@ -23,7 +23,7 @@ using afc::vm::EscapedString;
 namespace afc::editor {
 namespace {
 LazyString SerializeValue(LazyString input) {
-  return EscapedString::FromString(input).CppRepresentation();
+  return EscapedString::FromString(input).CppRepresentation().read();
 }
 
 LazyString SerializeValue(int input) {
