@@ -30,8 +30,12 @@ namespace afc::editor {
 namespace {
 futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
   return VisitOptional(
-      [](gc::Root<OpenBuffer> output) { return futures::Past(output); },
+      [](gc::Root<OpenBuffer> output) {
+        VLOG(6) << "Reusing previous fragments buffer.";
+        return futures::Past(output);
+      },
       [&editor] {
+        VLOG(5) << "Creating (loading) fragments buffer.";
         return OpenOrCreateFile(
                    {.editor_state = editor,
                     .name = FragmentsBuffer{},
@@ -42,6 +46,7 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                                       PathComponent::FromString(L"fragments"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
             .Transform([&editor](gc::Root<OpenBuffer> buffer_root) {
+              VLOG(6) << "Preparing fragments buffer (will wait for EOF).";
               OpenBuffer& buffer = buffer_root.ptr().value();
               buffer.Set(buffer_variables::save_on_close, true);
               buffer.Set(buffer_variables::trigger_reload_on_buffer_write,
@@ -56,7 +61,10 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                                           CommandArgumentModeApplyMode::kFinal);
               }
               return buffer_root.ptr()->WaitForEndOfFile().Transform(
-                  [buffer_root](EmptyValue) { return buffer_root; });
+                  [buffer_root](EmptyValue) {
+                    VLOG(6) << "Fragments buffer: EOF received.";
+                    return buffer_root;
+                  });
             });
       },
       editor.buffer_registry().Find(FragmentsBuffer{}));
