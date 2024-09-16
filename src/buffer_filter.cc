@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/tokenize.h"
@@ -266,7 +267,9 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
 }
 
 FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
+  INLINE_TRACKER(FilterSortBuffer);
   FilterSortBufferOutput output;
+
   if (input.abort_value.has_value()) return output;
   // Sets of features for each unique `value` value in the history.
   math::naive_bayes::History history_data;
