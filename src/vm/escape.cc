@@ -29,6 +29,7 @@ EscapedString::EscapedString(LineSequence input)
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
     language::lazy_string::LazyString input) {
+  INLINE_TRACKER(EscapedString_Parse);
   LazyString original_string;
   for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
     switch (input.get(i)) {
