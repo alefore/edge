@@ -51,8 +51,8 @@ LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::Append(
 }
 
 namespace {
-const bool tests_registration =
-    tests::Register(L"LineWithCursor::Generator::Vector::Append", [] {
+const bool tests_registration = tests::Register(
+    L"LineWithCursor::Generator::Vector::Append", std::invoke([] {
       auto Build = [](LineWithCursor::Generator::Vector rows) {
         return container::MaterializeVector(
             rows.lines | std::views::transform([](LineWithCursor::Generator g) {
@@ -70,12 +70,12 @@ const bool tests_registration =
                              .line = Line{SingleLine{LazyString{L"bottom"}}}},
                          LineNumberDelta(2))));
              CHECK_EQ(output.size(), 4ul);
-             CHECK_EQ(output[0], LazyString{L"top"});
-             CHECK_EQ(output[1], LazyString{L"top"});
-             CHECK_EQ(output[2], LazyString{L"bottom"});
-             CHECK_EQ(output[3], LazyString{L"bottom"});
+             CHECK_EQ(output[0], SingleLine{LazyString{L"top"}});
+             CHECK_EQ(output[1], SingleLine{LazyString{L"top"}});
+             CHECK_EQ(output[2], SingleLine{LazyString{L"bottom"}});
+             CHECK_EQ(output[3], SingleLine{LazyString{L"bottom"}});
            }}};
-    }());
+    }));
 }  // namespace
 
 LineWithCursor::Generator::Vector&

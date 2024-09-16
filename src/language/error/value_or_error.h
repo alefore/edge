@@ -14,7 +14,9 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
-class Error : public GhostType<Error, language::lazy_string::LazyString> {};
+class Error : public GhostType<Error, language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(language::lazy_string::LazyString prefix, Error error);

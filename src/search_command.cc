@@ -237,14 +237,14 @@ class SearchCommand : public Command {
             }
             CHECK_LT(range.begin().column, range.end().column);
             buffer.set_position(range.begin());
-            DoSearch(buffer,
-                     SearchOptions{.starting_position = buffer.position(),
-                                   .search_query =
-                                       buffer.LineAt(range.begin().line)
-                                           ->Substring(range.begin().column,
-                                                       range.end().column -
-                                                           range.begin().column)
-                                           .read()});
+            DoSearch(
+                buffer,
+                SearchOptions{
+                    .starting_position = buffer.position(),
+                    .search_query = buffer.LineAt(range.begin().line)
+                                        ->Substring(range.begin().column,
+                                                    range.end().column -
+                                                        range.begin().column)});
             return futures::Past(EmptyValue{});
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {

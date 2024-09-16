@@ -58,11 +58,15 @@ class OpenBufferMutableLineSequenceObserver;
 
 struct BufferFlagKey
     : public language::GhostType<BufferFlagKey,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 struct BufferFlagValue
     : public language::GhostType<BufferFlagValue,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 class OpenBuffer {
   struct ConstructorAccessTag {};

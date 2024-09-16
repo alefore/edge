@@ -15,11 +15,15 @@
 namespace afc::editor {
 struct DictionaryKey
     : public language::GhostType<DictionaryKey,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 struct DictionaryValue
     : public language::GhostType<DictionaryValue,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 class DictionaryManager {
  public:

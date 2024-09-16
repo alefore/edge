@@ -110,6 +110,8 @@ struct NonZeroBigIntValidator {
 class NonZeroBigInt : public language::GhostType<NonZeroBigInt, BigInt,
                                                  NonZeroBigIntValidator> {
  public:
+  using GhostType::GhostType;
+
   template <int N>
   static NonZeroBigInt Constant() {
     static_assert(N > 0, "N must be greater than 0.");

@@ -210,83 +210,83 @@ const bool get_initial_prompt_value_tests_registration = tests::Register(
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue({}, LazyString{}).contents(),
-                        LazyString{});
+                        SingleLine{});
              }},
         {.name = L"EmptyRepetitions",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(5, LazyString{}).contents(),
-                        LazyString{});
+                        SingleLine{});
              }},
         {.name = L"NoRepetitionsRelative",
          .callback =
              [] {
                CHECK_EQ(
                    GetInitialPromptValue({}, LazyString{L"foo/bar"}).contents(),
-                   LazyString{L"foo/"});
+                   SingleLine{LazyString{L"foo/"}});
              }},
         {.name = L"NoRepetitionsAbsolute",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue({}, LazyString{L"/foo/bar"})
                             .contents(),
-                        LazyString{L"/foo/"});
+                        SingleLine{LazyString{L"/foo/"}});
              }},
         {.name = L"ZeroRepetitionsRelative",
          .callback =
              [] {
                CHECK_EQ(
                    GetInitialPromptValue(0, LazyString{L"foo/bar"}).contents(),
-                   LazyString{});
+                   SingleLine{LazyString{}});
              }},
         {.name = L"ZeroRepetitionsAbsolute",
          .callback =
              [] {
                CHECK_EQ(
                    GetInitialPromptValue(0, LazyString{L"/foo/bar"}).contents(),
-                   LazyString{});
+                   SingleLine{});
              }},
         {.name = L"LowRepetitionsRelative",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(2, LazyString{L"a0/b1/c2/d3"})
                             .contents(),
-                        LazyString{L"a0/b1/"});
+                        SingleLine{LazyString{L"a0/b1/"}});
              }},
         {.name = L"LowRepetitionsAbsolute",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(2, LazyString{L"/a0/b1/c2/d3"})
                             .contents(),
-                        LazyString{L"/a0/b1/"});
+                        SingleLine{LazyString{L"/a0/b1/"}});
              }},
         {.name = L"BoundaryRepetitionsRelative",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(3, LazyString{L"a0/b1/c2/d3"})
                             .contents(),
-                        LazyString{L"a0/b1/c2/"});
+                        SingleLine{LazyString{L"a0/b1/c2/"}});
              }},
         {.name = L"BoundaryRepetitionsAbsolute",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(3, LazyString{L"/a0/b1/c2/d3"})
                             .contents(),
-                        LazyString{L"/a0/b1/c2/"});
+                        SingleLine{LazyString{L"/a0/b1/c2/"}});
              }},
         {.name = L"HighRepetitionsRelative",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(40, LazyString{L"a0/b1/c2/d3"})
                             .contents(),
-                        LazyString{L"a0/b1/c2/"});
+                        SingleLine{LazyString{L"a0/b1/c2/"}});
              }},
         {.name = L"HighRepetitionsAbsolute",
          .callback =
              [] {
                CHECK_EQ(GetInitialPromptValue(40, LazyString{L"/a0/b1/c2/d3"})
                             .contents(),
-                        LazyString{L"/a0/b1/c2/"});
+                        SingleLine{LazyString{L"/a0/b1/c2/"}});
              }},
     });
 }  // namespace

@@ -33,6 +33,8 @@ class PathComponent
                                  language::lazy_string::LazyString,
                                  PathComponentValidator> {
  public:
+  using GhostType::GhostType;
+
   // Compile-time version of `New` for string literals.
   template <size_t N>
   static PathComponent FromString(const wchar_t (&str)[N]) {

@@ -10,7 +10,9 @@ namespace afc::editor {
 class OpenBuffer;
 
 class BufferFileId
-    : public language::GhostType<BufferFileId, infrastructure::Path> {};
+    : public language::GhostType<BufferFileId, infrastructure::Path> {
+  using GhostType::GhostType;
+};
 
 struct FragmentsBuffer {
   bool operator==(const FragmentsBuffer&) const { return true; }
@@ -66,23 +68,33 @@ struct PredictionsBufferName {
 
 class HistoryFile
     : public language::GhostType<HistoryFile,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 HistoryFile HistoryFileFiles();
 HistoryFile HistoryFileCommands();
 
 class HistoryBufferName
-    : public language::GhostType<HistoryBufferName, HistoryFile> {};
+    : public language::GhostType<HistoryBufferName, HistoryFile> {
+  using GhostType::GhostType;
+};
 
 class ServerBufferName
-    : public language::GhostType<ServerBufferName, infrastructure::Path> {};
+    : public language::GhostType<ServerBufferName, infrastructure::Path> {
+  using GhostType::GhostType;
+};
 
 class CommandBufferName
     : public language::GhostType<CommandBufferName,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 class AnonymousBufferName
-    : public language::GhostType<AnonymousBufferName, size_t> {};
+    : public language::GhostType<AnonymousBufferName, size_t> {
+  using GhostType::GhostType;
+};
 
 using BufferName =
     std::variant<BufferFileId, FragmentsBuffer, PasteBuffer, FuturePasteBuffer,

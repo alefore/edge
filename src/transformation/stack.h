@@ -14,7 +14,9 @@ namespace afc::editor {
 namespace transformation {
 class ShellCommand
     : public language::GhostType<ShellCommand,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 struct Stack {
   using value_type = Variant;

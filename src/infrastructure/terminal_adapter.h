@@ -23,7 +23,9 @@
 namespace afc::infrastructure {
 class TerminalName
     : public language::GhostType<TerminalName,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 // Decodes input from a terminal-associated file descriptor.
 //

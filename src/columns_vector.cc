@@ -186,11 +186,11 @@ const bool buffer_tests_registration = tests::Register(
             columns_vector.columns = {};
             CHECK_EQ(produce.size(), LineNumberDelta(5));
             CHECK(produce.lines[0].generate().line.contents() ==
-                  LazyString{L"foo bar   "
-                             L"foo bar   "
-                             L"foo bar   "
-                             L"foo bar   "
-                             L"foo bar"});
+                  SingleLine{LazyString{L"foo bar   "
+                                        L"foo bar   "
+                                        L"foo bar   "
+                                        L"foo bar   "
+                                        L"foo bar"}});
           }},
      {.name = L"ShortColumns",
       .callback =
@@ -210,11 +210,11 @@ const bool buffer_tests_registration = tests::Register(
                 OutputFromColumnsVector(std::move(columns_vector));
             CHECK_EQ(output.size(), LineNumberDelta(10));
             CHECK_EQ(output.lines[0].generate().line.contents(),
-                     LazyString{L"foobar"});
+                     SingleLine{LazyString{L"foobar"}});
             CHECK_EQ(output.lines[1].generate().line.contents(),
-                     LazyString{L"   bar"});
+                     SingleLine{LazyString{L"   bar"}});
             CHECK_EQ(output.lines[9].generate().line.contents(),
-                     LazyString{L"   bar"});
+                     SingleLine{LazyString{L"   bar"}});
           }},
      {.name = L"ShortPadding", .callback = [] {
         ColumnsVector columns_vector;

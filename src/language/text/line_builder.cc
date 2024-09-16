@@ -139,9 +139,10 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
 
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
 
+// TODO(easy, 2024-09-16): Receive a SingleLine here. Avoid wrapping below.
 LineBuilder::LineBuilder(language::lazy_string::LazyString input_contents)
-    : data_(Line::Data{.contents = std::move(input_contents), .metadata = {}}) {
-}
+    : data_(Line::Data{.contents = SingleLine{std::move(input_contents)},
+                       .metadata = {}}) {}
 
 LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 
@@ -215,12 +216,12 @@ const bool line_set_character_tests_registration = tests::Register(
     {{.name = L"ConsecutiveSets", .callback = [] {
         LineBuilder options;
         options.AppendString(LazyString{L"ALEJANDRO"}, std::nullopt);
-        CHECK_EQ(options.contents(), LazyString{L"ALEJANDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"ALEJANDRO"}});
         CHECK(options.modifiers().empty());
 
         options.SetCharacter(ColumnNumber(1), L'l',
                              LineModifierSet{LineModifier::kBold});
-        CHECK_EQ(options.contents(), LazyString{L"AlEJANDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlEJANDRO"}});
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -229,7 +230,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(2), L'e',
                              LineModifierSet{LineModifier::kBold});
-        CHECK_EQ(options.contents(), LazyString{L"AleJANDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AleJANDRO"}});
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -238,7 +239,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(3), L'j',
                              LineModifierSet{LineModifier::kUnderline});
-        CHECK_EQ(options.contents(), LazyString{L"AlejANDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlejANDRO"}});
         CHECK_EQ(options.modifiers().size(), 3ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -249,7 +250,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(5), L'n',
                              LineModifierSet{LineModifier::kBlue});
-        CHECK_EQ(options.contents(), LazyString{L"AlejAnDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlejAnDRO"}});
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -264,7 +265,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(4), L'a',
                              LineModifierSet{LineModifier::kRed});
-        CHECK_EQ(options.contents(), LazyString{L"AlejanDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlejanDRO"}});
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -279,7 +280,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(0), L'a',
                              LineModifierSet{LineModifier::kBold});
-        CHECK_EQ(options.contents(), LazyString{L"alejanDRO"});
+        CHECK_EQ(options.contents(), SingleLine{LazyString{L"alejanDRO"}});
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(0))->second,
                  LineModifierSet{LineModifier::kBold});

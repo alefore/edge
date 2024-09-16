@@ -155,12 +155,14 @@ SingleLine RegexEscape(SingleLine str) {
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
                              size_t required_positions,
                              std::set<SingleLine>& matches) {
-  ASSIGN_OR_RETURN(std::vector<LineColumn> positions,
-                   buffer.status().LogErrors(SearchHandler(
-                       input.editor.modifiers().direction,
-                       SearchOptions{.starting_position = buffer.position(),
-                                     .search_query = input.input},
-                       buffer.contents().snapshot())));
+  ASSIGN_OR_RETURN(
+      std::vector<LineColumn> positions,
+      buffer.status().LogErrors(SearchHandler(
+          input.editor.modifiers().direction,
+          // TODO(easy, 2024-09-16): Avoid having to SingleLine wrap here.
+          SearchOptions{.starting_position = buffer.position(),
+                        .search_query = SingleLine{input.input}},
+          buffer.contents().snapshot())));
 
   // Get the first kMatchesLimit matches:
   if (!positions.empty()) buffer.set_position(positions[0]);
@@ -283,7 +285,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                                 .starting_position = LineColumn(
                                     contents.range().end().line,
                                     std::numeric_limits<ColumnNumber>::max()),
-                                .search_query = LazyString{L"xxxx"},
+                                .search_query = SingleLine{LazyString{L"xxxx"}},
                                 .required_positions = std::nullopt,
                                 .case_sensitive = false},
                             contents))
@@ -298,7 +300,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             .starting_position = LineColumn(
                                 contents.range().end().line,
                                 std::numeric_limits<ColumnNumber>::max()),
-                            .search_query = LazyString{L"rero"},
+                            .search_query = SingleLine{LazyString{L"rero"}},
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
                         contents)) ==
@@ -308,27 +310,28 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
        {.name = L"WithPositionAtEnd",
         .callback =
             [=] {
-              CHECK(
-                  ValueOrDie(SearchHandler(
-                      Direction::kForwards,
-                      SearchOptions{.starting_position = contents.range().end(),
-                                    .search_query = LazyString{L"rero"},
-                                    .required_positions = std::nullopt,
-                                    .case_sensitive = false},
-                      contents)) ==
-                  std::vector<LineColumn>(
-                      {LineColumn(LineNumber(1), ColumnNumber(2))}));
+              CHECK(ValueOrDie(SearchHandler(
+                        Direction::kForwards,
+                        SearchOptions{
+                            .starting_position = contents.range().end(),
+                            .search_query = SingleLine{LazyString{L"rero"}},
+                            .required_positions = std::nullopt,
+                            .case_sensitive = false},
+                        contents)) ==
+                    std::vector<LineColumn>(
+                        {LineColumn(LineNumber(1), ColumnNumber(2))}));
             }},
        {.name = L"SomeMatchesBackwards",
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
                         Direction::kBackwards,
-                        SearchOptions{.starting_position = LineColumn(
-                                          LineNumber(1), ColumnNumber(3)),
-                                      .search_query = LazyString{L"r"},
-                                      .required_positions = std::nullopt,
-                                      .case_sensitive = false},
+                        SearchOptions{
+                            .starting_position =
+                                LineColumn(LineNumber(1), ColumnNumber(3)),
+                            .search_query = SingleLine{LazyString{L"r"}},
+                            .required_positions = std::nullopt,
+                            .case_sensitive = false},
                         contents)) ==
                     std::vector<LineColumn>(
                         {LineColumn(LineNumber(1), ColumnNumber(2)),
@@ -341,11 +344,12 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
             [=] {
               CHECK(ValueOrDie(SearchHandler(
                         Direction::kForwards,
-                        SearchOptions{.starting_position = LineColumn(
-                                          LineNumber(0), ColumnNumber(7)),
-                                      .search_query = LazyString{L"ro"},
-                                      .required_positions = std::nullopt,
-                                      .case_sensitive = false},
+                        SearchOptions{
+                            .starting_position =
+                                LineColumn(LineNumber(0), ColumnNumber(7)),
+                            .search_query = SingleLine{LazyString{L"ro"}},
+                            .required_positions = std::nullopt,
+                            .case_sensitive = false},
                         contents)) ==
                     std::vector<LineColumn>({
                         LineColumn(LineNumber(1), ColumnNumber(4)),
@@ -358,7 +362,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                   Direction::kForwards,
                   SearchOptions{.starting_position =
                                     LineColumn(LineNumber(1), ColumnNumber(3)),
-                                .search_query = LazyString{L"."},
+                                .search_query = SingleLine{LazyString{L"."}},
                                 .required_positions = 1,
                                 .case_sensitive = false},
                   contents)) == std::vector<LineColumn>({

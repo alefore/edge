@@ -11,6 +11,8 @@ namespace afc::editor {
 
 class URL : public language::GhostType<URL, language::lazy_string::LazyString> {
  public:
+  using GhostType::GhostType;
+
   static URL FromPath(infrastructure::Path path);
 
   enum class Schema { kFile, kHttp, kHttps };

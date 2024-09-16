@@ -34,7 +34,7 @@ class Factory {
     if (auto possible_error = External::ValidatorType::Validate(value);
         std::holds_alternative<Error>(possible_error))
       return std::get<Error>(possible_error);
-    return External(value);
+    return External{value};
   };
 };
 
@@ -168,7 +168,7 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   using ValidatorType = Validator;
 
   GhostType() = default;
-  GhostType(Internal initial_value) : value(std::move(initial_value)) {
+  explicit GhostType(Internal initial_value) : value(std::move(initial_value)) {
     if constexpr (!ghost_type_internal::IsAlwaysValid<Validator>) {
       auto result = External::ValidatorType::Validate(value);
       CHECK(!IsError(result)) << std::get<Error>(result);

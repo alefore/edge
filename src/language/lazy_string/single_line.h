@@ -16,6 +16,8 @@ struct SingleLineValidator {
 class SingleLine
     : public GhostType<SingleLine, LazyString, SingleLineValidator> {
  public:
+  using GhostType::GhostType;
+
   wchar_t get(ColumnNumber) const;
   SingleLine Substring(ColumnNumber) const;
   SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
@@ -27,7 +29,9 @@ struct NonEmptySingleLineValidator {
 };
 
 class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
-                                            NonEmptySingleLineValidator> {};
+                                            NonEmptySingleLineValidator> {
+  using GhostType::GhostType;
+};
 
 SingleLine operator+(const SingleLine& a, const SingleLine& b);
 

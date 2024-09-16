@@ -17,7 +17,9 @@
 namespace afc::editor::operation {
 class Description
     : public language::GhostType<Description,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 // Contains a table of commands. Each command is an association of a chatacter
 // to a "handler" that should be executed when the command is pressed.

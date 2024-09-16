@@ -5,6 +5,7 @@
 #include "src/language/text/mutable_line_sequence.h"
 
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::language::text {
 SortedLineSequence::SortedLineSequence(LineSequence input)
@@ -48,7 +49,8 @@ bool SortedLineSequence::contains(lazy_string::LazyString key) const {
   LineSequenceIterator it = upper_bound(LineBuilder(key).Build());
   if (it == lines().begin()) return false;
   --it;
-  return (*it).contents() == key;
+  // TODO(trivial, 2024-09-16): Remove this SingleLine wrapper.
+  return (*it).contents() == SingleLine{key};
 }
 
 SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(

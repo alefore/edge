@@ -166,7 +166,7 @@ ValueOrError<std::vector<ProcessId>> ReadChildrenBlocking(ProcessId pid) {
     std::ifstream infile("/proc/" + std::to_string(pid.read()) + "/task/" +
                          std::to_string(pid.read()) + "/children");
     int child_pid_int;
-    while (infile >> child_pid_int) output.push_back(ProcessId(child_pid_int));
+    while (infile >> child_pid_int) output.push_back(ProcessId{child_pid_int});
   } catch (const std::exception& e) {
     return Error(LazyString{FromByteString(e.what())});
   }

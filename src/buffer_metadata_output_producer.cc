@@ -239,7 +239,9 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   return line_options;
 }
 
-class Rows : public GhostType<Rows, size_t> {};
+class Rows : public GhostType<Rows, size_t> {
+  using GhostType::GhostType;
+};
 
 LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                                    LineNumber line) {

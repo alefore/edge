@@ -409,7 +409,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                     features});
             CHECK_EQ(output.lines.size(), 1ul);
             const Line& line = output.lines[0];
-            CHECK(line.contents() == LazyString{L"foo\\nbardo"});
+            CHECK_EQ(line.contents(), SingleLine{LazyString{L"foo\\nbardo"}});
 
             const std::map<ColumnNumber, LineModifierSet> modifiers =
                 line.modifiers();
@@ -450,7 +450,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                          L"value:\"foo\\n bar\"", L"value:\"foo \\o bar \\\""}),
                     features});
             CHECK_EQ(output.lines.size(), 1ul);
-            CHECK_EQ(output.lines[0].contents(), LazyString{L"foo"});
+            CHECK_EQ(output.lines[0].contents(),
+                     SingleLine{LazyString{L"foo"}});
           }},
      {.name = L"HistoryWithRawNewLine",
       .callback =

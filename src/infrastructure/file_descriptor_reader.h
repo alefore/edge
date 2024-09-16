@@ -24,7 +24,9 @@ namespace editor {
 // Description of the file descriptor, used for logging/debugging.
 class FileDescriptorName
     : public language::GhostType<FileDescriptorName,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {

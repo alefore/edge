@@ -37,14 +37,16 @@ struct ProbabilityValidator {
 };
 
 class Probability
-    : public GhostType<Probability, double, ProbabilityValidator> {};
+    : public GhostType<Probability, double, ProbabilityValidator> {
+  using GhostType::GhostType;
+};
 
 namespace {
 const bool probability_constructor_good_inputs_tests_registration =
     tests::Register(L"ProbabilityConstructorGoodInputs",
-                    {{.name = L"Zero", .callback = [] { Probability(0.0); }},
-                     {.name = L"One", .callback = [] { Probability(1.0); }},
-                     {.name = L"Half", .callback = [] { Probability(0.5); }}});
+                    {{.name = L"Zero", .callback = [] { Probability{0.0}; }},
+                     {.name = L"One", .callback = [] { Probability{1.0}; }},
+                     {.name = L"Half", .callback = [] { Probability{0.5}; }}});
 
 const bool probability_constructor_bad_inputs_tests_registration =
     tests::Register(
@@ -116,7 +118,7 @@ const bool get_probability_of_event_tests_registration =
                   EventProbabilityMap result = GetEventProbability(
                       History{{{e0, {FeaturesSet{{f1, f2}}}}}});
                   CHECK_EQ(result.size(), 1ul);
-                  CHECK_EQ(GetValueOrDie(result, e0), Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, e0), Probability{1.0});
                 }},
            {.name = L"SingleEventMultipleInstance",
             .callback =
@@ -129,7 +131,7 @@ const bool get_probability_of_event_tests_registration =
                                                         FeaturesSet{{f2}},
                                                     }}}});
                   CHECK_EQ(result.size(), 1ul);
-                  CHECK_EQ(GetValueOrDie(result, e0), Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, e0), Probability{1.0});
                 }},
            {.name = L"MultipleEvents", .callback = [=] {
               EventProbabilityMap result =
@@ -153,9 +155,9 @@ const bool get_probability_of_event_tests_registration =
                                                     FeaturesSet{{f1}},
                                                 }}}});
               CHECK_EQ(result.size(), 3ul);
-              CHECK_EQ(GetValueOrDie(result, e0), Probability(0.5));
-              CHECK_EQ(GetValueOrDie(result, e1), Probability(0.4));
-              CHECK_EQ(GetValueOrDie(result, e2), Probability(0.1));
+              CHECK_EQ(GetValueOrDie(result, e0), Probability{0.5});
+              CHECK_EQ(GetValueOrDie(result, e1), Probability{0.4});
+              CHECK_EQ(GetValueOrDie(result, e2), Probability{0.1});
             }}});
     }());
 
@@ -186,8 +188,8 @@ const bool get_probability_of_feature_given_event_tests_registration =
                   FeatureProbabilityMap result =
                       GetFeatureProbability({FeaturesSet{{f1, f2}}});
                   CHECK_EQ(result.size(), 2ul);
-                  CHECK_EQ(GetValueOrDie(result, f1), Probability(1.0));
-                  CHECK_EQ(GetValueOrDie(result, f2), Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, f1), Probability{1.0});
+                  CHECK_EQ(GetValueOrDie(result, f2), Probability{1.0});
                 }},
            {.name = L"SingleEventMultipleInstances", .callback = [=] {
               FeatureProbabilityMap result = GetFeatureProbability({
@@ -199,9 +201,9 @@ const bool get_probability_of_feature_given_event_tests_registration =
               });
               CHECK_EQ(result.size(), 3ul);
 
-              CHECK_EQ(GetValueOrDie(result, f1), Probability(1.0));
-              CHECK_EQ(GetValueOrDie(result, f2), Probability(0.4));
-              CHECK_EQ(GetValueOrDie(result, f3), Probability(0.2));
+              CHECK_EQ(GetValueOrDie(result, f1), Probability{1.0});
+              CHECK_EQ(GetValueOrDie(result, f2), Probability{0.4});
+              CHECK_EQ(GetValueOrDie(result, f3), Probability{0.2});
             }}});
     }());
 
@@ -220,19 +222,19 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
     L"MinimalFeatureProbability",
     {{.name = L"Empty",
       .callback =
-          [] { CHECK_EQ(MinimalFeatureProbability({}), Probability(1.0)); }},
+          [] { CHECK_EQ(MinimalFeatureProbability({}), Probability{1.0}); }},
      {.name = L"SomeData", .callback = [] {
         Event e0(L"e0"), e1(L"e1"), e2(L"e2");
         Feature f1(L"f1"), f2(L"f2");
 
         std::unordered_map<Event, FeatureProbabilityMap> data;
-        data[e0][f1] = Probability(0.2);
-        data[e0][f2] = Probability(0.8);
-        data[e1][f1] = Probability(0.8);
-        data[e1][f2] = Probability(0.5);
-        data[e2][f1] = Probability(0.1);  // <--- Minimal.
-        data[e2][f2] = Probability(0.5);
-        CHECK_EQ(MinimalFeatureProbability(data), Probability(0.1));
+        data[e0][f1] = Probability{0.2};
+        data[e0][f2] = Probability{0.8};
+        data[e1][f1] = Probability{0.8};
+        data[e1][f2] = Probability{0.5};
+        data[e2][f1] = Probability{0.1};  // <--- Minimal.
+        data[e2][f2] = Probability{0.5};
+        CHECK_EQ(MinimalFeatureProbability(data), Probability{0.1});
       }}});
 }  // namespace
 

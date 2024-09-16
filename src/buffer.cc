@@ -1768,8 +1768,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     futures::Future<EmptyValue> output;
     reader =
         std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-            .name = FileDescriptorName(ToLazyString(name()) + LazyString{L":"} +
-                                       name_suffix),
+            .name = FileDescriptorName{ToLazyString(name()) + LazyString{L":"} +
+                                       name_suffix},
             .fd = fd.value(),
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
@@ -2565,7 +2565,8 @@ NonNull<std::unique_ptr<EditorState>> EditorForTests() {
   return MakeNonNullUnique<EditorState>(
       std::invoke([] {
         CommandLineValues output;
-        output.config_paths = {LazyString{L"/home/edge-test-user/.edge/"}};
+        output.config_paths = {
+            infrastructure::Path{LazyString{L"/home/edge-test-user/.edge/"}}};
         return output;
       }),
       *player);

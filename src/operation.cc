@@ -51,6 +51,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;

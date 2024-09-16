@@ -20,6 +20,7 @@ namespace afc::concurrent {
 class VersionPropertyKey
     : public language::GhostType<VersionPropertyKey,
                                  language::lazy_string::LazyString> {
+  using GhostType::GhostType;
   friend class VersionPropertyReceiver;
 };
 

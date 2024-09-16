@@ -26,7 +26,9 @@ struct IdentifierValidator {
 // `lib`).
 class Identifier
     : public language::GhostType<Identifier, language::lazy_string::LazyString,
-                                 IdentifierValidator> {};
+                                 IdentifierValidator> {
+  using GhostType::GhostType;
+};
 
 // Return the identifier for "auto".
 const Identifier& IdentifierAuto();
@@ -64,7 +66,9 @@ struct String {};
 struct Symbol {};
 class ObjectName
     : public language::GhostType<ObjectName,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 // Function depends on `Type`, so we only forward declare it here.
 struct Function;

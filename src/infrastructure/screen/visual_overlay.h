@@ -30,11 +30,15 @@ struct VisualOverlay {
 };
 
 class VisualOverlayKey
-    : public language::GhostType<VisualOverlayKey, std::wstring> {};
+    : public language::GhostType<VisualOverlayKey, std::wstring> {
+  using GhostType::GhostType;
+};
 
 // Larger numbers take precedence.
 class VisualOverlayPriority
-    : public language::GhostType<VisualOverlayPriority, int> {};
+    : public language::GhostType<VisualOverlayPriority, int> {
+  using GhostType::GhostType;
+};
 
 class VisualOverlayMap
     : public language::GhostType<
@@ -42,7 +46,9 @@ class VisualOverlayMap
           std::map<VisualOverlayPriority,
                    std::map<VisualOverlayKey,
                             std::multimap<language::text::LineColumn,
-                                          VisualOverlay>>>> {};
+                                          VisualOverlay>>>> {
+  using GhostType::GhostType;
+};
 
 // Returns a copy of visual_overlay_map that only contains overlays that
 // intersect screen_line_range.

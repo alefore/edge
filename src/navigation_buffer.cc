@@ -68,8 +68,8 @@ void AppendLine(OpenBuffer& source, SingleLine padding, LineColumn position,
                 OpenBuffer& target) {
   LineBuilder options;
   options.set_contents(padding);
-  options.SetOutgoingLink(OutgoingLink{.path = ToLazyString(source.name()),
-                                       .line_column = position});
+  options.SetOutgoingLink(OutgoingLink{
+      .path = Path{ToLazyString(source.name())}, .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(std::move(options).Build());
 }
@@ -96,7 +96,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
         AddContents(source, *source.LineAt(child.range().end().line), &options);
       }
       options.SetOutgoingLink(
-          OutgoingLink{.path = ToLazyString(source.name()),
+          OutgoingLink{.path = Path{ToLazyString(source.name())},
                        .line_column = child.range().begin()});
 
       target.AppendRawLine(std::move(options).Build());

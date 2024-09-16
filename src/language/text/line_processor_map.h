@@ -14,13 +14,19 @@ namespace afc::language::text {
 
 class LineProcessorKey
     : public language::GhostType<LineProcessorKey,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 class LineProcessorInput
     : public language::GhostType<LineProcessorInput,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 class LineProcessorOutput
     : public language::GhostType<LineProcessorOutput,
-                                 language::lazy_string::LazyString> {};
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 struct LineProcessorOutputFuture {
   LineProcessorOutput initial_value;

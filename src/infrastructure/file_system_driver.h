@@ -25,14 +25,19 @@ struct FileDescriptorValidator {
 
 class FileDescriptor
     : public language::GhostType<FileDescriptor, int, FileDescriptorValidator> {
+  using GhostType::GhostType;
 };
 
-class UnixSignal : public language::GhostType<UnixSignal, int> {};
+class UnixSignal : public language::GhostType<UnixSignal, int> {
+  using GhostType::GhostType;
+};
 
 // Why define a GhostType<> for `pid_t`, which is already a "specific" type?
 // Because pid_t is just a `using` or `typedef` alias, so incorrect usage isn't
 // detected by the compiler.
-class ProcessId : public language::GhostType<ProcessId, pid_t> {};
+class ProcessId : public language::GhostType<ProcessId, pid_t> {
+  using GhostType::GhostType;
+};
 
 // Class used to interact with the file system. All operations are performed
 // asynchronously in a thread pool.

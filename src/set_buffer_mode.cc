@@ -23,6 +23,7 @@ using afc::language::Success;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -393,11 +394,14 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                         editor.thread_pool()
                             .Run(std::bind_front(
                                 SearchHandler, Direction::kForwards,
-                                SearchOptions{.search_query = text_input,
-                                              .required_positions = 1,
-                                              .case_sensitive = buffer.Read(
-                                                  buffer_variables::
-                                                      search_case_sensitive)},
+                                // TODO(trivial, 2024-09-16): Don't convert to
+                                // SingleLine here!
+                                SearchOptions{
+                                    .search_query = SingleLine{text_input},
+                                    .required_positions = 1,
+                                    .case_sensitive =
+                                        buffer.Read(buffer_variables::
+                                                        search_case_sensitive)},
                                 buffer.contents().snapshot()))
                             .Transform([new_state, index](
                                            std::vector<LineColumn> results) {
