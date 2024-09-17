@@ -271,6 +271,17 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
   return std::move(options).Build();
 }
 
+bool operator==(const FilterSortBufferOutput::Match& a,
+                const FilterSortBufferOutput::Match& b) {
+  return a.preview == b.preview && a.data == b.data;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const FilterSortBufferOutput::Match& m) {
+  os << "[" << m.preview.contents() << "]:(" << m.data.ToLazyString() << ")";
+  return os;
+}
+
 FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
   VLOG(4) << "Start matching: " << input.history.size();
   INLINE_TRACKER(FilterSortBuffer);
@@ -364,17 +375,22 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
             .ToString()));
 
   for (math::naive_bayes::Event& key :
-       math::naive_bayes::Sort(history_data, current_features)) {
-    output.lines.push_back(ColorizeLine(
-        key.ReadLazyString(), container::MaterializeVector(
-                                  history_value_tokens[key] |
-                                  std::views::transform([](const Token& token) {
-                                    VLOG(6) << "Add token BOLD: " << token;
-                                    return TokenAndModifiers{
-                                        token,
-                                        LineModifierSet{LineModifier::kBold}};
-                                  }))));
-  }
+       math::naive_bayes::Sort(history_data, current_features))
+    if (ValueOrError<EscapedString> data =
+            EscapedString::Parse(key.ReadLazyString());
+        !IsError(data))
+      output.matches.push_back(FilterSortBufferOutput::Match{
+          .preview = ColorizeLine(
+              key.ReadLazyString(),
+              container::MaterializeVector(
+                  history_value_tokens[key] |
+                  std::views::transform([](const Token& token) {
+                    VLOG(6) << "Add token BOLD: " << token;
+                    return TokenAndModifiers{
+                        token, LineModifierSet{LineModifier::kCyan}};
+                  }))),
+          .data = LineSequence::BreakLines(
+              ValueOrDie(std::move(data)).OriginalString())});
   return output;
 }
 
@@ -382,7 +398,7 @@ namespace {
 auto filter_sort_history_sync_tests_registration = tests::Register(
     L"FilterSortBuffer",
     {
-        {.name = L"EmptyFilter",
+        {.name = L"EmptyFilterEmptyHistory",
          .callback =
              [] {
                std::multimap<Identifier, EscapedString> features;
@@ -390,7 +406,25 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L""},
                        LineSequence(), features});
-               CHECK(output.lines.empty());
+               CHECK(output.matches.empty());
+             }},
+        {.name = L"EmptyFilterHistory",
+         .callback =
+             [] {
+               std::multimap<Identifier, EscapedString> features;
+               FilterSortBufferOutput output =
+                   FilterSortBuffer(FilterSortBufferInput{
+                       DeleteNotification::Never(), LazyString{L""},
+                       LineSequence::ForTests(
+                           {L"value:\"foo\"", L"value:\"bar\\n\""}),
+                       features});
+               CHECK_EQ(output.matches.size(), 2ul);
+               // TODO(2024-09-17): This is brittle, the order of the results
+               // could change.
+               CHECK_EQ(output.matches[0],
+                        (FilterSortBufferOutput::Match{
+                            .preview = Line{SingleLine{LazyString{L"bar\\n"}}},
+                            .data = LineSequence::ForTests({L"bar", L""})}));
              }},
         {.name = L"NoMatch",
          .callback =
@@ -402,7 +436,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                        LineSequence::ForTests(
                            {L"value:\"foobar\"", L"value:\"foo\""}),
                        features});
-               CHECK(output.lines.empty());
+               CHECK(output.matches.empty());
              }},
         {.name = L"MatchAfterEscape",
          .callback =
@@ -413,26 +447,18 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                        DeleteNotification::Never(), LazyString{L"nbar"},
                        LineSequence::ForTests({L"value:\"foo\\nbardo\""}),
                        features});
-               CHECK_EQ(output.lines.size(), 1ul);
-               const Line& line = output.lines[0];
-               CHECK_EQ(line.contents(),
-                        SingleLine{LazyString{L"foo\\nbardo"}});
+               CHECK_EQ(output.matches.size(), 1ul);
 
-               const std::map<ColumnNumber, LineModifierSet> modifiers =
-                   line.modifiers();
-               for (const auto& m : modifiers) {
-                 LOG(INFO) << "Modifiers: " << m.first << ": " << m.second;
-               }
+               LineBuilder expected_preview{LazyString{L"foo\\"}};
+               expected_preview.AppendString(
+                   LazyString{L"nbar"}, LineModifierSet{LineModifier::kCyan});
+               expected_preview.AppendString(LazyString{L"do"});
 
-               {
-                 auto s = GetValueOrDie(modifiers, ColumnNumber(4));
-                 LOG(INFO) << "Modifiers found: " << s;
-                 CHECK_EQ(s, LineModifierSet{LineModifier::kBold});
-               }
-               {
-                 auto s = GetValueOrDie(modifiers, ColumnNumber(8));
-                 CHECK_EQ(s, LineModifierSet{});
-               }
+               CHECK_EQ(
+                   output.matches[0],
+                   (FilterSortBufferOutput::Match{
+                       .preview = std::move(expected_preview).Build(),
+                       .data = LineSequence::ForTests({L"foo", L"bardo"})}));
              }},
         {.name = L"MatchIncludingEscapeCorrectlyHandled",
          .callback =
@@ -443,8 +469,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                        DeleteNotification::Never(), LazyString{L"nbar"},
                        LineSequence::ForTests({L"value:\"foo\\nbar\""}),
                        features});
-               CHECK_EQ(output.lines.size(), 1ul);
-               CHECK_EQ(output.lines[0].contents(),
+               CHECK_EQ(output.matches.size(), 1ul);
+               CHECK_EQ(output.matches[0].preview.contents(),
                         SingleLine{LazyString{L"foo\\nbar"}});
              }},
         {.name = L"IgnoresInvalidEntries",
@@ -459,10 +485,12 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                                                L"value:\"foo\\n bar\"",
                                                L"value:\"foo \\o bar \\\""}),
                        features});
-               CHECK_EQ(output.lines.size(), 2ul);
-               CHECK_EQ(output.lines[0].contents(),
+               CHECK_EQ(output.matches.size(), 2ul);
+               // TODO(2024-09-17): This is brittle, the order of the results
+               // could change.
+               CHECK_EQ(output.matches[0].preview.contents(),
                         SingleLine{LazyString{L"foo\\n bar"}});
-               CHECK_EQ(output.lines[1].contents(),
+               CHECK_EQ(output.matches[1].preview.contents(),
                         SingleLine{LazyString{L"foo"}});
              }},
         {.name = L"HistoryWithNewLine",
@@ -473,9 +501,17 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"ls"},
                        LineSequence::ForTests({L"value:\"ls\\n\""}), features});
-               CHECK_EQ(output.lines.size(), 1ul);
-               CHECK_EQ(output.lines[0].contents(),
-                        SingleLine{LazyString{L"ls\\n"}});
+               CHECK_EQ(output.matches.size(), 1ul);
+
+               LineBuilder expected_preview;
+               expected_preview.AppendString(
+                   LazyString{L"ls"}, LineModifierSet{LineModifier::kCyan});
+               expected_preview.AppendString(LazyString{L"\\n"});
+
+               CHECK_EQ(output.matches[0],
+                        (FilterSortBufferOutput::Match{
+                            .preview = std::move(expected_preview).Build(),
+                            .data = LineSequence::ForTests({L"ls", L""})}));
              }},
     });
 }  // namespace

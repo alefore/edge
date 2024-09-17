@@ -39,12 +39,19 @@ struct FilterSortBufferInput {
 
 struct FilterSortBufferOutput {
   std::vector<language::Error> errors;
-  // Lines found in the input (history). Each line contains an escaped string;
-  // customers should interpret them through EscapedString::Parse (to obtain the
-  // original unescaped string).
-  std::vector<language::text::Line> lines;
+
+  struct Match {
+    language::text::Line preview;
+    language::text::LineSequence data;
+  };
+  std::vector<Match> matches;
 };
 
 FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input);
+
+bool operator==(const FilterSortBufferOutput::Match&,
+                const FilterSortBufferOutput::Match&);
+std::ostream& operator<<(std::ostream& os,
+                         const FilterSortBufferOutput::Match&);
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_FILTER_H__

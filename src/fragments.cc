@@ -23,6 +23,7 @@ using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedMap;
 using afc::vm::EscapedString;
@@ -84,24 +85,31 @@ void AddFragment(EditorState& editor, LineSequence fragment) {
       });
 }
 
-futures::Value<language::text::LineSequence> FindFragment(
+futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
     EditorState& editor, FindFragmentQuery query) {
   return GetFragmentsBuffer(editor).Transform(
       [&editor, filter = query.filter](gc::Root<OpenBuffer> fragments_buffer) {
         const LineSequence history =
             fragments_buffer.ptr()->contents().snapshot();
-        if (filter.empty())
-          return std::visit(
-              overload{[](Error) { return futures::Past(LineSequence{}); },
+        if (filter.empty()) {
+          return futures::Past(std::visit(
+              overload{[](Error) {
+                         return std::vector<FilterSortBufferOutput::Match>{};
+                       },
                        [](EscapedMap parsed_map) {
-                         auto it =
-                             parsed_map.read().find(HistoryIdentifierValue());
-                         if (it == parsed_map.read().end())
-                           return futures::Past(LineSequence{});
-                         return futures::Past(LineSequence::BreakLines(
-                             it->second.OriginalString()));
+                         if (auto it = parsed_map.read().find(
+                                 HistoryIdentifierValue());
+                             it != parsed_map.read().end())
+                           return std::vector<FilterSortBufferOutput::Match>{
+                               FilterSortBufferOutput::Match{
+                                   .preview =
+                                       Line{it->second.EscapedRepresentation()},
+                                   .data = LineSequence::BreakLines(
+                                       it->second.OriginalString())}};
+                         return std::vector<FilterSortBufferOutput::Match>{};
                        }},
-              EscapedMap::Parse(history.back().contents().read()));
+              EscapedMap::Parse(history.back().contents().read())));
+        }
         return editor.thread_pool()
             .Run(std::bind_front(FilterSortBuffer,
                                  FilterSortBufferInput{
@@ -109,16 +117,8 @@ futures::Value<language::text::LineSequence> FindFragment(
                                      .filter = filter,
                                      .history = history,
                                      .current_features = {}}))
-            .Transform([](FilterSortBufferOutput output) {
-              if (output.lines.empty()) return LineSequence{};
-              return std::visit(
-                  overload{[](Error) { return LineSequence{}; },
-                           [](EscapedString line) {
-                             return LineSequence::BreakLines(
-                                 line.OriginalString());
-                           }},
-                  EscapedString::Parse(output.lines.back().contents().read()));
-            });
+            .Transform(
+                [](FilterSortBufferOutput output) { return output.matches; });
       });
 }
 }  // namespace afc::editor

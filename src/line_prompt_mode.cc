@@ -210,7 +210,9 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
                   LineBuilder{output.errors.front().read()}.Build()));
         }
         if (!abort_value.has_value()) {
-          filter_buffer.AppendLines(std::move(output.lines));
+          filter_buffer.AppendLines(container::MaterializeVector(
+              std::move(output.matches) |
+              std::views::transform(&FilterSortBufferOutput::Match::preview)));
           if (filter_buffer.lines_size() > LineNumberDelta(1)) {
             VLOG(5) << "Erasing the first (empty) line.";
             CHECK(filter_buffer.LineAt(LineNumber())->empty());
