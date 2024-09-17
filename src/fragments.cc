@@ -109,7 +109,7 @@ futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
                                        it->second.OriginalString())}};
                          return std::vector<FilterSortBufferOutput::Match>{};
                        }},
-              EscapedMap::Parse(history.back().contents().read())));
+              history.back().escaped_map()));
         }
         return editor.thread_pool()
             .Run(std::bind_front(FilterSortBuffer,
