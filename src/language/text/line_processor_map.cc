@@ -1,5 +1,6 @@
 #include "src/language/text/line_processor_map.h"
 
+#include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
 #include "src/language/overload.h"
 
@@ -10,6 +11,7 @@ void LineProcessorMap::Add(LineProcessorKey key, Callback callback) {
 
 std::map<LineProcessorKey, LineProcessorOutputFuture> LineProcessorMap::Process(
     LineProcessorInput input) const {
+  TRACK_OPERATION(LineProcessorMap_Process);
   std::map<LineProcessorKey, LineProcessorOutputFuture> output;
   std::ranges::for_each(
       callbacks_,

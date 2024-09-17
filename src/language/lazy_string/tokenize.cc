@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream& os, const Token& t) {
 }
 
 std::vector<Token> TokenizeBySpaces(const LazyString& command) {
-  INLINE_TRACKER(TokenizeBySpaces);
+  TRACK_OPERATION(TokenizeBySpaces);
   std::vector<Token> output;
   Token token;
   auto push = [&](ColumnNumber end) {

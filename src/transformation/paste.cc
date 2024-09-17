@@ -36,11 +36,11 @@ std::wstring Paste::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> Paste::Apply(
     CompositeTransformation::Input input) const {
-  INLINE_TRACKER(Paste_Apply);
+  TRACK_OPERATION(Paste_Apply);
   return FindFragment(input.editor, query_)
       .Transform(
           [input](std::vector<FilterSortBufferOutput::Match> paste_data) {
-            INLINE_TRACKER(Paste_Apply_Insert);
+            TRACK_OPERATION(Paste_Apply_Insert);
             if (paste_data.empty()) {
               DVLOG(5) << "Empty paste buffer.";
               return CompositeTransformation::Output{};

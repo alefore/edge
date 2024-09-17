@@ -184,6 +184,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
 
 ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
     OpenBuffer& buffer, const LineProcessorInput& input) {
+  TRACK_OPERATION(OpenBuffer_LineMetadataCompilation);
   static const LineProcessorOutputFuture kEmptyOutput{
       .initial_value = LineProcessorOutput(LazyString{}),
       .value = futures::Past(LineProcessorOutput(LazyString{}))};
@@ -1119,6 +1120,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
 ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const LazyString& code) const {
+  TRACK_OPERATION(OpenBuffer_CompileString);
   gc::Root<Environment> sub_environment = Environment::New(environment_);
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<Expression>> expression,

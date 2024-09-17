@@ -30,7 +30,7 @@ EscapedString::EscapedString(LineSequence input)
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
     language::lazy_string::LazyString input) {
-  INLINE_TRACKER(EscapedString_Parse);
+  TRACK_OPERATION(EscapedString_Parse);
   LazyString original_string;
   for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
     switch (input.get(i)) {
@@ -133,7 +133,7 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 
 /* static */ language::ValueOrError<EscapedMap> EscapedMap::Parse(
     language::lazy_string::LazyString input) {
-  INLINE_TRACKER(EscapedMap_Parse);
+  TRACK_OPERATION(EscapedMap_Parse);
   EscapedMap::Map output;
   for (const Token& token : TokenizeBySpaces(input)) {
     std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});

@@ -77,6 +77,8 @@ namespace {
 // GetCurrentFeatures (and thus don't need to be saved).
 std::multimap<Identifier, EscapedString> GetSyntheticFeatures(
     const std::multimap<Identifier, EscapedString>& input) {
+  TRACK_OPERATION(FilterSortBuffer_GetSyntheticFeatures);
+
   std::multimap<Identifier, EscapedString> output;
   std::unordered_set<Path> directories;
   std::unordered_set<LazyString> extensions;
@@ -205,6 +207,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
 
 ValueOrError<std::multimap<Identifier, EscapedString>> ParseBufferLine(
     const SingleLine& line) {
+  TRACK_OPERATION(FilterSortBuffer_ParseBufferLine);
   DECLARE_OR_RETURN(EscapedMap line_map, EscapedMap::Parse(line.read()));
   std::multimap<Identifier, EscapedString> output = line_map.read();
   std::multimap<Identifier, EscapedString> synthetic_features =
@@ -248,6 +251,7 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
 }  // namespace
 
 Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
+  TRACK_OPERATION(FilterSortBuffer_ColorizeLine);
   sort(tokens.begin(), tokens.end(),
        [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
          return a.token.begin < b.token.begin;
@@ -284,7 +288,7 @@ std::ostream& operator<<(std::ostream& os,
 
 FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
   VLOG(4) << "Start matching: " << input.history.size();
-  INLINE_TRACKER(FilterSortBuffer);
+  TRACK_OPERATION(FilterSortBuffer);
   FilterSortBufferOutput output;
 
   if (input.abort_value.has_value()) return output;
@@ -295,7 +299,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       history_value_tokens;
   std::vector<Token> filter_tokens = TokenizeBySpaces(input.filter);
   input.history.EveryLine([&](LineNumber, const Line& line) {
-    INLINE_TRACKER(FilterSortBuffer_Input_History_EveryLine);
+    TRACK_OPERATION(FilterSortBuffer_Input_History_EveryLine);
     VLOG(8) << "Considering line: " << line.contents();
     auto warn_if = [&](bool condition, Error error) {
       if (condition) {
