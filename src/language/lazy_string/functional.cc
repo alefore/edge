@@ -3,36 +3,35 @@
 #include "src/tests/tests.h"
 
 namespace afc::language::lazy_string {
-std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
-                                        std::unordered_set<wchar_t> chars) {
+std::optional<ColumnNumber> FindFirstOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
+  return FindFirstOf(input, chars, ColumnNumber{});
+}
+
+std::optional<ColumnNumber> FindFirstOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars,
+    ColumnNumber start) {
   return FindFirstColumnWithPredicate(
-      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
-        return chars.contains(c);
-      });
+      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); },
+      start);
 }
 
-std::optional<ColumnNumber> FindFirstNotOf(const LazyString& input,
-                                           std::unordered_set<wchar_t> chars) {
+std::optional<ColumnNumber> FindFirstNotOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
   return FindFirstColumnWithPredicate(
-      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
-        return !chars.contains(c);
-      });
+      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
 }
 
-std::optional<ColumnNumber> FindLastOf(const LazyString& input,
-                                       std::unordered_set<wchar_t> chars) {
+std::optional<ColumnNumber> FindLastOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
   return FindLastColumnWithPredicate(
-      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
-        return chars.contains(c);
-      });
+      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); });
 }
 
-std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
-                                          std::unordered_set<wchar_t> chars) {
+std::optional<ColumnNumber> FindLastNotOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
   return FindLastColumnWithPredicate(
-      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
-        return !chars.contains(c);
-      });
+      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
 }
 
 bool StartsWith(const LazyString& input, const LazyString& prefix) {

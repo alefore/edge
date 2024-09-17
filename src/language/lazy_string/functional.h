@@ -17,12 +17,19 @@ namespace afc::language::lazy_string {
 // position.
 template <typename Predicate>
 std::optional<ColumnNumber> FindFirstColumnWithPredicate(
-    const LazyString& input, const Predicate& f) {
-  for (ColumnNumberDelta delta; delta < input.size(); ++delta)
+    const LazyString& input, const Predicate& f, ColumnNumber start) {
+  CHECK_LE(start.ToDelta(), input.size());
+  for (ColumnNumberDelta delta = start.ToDelta(); delta < input.size(); ++delta)
     if (ColumnNumber column = ColumnNumber() + delta;
         f(column, input.get(column)))
       return column;
   return std::nullopt;
+}
+
+template <typename Predicate>
+std::optional<ColumnNumber> FindFirstColumnWithPredicate(
+    const LazyString& input, const Predicate& f) {
+  return FindFirstColumnWithPredicate(input, f, ColumnNumber{});
 }
 
 template <typename Predicate>
@@ -44,17 +51,21 @@ void ForEachColumn(const LazyString& input, Callback callback) {
   });
 }
 
-std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
-                                        std::unordered_set<wchar_t> chars);
+std::optional<ColumnNumber> FindFirstOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars);
 
-std::optional<ColumnNumber> FindFirstNotOf(const LazyString& input,
-                                           std::unordered_set<wchar_t> chars);
+std::optional<ColumnNumber> FindFirstOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars,
+    ColumnNumber start);
 
-std::optional<ColumnNumber> FindLastOf(const LazyString& input,
-                                       std::unordered_set<wchar_t> chars);
+std::optional<ColumnNumber> FindFirstNotOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars);
 
-std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
-                                          std::unordered_set<wchar_t> chars);
+std::optional<ColumnNumber> FindLastOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars);
+
+std::optional<ColumnNumber> FindLastNotOf(
+    const LazyString& input, const std::unordered_set<wchar_t>& chars);
 
 bool StartsWith(const LazyString& input, const LazyString& prefix);
 }  // namespace afc::language::lazy_string
