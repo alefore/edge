@@ -4,16 +4,18 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::FindFirstOf;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::language::lazy_string {
 using ::operator<<;
-
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
 
 bool operator==(const Token& a, const Token& b) {
   return a.begin == b.begin && a.end == b.end && a.value == b.value;
@@ -39,30 +41,41 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
     token.has_quotes = false;
   };
 
-  for (ColumnNumber i; i.ToDelta() < command.size(); ++i) {
-    char c = command.get(i);
-    if (c == ' ') {
-      push(i);
-    } else if (c == '\"') {
-      ++i;
-      token.has_quotes = true;
-      while (i.ToDelta() < command.size() && command.get(i) != '\"') {
-        if (command.get(i) == L'\\') {
-          ++i;
+  ColumnNumber i;
+  while (i.ToDelta() < command.size()) {
+    ColumnNumber next = FindFirstOf(command, {L' ', L'\"', L'\\'}, i)
+                            .value_or(ColumnNumber{} + command.size());
+    token.value += command.Substring(i, next - i);
+    i = next;
+    if (i.ToDelta() >= command.size()) continue;
+    switch (command.get(i)) {
+      case L' ':
+        push(i);
+        break;
+      case L'\"':
+        ++i;
+        token.has_quotes = true;
+        while (i.ToDelta() < command.size() && command.get(i) != '\"') {
+          if (command.get(i) == L'\\') {
+            ++i;
+          }
+          if (i.ToDelta() < command.size()) {
+            token.value += LazyString{std::wstring{command.get(i)}};
+            ++i;
+          }
         }
-        if (i.ToDelta() < command.size()) {
+        break;
+      case L'\\':
+        ++i;
+        token.has_quotes = true;
+        if (i.ToDelta() < command.size())
           token.value += LazyString{std::wstring{command.get(i)}};
-          ++i;
-        }
-      }
-    } else if (c == '\\') {
-      ++i;
-      token.has_quotes = true;
-      if (i.ToDelta() < command.size())
-        token.value += LazyString{std::wstring{command.get(i)}};
-    } else {
-      token.value += LazyString{std::wstring{c}};
+        break;
+      default:
+        LOG(FATAL)
+            << "Internal error in TokenizeBySpaces, unexpected character";
     }
+    ++i;
   }
   push(ColumnNumber() + command.size());
   return output;
