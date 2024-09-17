@@ -32,27 +32,31 @@ EscapedString::EscapedString(LineSequence input)
     language::lazy_string::LazyString input) {
   TRACK_OPERATION(EscapedString_Parse);
   LazyString original_string;
-  for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
-    switch (input.get(i)) {
-      case '\\':
-        if ((++i).ToDelta() >= input.size())
-          return Error{LazyString{L"String ends in escape character."}};
-        switch (input.get(i)) {
-          case 'n':
-            original_string += LazyString{L"\n"};
-            break;
-          case '"':
-          case '\\':
-          case '\'':
-            original_string += input.Substring(i, ColumnNumberDelta(1));
-            break;
-          default:
-            return Error{LazyString{L"Unknown escaped character: "} +
-                         input.Substring(i, ColumnNumberDelta(1))};
-        }
-        break;
-      default:
-        original_string += input.Substring(i, ColumnNumberDelta(1));
+  ColumnNumber position;
+  while (position.ToDelta() < input.size()) {
+    std::optional<ColumnNumber> escape = FindFirstOf(input, {L'\\'}, position);
+    original_string += input.Substring(
+        position,
+        (escape.has_value() ? escape.value() : ColumnNumber{} + input.size()) -
+            position);
+    position = escape.value_or(ColumnNumber{} + input.size());
+    if (escape.has_value()) {
+      if ((++position).ToDelta() >= input.size())
+        return Error{LazyString{L"String ends in escape character."}};
+      switch (input.get(position)) {
+        case 'n':
+          original_string += LazyString{L"\n"};
+          break;
+        case '"':
+        case '\\':
+        case '\'':
+          original_string += input.Substring(position, ColumnNumberDelta(1));
+          break;
+        default:
+          return Error{LazyString{L"Unknown escaped character: "} +
+                       input.Substring(position, ColumnNumberDelta(1))};
+      }
+      ++position;
     }
   }
   return EscapedString(original_string);
