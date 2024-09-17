@@ -77,10 +77,11 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
 void AddFragment(EditorState& editor, LineSequence fragment) {
   GetFragmentsBuffer(editor).Transform(
       [fragment](gc::Root<OpenBuffer> fragments_buffer) {
-        fragments_buffer.ptr()->AppendLine(vm::EscapedMap{
-            std::multimap<vm::Identifier, EscapedString>{
-                {HistoryIdentifierValue(),
-                 EscapedString{fragment}}}}.Serialize());
+        fragments_buffer.ptr()->AppendLine(
+            vm::EscapedMap{std::multimap<vm::Identifier, EscapedString>{
+                               {HistoryIdentifierValue(),
+                                EscapedString{fragment.ToLazyString()}}}}
+                .Serialize());
         return futures::Past(EmptyValue{});
       });
 }

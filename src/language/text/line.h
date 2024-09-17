@@ -13,11 +13,13 @@
 #include "src/futures/listenable_value.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/cached_supplier.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
+#include "src/vm/escape.h"
 
 namespace afc::language::text {
 struct LineMetadataEntry {
@@ -78,6 +80,8 @@ class Line {
 
   size_t hash() const { return hash_; }
 
+  const ValueOrError<vm::EscapedMap>& escaped_map() const;
+
   Line& operator=(const Line&) = default;
   bool operator==(const Line& a) const;
   bool operator<(const Line& other) const;
@@ -107,6 +111,11 @@ class Line {
     std::map<language::lazy_string::LazyString, LineMetadataEntry> metadata;
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
+    CachedSupplier<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
+        CachedSupplier<ValueOrError<vm::EscapedMap>>{[] {
+          return language::Error{
+              language::lazy_string::LazyString{L"No escaped map supplier."}};
+        }};
   };
 
   friend class LineBuilder;

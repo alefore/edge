@@ -35,7 +35,6 @@
 
 #include "src/concurrent/protected.h"
 #include "src/language/error/value_or_error.h"
-#include "src/language/function_traits.h"
 #include "src/language/once_only_function.h"
 #include "src/language/overload.h"
 

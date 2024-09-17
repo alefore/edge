@@ -44,21 +44,6 @@ using ::operator<<;
       std::move(output), Line{SingleLine{LazyString{input.Substring(start)}}}));
 }
 
-LineSequence::LineSequence(LineSequenceIterator a, LineSequenceIterator b)
-    : LineSequence(std::invoke([&] {
-        Lines::Ptr output = nullptr;
-        while (a != b) {
-          output = Lines::PushBack(std::move(output), Line(*a)).get_shared();
-          ++a;
-        }
-        return VisitPointer(
-            std::move(output),
-            [](NonNull<Lines::Ptr> lines) {
-              return LineSequence(std::move(lines));
-            },
-            [] { return LineSequence(); });
-      })) {}
-
 /* static */ LineSequence LineSequence::ForTests(
     std::vector<std::wstring> inputs) {
   CHECK(!inputs.empty());

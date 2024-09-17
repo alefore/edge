@@ -206,9 +206,9 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       }}});
 
 ValueOrError<std::multimap<Identifier, EscapedString>> ParseBufferLine(
-    const SingleLine& line) {
+    const Line& line) {
   TRACK_OPERATION(FilterSortBuffer_ParseBufferLine);
-  DECLARE_OR_RETURN(EscapedMap line_map, EscapedMap::Parse(line.read()));
+  DECLARE_OR_RETURN(EscapedMap line_map, line.escaped_map());
   std::multimap<Identifier, EscapedString> output = line_map.read();
   std::multimap<Identifier, EscapedString> synthetic_features =
       GetSyntheticFeatures(output);
@@ -221,12 +221,17 @@ auto parse_history_line_tests_registration = tests::Register(
     {{.name = L"BadQuote",
       .callback =
           [] {
-            CHECK(
-                IsError(ParseBufferLine(SingleLine{LazyString{L"value:\""}})));
+            // TODO(trivial, 2024-09-17): Avoid call to read: pass SingleLine
+            // directly to LineBuilder.
+            CHECK(IsError(ParseBufferLine(
+                LineBuilder{SingleLine{LazyString{L"value:\""}}.read()}
+                    .Build())));
           }},
      {.name = L"Empty", .callback = [] {
-        auto result =
-            ValueOrDie(ParseBufferLine(SingleLine{LazyString{L"value:\"\""}}));
+        // TODO(trivial, 2024-09-17): Avoid call to read: pass SingleLine
+        // directly to LineBuilder.
+        auto result = ValueOrDie(ParseBufferLine(
+            LineBuilder{SingleLine{LazyString{L"value:\"\""}}.read()}.Build()));
         CHECK_EQ(result.find(HistoryIdentifierValue())->second,
                  EscapedString{});
       }}});
@@ -314,7 +319,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     };
     if (line.empty()) return true;
     ValueOrError<std::multimap<Identifier, EscapedString>> line_keys_or_error =
-        ParseBufferLine(line.contents());
+        ParseBufferLine(line);
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
@@ -419,8 +424,10 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L""},
-                       LineSequence::ForTests(
-                           {L"value:\"foo\"", L"value:\"bar\\n\""}),
+                       container::Materialize<LineSequence>(std::vector<Line>{
+                           LineBuilder{LazyString{L"value:\"foo\""}}.Build(),
+                           LineBuilder{LazyString{L"value:\"bar\\n\""}}
+                               .Build()}),
                        features});
                CHECK_EQ(output.matches.size(), 2ul);
                // TODO(2024-09-17): This is brittle, the order of the results
@@ -437,8 +444,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"quux"},
-                       LineSequence::ForTests(
-                           {L"value:\"foobar\"", L"value:\"foo\""}),
+                       container::Materialize<LineSequence>(std::vector<Line>{
+                           LineBuilder{LazyString{L"value:\"foobar\""}}.Build(),
+                           LineBuilder{LazyString{L"value:\"foo\""}}.Build()}),
                        features});
                CHECK(output.matches.empty());
              }},
@@ -449,7 +457,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"nbar"},
-                       LineSequence::ForTests({L"value:\"foo\\nbardo\""}),
+                       LineSequence::WithLine(
+                           LineBuilder{LazyString{L"value:\"foo\\nbardo\""}}
+                               .Build()),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
 
@@ -471,7 +481,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"nbar"},
-                       LineSequence::ForTests({L"value:\"foo\\nbar\""}),
+                       LineSequence::WithLine(
+                           LineBuilder{LazyString{L"value:\"foo\\nbar\""}}
+                               .Build()),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
                CHECK_EQ(output.matches[0].preview.contents(),
@@ -484,10 +496,15 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"f"},
-                       LineSequence::ForTests({L"value:\"foobar \\\"",
-                                               L"value:\"foo\"",
-                                               L"value:\"foo\\n bar\"",
-                                               L"value:\"foo \\o bar \\\""}),
+                       container::Materialize<LineSequence>(std::vector<Line>{
+                           LineBuilder{LazyString{L"value:\"foobar \\\""}}
+                               .Build(),
+                           LineBuilder{LazyString{L"value:\"foo\""}}.Build(),
+                           LineBuilder{LazyString{L"value:\"foo\\n bar\""}}
+                               .Build(),
+                           LineBuilder{LazyString{L"value:\"foo \\o bar \\\""}}
+                               .Build(),
+                       }),
                        features});
                CHECK_EQ(output.matches.size(), 2ul);
                // TODO(2024-09-17): This is brittle, the order of the results
@@ -504,7 +521,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"ls"},
-                       LineSequence::ForTests({L"value:\"ls\\n\""}), features});
+                       LineSequence::WithLine(
+                           LineBuilder{LazyString{L"value:\"ls\\n\""}}.Build()),
+                       features});
                CHECK_EQ(output.matches.size(), 1ul);
 
                LineBuilder expected_preview;

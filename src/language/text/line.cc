@@ -113,6 +113,10 @@ std::optional<OutgoingLink> Line::outgoing_link() const {
   return data_->outgoing_link;
 }
 
+const ValueOrError<vm::EscapedMap>& Line::escaped_map() const {
+  return data_->escaped_map_supplier();
+}
+
 Line::Line(Line::Data data)
     : data_(MakeNonNullShared<Line::Data>(std::move(data))),
       hash_(ComputeHash(data_.value())) {

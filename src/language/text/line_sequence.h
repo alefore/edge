@@ -35,7 +35,22 @@ class LineSequence {
   LineSequence(LineSequence&&) = default;
   LineSequence& operator=(const LineSequence&) = default;
 
-  LineSequence(LineSequenceIterator a, LineSequenceIterator b);
+  template <typename Iterator>
+  LineSequence(Iterator a, Iterator b)
+      : LineSequence(std::invoke([&] {
+          Lines::Ptr output = nullptr;
+          while (a != b) {
+            output = Lines::PushBack(std::move(output), Line(*a)).get_shared();
+            ++a;
+          }
+          return VisitPointer(
+              std::move(output),
+              [](NonNull<Lines::Ptr> lines) {
+                return LineSequence(std::move(lines));
+              },
+              [] { return LineSequence(); });
+        })) {}
+
   static LineSequence ForTests(std::vector<std::wstring> inputs);
   static LineSequence WithLine(Line line);
   static LineSequence BreakLines(lazy_string::LazyString);

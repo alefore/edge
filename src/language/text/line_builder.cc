@@ -148,7 +148,12 @@ LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 
 LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 
-Line LineBuilder::Build() && { return Line(std::move(data_)); }
+Line LineBuilder::Build() && {
+  data_.escaped_map_supplier = MakeCachedSupplier([input = data_.contents] {
+    return vm::EscapedMap::Parse(std::move(input).read());
+  });
+  return Line(std::move(data_));
+}
 
 ColumnNumber LineBuilder::EndColumn() const {
   // TODO: Compute this separately, taking the width of characters into

@@ -11,7 +11,6 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
-#include "src/language/text/line_sequence.h"
 #include "src/vm/types.h"
 
 namespace afc::vm {
@@ -22,7 +21,6 @@ class EscapedString
   using GhostType::GhostType;
 
   static EscapedString FromString(language::lazy_string::LazyString input);
-  explicit EscapedString(language::text::LineSequence input);
 
   static language::ValueOrError<EscapedString> Parse(
       language::lazy_string::LazyString input);
