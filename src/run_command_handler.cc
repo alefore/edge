@@ -705,10 +705,8 @@ gc::Root<Command> NewForkCommand(EditorState& editor_state) {
 futures::Value<EmptyValue> RunCommandHandler(
     EditorState& editor_state, std::map<std::wstring, LazyString> environment,
     LazyString input, SingleLine name_suffix) {
-  RunCommand(
-      // TODO(trivial, 2024-09-13): Get rid of `read()`:
-      CommandBufferName{input + name_suffix.read()}, environment, editor_state,
-      OptionalFrom(GetChildrenPath(editor_state)), input);
+  RunCommand(CommandBufferName{input + name_suffix}, environment, editor_state,
+             OptionalFrom(GetChildrenPath(editor_state)), input);
   return futures::Past(EmptyValue());
 }
 
