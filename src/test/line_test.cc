@@ -11,17 +11,19 @@
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+
 namespace afc {
 namespace editor {
 namespace testing {
 namespace {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineBuilder;
 
 template <typename C, typename V>
 void CheckSingleton(C const container, V value) {
@@ -31,7 +33,7 @@ void CheckSingleton(C const container, V value) {
 
 void TestLineDeleteCharacters() {
   // Preparation.
-  LineBuilder builder{LazyString{L"alejo"}};
+  LineBuilder builder{SingleLine{LazyString{L"alejo"}}};
   builder.InsertModifier(ColumnNumber(0), LineModifier::kRed);
   builder.InsertModifier(ColumnNumber(1), LineModifier::kGreen);
   builder.InsertModifier(ColumnNumber(2), LineModifier::kBlue);
@@ -74,11 +76,11 @@ void TestLineDeleteCharacters() {
 }
 
 void TestLineAppend() {
-  LineBuilder line(LazyString{L"abc"});
+  LineBuilder line{SingleLine{LazyString{L"abc"}}};
   line.modifiers().at(ColumnNumber(1)).insert(LineModifier::kRed);
   line.modifiers().at(ColumnNumber(2));
 
-  LineBuilder suffix(LazyString{L"def"});
+  LineBuilder suffix{SingleLine{LazyString{L"def"}}};
   suffix.InsertModifier(ColumnNumber(1), LineModifier::kBold);
   suffix.set_modifiers(ColumnNumber(2), {});
   line.Append(std::move(suffix));
@@ -93,7 +95,7 @@ void TestLineAppend() {
 }
 
 void TestLineAppendEmpty() {
-  LineBuilder line(LazyString{L"abc"});
+  LineBuilder line{SingleLine{LazyString{L"abc"}}};
   line.InsertModifier(ColumnNumber(0), LineModifier::kRed);
 
   line.Append(LineBuilder());
@@ -102,7 +104,7 @@ void TestLineAppendEmpty() {
   CHECK(line.modifiers().at(ColumnNumber(0)) ==
         LineModifierSet({LineModifier::kRed}));
 
-  line.Append(LineBuilder{LazyString{L"def"}});
+  line.Append(LineBuilder{SingleLine{LazyString{L"def"}}});
 
   CHECK_EQ(line.modifiers_size(), 2ul);
   CHECK(line.modifiers().at(ColumnNumber(0)) ==

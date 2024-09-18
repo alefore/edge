@@ -39,7 +39,7 @@ using ::operator<<;
 void TestMutableLineSequenceSnapshot() {
   MutableLineSequence contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
-    contents.push_back(LineBuilder{LazyString{s}}.Build());
+    contents.push_back(LineBuilder{SingleLine{LazyString{s}}}.Build());
   }
   auto copy = contents.copy();
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
@@ -56,7 +56,7 @@ void TestMutableLineSequenceSnapshot() {
 
 void TestBufferInsertModifiers() {
   MutableLineSequence contents;
-  LineBuilder options(LazyString{L"alejo"});
+  LineBuilder options{SingleLine{LazyString{L"alejo"}}};
   options.set_modifiers(ColumnNumber(0), LineModifierSet{LineModifier::kCyan});
 
   contents.push_back(options.Copy().Build());  // LineNumber(1).
