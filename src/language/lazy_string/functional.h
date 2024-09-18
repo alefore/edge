@@ -58,14 +58,26 @@ std::optional<ColumnNumber> FindFirstOf(
     const LazyString& input, const std::unordered_set<wchar_t>& chars,
     ColumnNumber start);
 
+template <typename StringType>
 std::optional<ColumnNumber> FindFirstNotOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars);
+    const StringType& input, const std::unordered_set<wchar_t>& chars) {
+  return FindFirstColumnWithPredicate(
+      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
+}
 
+template <typename StringType>
 std::optional<ColumnNumber> FindLastOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars);
+    const StringType& input, const std::unordered_set<wchar_t>& chars) {
+  return FindLastColumnWithPredicate(
+      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); });
+}
 
+template <typename StringType>
 std::optional<ColumnNumber> FindLastNotOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars);
+    const StringType& input, const std::unordered_set<wchar_t>& chars) {
+  return FindLastColumnWithPredicate(
+      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
+}
 
 bool StartsWith(const LazyString& input, const LazyString& prefix);
 }  // namespace afc::language::lazy_string

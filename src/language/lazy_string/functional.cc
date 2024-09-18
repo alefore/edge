@@ -16,24 +16,6 @@ std::optional<ColumnNumber> FindFirstOf(
       start);
 }
 
-std::optional<ColumnNumber> FindFirstNotOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
-  return FindFirstColumnWithPredicate(
-      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
-}
-
-std::optional<ColumnNumber> FindLastOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
-  return FindLastColumnWithPredicate(
-      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); });
-}
-
-std::optional<ColumnNumber> FindLastNotOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
-  return FindLastColumnWithPredicate(
-      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
-}
-
 bool StartsWith(const LazyString& input, const LazyString& prefix) {
   return input.SubstringWithRangeChecks(ColumnNumber{}, prefix.size()) ==
          prefix;

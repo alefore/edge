@@ -16,19 +16,10 @@ LazyString TrimLeft(LazyString source, std::wstring space_characters) {
       }).value_or(ColumnNumber(0) + source.size()));
 }
 
-LazyString Trim(LazyString in, std::unordered_set<wchar_t> space_characters) {
-  if (std::optional<ColumnNumber> begin = FindFirstNotOf(in, space_characters);
-      begin.has_value()) {
-    if (std::optional<ColumnNumber> end = FindLastNotOf(in, space_characters);
-        end.has_value())
-      return in.Substring(*begin, *end - *begin + ColumnNumberDelta{1});
-  }
-  return LazyString{};
-}
+LazyString Trim(LazyString in) { return Trim(in, {L' '}); }
+SingleLine Trim(SingleLine in) { return Trim(in, {L' '}); }
 
 namespace {
-LazyString Trim(LazyString in) { return Trim(in, {L' '}); }
-
 const bool trim_whitespace_tests_registration = tests::Register(
     L"Trim",
     {

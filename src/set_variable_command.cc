@@ -60,9 +60,7 @@ Predictor VariablesPredictor() {
 
 futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      SingleLine input_name) {
-  // TODO(trivial, 2024-09-13): Get rid of read():
-  // TODO(trivial, 2024-09-18): Get rid of explicit `SingleLine` wrapping:
-  SingleLine name = SingleLine{Trim(input_name.read(), {L' '})};
+  SingleLine name = Trim(input_name, {L' '});
   LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
   if (name.empty()) return futures::Past(EmptyValue());
 
