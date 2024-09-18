@@ -848,8 +848,11 @@ void Prompt(PromptOptions options) {
                            gc::Root<OpenBuffer> prompt_buffer) {
               auto prompt_state =
                   PromptState::New(options, history, std::move(prompt_buffer));
-              prompt_state->status().set_prompt(options.prompt,
-                                                prompt_state->prompt_buffer());
+              // TODO(easy, 2024-09-18): Avoid wrapping here, set `prompt`
+              // already as Line.
+              prompt_state->status().set_prompt(
+                  LineBuilder{SingleLine{options.prompt}}.Build(),
+                  prompt_state->prompt_buffer());
               EnterInsertMode(prompt_state->insert_mode_options());
 
               prompt_state->OnModify();

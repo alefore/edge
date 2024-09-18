@@ -26,7 +26,7 @@ const bool prompt_tests_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
             Status status(editor->audio_player());
             gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
-            status.set_prompt(LazyString{L">"}, prompt);
+            status.set_prompt(Line{SingleLine{LazyString{L">"}}}, prompt);
             status.InsertError(Error{LazyString{L"Foobar"}});
             CHECK(status.text().ToString() == L">");
             CHECK(&status.prompt_buffer().value().ptr().value() ==
@@ -36,7 +36,7 @@ const bool prompt_tests_registration = tests::Register(
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         Status status(editor->audio_player());
         gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
-        status.set_prompt(LazyString{L">"}, prompt);
+        status.set_prompt(Line{SingleLine{LazyString{L">"}}}, prompt);
         auto value = status.SetExpiringInformationText(
             Line{SingleLine{LazyString{L"Foobar"}}});
         CHECK(status.text().ToString() == L">");

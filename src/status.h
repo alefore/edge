@@ -42,7 +42,7 @@ class Status {
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
 
-  void set_prompt(language::lazy_string::LazyString text,
+  void set_prompt(language::text::Line text,
                   language::gc::Root<OpenBuffer> buffer);
 
   // Sets the context buffer.

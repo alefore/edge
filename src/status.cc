@@ -117,13 +117,11 @@ Status::Type Status::GetType() const {
   return data_->type;
 }
 
-void Status::set_prompt(LazyString text, gc::Root<OpenBuffer> buffer) {
+void Status::set_prompt(Line text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
-  // TODO(easy, 2024-09-17): Don't receive text as LazyString. Don't wrap it
-  // here with SingleLine.
   data_ = MakeNonNullShared<Data>(
       Data{.type = Status::Type::kPrompt,
-           .text = LineBuilder{SingleLine{std::move(text)}}.Build(),
+           .text = std::move(text),
            .prompt_buffer = std::move(buffer),
            .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();
