@@ -76,13 +76,6 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   return os;
 }
 
-template <typename A>
-ValueOrError<A> operator+(ValueOrError<A> x, ValueOrError<A> y) {
-  if (IsError(x)) return std::get<Error>(x);
-  if (IsError(y)) return std::get<Error>(y);
-  return ValueOrDie(std::move(x)) + ValueOrDie(std::move(y));
-}
-
 class ParseState {
   gc::Pool& pool_;
   const std::vector<Token>& tokens_;

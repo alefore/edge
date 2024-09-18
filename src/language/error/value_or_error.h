@@ -158,6 +158,16 @@ ValueOrError<T> FromOptional(std::optional<T> value) {
   if (value.has_value()) return value.value();
   return Error{language::lazy_string::LazyString{L"No value."}};
 }
+
 }  // namespace error
 }  // namespace afc::language
+// Monadic operator+.
+template <typename A>
+afc::language::ValueOrError<A> operator+(afc::language::ValueOrError<A> x,
+                                         afc::language::ValueOrError<A> y) {
+  if (afc::language::IsError(x)) return std::get<afc::language::Error>(x);
+  if (afc::language::IsError(y)) return std::get<afc::language::Error>(y);
+  return afc::language::ValueOrDie(std::move(x)) +
+         afc::language::ValueOrDie(std::move(y));
+}
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__
