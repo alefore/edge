@@ -48,6 +48,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -341,11 +342,14 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
 
   buffer_object_type.ptr()->AddField(
       Identifier{LazyString{L"SetStatus"}},
-      vm::NewCallback(pool, kPurityTypeUnknown,
-                      [](gc::Ptr<OpenBuffer> buffer, LazyString s) {
-                        buffer->status().SetInformationText(
-                            LineBuilder{s}.Build());
-                      })
+      vm::NewCallback(
+          pool, kPurityTypeUnknown,
+          [](gc::Ptr<OpenBuffer> buffer, LazyString s) -> PossibleError {
+            DECLARE_OR_RETURN(SingleLine line, SingleLine::New(s));
+            buffer->status().SetInformationText(
+                LineBuilder{std::move(line)}.Build());
+            return EmptyValue{};
+          })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
@@ -584,14 +588,17 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             buffer->AppendLines(container::MaterializeVector(
                 Tracker::GetData() |
                 std::views::transform([](Tracker::Data data) -> const Line {
-                  return LineBuilder(
-                             LazyString{L"\""} + LazyString{data.name} +
-                             LazyString{L"\","} +
-                             LazyString{std::to_wstring(data.executions)} +
-                             LazyString{L","} +
-                             LazyString{std::to_wstring(data.seconds)} +
-                             LazyString{L","} +
-                             LazyString{std::to_wstring(data.longest_seconds)})
+                  return LineBuilder(SingleLine{LazyString{L"\""}} +
+                                     SingleLine{LazyString{data.name}} +
+                                     SingleLine{LazyString{L"\","}} +
+                                     SingleLine{LazyString{
+                                         std::to_wstring(data.executions)}} +
+                                     SingleLine{LazyString{L","}} +
+                                     SingleLine{LazyString{
+                                         std::to_wstring(data.seconds)}} +
+                                     SingleLine{LazyString{L","}} +
+                                     SingleLine{LazyString{std::to_wstring(
+                                         data.longest_seconds)}})
                       .Build();
                 })));
           })

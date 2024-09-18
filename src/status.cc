@@ -25,6 +25,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -118,9 +119,11 @@ Status::Type Status::GetType() const {
 
 void Status::set_prompt(LazyString text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
+  // TODO(easy, 2024-09-17): Don't receive text as LazyString. Don't wrap it
+  // here with SingleLine.
   data_ = MakeNonNullShared<Data>(
       Data{.type = Status::Type::kPrompt,
-           .text = LineBuilder(std::move(text)).Build(),
+           .text = LineBuilder{SingleLine{std::move(text)}}.Build(),
            .prompt_buffer = std::move(buffer),
            .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();

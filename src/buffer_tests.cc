@@ -23,6 +23,7 @@ using afc::language::Pointer;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -129,7 +130,7 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                auto buffer = NewBufferForTests(editor.value());
-               LineBuilder options{LazyString{L"foo"}};
+               LineBuilder options{SingleLine{LazyString{L"foo"}}};
                options.SetMetadata(
                    {{LazyString{},
                      language::text::LineMetadataEntry{

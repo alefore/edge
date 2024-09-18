@@ -283,8 +283,9 @@ void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
     if (std::regex_match(full_path, noise_regex)) {
       continue;
     }
+    // TODO(easy, 2024-09-17): Avoid the SingleLine here. Maybe escape it?
     output_lines.push_back(
-        LineBuilder{LazyString{std::move(full_path)}}.Build(),
+        LineBuilder{SingleLine{LazyString{std::move(full_path)}}}.Build(),
         MutableLineSequence::ObserverBehavior::kHide);
     ++*matches;
     if (*matches % 100 == 0)
@@ -440,7 +441,9 @@ Predictor PrecomputedPredictor(const std::vector<LazyString>& predictions,
     for (auto it = contents->lower_bound(input.input); it != contents->end();
          ++it) {
       if (StartsWith((*it).first, input.input)) {
-        output_contents.push_back(LineBuilder(it->second).Build());
+        // TODO(trivial, 2024-09-17): Avoid SingleLine here. Contents should
+        // already contain SingleLine.
+        output_contents.push_back(LineBuilder{SingleLine{it->second}}.Build());
       } else {
         break;
       }
@@ -542,7 +545,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
       SortedLineSequence(dictionary_root.ptr()->contents().snapshot()));
 
   return [contents](PredictorInput input) {
-    Line input_line = LineBuilder(input.input).Build();
+    // TODO(trivial, 2024-09-17): Change input.input to already be SingleLine.
+    Line input_line = LineBuilder{SingleLine{input.input}}.Build();
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).

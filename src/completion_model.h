@@ -10,12 +10,13 @@
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
 struct DictionaryKey
     : public language::GhostType<DictionaryKey,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::SingleLine> {
   using GhostType::GhostType;
 };
 

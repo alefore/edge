@@ -193,20 +193,25 @@ class HelpCommand : public Command {
         SingleLine{LazyString{L"bool"}}, buffer, output,
         buffer_variables::BoolStruct(),
         [](const bool& value) {
-          return value ? LazyString{L"true"} : LazyString{L"false"};
+          return value ? SingleLine{LazyString{L"true"}}
+                       : SingleLine{LazyString{L"false"}};
         },
         &OpenBuffer::Read);
     DescribeVariables(
         SingleLine{LazyString{L"string"}}, buffer, output,
         buffer_variables::StringStruct(),
         [](const LazyString& value) {
-          return LazyString{L"`"} + value + LazyString{L"`"};
+          return SingleLine{LazyString{L"`"}} +
+                 vm::EscapedString(value).EscapedRepresentation() +
+                 SingleLine{LazyString{L"`"}};
         },
         &OpenBuffer::ReadLazyString);
     DescribeVariables(
         SingleLine{LazyString{L"int"}}, buffer, output,
         buffer_variables::IntStruct(),
-        [](const int& value) { return LazyString{std::to_wstring(value)}; },
+        [](const int& value) {
+          return SingleLine{LazyString{std::to_wstring(value)}};
+        },
         &OpenBuffer::Read);
 
     CommandLineVariables(output);
@@ -276,15 +281,18 @@ class HelpCommand : public Command {
             std::stringstream value_stream;
             value_stream << value;
             const static ColumnNumberDelta kPaddingSize{40};
-            LazyString padding{field_name.read().size() > kPaddingSize
-                                   ? ColumnNumberDelta{}
-                                   : kPaddingSize - field_name.read().size(),
-                               L' '};
+            SingleLine padding{
+                LazyString{field_name.read().size() > kPaddingSize
+                               ? ColumnNumberDelta{}
+                               : kPaddingSize - field_name.read().size(),
+                           L' '}};
             output.push_back(LineBuilder{
-                LazyString{L"* `"} + field_name.read() + LazyString{L"`"} +
-                std::move(padding) + LazyString{L"`"} +
-                LazyString{FromByteString(value_stream.str())} +
-                LazyString{L"`"}}.Build());
+                SingleLine{LazyString{L"* `"}} + SingleLine{field_name.read()} +
+                SingleLine{LazyString{L"`"}} + std::move(padding) +
+                SingleLine{LazyString{L"`"}} +
+                SingleLine{LazyString{FromByteString(value_stream.str())}} +
+                SingleLine{LazyString{
+                    L"`"}}}.Build());
           });
       output.push_back(L"");
     });
@@ -302,15 +310,19 @@ class HelpCommand : public Command {
           std::stringstream value_stream;
           value_stream << value.value();
           const static ColumnNumberDelta kPaddingSize{40};
-          LazyString padding{name.read().size() > kPaddingSize
-                                 ? ColumnNumberDelta{}
-                                 : kPaddingSize - name.read().size(),
-                             L' '};
+          SingleLine padding{LazyString{name.read().size() > kPaddingSize
+                                            ? ColumnNumberDelta{}
+                                            : kPaddingSize - name.read().size(),
+                                        L' '}};
+          // TODO(trivial, 2024-09-17): Change vm::Identifier to SingleLine,
+          // avoid wrapping it here.
           output.push_back(LineBuilder{
-              LazyString{L"* `"} + name.read() + LazyString{L"`"} +
-              std::move(padding) + LazyString{L"`"} +
-              LazyString{FromByteString(value_stream.str())} +
-              LazyString{L"`"}}.Build());
+              SingleLine{LazyString{L"* `"}} + SingleLine{name.read()} +
+              SingleLine{LazyString{L"`"}} + std::move(padding) +
+              SingleLine{LazyString{L"`"}} +
+              SingleLine{LazyString{FromByteString(value_stream.str())}} +
+              SingleLine{LazyString{
+                  L"`"}}}.Build());
         });
     output.push_back(L"");
   }
@@ -324,17 +336,20 @@ class HelpCommand : public Command {
       const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
     StartSection(SingleLine{LazyString{L"### "}} + type_name, output);
     for (const auto& variable : variables->variables()) {
-      output.push_back(LineBuilder{LazyString{L"#### "} +
-                                   LazyString{variable.second->name()}}
-                           .Build());
+      // TODO(trivial, 2024-09-17): Stop wrapping variable.second->name in
+      // SingleLine here.
+      output.push_back(
+          LineBuilder{SingleLine{LazyString{L"#### "}} +
+                      SingleLine{LazyString{variable.second->name()}}}
+              .Build());
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
       output.push_back(
-          LineBuilder{LazyString{L"* Value: "} +
+          LineBuilder{SingleLine{LazyString{L"* Value: "}} +
                       print((source.*reader)(&variable.second.value()))}
               .Build());
-      output.push_back(LineBuilder{LazyString{L"* Default: "} +
+      output.push_back(LineBuilder{SingleLine{LazyString{L"* Default: "}} +
                                    print(variable.second->default_value())}
                            .Build());
 

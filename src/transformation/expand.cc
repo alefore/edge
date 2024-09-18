@@ -121,10 +121,13 @@ class PredictorTransformation : public CompositeTransformation {
                 ColumnNumber(0), results->predictor_output.longest_prefix);
             if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
+              // TODO(trivial, 2024-09-17: Change `prefix` to already be a
+              // SingleLine, to avoid crashing here if it has \n.
               buffer.status().SetInformationText(LineBuilder{
-                  LazyString{
-                      L"No matches found. Longest prefix with matches: \""} +
-                  prefix + LazyString{L"\""}}.Build());
+                  SingleLine{LazyString{
+                      L"No matches found. Longest prefix with matches: \""}} +
+                  SingleLine{prefix} +
+                  SingleLine{LazyString{L"\""}}}.Build());
             }
             return Output();
           }

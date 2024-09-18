@@ -17,6 +17,7 @@ using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -125,10 +126,14 @@ bool find_token_tests = tests::Register(
 SortedLineSequenceUniqueLines TransformLines(const LazyString& input,
                                              const Token& token,
                                              LineSequence lines) {
-  LineBuilder head(input);
+  // TODO(easy, 2024-09-17): `input` should already be SingleLine, avoid
+  // wrapping here.
+  LineBuilder head{SingleLine{input}};
   head.DeleteSuffix(token.begin);
 
-  LineBuilder tail(input);
+  // TODO(easy, 2024-09-17): `input` should already be SingleLine, avoid
+  // wrapping here.
+  LineBuilder tail{SingleLine{input}};
   tail.DeleteCharacters(ColumnNumber(), token.end.ToDelta());
   return SortedLineSequenceUniqueLines(
       SortedLineSequence(lines.Map([&](const Line& expansion) -> Line {

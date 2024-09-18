@@ -76,11 +76,12 @@ struct NavigateOperation {
 LineBuilder DescribeForStatus(const NavigateOperation& operation) {
   switch (operation.type) {
     case NavigateOperation::Type::kForward:
-      return LineBuilder{LazyString{L"⮞"}};
+      return LineBuilder{SingleLine{LazyString{L"⮞"}}};
     case NavigateOperation::Type::kBackward:
-      return LineBuilder{LazyString{L"⮜"}};
+      return LineBuilder{SingleLine{LazyString{L"⮜"}}};
     case NavigateOperation::Type::kNumber:
-      return LineBuilder{LazyString{std::to_wstring(operation.number + 1)}};
+      return LineBuilder{
+          SingleLine{LazyString{std::to_wstring(operation.number + 1)}}};
     default:
       LOG(FATAL) << "Invalid operation type.";
       return LineBuilder{};
@@ -176,7 +177,7 @@ SearchRange GetRange(const NavigateState& navigate_state,
 }
 
 Line BuildStatus(const NavigateState& state) {
-  LineBuilder output{LazyString{L"navigate"}};
+  LineBuilder output{SingleLine{LazyString{L"navigate"}}};
   for (const auto& operation : state.operations) {
     output.AppendString(LazyString{L" "});
     output.Append(DescribeForStatus(operation));

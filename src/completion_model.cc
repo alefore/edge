@@ -27,6 +27,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -50,7 +51,7 @@ ValueOrError<ParsedLine> Parse(const Line& line) {
       [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
         return ParsedLine{
             .key = DictionaryKey(
-                line.Substring(ColumnNumber(), first_space.ToDelta()).read()),
+                line.Substring(ColumnNumber(), first_space.ToDelta())),
             .value = DictionaryValue{
                 line.Substring(first_space + ColumnNumberDelta(1)).read()}};
       },
@@ -93,7 +94,7 @@ std::optional<DictionaryValue> FindCompletionInModel(
   VLOG(3) << "Starting completion with model with size: "
           << contents.lines().size() << " token: " << compressed_text;
   LineSequenceIterator line_it =
-      contents.upper_bound(LineBuilder(compressed_text.read()).Build());
+      contents.upper_bound(LineBuilder{compressed_text.read()}.Build());
 
   if (line_it == contents.lines().end()) return std::nullopt;
 
@@ -107,7 +108,7 @@ std::optional<DictionaryValue> FindCompletionInModel(
               return std::nullopt;
             }
 
-            if (compressed_text.read() == parsed_line.value.read()) {
+            if (compressed_text.read().read() == parsed_line.value.read()) {
               VLOG(4) << "Found a match, but the line has compressed text "
                          "identical to parsed text, so we'll skip it.";
               return std::nullopt;
@@ -126,28 +127,31 @@ const bool find_completion_tests_registration = tests::Register(
     {{.name = L"EmptyModel",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(SortedLineSequence(LineSequence()),
-                                        DictionaryKey(LazyString{L"foo"})) ==
+            CHECK(FindCompletionInModel(
+                      SortedLineSequence(LineSequence()),
+                      DictionaryKey{SingleLine{LazyString{L"foo"}}}) ==
                   std::nullopt);
           }},
      {.name = L"NoMatch",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                        DictionaryKey(LazyString{L"foo"})) ==
+            CHECK(FindCompletionInModel(
+                      CompletionModelForTests(),
+                      DictionaryKey{SingleLine{LazyString{L"foo"}}}) ==
                   std::nullopt);
           }},
      {.name = L"Match",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                        DictionaryKey(LazyString{L"f"})) ==
+            CHECK(FindCompletionInModel(
+                      CompletionModelForTests(),
+                      DictionaryKey{SingleLine{LazyString{L"f"}}}) ==
                   DictionaryValue{LazyString{L"fox"}});
           }},
      {.name = L"IdenticalMatch", .callback = [] {
-        CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                    DictionaryKey(LazyString{L"i"})) ==
-              std::nullopt);
+        CHECK(FindCompletionInModel(
+                  CompletionModelForTests(),
+                  DictionaryKey{SingleLine{LazyString{L"i"}}}) == std::nullopt);
       }}});
 }  // namespace
 
@@ -172,7 +176,7 @@ DictionaryManager::FindWordDataWithIndex(
   if (index == models_list->size())
     return futures::Past(
         data->lock([&](const Data& locked_data) -> QueryOutput {
-          DictionaryValue text{compressed_text.read()};
+          DictionaryValue text{compressed_text.read().read()};
           if (auto text_it = locked_data.reverse_table.find(text);
               text_it != locked_data.reverse_table.end()) {
             for (const Path& path : *models_list)
@@ -237,7 +241,7 @@ DictionaryManager::FindWordDataWithIndex(
   std::ranges::for_each(
       contents | std::views::transform(Parse) | language::view::SkipErrors |
           std::views::filter([](const ParsedLine& entry) {
-            return entry.key.read() != entry.value.read();
+            return entry.key.read().read() != entry.value.read();
           }),
       [&path, &data](const ParsedLine& entry) {
         data.reverse_table[entry.value].insert({path, entry.key});
@@ -269,7 +273,8 @@ const bool completion_model_manager_tests_registration =
             for (const std::wstring& path : models)
               model_paths.push_back(ValueOrDie(Path::New(LazyString{path})));
             return manager
-                ->Query(model_paths, DictionaryKey(LazyString{compressed_text}))
+                ->Query(model_paths,
+                        DictionaryKey{SingleLine{LazyString{compressed_text}}})
                 .Get();
           };
       return std::vector<tests::Test>(
@@ -305,7 +310,7 @@ const bool completion_model_manager_tests_registration =
                   CHECK(paths.value() == std::vector<Path>{ValueOrDie(
                                              Path::New(LazyString{L"en"}))});
                   CHECK_EQ(std::get<DictionaryKey>(output),
-                           DictionaryKey{LazyString{L"f"}});
+                           DictionaryKey{SingleLine{LazyString{L"f"}}});
                 }},
            {.name = L"RepeatedQuerySameModel",
             .callback =

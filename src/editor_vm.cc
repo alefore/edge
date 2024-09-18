@@ -385,11 +385,14 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier{LazyString{L"SetStatus"}},
-      vm::NewCallback(pool, kPurityTypeUnknown,
-                      [](EditorState& editor_arg, LazyString s) {
-                        editor_arg.status().SetInformationText(
-                            LineBuilder{s}.Build());
-                      })
+      vm::NewCallback(
+          pool, kPurityTypeUnknown,
+          [](EditorState& editor_arg, LazyString s) -> PossibleError {
+            DECLARE_OR_RETURN(SingleLine line, SingleLine::New(s));
+            editor_arg.status().SetInformationText(
+                LineBuilder{std::move(line)}.Build());
+            return EmptyValue{};
+          })
           .ptr());
 
   editor_type.ptr()->AddField(

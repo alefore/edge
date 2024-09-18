@@ -34,7 +34,7 @@ class SortedLineSequence {
       const std::function<FilterPredicateResult(const language::text::Line&)>&
           predicate) const;
 
-  bool contains(lazy_string::LazyString line) const;
+  bool contains(lazy_string::SingleLine line) const;
 
  private:
   friend class SortedLineSequenceUniqueLines;

@@ -361,15 +361,21 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        insert_line(line_number,
-                    LineBuilder{LazyString{std::move(text.value)}}.Build());
+        // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will
+        // crash.
+        insert_line(
+            line_number,
+            LineBuilder{SingleLine{LazyString{std::move(text.value)}}}.Build());
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        set_line(line_number,
-                 LineBuilder{LazyString{std::move(text.value)}}.Build());
+        // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will
+        // crash.
+        set_line(
+            line_number,
+            LineBuilder{SingleLine{LazyString{std::move(text.value)}}}.Build());
       })));
 
   // TODO: Call sort.
@@ -407,8 +413,11 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
         FoldNextLine(LineNumber(line % (size() + kMargin)));
       })));
 
-  output.push_back(Call(std::function<void(ShortRandomLine)>(
-      [this](ShortRandomLine s) { push_back(LineBuilder{s.value}.Build()); })));
+  // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will crash.
+  output.push_back(
+      Call(std::function<void(ShortRandomLine)>([this](ShortRandomLine s) {
+        push_back(LineBuilder{SingleLine{s.value}}.Build());
+      })));
 
   return output;
 }

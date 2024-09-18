@@ -222,7 +222,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     count++;
   }
 
-  if (count == 0) return LineBuilder{LazyString{L" "}};
+  if (count == 0) return LineBuilder{SingleLine{LazyString{L" "}}};
 
   LazyString output_str{ColumnNumberDelta{1}, L'0' + count};
   LineModifierSet modifiers;
@@ -418,7 +418,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (target_buffer.get() != &options.buffer) {
     output.push_back(MetadataLine{
         info_char, info_char_modifier,
-        LineBuilder(OpenBuffer::FlagsToString(target_buffer->Flags())).Build(),
+        // TODO(trivial, 2024-09-17): Change FlagsToString to return a Line
+        // already, avoid this wrapping.
+        LineBuilder{
+            SingleLine{OpenBuffer::FlagsToString(target_buffer->Flags())}}
+            .Build(),
         MetadataLine::Type::kFlags});
 #if 0
   } else if (contents.modified()) {
@@ -429,6 +433,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     info_char_modifier = LineModifier::kDim;
   }
 
+  // TODO(trivial, 2024-09-17): Build `metadata` already as a SingleLine. Avoid
+  // the need to wrap it below.
   if (LazyString metadata = Concatenate(
           std::views::transform(
               contents.metadata(),
@@ -442,7 +448,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
           std::views::filter(&LazyString::empty));
       !metadata.empty())
     output.push_back(MetadataLine{L'>', LineModifier::kGreen,
-                                  LineBuilder(metadata).Build(),
+                                  LineBuilder{SingleLine{metadata}}.Build(),
                                   MetadataLine::Type::kLineContents});
 
   auto call_generic_marks_logic =
@@ -488,7 +494,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForExpiredMark);
     if (const Line& mark_contents = mark.source_line_content;
         !marks_strings.contains(mark_contents.contents())) {
-      LineBuilder wrapper(LazyString{L"👻 "});
+      LineBuilder wrapper{SingleLine{LazyString{L"👻 "}}};
       wrapper.Append(LineBuilder(mark_contents));
       output.push_back(MetadataLine{'!', LineModifier::kRed,
                                     std::move(wrapper).Build(),

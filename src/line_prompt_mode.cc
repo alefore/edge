@@ -206,8 +206,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
         if (!output.errors.empty()) {
           editor_state.work_queue()->DeleteLater(
               AddSeconds(Now(), 1.0),
-              editor_state.status().SetExpiringInformationText(
-                  LineBuilder{output.errors.front().read()}.Build()));
+              editor_state.status().SetExpiringInformationText(LineBuilder{
+                  SingleLine{output.errors.front().read()}}.Build()));
         }
         if (!abort_value.has_value()) {
           filter_buffer.AppendLines(container::MaterializeVector(
@@ -768,7 +768,10 @@ InsertModeOptions PromptState::insert_mode_options() {
                             .initiator =
                                 transformation::Delete::Initiator::kInternal});
 
-                    LazyString line{results.value().common_prefix.value()};
+                    // TODO(easy, 2024-09-17): Change common_prefix to be
+                    // SingleLine, avoid wrapping it here.
+                    SingleLine line{
+                        LazyString{results.value().common_prefix.value()}};
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(

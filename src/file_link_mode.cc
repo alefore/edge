@@ -171,9 +171,9 @@ futures::Value<PossibleError> Save(
             .Transform([stat_buffer, options, buffer, path](EmptyValue) {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
-                  buffer.ptr()->status().SetInformationText(
-                      LineBuilder(LazyString{L"🖫 Saved: "} + path.read())
-                          .Build());
+                  buffer.ptr()->status().SetInformationText(LineBuilder{
+                      SingleLine{LazyString{L"🖫 Saved: "}} +
+                      SingleLine{path.read()}}.Build());
                   // TODO(easy): Move this to the caller, for symmetry with
                   // kBackup case.
                   // TODO: Since the save is async, what if the contents have

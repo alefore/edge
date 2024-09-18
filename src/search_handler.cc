@@ -420,14 +420,14 @@ void HandleSearchResults(
 
   size_t size = results->size();
   buffer.status().SetInformationText(
-      size == 1
-          ? Line{SingleLine{LazyString{L"🔍 1 result."}}}
-          : LineBuilder{LazyString{ColumnNumberDelta(
-                                       1 + static_cast<size_t>(log2(size))),
-                                   L'🔍'} +
-                        LazyString{L" Results: "} +
-                        LazyString{std::to_wstring(size)}}
-                .Build());
+      size == 1 ? Line{SingleLine{LazyString{L"🔍 1 result."}}}
+                : LineBuilder{SingleLine{LazyString{
+                                  ColumnNumberDelta(
+                                      1 + static_cast<size_t>(log2(size))),
+                                  L'🔍'}} +
+                              SingleLine{LazyString{L" Results: "}} +
+                              SingleLine{LazyString{std::to_wstring(size)}}}
+                      .Build());
   std::vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),
       audio::Frequency(493.88), audio::Frequency(523.25),

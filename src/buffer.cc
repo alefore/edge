@@ -604,18 +604,18 @@ void OpenBuffer::SendEndOfFileToProcess() {
     char str[1] = {4};
     if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
       status().SetInformationText(LineBuilder{
-          LazyString{L"Sending EOF failed: "} +
-          LazyString{FromByteString(
-              strerror(errno))}}.Build());
+          SingleLine{LazyString{L"Sending EOF failed: "}} +
+          SingleLine{LazyString{FromByteString(
+              strerror(errno))}}}.Build());
       return;
     }
     status().SetInformationText(Line{SingleLine{LazyString{L"EOF sent"}}});
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
       status().SetInformationText(LineBuilder{
-          LazyString{L"shutdown(SHUT_WR) failed: "} +
-          LazyString{FromByteString(
-              strerror(errno))}}.Build());
+          SingleLine{LazyString{L"shutdown(SHUT_WR) failed: "}} +
+          SingleLine{LazyString{FromByteString(
+              strerror(errno))}}}.Build());
       return;
     }
     status().SetInformationText(Line{SingleLine{LazyString{L"shutdown sent"}}});
@@ -1090,7 +1090,10 @@ void OpenBuffer::AppendLine(LazyString str) {
 
 void OpenBuffer::AppendRawLine(
     LazyString str, MutableLineSequence::ObserverBehavior observer_behavior) {
-  AppendRawLine(LineBuilder(std::move(str)).Build(), observer_behavior);
+  // TODO(trivial, 2024-09-17): Avoid having to wrap `str` in Singleline. It
+  // should already be SingleLine.
+  AppendRawLine(LineBuilder(SingleLine{std::move(str)}).Build(),
+                observer_behavior);
 }
 
 void OpenBuffer::AppendRawLine(
@@ -1102,7 +1105,9 @@ void OpenBuffer::AppendRawLine(
 }
 
 void OpenBuffer::AppendToLastLine(LazyString str) {
-  AppendToLastLine(LineBuilder(std::move(str)).Build());
+  // TODO(trivial, 2024-09-17): Avoid having to wrap `str` in Singleline. It
+  // should already be SingleLine.
+  AppendToLastLine(LineBuilder{SingleLine{std::move(str)}}.Build());
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {
@@ -1275,8 +1280,8 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   if (line.EndColumn() > position.column + ColumnNumberDelta(1)) return;
 
   LineBuilder options(line);
-  options.Append(LineBuilder{LazyString{
-      position.column - line.EndColumn() + ColumnNumberDelta(1), L' '}});
+  options.Append(LineBuilder{SingleLine{LazyString{
+      position.column - line.EndColumn() + ColumnNumberDelta(1), L' '}}});
   contents_.set_line(position.line, std::move(options).Build());
 }
 
@@ -1343,8 +1348,10 @@ void OpenBuffer::ToggleActiveCursors() {
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
   status_.SetInformationText(LineBuilder{
-      LazyString{L"cursors stack ("} + LazyString{std::to_wstring(stack_size)} +
-      LazyString{L"): +"}}.Build());
+      SingleLine{LazyString{L"cursors stack ("}} +
+      SingleLine{LazyString{std::to_wstring(stack_size)}} +
+      SingleLine{
+          LazyString{L"): +"}}}.Build());
 }
 
 void OpenBuffer::PopActiveCursors() {
@@ -1355,9 +1362,10 @@ void OpenBuffer::PopActiveCursors() {
     return;
   }
   status_.SetInformationText(LineBuilder{
-      LazyString{L"cursors stack ("} +
-      LazyString{std::to_wstring(stack_size - 1)} +
-      LazyString{L"): -"}}.Build());
+      SingleLine{LazyString{L"cursors stack ("}} +
+      SingleLine{LazyString{std::to_wstring(stack_size - 1)}} +
+      SingleLine{
+          LazyString{L"): -"}}}.Build());
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
@@ -1711,9 +1719,9 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
     case SIGINT:
       if (child_pid_ != std::nullopt) {
         status_.SetInformationText(LineBuilder{
-            LazyString{L"SIGINT >> pid:"} +
-            LazyString{std::to_wstring(
-                child_pid_->read())}}.Build());
+            SingleLine{LazyString{L"SIGINT >> pid:"}} +
+            SingleLine{LazyString{std::to_wstring(
+                child_pid_->read())}}}.Build());
         file_system_driver().Kill(child_pid_.value(), signal);
         return;
       }
@@ -2021,10 +2029,13 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          case RemoteURLBehavior::kLaunchBrowser:
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
-                               editor.status().SetExpiringInformationText(
-                                   LineBuilder{LazyString{L"Open: "} +
-                                               url.read()}
-                                       .Build()));
+                               // TODO(trivial, 2024-09-17): Avoid SingleLine of
+                               // URL here. Change URL to be SingleLine, or use
+                               // EscapedString?
+                               editor.status()
+                                   .SetExpiringInformationText(LineBuilder{
+                                       SingleLine{LazyString{L"Open: "}} +
+                                       SingleLine{url.read()}}.Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
                            // std::wstring from the URL's LazyString.

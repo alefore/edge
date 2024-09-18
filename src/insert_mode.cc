@@ -647,19 +647,20 @@ class InsertMode : public InputReceiver {
                  completion_model_supplier_](OpenBuffer& buffer) {
               CHECK(buffer.fd() == nullptr);
               return std::visit(
-                  overload{
-                      [&](OpenBufferNoPasteMode buffer_input) {
-                        return ApplyCompletionModel(modify_mode,
-                                                    completion_model_supplier,
-                                                    buffer_input);
-                      },
-                      [&](OpenBufferPasteMode buffer_input) {
-                        return buffer_input.value.ApplyToCursors(
-                            transformation::Insert{
-                                .contents_to_insert = LineSequence::WithLine(
-                                    LineBuilder{LazyString{L" "}}.Build()),
-                                .modifiers = {.insertion = modify_mode}});
-                      }},
+                  overload{[&](OpenBufferNoPasteMode buffer_input) {
+                             return ApplyCompletionModel(
+                                 modify_mode, completion_model_supplier,
+                                 buffer_input);
+                           },
+                           [&](OpenBufferPasteMode buffer_input) {
+                             return buffer_input.value.ApplyToCursors(
+                                 transformation::Insert{
+                                     .contents_to_insert =
+                                         LineSequence::WithLine(LineBuilder{
+                                             SingleLine{
+                                                 LazyString{L" "}}}.Build()),
+                                     .modifiers = {.insertion = modify_mode}});
+                           }},
                   GetPasteModeVariant(buffer));
             });
         return 1;
@@ -724,7 +725,7 @@ class InsertMode : public InputReceiver {
                                    [&](DictionaryKey key) {
                                      ShowSuggestion(
                                          buffer_root.ptr().value(), key,
-                                         DictionaryValue{token.read()});
+                                         DictionaryValue{token.read().read()});
                                    },
                                    [&](DictionaryValue value) {
                                      ShowSuggestion(buffer_root.ptr().value(),
@@ -931,13 +932,11 @@ class InsertMode : public InputReceiver {
 
   static DictionaryKey GetCompletionToken(const LineSequence& buffer_contents,
                                           LineRange token_range) {
-    DictionaryKey output{
-        LowerCase(buffer_contents.at(token_range.line())
-                      .contents()
-                      .Substring(token_range.begin_column(),
-                                 token_range.end_column() -
-                                     token_range.begin_column()))
-            .read()};
+    DictionaryKey output{LowerCase(
+        buffer_contents.at(token_range.line())
+            .contents()
+            .Substring(token_range.begin_column(),
+                       token_range.end_column() - token_range.begin_column()))};
     VLOG(6) << "Found completion token: " << output;
     return output;
   }
@@ -947,8 +946,12 @@ class InsertMode : public InputReceiver {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
         buffer.status().SetExpiringInformationText(LineBuilder{
-            LazyString{L"`"} + key.read() + LazyString{L"` is an alias for `"} +
-            value.read() + LazyString{L"`"}}.Build()));
+            SingleLine{LazyString{L"`"}} + key.read() +
+            SingleLine{LazyString{L"` is an alias for `"}} +
+            // TODO(easy, 2024-09-17): Either change value to be SingleLine or
+            // avoid the potential crash here (if value has \n).
+            SingleLine{value.read()} +
+            SingleLine{LazyString{L"`"}}}.Build()));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
@@ -959,10 +962,11 @@ class InsertMode : public InputReceiver {
     const LineColumn position =
         buffer.value.contents().AdjustLineColumn(buffer.value.position());
     LineRange token_range = GetTokenRange(buffer.value);
-    futures::Value<EmptyValue> output = buffer.value.ApplyToCursors(
-        transformation::Insert{.contents_to_insert = LineSequence::WithLine(
-                                   LineBuilder{LazyString{L" "}}.Build()),
-                               .modifiers = {.insertion = modify_mode}});
+    futures::Value<EmptyValue> output =
+        buffer.value.ApplyToCursors(transformation::Insert{
+            .contents_to_insert = LineSequence::WithLine(
+                LineBuilder{SingleLine{LazyString{L" "}}}.Build()),
+            .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {
       VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
@@ -1016,8 +1020,8 @@ class InsertMode : public InputReceiver {
                     .initiator = transformation::Delete::Initiator::kInternal});
                 const ColumnNumberDelta completion_text_size = value.size();
                 stack.push_back(transformation::Insert{
-                    .contents_to_insert = LineSequence::WithLine(
-                        LineBuilder(std::move(value).read()).Build()),
+                    .contents_to_insert =
+                        LineSequence::BreakLines(std::move(value).read()),
                     .modifiers = {.insertion = modify_mode},
                     .position = token_range.read().begin()});
                 stack.push_back(transformation::SetPosition(
@@ -1027,7 +1031,7 @@ class InsertMode : public InputReceiver {
               },
               [buffer_root, token](DictionaryKey key) {
                 ShowSuggestion(buffer_root.ptr().value(), key,
-                               DictionaryValue{token.read()});
+                               DictionaryValue{token.read().read()});
                 return futures::Past(EmptyValue());
               },
               [](DictionaryManager::NothingFound) {

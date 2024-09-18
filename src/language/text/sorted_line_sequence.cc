@@ -2,6 +2,7 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/lowercase.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/mutable_line_sequence.h"
 
 using afc::language::lazy_string::LowerCase;
@@ -45,8 +46,8 @@ SortedLineSequence SortedLineSequence::FilterLines(
                             text::FilterLines(lines_, predicate), compare_);
 }
 
-bool SortedLineSequence::contains(lazy_string::LazyString key) const {
-  LineSequenceIterator it = upper_bound(LineBuilder(key).Build());
+bool SortedLineSequence::contains(lazy_string::SingleLine key) const {
+  LineSequenceIterator it = upper_bound(LineBuilder{key}.Build());
   if (it == lines().begin()) return false;
   --it;
   // TODO(trivial, 2024-09-16): Remove this SingleLine wrapper.

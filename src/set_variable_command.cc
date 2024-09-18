@@ -74,29 +74,26 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
   static const HistoryFile history_file{LazyString{L"values"}};
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
-    Prompt(
-        {.editor_state = editor_state,
-         .prompt = name + LazyString{L" := "},
-         .history_file = history_file,
-         .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
-         .handler =
-             [&editor_state, var](SingleLine input) {
-               editor_state.ResetRepetitions();
-               return editor_state.ForEachActiveBuffer(
-                   [var, input](OpenBuffer& buffer) {
-                     buffer.Set(var, input.read());
-                     buffer.status().SetInformationText(
-                         // TODO(trivial, 2024-09-13): Get rid of read():
-                         LineBuilder((SingleLine{var->name()} +
-                                      SingleLine{LazyString{L" := "}} + input)
-                                         .read())
-                             .Build());
-                     return futures::Past(EmptyValue());
-                   });
-             },
-         .cancel_handler = []() { /* Nothing. */ },
-         .predictor = var->predictor(),
-         .status = PromptOptions::Status::kBuffer});
+    Prompt({.editor_state = editor_state,
+            .prompt = name + LazyString{L" := "},
+            .history_file = history_file,
+            .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
+            .handler =
+                [&editor_state, var](SingleLine input) {
+                  editor_state.ResetRepetitions();
+                  return editor_state.ForEachActiveBuffer(
+                      [var, input](OpenBuffer& buffer) {
+                        buffer.Set(var, input.read());
+                        buffer.status().SetInformationText(
+                            LineBuilder{SingleLine{var->name()} +
+                                        SingleLine{LazyString{L" := "}} + input}
+                                .Build());
+                        return futures::Past(EmptyValue());
+                      });
+                },
+            .cancel_handler = []() { /* Nothing. */ },
+            .predictor = var->predictor(),
+            .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -104,9 +101,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
       var != nullptr) {
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
-    editor_state.status().SetInformationText(
-        LineBuilder(LazyString{editor_state.Read(var) ? L"🗸 " : L"⛶ "} + name)
-            .Build());
+    editor_state.status().SetInformationText(LineBuilder{
+        (editor_state.Read(var) ? SingleLine{LazyString{L"🗸 "}}
+                                : SingleLine{LazyString{L"⛶ "}}) +
+        // TODO(easy, 2024-09-17): `name` should already be SingleLine, avoid
+        // wrapping it.
+        SingleLine{name}}.Build());
     return futures::Past(EmptyValue());
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
@@ -140,10 +140,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     return editor_state
         .ForEachActiveBuffer([var, name](OpenBuffer& buffer) {
           buffer.toggle_bool_variable(var);
-          buffer.status().SetInformationText(
-              LineBuilder(LazyString{(buffer.Read(var) ? L"🗸 " : L"⛶ ")} +
-                          name)
-                  .Build());
+          // TODO(trivial, 2024-09-17): Avoid having to wrap `name` in
+          // SingleLine here.
+          buffer.status().SetInformationText(LineBuilder{
+              (buffer.Read(var) ? SingleLine{LazyString{L"🗸 "}}
+                                : SingleLine{LazyString{L"⛶ "}}) +
+              SingleLine{name}}.Build());
           return futures::Past(EmptyValue());
         })
         .Transform([&editor_state](EmptyValue) {

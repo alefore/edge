@@ -121,13 +121,11 @@ class MarkdownParser : public LineOrientedTreeParser {
                                  .at(original_position.line)
                                  .contents()
                                  .Substring(original_position.column, length);
-            // TODO(easy, 2024-09-10): Avoid call to `read` (operate directly on
-            // SingleLine).
-            result->PushAndPop(
-                length, dictionary_.lines().range().empty() ||
-                                dictionary_.contains(LowerCase(str).read())
-                            ? LineModifierSet{}
-                            : LineModifierSet{LineModifier::kRed});
+            result->PushAndPop(length,
+                               dictionary_.lines().range().empty() ||
+                                       dictionary_.contains(LowerCase(str))
+                                   ? LineModifierSet{}
+                                   : LineModifierSet{LineModifier::kRed});
           } else {
             seek.Once();
           }

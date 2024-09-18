@@ -221,17 +221,12 @@ auto parse_history_line_tests_registration = tests::Register(
     {{.name = L"BadQuote",
       .callback =
           [] {
-            // TODO(trivial, 2024-09-17): Avoid call to read: pass SingleLine
-            // directly to LineBuilder.
             CHECK(IsError(ParseBufferLine(
-                LineBuilder{SingleLine{LazyString{L"value:\""}}.read()}
-                    .Build())));
+                LineBuilder{SingleLine{LazyString{L"value:\""}}}.Build())));
           }},
      {.name = L"Empty", .callback = [] {
-        // TODO(trivial, 2024-09-17): Avoid call to read: pass SingleLine
-        // directly to LineBuilder.
         auto result = ValueOrDie(ParseBufferLine(
-            LineBuilder{SingleLine{LazyString{L"value:\"\""}}.read()}.Build()));
+            LineBuilder{SingleLine{LazyString{L"value:\"\""}}}.Build()));
         CHECK_EQ(result.find(HistoryIdentifierValue())->second,
                  EscapedString{});
       }}});
@@ -425,8 +420,10 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L""},
                        container::Materialize<LineSequence>(std::vector<Line>{
-                           LineBuilder{LazyString{L"value:\"foo\""}}.Build(),
-                           LineBuilder{LazyString{L"value:\"bar\\n\""}}
+                           LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
+                               .Build(),
+                           LineBuilder{
+                               SingleLine{LazyString{L"value:\"bar\\n\""}}}
                                .Build()}),
                        features});
                CHECK_EQ(output.matches.size(), 2ul);
@@ -445,8 +442,11 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"quux"},
                        container::Materialize<LineSequence>(std::vector<Line>{
-                           LineBuilder{LazyString{L"value:\"foobar\""}}.Build(),
-                           LineBuilder{LazyString{L"value:\"foo\""}}.Build()}),
+                           LineBuilder{
+                               SingleLine{LazyString{L"value:\"foobar\""}}}
+                               .Build(),
+                           LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
+                               .Build()}),
                        features});
                CHECK(output.matches.empty());
              }},
@@ -457,13 +457,13 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"nbar"},
-                       LineSequence::WithLine(
-                           LineBuilder{LazyString{L"value:\"foo\\nbardo\""}}
-                               .Build()),
+                       LineSequence::WithLine(LineBuilder{
+                           SingleLine{LazyString{L"value:\"foo\\nbardo\""}}}
+                                                  .Build()),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
 
-               LineBuilder expected_preview{LazyString{L"foo\\"}};
+               LineBuilder expected_preview{SingleLine{LazyString{L"foo\\"}}};
                expected_preview.AppendString(
                    LazyString{L"nbar"}, LineModifierSet{LineModifier::kCyan});
                expected_preview.AppendString(LazyString{L"do"});
@@ -481,9 +481,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"nbar"},
-                       LineSequence::WithLine(
-                           LineBuilder{LazyString{L"value:\"foo\\nbar\""}}
-                               .Build()),
+                       LineSequence::WithLine(LineBuilder{
+                           SingleLine{LazyString{L"value:\"foo\\nbar\""}}}
+                                                  .Build()),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
                CHECK_EQ(output.matches[0].preview.contents(),
@@ -497,12 +497,16 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"f"},
                        container::Materialize<LineSequence>(std::vector<Line>{
-                           LineBuilder{LazyString{L"value:\"foobar \\\""}}
+                           LineBuilder{
+                               SingleLine{LazyString{L"value:\"foobar \\\""}}}
                                .Build(),
-                           LineBuilder{LazyString{L"value:\"foo\""}}.Build(),
-                           LineBuilder{LazyString{L"value:\"foo\\n bar\""}}
+                           LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
                                .Build(),
-                           LineBuilder{LazyString{L"value:\"foo \\o bar \\\""}}
+                           LineBuilder{
+                               SingleLine{LazyString{L"value:\"foo\\n bar\""}}}
+                               .Build(),
+                           LineBuilder{SingleLine{LazyString{
+                                           L"value:\"foo \\o bar \\\""}}}
                                .Build(),
                        }),
                        features});
@@ -521,8 +525,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), LazyString{L"ls"},
-                       LineSequence::WithLine(
-                           LineBuilder{LazyString{L"value:\"ls\\n\""}}.Build()),
+                       LineSequence::WithLine(LineBuilder{
+                           SingleLine{LazyString{L"value:\"ls\\n\""}}}
+                                                  .Build()),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
 

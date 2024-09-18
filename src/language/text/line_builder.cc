@@ -57,14 +57,15 @@ const bool line_tests_registration = tests::Register(
      {.name = L"ContentChangesHash",
       .callback =
           [] {
-            CHECK(
-                std::hash<Line>{}(LineBuilder(LazyString{L"alejo"}).Build()) !=
-                std::hash<Line>{}(LineBuilder(LazyString{L"Xlejo"}).Build()));
+            CHECK(std::hash<Line>{}(
+                      LineBuilder{SingleLine{LazyString{L"alejo"}}}.Build()) !=
+                  std::hash<Line>{}(
+                      LineBuilder{SingleLine{LazyString{L"Xlejo"}}}.Build()));
           }},
      {.name = L"ModifiersChangesHash",
       .callback =
           [] {
-            LineBuilder options(LazyString{L"alejo"});
+            LineBuilder options{SingleLine{LazyString{L"alejo"}}};
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.InsertModifier(ColumnNumber(2), LineModifier::kRed);
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
@@ -90,7 +91,7 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
     {{.name = L"EmptyModifiers",
       .callback =
           [] {
-            Line line = LineBuilder(LazyString{L"alejo"}).Build();
+            Line line = LineBuilder{SingleLine{LazyString{L"alejo"}}}.Build();
             CHECK(line.modifiers_at_position(ColumnNumber{}).empty());
             CHECK(line.modifiers_at_position(ColumnNumber{3}).empty());
             CHECK(line.modifiers_at_position(ColumnNumber{999}).empty());
@@ -98,7 +99,7 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
      {.name = L"ExactMatch",
       .callback =
           [] {
-            LineBuilder builder{LazyString{L"alejandro"}};
+            LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
             builder.InsertModifier(ColumnNumber(2), LineModifier::kRed);
             builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
             Line line = std::move(builder).Build();
@@ -110,7 +111,7 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
      {.name = L"PositionBeforeModifiers",
       .callback =
           [] {
-            LineBuilder builder{LazyString{L"alejandro"}};
+            LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
             builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
             CHECK(std::move(builder)
                       .Build()
@@ -120,29 +121,25 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
      {.name = L"InexactMatch",
       .callback =
           [] {
-            LineBuilder builder{LazyString{L"alejandro"}};
+            LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
             builder.InsertModifier(ColumnNumber(2), LineModifier::kGreen);
             builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
             CHECK(std::move(builder).Build().modifiers_at_position(ColumnNumber{
                       4}) == LineModifierSet{LineModifier::kGreen});
           }},
      {.name = L"InexactMatchAfterLast", .callback = [] {
-        LineBuilder builder{LazyString{L"alejandro"}};
+        LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
         builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
         CHECK(std::move(builder).Build().modifiers_at_position(
                   ColumnNumber{8}) == LineModifierSet{LineModifier::kBlue});
       }}});
-// ./edge --tests_filter LineModifiersAtPosition.EmptyModifiers
-// ./edge --tests_filter LineModifiersAtPosition.InexactMatchAfterLast
-// ./edge --tests_filter LineModifiersAtPosition.PositionBeforeModifiers
 }  // namespace
 
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
 
-// TODO(easy, 2024-09-16): Receive a SingleLine here. Avoid wrapping below.
-LineBuilder::LineBuilder(language::lazy_string::LazyString input_contents)
-    : data_(Line::Data{.contents = SingleLine{std::move(input_contents)},
-                       .metadata = {}}) {}
+LineBuilder::LineBuilder(SingleLine input_contents)
+    : data_(Line::Data{.contents = std::move(input_contents), .metadata = {}}) {
+}
 
 LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 
@@ -332,8 +329,10 @@ void LineBuilder::AppendString(LazyString suffix) {
 
 void LineBuilder::AppendString(
     LazyString suffix, std::optional<LineModifierSet> suffix_modifiers) {
+  // TODO(trivial, 2024-09-17): Change the type of `suffix` to SingleLine, avoid
+  // wrapping it here.
   ValidateInvariants();
-  LineBuilder suffix_line(std::move(suffix));
+  LineBuilder suffix_line(SingleLine{std::move(suffix)});
   if (suffix_modifiers.has_value() &&
       suffix_line.data_.contents.size() > ColumnNumberDelta(0)) {
     suffix_line.data_.modifiers[ColumnNumber(0)] = suffix_modifiers.value();

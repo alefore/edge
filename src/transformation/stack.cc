@@ -19,6 +19,7 @@ using ::operator<<;
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
+
 using afc::infrastructure::screen::LineModifier;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -31,6 +32,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -48,14 +50,15 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   std::ostringstream oss;
   oss << value;
   buffer.status().SetInformationText(LineBuilder{
-      LazyString{L"Value: "} +
-      LazyString{
-          FromByteString(oss.str())}}.Build());
+      SingleLine{LazyString{L"Value: "}} +
+      SingleLine{LazyString{
+          FromByteString(oss.str())}}}.Build());
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
-      delete_buffer->AppendToLastLine(
-          LineBuilder{LazyString{FromByteString(line_str)}}.Build());
+      delete_buffer->AppendToLastLine(LineBuilder{
+          SingleLine{LazyString{
+              FromByteString(line_str)}}}.Build());
       delete_buffer->AppendRawLine(Line());
     }
   }
@@ -75,9 +78,9 @@ futures::Value<PossibleError> PreviewCppExpression(
                      return Success();
                    })
                    .ConsumeErrors([&buffer](Error error) {
-                     buffer.status().SetInformationText(
-                         LineBuilder{LazyString{L"E: "} + error.read()}
-                             .Build());
+                     buffer.status().SetInformationText(LineBuilder{
+                         SingleLine{LazyString{L"E: "}} +
+                         SingleLine{error.read()}}.Build());
                      return futures::Past(EmptyValue());
                    })
                    .Transform(
@@ -122,7 +125,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         input.buffer.status().Set(error);
         if (input.delete_buffer.has_value()) {
           input.delete_buffer->ptr()->AppendToLastLine(
-              LineBuilder{error.read()}.Build());
+              LineBuilder{SingleLine{error.read()}}.Build());
           input.delete_buffer->ptr()->AppendRawLine(Line());
           output.added_to_paste_buffer = true;
         }
@@ -215,12 +218,12 @@ struct ContentStats {
   }
 };
 
-LazyString ToString(const ContentStats& stats) {
-  LazyString output;
+SingleLine ToString(const ContentStats& stats) {
+  SingleLine output;
   auto key = [&output](std::wstring s, std::optional<size_t> value) {
     if (value)
-      output += LazyString{L" "} + LazyString{s} +
-                LazyString{std::to_wstring(*value)};
+      output += SingleLine{LazyString{L" "}} + SingleLine{LazyString{s}} +
+                SingleLine{LazyString{std::to_wstring(*value)}};
   };
   key(L"🌳", stats.lines);
   key(L" 🍀", stats.words);

@@ -66,7 +66,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
         Line{LazyString{L"### Source: "} + ToLazyString(data.first)});
     output.append_back(std::move(data.second) |
                        std::views::transform([](MarkView mark) -> Line {
-                         LineBuilder line_output(LazyString{L"* "});
+                         LineBuilder line_output{SingleLine{LazyString{L"* "}}};
                          line_output.Append(LineBuilder(std::move(mark.text)));
                          return std::move(line_output).Build();
                        }));

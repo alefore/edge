@@ -13,14 +13,15 @@
 #include "src/language/text/line_builder.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
-using language::MakeNonNullShared;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineNumberDelta;
+using afc::language::MakeNonNullShared;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineNumberDelta;
 
+namespace afc::editor {
 LineWithCursor::Generator::Vector SectionBrackets(
     LineNumberDelta lines, SectionBracketsSide section_brackets_side) {
   LineWithCursor::Generator::Vector output{.lines = {},
@@ -29,7 +30,8 @@ LineWithCursor::Generator::Vector SectionBrackets(
     if (output.size() < lines)
       output.lines.push_back(LineWithCursor::Generator{
           std::hash<std::wstring>{}(c), [c]() {
-            return LineWithCursor{.line = LineBuilder{LazyString{c}}.Build()};
+            return LineWithCursor{
+                .line = LineBuilder{SingleLine{LazyString{c}}}.Build()};
           }});
   };
   push(section_brackets_side == SectionBracketsSide::kLeft ? L"╭" : L"╮");
@@ -76,5 +78,5 @@ const bool tests_registration = tests::Register(
                CHECK_EQ(output.width, ColumnNumberDelta(1));
              }},
     });
-}
+}  // namespace
 }  // namespace afc::editor

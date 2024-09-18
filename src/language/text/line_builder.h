@@ -23,10 +23,10 @@ namespace afc::language::text {
 
 class LineBuilder {
  public:
-  LineBuilder() : LineBuilder(language::lazy_string::LazyString()) {}
+  LineBuilder() : LineBuilder(language::lazy_string::SingleLine()) {}
 
   explicit LineBuilder(const Line&);
-  explicit LineBuilder(language::lazy_string::LazyString input_contents);
+  explicit LineBuilder(language::lazy_string::SingleLine input_contents);
 
   LineBuilder(LineBuilder&&) = default;
   LineBuilder& operator=(LineBuilder&&) = default;
