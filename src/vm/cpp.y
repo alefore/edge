@@ -242,7 +242,9 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   } else {
     CHECK(func->name.has_value());
     std::optional<Type> result = NewDefineTypeExpression(
-        *compilation, Identifier{LazyString{L"auto"}}, *func->name, func->type);
+        *compilation,
+        Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
+        *func->name, func->type);
     if (result == std::nullopt) {
       OUT = nullptr;
       func->Abort(*compilation);

@@ -62,6 +62,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -454,8 +455,9 @@ class ForkEditorCommand : public Command {
               .context_command_callback =
                   original_buffer->ptr()->environment()->Lookup(
                       pool, kEmptyNamespace,
-                      vm::Identifier{
-                          LazyString{L"GetShellPromptContextProgram"}},
+                      vm::Identifier{NonEmptySingleLine{SingleLine{
+
+                          LazyString{L"GetShellPromptContextProgram"}}}},
                       vm::types::Function{
                           .output = vm::Type{vm::types::String{}},
                           .inputs = {vm::types::String{}}})});
@@ -604,19 +606,21 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       VMTypeMapper<
           NonNull<std::shared_ptr<ForkCommandOptions>>>::object_type_name);
 
-  environment.Define(vm::Identifier{LazyString{L"ForkCommandOptions"}},
+  environment.Define(vm::Identifier{NonEmptySingleLine{
+                         SingleLine{LazyString{L"ForkCommandOptions"}}}},
                      NewCallback(pool, vm::kPurityTypePure,
                                  MakeNonNullShared<ForkCommandOptions>));
 
   fork_command_options.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_command"}},
+      vm::Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_command"}}}},
       NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      LazyString value) { options->command = std::move(value); })
           .ptr());
 
   fork_command_options.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_name"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_name"}}}},
       NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      LazyString value) {
@@ -625,7 +629,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           .ptr());
 
   fork_command_options.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_insertion_type"}},
+      vm::Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_insertion_type"}}}},
       NewCallback(
           pool, vm::kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
@@ -641,7 +646,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           .ptr());
 
   fork_command_options.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_children_path"}},
+      vm::Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_children_path"}}}},
       NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      LazyString value) {

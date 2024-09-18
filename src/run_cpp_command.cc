@@ -48,6 +48,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -69,7 +70,9 @@ struct SearchNamespaces {
               TokenizeBySpaces(buffer.ReadLazyString(
                   buffer_variables::cpp_prompt_namespaces)) |
                   std::views::transform([](Token token) {
-                    return vm::Namespace{{Identifier{token.value}}};
+                    return vm::Namespace{{Identifier{
+                        // TODO(trivial, 2024-09-18): Avoid wrapping here.
+                        NonEmptySingleLine{SingleLine{token.value}}}}};
                   }),
               std::back_inserter(output));
           return output;
@@ -129,10 +132,12 @@ ValueOrError<ParsedCommand> Parse(
   CHECK(!search_namespaces.namespaces.empty());
   std::vector<gc::Root<vm::Value>> functions;
   for (const auto& n : search_namespaces.namespaces) {
-    environment.CaseInsensitiveLookup(n,
-                                      Identifier{function_name_prefix.Append(
-                                          LazyString{output_tokens[0].value})},
-                                      &functions);
+    environment.CaseInsensitiveLookup(
+        n,
+        // TODO(2024-09-18, trivial): Avoid wrapping here:
+        Identifier{NonEmptySingleLine{SingleLine{
+            function_name_prefix + LazyString{output_tokens[0].value}}}},
+        &functions);
     if (!functions.empty()) break;
   }
 
@@ -275,7 +280,7 @@ bool tests_parse_registration = tests::Register(
         gc::Pool pool({});
         gc::Root<vm::Environment> environment = vm::Environment::New(pool);
         environment.ptr()->Define(
-            Identifier{LazyString{L"foo"}},
+            Identifier{NonEmptySingleLine{SingleLine{LazyString{L"foo"}}}},
             vm::Value::NewString(pool, LazyString{L"bar"}));
         ValueOrError<ParsedCommand> output = Parse(
             pool, LazyString{L"foo"}, environment.ptr().value(), LazyString(),

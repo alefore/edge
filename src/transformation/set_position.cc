@@ -10,6 +10,8 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::vm::Identifier;
 using afc::vm::kPurityTypePure;
@@ -19,14 +21,16 @@ void RegisterSetPosition(language::gc::Pool& pool,
                          vm::Environment& environment) {
   using vm::PurityType;
   environment.Define(
-      Identifier{LazyString{L"SetColumnTransformation"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"SetColumnTransformation"}}}},
       vm::NewCallback(pool, kPurityTypePure, [](size_t column_number) {
         return MakeNonNullShared<Variant>(
             SetPosition(ColumnNumber(column_number)));
       }));
 
   environment.Define(
-      Identifier{LazyString{L"SetPositionTransformation"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"SetPositionTransformation"}}}},
       vm::NewCallback(pool, kPurityTypePure, [](LineColumn position) {
         return MakeNonNullShared<Variant>(SetPosition(position));
       }));

@@ -76,6 +76,13 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   return os;
 }
 
+template <typename A>
+ValueOrError<A> operator+(ValueOrError<A> x, ValueOrError<A> y) {
+  if (IsError(x)) return std::get<Error>(x);
+  if (IsError(y)) return std::get<Error>(y);
+  return ValueOrDie(std::move(x)) + ValueOrDie(std::move(y));
+}
+
 class ParseState {
   gc::Pool& pool_;
   const std::vector<Token>& tokens_;
@@ -107,19 +114,18 @@ class ParseState {
         PushValue(Value::NewNumber(pool_, math::numbers::Number::FromInt64(atoi(
                                               token.value.ToBytes().c_str()))),
                   extended_candidates);
-      std::visit(
-          overload{[&](Identifier identifier) {
-                     for (gc::Root<Value> value : LookUp(identifier))
-                       PushValue(value, extended_candidates);
-                   },
-                   IgnoreErrors{}},
-          first_token
-              ? Identifier::New(
-                    NonEmptySingleLine{SingleLine{token.value}} +
-                    // TODO(2024-09-18, trivial): Avoid having to wrap
-                    // function_name_prefix_ here.
-                    NonEmptySingleLine{SingleLine{function_name_prefix_}})
-              : Identifier::New(NonEmptySingleLine{SingleLine{token.value}}));
+      std::visit(overload{[&](Identifier identifier) {
+                            for (gc::Root<Value> value : LookUp(identifier))
+                              PushValue(value, extended_candidates);
+                          },
+                          IgnoreErrors{}},
+                 first_token ? Identifier::New(NonEmptySingleLine::New(
+                                   SingleLine::New(token.value) +
+                                   // TODO(2024-09-18, trivial): Avoid having to
+                                   // wrap function_name_prefix_ here.
+                                   SingleLine::New(function_name_prefix_)))
+                             : Identifier::New(NonEmptySingleLine::New(
+                                   SingleLine::New(token.value))));
       PushValue(Value::NewString(pool_, token.value), extended_candidates);
       if (extended_candidates.empty())
         return Error{LazyString{L"No valid parses found."}};
@@ -284,11 +290,13 @@ bool tests_registration = tests::Register(
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(LazyString{L"\"foo\""}, LazyString{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                    .Get()
-                                    .value())
-                         .ptr()
-                         ->get_string() == LazyString{L"foo"});
+               CHECK_EQ(
+                   ValueOrDie(Evaluate(expression, pool, environment, nullptr)
+                                  .Get()
+                                  .value())
+                       .ptr()
+                       ->get_string(),
+                   LazyString{L"foo"});
              }},
         {.name = L"FunctionNoArguments",
          .callback =
@@ -297,17 +305,20 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier{LazyString{L"SomeFunction"}},
+                   Identifier{NonEmptySingleLine{
+                       SingleLine{LazyString{L"SomeFunction"}}}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    []() -> std::wstring { return L"quux"; }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(LazyString{L"SomeFunction"}, LazyString{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                    .Get()
-                                    .value())
-                         .ptr()
-                         ->get_string() == LazyString{L"quux"});
+               CHECK_EQ(
+                   ValueOrDie(Evaluate(expression, pool, environment, nullptr)
+                                  .Get()
+                                  .value())
+                       .ptr()
+                       ->get_string(),
+                   LazyString{L"quux"});
              }},
         {.name = L"MissingArguments",
          .callback =
@@ -316,7 +327,8 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier{LazyString{L"Moo"}},
+                   Identifier{
+                       NonEmptySingleLine{SingleLine{LazyString{L"Moo"}}}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a, std::wstring b,
                                       std::wstring c) -> std::wstring {
@@ -342,7 +354,8 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier{LazyString{L"UnaryFunction"}},
+                   Identifier{NonEmptySingleLine{
+                       SingleLine{LazyString{L"UnaryFunction"}}}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a) -> std::wstring {
                                      CHECK(a == L"bar");
@@ -364,7 +377,8 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier{LazyString{L"UnaryFunction"}},
+                   Identifier{NonEmptySingleLine{
+                       SingleLine{LazyString{L"UnaryFunction"}}}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a) -> std::wstring {
                                      CHECK(a == L"ba.r");
@@ -386,7 +400,8 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier{LazyString{L"SomeFunction"}},
+                   Identifier{NonEmptySingleLine{
+                       SingleLine{LazyString{L"SomeFunction"}}}},
                    vm::NewCallback(
                        pool, kPurityTypePure,
                        [](std::wstring a, std::wstring b) -> std::wstring {
@@ -410,7 +425,7 @@ bool tests_registration = tests::Register(
                afc::vm::NewDefaultEnvironment(pool);
            size_t calls = 0;
            environment.ptr()->Define(
-               Identifier{LazyString{L"foo"}},
+               Identifier{NonEmptySingleLine{SingleLine{LazyString{L"foo"}}}},
                vm::NewCallback(pool, kPurityTypePure,
                                [&calls](std::wstring a) -> std::wstring {
                                  calls++;

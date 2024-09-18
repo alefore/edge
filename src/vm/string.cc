@@ -19,6 +19,8 @@ using afc::language::FromByteString;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::math::numbers::Number;
 
 namespace afc::language::gc {
@@ -50,10 +52,10 @@ void AddMethod(const Identifier& name, language::gc::Pool& pool,
 void RegisterStringType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> string_type = ObjectType::New(pool, types::String{});
   AddMethod(
-      Identifier{LazyString{L"size"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"size"}}}}, pool,
       [](const std::wstring& str) { return str.size(); }, string_type);
   AddMethod(
-      Identifier{LazyString{L"toint"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"toint"}}}}, pool,
       [](const std::wstring& str) -> futures::ValueOrError<int> {
         try {
           return futures::Past(Success(std::stoi(str)));
@@ -67,26 +69,27 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"empty"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"empty"}}}}, pool,
       [](const std::wstring& str) { return str.empty(); }, string_type);
   AddMethod(
-      Identifier{LazyString{L"tolower"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tolower"}}}}, pool,
       [](std::wstring str) {
         for (auto& i : str) i = std::tolower(i, std::locale(""));
         return str;
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"toupper"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"toupper"}}}}, pool,
       [](std::wstring str) {
         for (auto& i : str) i = std::toupper(i, std::locale(""));
         return str;
       },
       string_type);
-  AddMethod(Identifier{LazyString{L"shell_escape"}}, pool,
-            language::ShellEscape, string_type);
   AddMethod(
-      Identifier{LazyString{L"substr"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"shell_escape"}}}},
+      pool, language::ShellEscape, string_type);
+  AddMethod(
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"substr"}}}}, pool,
       [](const std::wstring& str, size_t pos,
          size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
@@ -97,7 +100,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"starts_with"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"starts_with"}}}},
+      pool,
       [](const std::wstring& str, const std::wstring& prefix) {
         return prefix.size() <= str.size() &&
                (std::mismatch(prefix.begin(), prefix.end(), str.begin())
@@ -105,7 +109,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"find"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"find"}}}}, pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find(pattern, start_pos);
@@ -114,7 +118,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"find_last_of"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"find_last_of"}}}},
+      pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_of(pattern, start_pos);
@@ -123,7 +128,9 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"find_last_not_of"}}, pool,
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"find_last_not_of"}}}},
+      pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_not_of(pattern, start_pos);
@@ -132,7 +139,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"find_first_of"}}, pool,
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"find_first_of"}}}},
+      pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_of(pattern, start_pos);
@@ -141,7 +149,9 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier{LazyString{L"find_first_not_of"}}, pool,
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"find_first_not_of"}}}},
+      pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_not_of(pattern, start_pos);

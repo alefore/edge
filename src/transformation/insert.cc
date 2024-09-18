@@ -18,6 +18,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
@@ -125,13 +126,13 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   gc::Root<ObjectType> builder = ObjectType::New(
       pool, VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name);
   environment.Define(
-      Identifier{
+      Identifier{NonEmptySingleLine{SingleLine{
           VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name
-              .read()},
+              .read()}}},
       vm::NewCallback(pool, PurityType{}, MakeNonNullShared<Insert>));
 
   builder.ptr()->AddField(
-      Identifier{LazyString{L"set_text"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_text"}}}},
       vm::NewCallback(
           pool, vm::PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Insert>> options, LazyString text) {
@@ -142,7 +143,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      Identifier{LazyString{L"set_modifiers"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_modifiers"}}}},
       vm::NewCallback(pool, vm::PurityType{.writes_external_outputs = true},
                       [](NonNull<std::shared_ptr<Insert>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
@@ -152,7 +153,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      Identifier{LazyString{L"set_position"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_position"}}}},
       NewCallback(
           pool, vm::PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Insert>> options, LineColumn position) {
@@ -162,7 +163,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      Identifier{LazyString{L"build"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"build"}}}},
       NewCallback(pool, PurityType{},
                   [](NonNull<std::shared_ptr<Insert>> options) {
                     return MakeNonNullShared<Variant>(options.value());

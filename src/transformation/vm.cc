@@ -30,6 +30,8 @@ using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::vm::GetVMType;
 using afc::vm::kPurityTypePure;
 using afc::vm::VMTypeMapper;
@@ -89,7 +91,8 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   environment.Define(
-      vm::Identifier{LazyString{L"FunctionTransformation"}},
+      vm::Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"FunctionTransformation"}}}},
       vm::Value::NewFunction(
           pool, kPurityTypePure,
           GetVMType<NonNull<std::shared_ptr<editor::transformation::Variant>>>::

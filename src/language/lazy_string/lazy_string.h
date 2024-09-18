@@ -79,6 +79,18 @@ class LazyString {
   bool operator<(const LazyString& x) const;
 };
 
+template <typename I>
+concept HasReadMethodAndComparable = requires(I i) {
+  { i.read() } -> std::same_as<decltype(i.read())>;
+  { i.read() == std::declval<LazyString>() };
+};
+
+template <typename I>
+  requires HasReadMethodAndComparable<I>
+bool operator==(const I& i, const LazyString& other) {
+  return i.read() == other;
+}
+
 bool operator==(const LazyString& a, const LazyString& b);
 const LazyString& operator+=(LazyString& a, const LazyString& b);
 LazyString operator+(const LazyString& a, const LazyString& b);

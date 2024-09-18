@@ -522,27 +522,35 @@ void CompileLine(Compilation& compilation, void* parser,
           int token;
           std::function<gc::Root<Value>()> value_supplier = nullptr;
         };
-        static const auto* const keywords =
-            new std::unordered_map<Identifier, Keyword>(
-                {{Identifier{LazyString{L"true"}},
-                  {.token = BOOL,
-                   .value_supplier =
-                       [&pool = compilation.pool] {
-                         return Value::NewBool(pool, true);
-                       }}},
-                 {Identifier{LazyString{L"false"}},
-                  {.token = BOOL,
-                   .value_supplier =
-                       [&pool = compilation.pool] {
-                         return Value::NewBool(pool, false);
-                       }}},
-                 {Identifier{LazyString{L"while"}}, {.token = WHILE}},
-                 {Identifier{LazyString{L"for"}}, {.token = FOR}},
-                 {Identifier{LazyString{L"if"}}, {.token = IF}},
-                 {Identifier{LazyString{L"else"}}, {.token = ELSE}},
-                 {Identifier{LazyString{L"return"}}, {.token = RETURN}},
-                 {Identifier{LazyString{L"namespace"}}, {.token = NAMESPACE}},
-                 {Identifier{LazyString{L"class"}}, {.token = CLASS}}});
+        static const auto* const keywords = new std::unordered_map<Identifier,
+                                                                   Keyword>(
+            {{Identifier{NonEmptySingleLine{SingleLine{LazyString{L"true"}}}},
+              {.token = BOOL,
+               .value_supplier =
+                   [&pool = compilation.pool] {
+                     return Value::NewBool(pool, true);
+                   }}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"false"}}}},
+              {.token = BOOL,
+               .value_supplier =
+                   [&pool = compilation.pool] {
+                     return Value::NewBool(pool, false);
+                   }}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"while"}}}},
+              {.token = WHILE}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"for"}}}},
+              {.token = FOR}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"if"}}}},
+              {.token = IF}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"else"}}}},
+              {.token = ELSE}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"return"}}}},
+              {.token = RETURN}},
+             {Identifier{
+                  NonEmptySingleLine{SingleLine{LazyString{L"namespace"}}}},
+              {.token = NAMESPACE}},
+             {Identifier{NonEmptySingleLine{SingleLine{LazyString{L"class"}}}},
+              {.token = CLASS}}});
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
           if (auto supplier = it->second.value_supplier; supplier != nullptr)

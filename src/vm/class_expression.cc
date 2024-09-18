@@ -21,6 +21,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
 
@@ -112,7 +113,8 @@ PossibleError FinishClassDeclaration(
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   compilation.environment.ptr()->Define(
-      Identifier(std::get<types::ObjectName>(class_type).read()),
+      Identifier{NonEmptySingleLine{
+          SingleLine{ToLazyString(std::get<types::ObjectName>(class_type))}}},
       Value::NewFunction(
           pool, constructor_expression->purity(), class_type, {},
           [&pool, constructor_expression, class_environment, class_type](

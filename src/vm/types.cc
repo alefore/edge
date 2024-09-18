@@ -24,6 +24,7 @@ using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 
 namespace std {
 size_t hash<afc::vm::PurityType>::operator()(
@@ -104,12 +105,14 @@ namespace gc = language::gc;
 }
 
 const Identifier& IdentifierAuto() {
-  static const auto output = new Identifier{LazyString{L"auto"}};
+  static const auto output =
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}};
   return *output;
 }
 
 const Identifier& IdentifierInclude() {
-  static const auto output = new Identifier{LazyString{L"include"}};
+  static const auto output =
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"include"}}}};
   return *output;
 }
 

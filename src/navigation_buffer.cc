@@ -28,6 +28,7 @@ using afc::language::Success;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -40,7 +41,8 @@ using afc::math::numbers::Number;
 namespace afc::editor {
 namespace {
 
-const vm::Identifier kDepthSymbol{LazyString{L"navigation_buffer_depth"}};
+const vm::Identifier kDepthSymbol{
+    NonEmptySingleLine{SingleLine{LazyString{L"navigation_buffer_depth"}}}};
 
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,

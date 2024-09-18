@@ -34,6 +34,7 @@ using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -271,14 +272,15 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
       pool, VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name);
 
   environment.Define(
-      vm::Identifier(
+      vm::Identifier{NonEmptySingleLine{SingleLine{
           VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name
-              .read()),
+              .read()}}},
       vm::NewCallback(pool, PurityType{},
                       MakeNonNullShared<transformation::Delete>));
 
   builder.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_modifiers"}},
+      vm::Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_modifiers"}}}},
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [](NonNull<std::shared_ptr<Delete>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
@@ -288,7 +290,8 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_line_end_behavior"}},
+      vm::Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_line_end_behavior"}}}},
       vm::NewCallback(
           pool, PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Delete>> options, std::wstring value) {
@@ -301,7 +304,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           })
           .ptr());
   builder.ptr()->AddField(
-      vm::Identifier{LazyString{L"set_range"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_range"}}}},
       vm::NewCallback(
           pool, PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Delete>> options, Range range) {
@@ -311,7 +314,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      vm::Identifier{LazyString{L"build"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"build"}}}},
       vm::NewCallback(pool, PurityType{},
                       [](NonNull<std::shared_ptr<Delete>> options) {
                         return MakeNonNullShared<Variant>(options.value());

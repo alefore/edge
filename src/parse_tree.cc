@@ -30,6 +30,7 @@ using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
@@ -396,7 +397,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                 NonNull<std::shared_ptr<const ParseTree>>>::object_type_name);
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier{LazyString{L"children"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"children"}}}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
@@ -416,7 +417,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier{LazyString{L"range"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"range"}}}},
       vm::NewCallback(pool, kPurityTypeReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
@@ -424,7 +425,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier{LazyString{L"properties"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"properties"}}}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {

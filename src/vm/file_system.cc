@@ -16,6 +16,8 @@ using afc::language::EmptyValue;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::vm {
 void RegisterFileSystemFunctions(
@@ -23,14 +25,14 @@ void RegisterFileSystemFunctions(
     language::NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     Environment& environment) {
   environment.Define(
-      Identifier{LazyString{L"Unlink"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Unlink"}}}},
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [file_system_driver](Path target_path)
                           -> futures::ValueOrError<EmptyValue> {
                         return file_system_driver->Unlink(target_path);
                       }));
   environment.Define(
-      Identifier{LazyString{L"Glob"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Glob"}}}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [file_system_driver](LazyString pattern)

@@ -68,6 +68,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumnDelta;
@@ -211,7 +212,8 @@ void RedrawScreens(const CommandLineValues& args,
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
         buffer.environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,
-                                     vm::Identifier{LazyString{L"screen"}},
+                                     vm::Identifier{NonEmptySingleLine{
+                                         SingleLine{LazyString{L"screen"}}}},
                                      GetScreenVmType());
     if (!value.has_value() ||
         value.value().ptr()->type != afc::vm::Type{GetScreenVmType()}) {
@@ -287,7 +289,8 @@ int main(int argc, const char** argv) {
       screen_curses,
       [](NonNull<std::shared_ptr<Screen>> input_screen_curses) {
         editor_state().environment().ptr()->Define(
-            vm::Identifier{LazyString{L"screen"}},
+            vm::Identifier{
+                NonEmptySingleLine{SingleLine{LazyString{L"screen"}}}},
             afc::vm::Value::NewObject(editor_state().gc_pool(),
                                       GetScreenVmType(), input_screen_curses));
       },

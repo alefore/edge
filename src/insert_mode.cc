@@ -79,6 +79,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -521,7 +522,8 @@ class InsertMode : public InputReceiver {
         std::optional<gc::Root<vm::Value>> callback =
             options_.editor_state.environment().ptr()->Lookup(
                 options_.editor_state.gc_pool(), vm::Namespace(),
-                vm::Identifier{LazyString{L"HandleKeyboardControlU"}},
+                vm::Identifier{NonEmptySingleLine{
+                    SingleLine{LazyString{L"HandleKeyboardControlU"}}}},
                 vm::types::Function{
                     .output = vm::Type{vm::types::Void{}},
                     .inputs = {vm::GetVMType<gc::Ptr<OpenBuffer>>::vmtype()}});

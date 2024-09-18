@@ -19,6 +19,8 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -232,13 +234,16 @@ void FindBoundariesBezier(
 void InitShapes(language::gc::Pool& pool, vm::Environment& environment) {
   using vm::Identifier;
   using vm::PurityType;
-  environment.Define(Identifier{LazyString{L"ShapesReflow"}},
-                     vm::NewCallback(pool, kPurityTypeUnknown, Justify));
   environment.Define(
-      Identifier{LazyString{L"FindBoundariesLine"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"ShapesReflow"}}}},
+      vm::NewCallback(pool, kPurityTypeUnknown, Justify));
+  environment.Define(
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"FindBoundariesLine"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, FindBoundariesLine));
   environment.Define(
-      Identifier{LazyString{L"FindBoundariesBezier"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"FindBoundariesBezier"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, FindBoundariesBezier));
 }
 

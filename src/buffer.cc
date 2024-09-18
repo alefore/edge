@@ -123,6 +123,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::text::DelegatingMutableLineSequenceObserver;
@@ -727,11 +728,11 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   gc::Root<OpenBuffer> root = NewRoot();
   environment_->Define(
-      Identifier{LazyString{L"buffer"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"buffer"}}}},
       VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
 
   environment_->Define(
-      Identifier{LazyString{L"sleep"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"sleep"}}}},
       vm::NewCallback(editor().gc_pool(),
                       PurityType{.reads_external_inputs = true},
                       [weak_this](double delay_seconds) {

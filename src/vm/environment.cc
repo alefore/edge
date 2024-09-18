@@ -70,16 +70,16 @@ const ObjectType* Environment::LookupObjectType(
 }
 
 const Type* Environment::LookupType(const Identifier& symbol) const {
-  if (symbol == Identifier{LazyString{L"void"}}) {
+  if (symbol == LazyString{L"void"}) {
     static Type output = types::Void{};
     return &output;
-  } else if (symbol == Identifier{LazyString{L"bool"}}) {
+  } else if (symbol == LazyString{L"bool"}) {
     static Type output = types::Bool{};
     return &output;
-  } else if (symbol == Identifier{LazyString{L"number"}}) {
+  } else if (symbol == LazyString{L"number"}) {
     static Type output = types::Number{};
     return &output;
-  } else if (symbol == Identifier{LazyString{L"string"}}) {
+  } else if (symbol == LazyString{L"string"}) {
     static Type output = types::String{};
     return &output;
   }

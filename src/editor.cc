@@ -79,6 +79,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -212,7 +213,8 @@ EditorState::EditorState(CommandLineValues args,
             gc_pool_,
             MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()));
         output.ptr()->Define(
-            vm::Identifier{LazyString{L"editor"}},
+            vm::Identifier{
+                NonEmptySingleLine{SingleLine{LazyString{L"editor"}}}},
             vm::Value::NewObject(
                 gc_pool_,
                 vm::VMTypeMapper<editor::EditorState>::object_type_name,

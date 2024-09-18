@@ -31,12 +31,6 @@ class Identifier
                                  IdentifierValidator> {
  public:
   using GhostType::GhostType;
-
-  // TODO(easy, 2024-09-18): Remove this method. Force customers to do this
-  // explicitly.
-  Identifier(language::lazy_string::LazyString input)
-      : Identifier(language::lazy_string::NonEmptySingleLine{
-            language::lazy_string::SingleLine{input}}) {}
 };
 
 // Return the identifier for "auto".

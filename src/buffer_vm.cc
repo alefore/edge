@@ -48,6 +48,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -137,7 +138,7 @@ void RegisterBufferFields(
     CHECK(variable != nullptr);
     // Getter.
     object_type.ptr()->AddField(
-        Identifier(variable->name()),
+        Identifier{NonEmptySingleLine{SingleLine{variable->name()}}},
         vm::NewCallback(pool, kPurityTypeReader,
                         [reader, variable](gc::Ptr<OpenBuffer> buffer) {
                           DVLOG(4) << "Buffer field reader is returning.";
@@ -147,7 +148,8 @@ void RegisterBufferFields(
 
     // Setter.
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"set_"} + variable->name()},
+        Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_"}}} +
+                   NonEmptySingleLine{SingleLine{variable->name()}}},
         vm::NewCallback(
             pool, kPurityTypeUnknown,
             [variable, setter](gc::Ptr<OpenBuffer> buffer, FieldValue value) {
@@ -220,7 +222,7 @@ void DefineSortLinesByKey(
     vm::Type vm_type_key,
     std::function<ValueOrError<KeyType>(const vm::Value&)> get_key) {
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"SortLinesByKey"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"SortLinesByKey"}}}},
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},
           {buffer_object_type.ptr()->type(),
@@ -341,7 +343,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       &OpenBuffer::Read, &OpenBuffer::Set);
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"SetStatus"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"SetStatus"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](gc::Ptr<OpenBuffer> buffer, LazyString s) -> PossibleError {
@@ -353,7 +355,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"SetWarningStatus"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"SetWarningStatus"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](gc::Ptr<OpenBuffer> buffer, LazyString s) {
                         buffer->status().InsertError(Error{s});
@@ -361,25 +364,26 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"child_exit_status"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"child_exit_status"}}}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
         return static_cast<int>(buffer->child_exit_status().value_or(0));
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"tostring"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
         return ToLazyString(buffer->name());
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"line_count"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"line_count"}}}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
         return static_cast<int>(buffer->contents().size().read());
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"set_position"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_position"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](gc::Ptr<OpenBuffer> buffer, LineColumn position) {
                         buffer->set_position(position);
@@ -387,13 +391,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"position"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"position"}}}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
         return LineColumn(buffer->position());
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"active_cursors"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"active_cursors"}}}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
         const CursorsSet& cursors = buffer->active_cursors();
         return MakeNonNullShared<Protected<std::vector<LineColumn>>>(
@@ -401,7 +405,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"set_active_cursors"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_active_cursors"}}}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](gc::Ptr<OpenBuffer> buffer,
@@ -414,7 +419,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"line"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"line"}}}},
       vm::NewCallback(pool, kPurityTypeReader,
                       [](gc::Ptr<OpenBuffer> buffer, int line_input) {
                         LineNumber line =
@@ -434,13 +439,14 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       [](const vm::Value& value) { return Success(value.get_string()); });
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"tree"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tree"}}}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
         return buffer->parse_tree();
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"ApplyTransformation"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"ApplyTransformation"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](gc::Ptr<OpenBuffer> buffer,
@@ -451,19 +457,21 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"PushTransformationStack"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"PushTransformationStack"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
         buffer->PushTransformationStack();
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"PopTransformationStack"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"PopTransformationStack"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
         buffer->PopTransformationStack();
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"Filter"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Filter"}}}},
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},
           {buffer_object_type.ptr()->type(),
@@ -479,7 +487,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"Reload"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Reload"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
         buffer = MaybeFollowOutgoingLink(std::move(buffer));
         buffer->Reload();
@@ -487,7 +495,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"SendEndOfFileToProcess"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"SendEndOfFileToProcess"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
         buffer = MaybeFollowOutgoingLink(std::move(buffer));
         buffer->SendEndOfFileToProcess();
@@ -495,7 +504,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"Save"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Save"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
         buffer = MaybeFollowOutgoingLink(std::move(buffer));
         futures::Value<PossibleError> output =
@@ -505,7 +514,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"Close"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Close"}}}},
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [](gc::Ptr<OpenBuffer> buffer) {
                         buffer = MaybeFollowOutgoingLink(std::move(buffer));
@@ -515,7 +524,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"AddBinding"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"AddBinding"}}}},
       vm::Value::NewFunction(
           pool, PurityType{.writes_external_outputs = true}, vm::types::Void{},
           {buffer_object_type.ptr()->type(), vm::types::String{},
@@ -539,7 +548,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   // our feet. Probably can't happen in practice, but it would be good to use
   // the type system to ensure that.
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"AddBindingToFile"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"AddBindingToFile"}}}},
       vm::NewCallback(
           pool, PurityType{.writes_external_outputs = true},
           [](gc::Ptr<OpenBuffer> buffer,
@@ -581,7 +591,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"ShowTrackers"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"ShowTrackers"}}}},
       vm::NewCallback(
           pool, PurityType{.writes_external_outputs = true},
           [](gc::Ptr<OpenBuffer> buffer) {
@@ -605,7 +615,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"EvaluateFile"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"EvaluateFile"}}}},
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [](gc::Ptr<OpenBuffer> buffer, Path path) {
                         buffer->EvaluateFile(std::move(path));
@@ -613,13 +623,15 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"WaitForEndOfFile"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"WaitForEndOfFile"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
         return buffer->WaitForEndOfFile();
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"LineMetadataString"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"LineMetadataString"}}}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](gc::Ptr<OpenBuffer> buffer,
@@ -634,7 +646,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier{LazyString{L"AddLineProcessor"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"AddLineProcessor"}}}},
       vm::Value::NewFunction(
           pool, PurityType{.writes_external_outputs = true}, vm::types::Void{},
           {buffer_object_type.ptr()->type(), vm::types::String{},

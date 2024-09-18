@@ -15,6 +15,8 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::vm::kPurityTypePure;
 using afc::vm::kPurityTypeUnknown;
@@ -128,7 +130,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
                 editor::CompositeTransformation::Input>>>::object_type_name);
 
   input_type.ptr()->AddField(
-      vm::Identifier{LazyString{L"position"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"position"}}}},
       vm::NewCallback(
           pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
@@ -136,7 +138,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           })
           .ptr());
   input_type.ptr()->AddField(
-      vm::Identifier{LazyString{L"range"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"range"}}}},
       vm::NewCallback(
           pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
@@ -145,7 +147,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           .ptr());
 
   input_type.ptr()->AddField(
-      vm::Identifier{LazyString{L"final_mode"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"final_mode"}}}},
       vm::NewCallback(
           pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
@@ -159,13 +161,15 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
                 editor::CompositeTransformation::Output>>>::object_type_name);
 
   environment.Define(
-      vm::Identifier{VMTypeMapper<NonNull<std::shared_ptr<
-          editor::CompositeTransformation::Output>>>::object_type_name.read()},
+      vm::Identifier{
+          NonEmptySingleLine{SingleLine{VMTypeMapper<NonNull<std::shared_ptr<
+              editor::CompositeTransformation::Output>>>::object_type_name
+                                            .read()}}},
       vm::NewCallback(pool, kPurityTypePure,
                       MakeNonNullShared<CompositeTransformation::Output>));
 
   output_type.ptr()->AddField(
-      vm::Identifier{LazyString{L"push"}},
+      vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"push"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<CompositeTransformation::Output>> output,
