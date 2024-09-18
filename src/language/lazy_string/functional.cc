@@ -16,11 +16,6 @@ std::optional<ColumnNumber> FindFirstOf(
       start);
 }
 
-bool StartsWith(const LazyString& input, const LazyString& prefix) {
-  return input.SubstringWithRangeChecks(ColumnNumber{}, prefix.size()) ==
-         prefix;
-}
-
 namespace {
 const bool starts_with_tests_registration = tests::Register(
     L"LazyString.StartsWith",

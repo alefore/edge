@@ -11,6 +11,7 @@
 #include "src/concurrent/work_queue.h"
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/sorted_line_sequence.h"
 #include "src/status.h"
@@ -43,7 +44,7 @@ struct PredictorInput {
   EditorState& editor;
 
   // Input for the prediction.
-  language::lazy_string::LazyString input;
+  language::lazy_string::SingleLine input;
 
   // If the input comes from a prompt, position of the current cursor. This will
   // be used in the future for predictors that expand only a single token.

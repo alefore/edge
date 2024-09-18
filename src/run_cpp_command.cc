@@ -392,8 +392,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   using BufferMapper = vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>;
   return Predict(predictor,
                  PredictorInput{.editor = editor,
-                                // TODO(trivial, 2024-09-13): Remove read().
-                                .input = line.read(),
+                                .input = line,
                                 .input_column = ColumnNumber() + line.size(),
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel = std::move(progress_channel),

@@ -141,15 +141,13 @@ futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState& editor, const SingleLine& line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
-  return Predict(
-             FilePredictor,
-             PredictorInput{.editor = editor,
-                            // TODO(trivial, 2024-09-13): Avoid call to read.
-                            .input = line.read(),
-                            .input_column = ColumnNumber() + line.size(),
-                            .source_buffers = editor.active_buffers(),
-                            .progress_channel = std::move(progress_channel),
-                            .abort_value = std::move(abort_value)})
+  return Predict(FilePredictor,
+                 PredictorInput{.editor = editor,
+                                .input = line,
+                                .input_column = ColumnNumber() + line.size(),
+                                .source_buffers = editor.active_buffers(),
+                                .progress_channel = std::move(progress_channel),
+                                .abort_value = std::move(abort_value)})
       .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return StatusContext(editor, results.value(), line)

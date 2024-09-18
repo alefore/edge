@@ -123,17 +123,13 @@ bool find_token_tests = tests::Register(
 //   expanded.
 // * `token_expanded`: The token that was expanded.
 // * `lines`: A sequence of lines found that are suitable to expand the token.
-SortedLineSequenceUniqueLines TransformLines(const LazyString& input,
+SortedLineSequenceUniqueLines TransformLines(const SingleLine& input,
                                              const Token& token,
                                              LineSequence lines) {
-  // TODO(easy, 2024-09-17): `input` should already be SingleLine, avoid
-  // wrapping here.
-  LineBuilder head{SingleLine{input}};
+  LineBuilder head{input};
   head.DeleteSuffix(token.begin);
 
-  // TODO(easy, 2024-09-17): `input` should already be SingleLine, avoid
-  // wrapping here.
-  LineBuilder tail{SingleLine{input}};
+  LineBuilder tail{input};
   tail.DeleteCharacters(ColumnNumber(), token.end.ToDelta());
   return SortedLineSequenceUniqueLines(
       SortedLineSequence(lines.Map([&](const Line& expansion) -> Line {
@@ -152,7 +148,7 @@ bool transform_lines_tests = tests::Register(
       .callback =
           [] {
             SortedLineSequenceUniqueLines result = TransformLines(
-                LazyString{L"foo src/buf blah"},
+                SingleLine{LazyString{L"foo src/buf blah"}},
                 Token{.value = LazyString{L"src/buf"},
                       .begin = ColumnNumber(4),
                       .end = ColumnNumber(11)},
@@ -165,7 +161,7 @@ bool transform_lines_tests = tests::Register(
       .callback =
           [] {
             SortedLineSequenceUniqueLines result = TransformLines(
-                LazyString{L"src/buf"},
+                SingleLine{LazyString{L"src/buf"}},
                 Token{.value = LazyString{L"src/buf"},
                       .begin = ColumnNumber(0),
                       .end = ColumnNumber(7)},
@@ -177,19 +173,19 @@ bool transform_lines_tests = tests::Register(
      {.name = L"RepeatedTokenSpecificExpansion",
       .callback =
           [] {
-            SortedLineSequenceUniqueLines result =
-                TransformLines(LazyString{L"src/buf and again src/buf"},
-                               Token{.value = LazyString{L"src/buf"},
-                                     .begin = ColumnNumber(18),
-                                     .end = ColumnNumber(25)},
-                               LineSequence::ForTests({L"src/buffer.cc"}));
+            SortedLineSequenceUniqueLines result = TransformLines(
+                SingleLine{LazyString{L"src/buf and again src/buf"}},
+                Token{.value = LazyString{L"src/buf"},
+                      .begin = ColumnNumber(18),
+                      .end = ColumnNumber(25)},
+                LineSequence::ForTests({L"src/buffer.cc"}));
             LineSequence expected =
                 LineSequence::ForTests({L"src/buf and again src/buffer.cc"});
             CHECK(result.read().lines() == expected);
           }},
      {.name = L"ExactMatchLinesSequence", .callback = [] {
         SortedLineSequenceUniqueLines result =
-            TransformLines(LazyString{L"foo src/buf blah"},
+            TransformLines(SingleLine{LazyString{L"foo src/buf blah"}},
                            Token{.value = LazyString{L"src/buf"},
                                  .begin = ColumnNumber(4),
                                  .end = ColumnNumber(11)},
@@ -207,8 +203,10 @@ Predictor TokenPredictor(Predictor predictor) {
           LOG(INFO) << "Found token: " << token_to_expand;
           input.input_column =
               input.input_column - token_to_expand.begin.ToDelta();
-          LazyString original_input =
-              std::exchange(input.input, LazyString{token_to_expand.value});
+          // TODO(easy, 2024-09-18): Avoid conversion to
+          // LazyString->SingleLine here:
+          SingleLine original_input = std::exchange(
+              input.input, SingleLine{LazyString{token_to_expand.value}});
           return predictor(input).Transform([original_input, token_to_expand](
                                                 PredictorOutput output) {
             return futures::Past(PredictorOutput{
@@ -225,7 +223,8 @@ Predictor TokenPredictor(Predictor predictor) {
           LOG(INFO) << "No expansion.";
           return predictor(input);
         },
-        FindToken(TokenizeBySpaces(input.input), input.input_column));
+        // TODO(trivial, 2024-09-18): Avoid `read`?
+        FindToken(TokenizeBySpaces(input.input.read()), input.input_column));
   };
 }
 }  // namespace afc::editor

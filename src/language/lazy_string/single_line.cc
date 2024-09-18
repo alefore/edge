@@ -28,6 +28,11 @@ SingleLine SingleLine::Substring(ColumnNumber a, ColumnNumberDelta b) const {
   return SingleLine{read().Substring(a, b)};
 }
 
+SingleLine SingleLine::SubstringWithRangeChecks(ColumnNumber a,
+                                                ColumnNumberDelta b) const {
+  return SingleLine{read().SubstringWithRangeChecks(a, b)};
+}
+
 SingleLine SingleLine::Append(SingleLine other) const {
   return SingleLine{read().Append(other.read())};
 }

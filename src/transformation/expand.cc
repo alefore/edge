@@ -97,7 +97,9 @@ class PredictorTransformation : public CompositeTransformation {
                predictor_,
                PredictorInput{
                    .editor = input.buffer.editor(),
-                   .input = text_,
+                   // TODO(trivial, 2024-09-18): Avoid converting text_ to
+                   // SingleLine here.
+                   .input = SingleLine{text_},
                    .input_column = ColumnNumber() + text_.size(),
                    // TODO: Ugh, the const_cast below is fucking ugly. I have a
                    // lake in my model: should PredictionOptions::source_buffer

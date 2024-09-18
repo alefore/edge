@@ -307,18 +307,17 @@ void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
 }
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
-  LOG(INFO) << "Generating predictions for: "
-            << predictor_input.input.ToString();
+  LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   return GetSearchPaths(predictor_input.editor)
       .Transform([predictor_input](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         LazyString path_input = std::visit(
-            overload{[&](Error) { return predictor_input.input; },
+            overload{[&](Error) { return predictor_input.input.read(); },
                      [&](Path path) {
                        return predictor_input.editor.expand_path(path).read();
                      }},
-            Path::New(predictor_input.input));
+            Path::New(ToLazyString(predictor_input.input)));
 
         // TODO: Don't use sources_buffers[0], ignoring the other buffers.
         std::wregex noise_regex =
@@ -438,8 +437,9 @@ Predictor PrecomputedPredictor(const std::vector<LazyString>& predictions,
         std::inserter(contents.value(), contents->end()));
   return [contents](PredictorInput input) {
     MutableLineSequence output_contents;
-    for (auto it = contents->lower_bound(input.input); it != contents->end();
-         ++it) {
+    // TODO(trivial, 2024-09-19): Avoid call to read().
+    for (auto it = contents->lower_bound(input.input.read());
+         it != contents->end(); ++it) {
       if (StartsWith((*it).first, input.input)) {
         // TODO(trivial, 2024-09-17): Avoid SingleLine here. Contents should
         // already contain SingleLine.
@@ -473,7 +473,7 @@ const bool buffer_tests_registration =
             test_predictor(
                 PredictorInput{
                     .editor = editor.value(),
-                    .input = LazyString{input},
+                    .input = SingleLine{LazyString{input}},
                     .input_column = ColumnNumber(input.size()),
                     .source_buffers = {},
                     .progress_channel =
@@ -491,7 +491,7 @@ const bool buffer_tests_registration =
         bool executed = false;
         Predict(test_predictor,
                 PredictorInput{.editor = editor.value(),
-                               .input = LazyString{input},
+                               .input = SingleLine{LazyString{input}},
                                .input_column = ColumnNumber(input.size()),
                                .source_buffers = {}})
             .Transform([&](std::optional<PredictResults> predict_results) {
@@ -553,7 +553,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     const LineSequenceIterator begin = contents.read().upper_bound(input_line);
     LineSequenceIterator end = begin;
     while (end != contents.read().lines().end() &&
-           StartsWith((*end).contents().read(), input.input))
+           StartsWith((*end).contents(), input.input))
       ++end;
 
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add

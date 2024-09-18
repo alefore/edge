@@ -241,8 +241,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                          variables_predictor,
                          PredictorInput{
                              .editor = editor_state,
-                             // TODO(trivial, 2024-09-13): Get rid of read().
-                             .input = line.read(),
+                             .input = line,
                              .input_column = ColumnNumber() + line.size(),
                              .source_buffers = editor_state.active_buffers(),
                              .progress_channel = std::move(progress_channel),

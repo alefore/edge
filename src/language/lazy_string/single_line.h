@@ -21,6 +21,7 @@ class SingleLine
   wchar_t get(ColumnNumber) const;
   SingleLine Substring(ColumnNumber) const;
   SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
+  SingleLine SubstringWithRangeChecks(ColumnNumber, ColumnNumberDelta) const;
   SingleLine Append(SingleLine) const;
 };
 

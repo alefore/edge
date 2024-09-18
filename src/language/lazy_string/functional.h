@@ -79,7 +79,11 @@ std::optional<ColumnNumber> FindLastNotOf(
       input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
 }
 
-bool StartsWith(const LazyString& input, const LazyString& prefix);
+template <typename StringType, typename StringTypePrefix>
+bool StartsWith(const StringType& input, const StringTypePrefix& prefix) {
+  return input.SubstringWithRangeChecks(ColumnNumber{}, prefix.size()) ==
+         prefix;
+}
 }  // namespace afc::language::lazy_string
 namespace std {
 template <>
