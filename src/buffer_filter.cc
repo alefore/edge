@@ -34,6 +34,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::lazy_string::TokenizeNameForPrefixSearches;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -336,7 +337,6 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
         history_value.EscapedRepresentation().read(),
         TokenizeNameForPrefixSearches(
             history_value.EscapedRepresentation().read()));
-    // TODO(easy, 2022-11-26): Get rid of call ToString.
     math::naive_bayes::Event event_key(
         ToLazyString(history_value.EscapedRepresentation()));
     std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
@@ -353,12 +353,11 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       return true;
     }
     math::naive_bayes::FeaturesSet current_features;
-    // TODO(easy, 2024-09-10): Get rid of call ToString.
     for (auto& [key, value] : *line_keys)
       if (key != HistoryIdentifierValue())
         current_features.insert(math::naive_bayes::Feature(
-            to_wstring(key) + L":" +
-            value.EscapedRepresentation().read().ToString()));
+            ToLazyString(key) + LazyString{L":"} +
+            ToLazyString(value.EscapedRepresentation())));
     features_output->push_back(std::move(current_features));
 
     return !input.abort_value.has_value();
@@ -368,18 +367,14 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
 
   // For sorting.
   math::naive_bayes::FeaturesSet current_features;
-  // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : input.current_features)
-    current_features.insert(math::naive_bayes::Feature(
-        (name.read().read().read() + LazyString{L":"} +
-         value.CppRepresentation().read())
-            .ToString()));
-  // TODO(trivial, 2024-09-10): Get rid of ToString:
+    current_features.insert(
+        math::naive_bayes::Feature{ToLazyString(name) + LazyString{L":"} +
+                                   ToLazyString(value.CppRepresentation())});
   for (const auto& [name, value] : GetSyntheticFeatures(input.current_features))
-    current_features.insert(math::naive_bayes::Feature(
-        (name.read().read().read() + LazyString{L":"} +
-         value.CppRepresentation().read())
-            .ToString()));
+    current_features.insert(
+        math::naive_bayes::Feature{ToLazyString(name) + LazyString{L":"} +
+                                   ToLazyString(value.CppRepresentation())});
 
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features))

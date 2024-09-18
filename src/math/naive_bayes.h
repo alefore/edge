@@ -23,7 +23,10 @@ class Event
 // - A given file is currently open.
 // - Today is Wednesday.
 // - A given process is currently executing.
-class Feature : public language::GhostType<Feature, std::wstring> {};
+class Feature
+    : public language::GhostType<Feature, language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
 
 // FeaturesSet represents a set of features. Typically this is used to capture
 // the state of the environment in which an event is executed.

@@ -108,7 +108,8 @@ EventProbabilityMap GetEventProbability(const History& history) {
 const bool get_probability_of_event_tests_registration =
     tests::Register(L"GetEventProbability", [] {
       Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}}, e2{LazyString{L"e2"}};
-      Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5");
+      Feature f1{LazyString{L"f1"}}, f2{LazyString{L"f2"}},
+          f3{LazyString{L"f3"}}, f4{LazyString{L"f4"}}, f5{LazyString{L"f5"}};
       return std::vector<tests::Test>(
           {{.name = L"Empty",
             .callback =
@@ -178,7 +179,8 @@ FeatureProbabilityMap GetFeatureProbability(
 const bool get_probability_of_feature_given_event_tests_registration =
     tests::Register(L"GetFeatureProbability", []() {
       Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}};
-      Feature f1(L"f1"), f2(L"f2"), f3(L"f3");
+      Feature f1{LazyString{L"f1"}}, f2{LazyString{L"f2"}},
+          f3{LazyString{L"f3"}};
       return std::vector<tests::Test>(
           {{.name = L"Empty",
             .callback =
@@ -227,7 +229,7 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
      {.name = L"SomeData", .callback = [] {
         Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}},
             e2{LazyString{L"e2"}};
-        Feature f1(L"f1"), f2(L"f2");
+        Feature f1{LazyString{L"f1"}}, f2{LazyString{L"f2"}};
 
         std::unordered_map<Event, FeatureProbabilityMap> data;
         data[e0][f1] = Probability{0.2};
@@ -324,7 +326,9 @@ const bool bayes_sort_tests_probability_tests_registration =
     tests::Register(L"BayesSort", [] {
       Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}}, e2{LazyString{L"e2"}},
           e3{LazyString{L"e3"}}, e4{LazyString{L"e4"}};
-      Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5"), f6(L"f6");
+      Feature f1{LazyString{L"f1"}}, f2{LazyString{L"f2"}},
+          f3{LazyString{L"f3"}}, f4{LazyString{L"f4"}}, f5{LazyString{L"f5"}},
+          f6{LazyString{L"f6"}};
       return std::vector<tests::Test>({
           {.name = L"EmptyHistoryAndFeatures",
            .callback =
