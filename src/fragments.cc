@@ -81,7 +81,9 @@ void AddFragment(EditorState& editor, LineSequence fragment) {
             vm::EscapedMap{std::multimap<vm::Identifier, EscapedString>{
                                {HistoryIdentifierValue(),
                                 EscapedString{fragment.ToLazyString()}}}}
-                .Serialize());
+                .Serialize()
+                // TODO(easy, 2024-09-19): Avoid `read`.
+                .read());
         return futures::Past(EmptyValue{});
       });
 }

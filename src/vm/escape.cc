@@ -169,17 +169,15 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
   return EscapedMap{output};
 }
 
-LazyString EscapedMap::Serialize() const {
+SingleLine EscapedMap::Serialize() const {
   return Concatenate(
       input_ |
       std::views::transform(
-          [](std::pair<Identifier, EscapedString> data) -> LazyString {
-            // TODO(trivial, 2024-09-16): Return a SingleLine.
-            return (data.first.read().read() + SingleLine{LazyString{L":"}} +
-                    data.second.CppRepresentation())
-                .read();
+          [](std::pair<Identifier, EscapedString> data) -> SingleLine {
+            return data.first.read().read() + SingleLine{LazyString{L":"}} +
+                   data.second.CppRepresentation();
           }) |
-      Intersperse(LazyString{L" "}));
+      Intersperse(SingleLine{LazyString{L" "}}));
 }
 
 const EscapedMap::Map& EscapedMap::read() const { return input_; }

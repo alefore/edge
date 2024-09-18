@@ -167,7 +167,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
       });
 }
 
-LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
+SingleLine BuildHistoryLine(EditorState& editor, LazyString input) {
   EscapedMap::Map data = GetCurrentFeatures(editor);
   data.insert({HistoryIdentifierValue(), EscapedString{std::move(input)}});
   return EscapedMap{std::move(data)}.Serialize();
@@ -667,7 +667,8 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
       GetHistoryBuffer(editor, history_file)
           .Transform([history_line = BuildHistoryLine(editor, input)](
                          gc::Root<OpenBuffer> history) {
-            history.ptr()->AppendLine(history_line);
+            // TODO(2024-09-19, trivial): Avoid call to `read()`:
+            history.ptr()->AppendLine(history_line.read());
             return Success();
           });
       return;
