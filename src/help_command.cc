@@ -287,12 +287,13 @@ class HelpCommand : public Command {
                                : kPaddingSize - field_name.read().size(),
                            L' '}};
             output.push_back(LineBuilder{
-                SingleLine{LazyString{L"* `"}} + SingleLine{field_name.read()} +
-                SingleLine{LazyString{L"`"}} + std::move(padding) +
-                SingleLine{LazyString{L"`"}} +
-                SingleLine{LazyString{FromByteString(value_stream.str())}} +
-                SingleLine{LazyString{
-                    L"`"}}}.Build());
+                (SingleLine{LazyString{L"* `"}} + field_name.read() +
+                 SingleLine{LazyString{L"`"}} + std::move(padding) +
+                 SingleLine{LazyString{L"`"}} +
+                 SingleLine{LazyString{FromByteString(value_stream.str())}} +
+                 SingleLine{LazyString{L"`"}})
+                    .read()}
+                                 .Build());
           });
       output.push_back(L"");
     });
@@ -314,15 +315,14 @@ class HelpCommand : public Command {
                                             ? ColumnNumberDelta{}
                                             : kPaddingSize - name.read().size(),
                                         L' '}};
-          // TODO(trivial, 2024-09-17): Change vm::Identifier to SingleLine,
-          // avoid wrapping it here.
           output.push_back(LineBuilder{
-              SingleLine{LazyString{L"* `"}} + SingleLine{name.read()} +
-              SingleLine{LazyString{L"`"}} + std::move(padding) +
-              SingleLine{LazyString{L"`"}} +
-              SingleLine{LazyString{FromByteString(value_stream.str())}} +
-              SingleLine{LazyString{
-                  L"`"}}}.Build());
+              (SingleLine{LazyString{L"* `"}} + name.read() +
+               SingleLine{LazyString{L"`"}} + std::move(padding) +
+               SingleLine{LazyString{L"`"}} +
+               SingleLine{LazyString{FromByteString(value_stream.str())}} +
+               SingleLine{LazyString{L"`"}})
+                  .read()}
+                               .Build());
         });
     output.push_back(L"");
   }

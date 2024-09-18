@@ -8,6 +8,8 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::vm::Identifier;
 using afc::vm::kPurityTypePure;
 using afc::vm::kPurityTypeUnknown;
@@ -83,11 +85,11 @@ void Modifiers::Register(language::gc::Pool& pool,
       vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::object_type_name);
 
   environment.Define(
-      Identifier{LazyString{L"Modifiers"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Modifiers"}}}},
       vm::NewCallback(pool, kPurityTypePure, MakeNonNullShared<Modifiers>));
 
   modifiers_type.ptr()->AddField(
-      Identifier{LazyString{L"set_backwards"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_backwards"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->direction = Direction::kBackwards;
@@ -96,7 +98,7 @@ void Modifiers::Register(language::gc::Pool& pool,
           .ptr());
 
   modifiers_type.ptr()->AddField(
-      Identifier{LazyString{L"set_line"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_line"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->structure = Structure::kLine;
@@ -105,7 +107,8 @@ void Modifiers::Register(language::gc::Pool& pool,
           .ptr());
 
   modifiers_type.ptr()->AddField(
-      Identifier{LazyString{L"set_delete_behavior"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_delete_behavior"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Modifiers>> output, bool delete_behavior) {
@@ -117,7 +120,8 @@ void Modifiers::Register(language::gc::Pool& pool,
           .ptr());
 
   modifiers_type.ptr()->AddField(
-      Identifier{LazyString{L"set_paste_buffer_behavior"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"set_paste_buffer_behavior"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output,
                          bool paste_buffer_behavior) {
@@ -130,7 +134,8 @@ void Modifiers::Register(language::gc::Pool& pool,
           .ptr());
 
   modifiers_type.ptr()->AddField(
-      Identifier{LazyString{L"set_repetitions"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"set_repetitions"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Modifiers>> output, int repetitions) {
@@ -140,7 +145,8 @@ void Modifiers::Register(language::gc::Pool& pool,
           .ptr());
 
   modifiers_type.ptr()->AddField(
-      Identifier{LazyString{L"set_boundary_end_neighbor"}},
+      Identifier{NonEmptySingleLine{
+          SingleLine{LazyString{L"set_boundary_end_neighbor"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->boundary_end = LIMIT_NEIGHBOR;

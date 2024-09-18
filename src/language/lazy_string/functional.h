@@ -15,9 +15,9 @@ namespace afc::language::lazy_string {
 //
 // `predicate` receives two argumens: the ColumnNumber and the character at that
 // position.
-template <typename Predicate>
+template <typename StringType, typename Predicate>
 std::optional<ColumnNumber> FindFirstColumnWithPredicate(
-    const LazyString& input, const Predicate& f, ColumnNumber start) {
+    const StringType& input, const Predicate& f, ColumnNumber start) {
   CHECK_LE(start.ToDelta(), input.size());
   for (ColumnNumberDelta delta = start.ToDelta(); delta < input.size(); ++delta)
     if (ColumnNumber column = ColumnNumber() + delta;
@@ -26,14 +26,14 @@ std::optional<ColumnNumber> FindFirstColumnWithPredicate(
   return std::nullopt;
 }
 
-template <typename Predicate>
+template <typename StringType, typename Predicate>
 std::optional<ColumnNumber> FindFirstColumnWithPredicate(
-    const LazyString& input, const Predicate& f) {
+    const StringType& input, const Predicate& f) {
   return FindFirstColumnWithPredicate(input, f, ColumnNumber{});
 }
 
-template <typename Predicate>
-std::optional<ColumnNumber> FindLastColumnWithPredicate(const LazyString& input,
+template <typename StringType, typename Predicate>
+std::optional<ColumnNumber> FindLastColumnWithPredicate(const StringType& input,
                                                         const Predicate& f) {
   for (ColumnNumberDelta delta; delta < input.size(); ++delta)
     if (ColumnNumber column =
@@ -43,8 +43,8 @@ std::optional<ColumnNumber> FindLastColumnWithPredicate(const LazyString& input,
   return std::nullopt;
 }
 
-template <typename Callback>
-void ForEachColumn(const LazyString& input, Callback callback) {
+template <typename StringType, typename Callback>
+void ForEachColumn(const StringType& input, Callback callback) {
   FindFirstColumnWithPredicate(input, [&](ColumnNumber column, wchar_t c) {
     callback(column, c);
     return false;

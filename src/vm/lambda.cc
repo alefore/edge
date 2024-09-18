@@ -131,7 +131,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
       compilation.environment.ptr()->LookupType(return_type);
   if (return_type_def == nullptr) {
     compilation.AddError(Error{LazyString{L"Unknown return type: \""} +
-                               return_type.read() + LazyString{L"\""}});
+                               return_type.read().read() + LazyString{L"\""}});
     return nullptr;
   }
 

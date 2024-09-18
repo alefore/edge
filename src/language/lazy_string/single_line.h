@@ -30,10 +30,19 @@ struct NonEmptySingleLineValidator {
 
 class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
                                             NonEmptySingleLineValidator> {
+ public:
   using GhostType::GhostType;
+
+  wchar_t get(ColumnNumber) const;
 };
 
+LazyString operator+(const LazyString& a, const SingleLine& b);
+LazyString operator+(const SingleLine& a, const LazyString& b);
 SingleLine operator+(const SingleLine& a, const SingleLine& b);
+NonEmptySingleLine operator+(const SingleLine& a, const NonEmptySingleLine& b);
+NonEmptySingleLine operator+(const NonEmptySingleLine& a, const SingleLine& b);
+NonEmptySingleLine operator+(const NonEmptySingleLine& a,
+                             const NonEmptySingleLine& b);
 
 template <typename Predicate>
 std::optional<ColumnNumber> FindFirstColumnWithPredicate(

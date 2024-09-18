@@ -26,6 +26,8 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 
 namespace afc::vm::natural {
@@ -105,14 +107,19 @@ class ParseState {
         PushValue(Value::NewNumber(pool_, math::numbers::Number::FromInt64(atoi(
                                               token.value.ToBytes().c_str()))),
                   extended_candidates);
-      std::visit(overload{[&](Identifier identifier) {
-                            for (gc::Root<Value> value : LookUp(identifier))
-                              PushValue(value, extended_candidates);
-                          },
-                          IgnoreErrors{}},
-                 first_token
-                     ? Identifier::New(token.value + function_name_prefix_)
-                     : Identifier::New(token.value));
+      std::visit(
+          overload{[&](Identifier identifier) {
+                     for (gc::Root<Value> value : LookUp(identifier))
+                       PushValue(value, extended_candidates);
+                   },
+                   IgnoreErrors{}},
+          first_token
+              ? Identifier::New(
+                    NonEmptySingleLine{SingleLine{token.value}} +
+                    // TODO(2024-09-18, trivial): Avoid having to wrap
+                    // function_name_prefix_ here.
+                    NonEmptySingleLine{SingleLine{function_name_prefix_}})
+              : Identifier::New(NonEmptySingleLine{SingleLine{token.value}}));
       PushValue(Value::NewString(pool_, token.value), extended_candidates);
       if (extended_candidates.empty())
         return Error{LazyString{L"No valid parses found."}};

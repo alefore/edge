@@ -21,6 +21,8 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::vm {
 struct Instance {
@@ -75,7 +77,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
             [](gc::Root<Value> value) { return Success(std::move(value)); },
             [&]() {
               return Error{LazyString{L"Unexpected: variable value is null: "} +
-                           field_name.read()};
+                           ToLazyString(field_name)};
             }));
       });
 }
@@ -105,7 +107,7 @@ PossibleError FinishClassDeclaration(
         class_object_type.ptr()->AddField(
             name, BuildGetter(pool, class_type, value->type, name).ptr());
         class_object_type.ptr()->AddField(
-            Identifier(LazyString{L"set_"} + name.read()),
+            Identifier(SingleLine{LazyString{L"set_"}} + name.read()),
             BuildSetter(pool, class_type, value->type, name).ptr());
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());

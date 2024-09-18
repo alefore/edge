@@ -455,7 +455,7 @@ std::vector<LazyString> GetCppTokens(
           // TODO(easy, 2023-09-16): Would be good to filter more stringently.
           VLOG(10) << "Checking symbol: " << name;
           if (value->IsFunction() && output_set.insert(name).second)
-            output.push_back(LowerCase(name.read()));
+            output.push_back(LowerCase(name.read().read().read()));
         });
   VLOG(4) << "Found tokens: " << output.size();
   return output;

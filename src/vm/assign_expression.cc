@@ -19,6 +19,7 @@ using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::vm {
 namespace {
@@ -95,9 +96,10 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
   } else {
     auto type_ptr = compilation.environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
-      compilation.AddError(Error{LazyString{L"Unknown type: `"} + type.read() +
-                                 LazyString{L"` for symbol `"} + symbol.read() +
-                                 LazyString{L"`."}});
+      compilation.AddError(Error{LazyString{L"Unknown type: `"} +
+                                 ToLazyString(type) +
+                                 LazyString{L"` for symbol `"} +
+                                 ToLazyString(symbol) + LazyString{L"`."}});
       return std::nullopt;
     }
     type_def = *type_ptr;
@@ -117,7 +119,7 @@ std::unique_ptr<Expression> NewDefineExpression(
     if (types.size() != 1) {
       compilation.AddError(
           Error{LazyString{L"Unable to deduce type for symbol: `"} +
-                symbol.read() + LazyString{L"`."}});
+                ToLazyString(symbol) + LazyString{L"`."}});
       return nullptr;
     }
     default_type = *types.cbegin();
@@ -147,7 +149,7 @@ std::unique_ptr<Expression> NewAssignExpression(
       compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol);
   if (variables.empty()) {
     compilation.AddError(Error{LazyString{L"Variable not found: \""} +
-                               symbol.read() + LazyString{L"\""}});
+                               ToLazyString(symbol) + LazyString{L"\""}});
     return nullptr;
   }
 

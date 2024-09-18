@@ -109,7 +109,7 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 
   StartClassDeclaration(
       *compilation, types::ObjectName(
-          std::move(name)->value().ptr()->get_symbol().read()));
+          ToLazyString(std::move(name)->value().ptr()->get_symbol())));
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
@@ -325,9 +325,10 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
       // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
       Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
-    compilation->AddError(Error{LazyString{L"Unknown type: \""} +
-                                type->value().ptr()->get_symbol().read() +
-                                LazyString{L"\""}});
+    compilation->AddError(Error{
+        LazyString{L"Unknown type: \""} +
+        ToLazyString(type->value().ptr()->get_symbol()) +
+        LazyString{L"\""}});
     OUT = nullptr;
   } else {
     OUT = new std::vector<std::pair<Type, Identifier>>();
@@ -350,9 +351,10 @@ non_empty_function_declaration_arguments(OUT) ::=
         // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
         Identifier(type->value().ptr()->get_symbol()));
     if (type_def == nullptr) {
-    compilation->AddError(Error{LazyString{L"Unknown type: \""} +
-                          type->value().ptr()->get_symbol().read() +
-                          LazyString{L"\""}});
+      compilation->AddError(Error{
+          LazyString{L"Unknown type: \""} +
+          ToLazyString(type->value().ptr()->get_symbol()) +
+          LazyString{L"\""}});
       OUT = nullptr;
     } else {
       OUT = list.release();

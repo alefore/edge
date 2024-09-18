@@ -130,8 +130,10 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   const vm::Type vmtype = GetVMType<ContainerPtr>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
+  // TODO(trivial, 2024-09-18): Remove NonEmptySingleLine wrapping here:
   environment.Define(
-      Identifier(object_type_name.read()),
+      Identifier(language::lazy_string::NonEmptySingleLine{
+          language::lazy_string::SingleLine{object_type_name.read()}}),
       Value::NewFunction(
           pool, kPurityTypePure, vmtype, {},
           [&pool](std::vector<language::gc::Root<Value>> args) {
@@ -147,17 +149,20 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           }));
 
   object_type.ptr()->AddField(
-      Identifier{LazyString{L"empty"}},
+      Identifier{language::lazy_string::NonEmptySingleLine{
+          language::lazy_string::SingleLine{LazyString{L"empty"}}}},
       vm::NewCallback(pool, kPurityTypePure, [](ContainerPtr ptr) {
         return ptr->lock([](Container& c) { return c.empty(); });
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier{LazyString{L"size"}},
+      Identifier{language::lazy_string::NonEmptySingleLine{
+          language::lazy_string::SingleLine{LazyString{L"size"}}}},
       vm::NewCallback(pool, kPurityTypePure, [](ContainerPtr ptr) {
         return ptr->lock([](Container& c) { return c.size(); });
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier{LazyString{L"get"}},
+      Identifier{language::lazy_string::NonEmptySingleLine{
+          language::lazy_string::SingleLine{LazyString{L"get"}}}},
       Value::NewFunction(
           pool, kPurityTypePure,
           GetVMType<typename Container::value_type>::vmtype(),
@@ -190,7 +195,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   if constexpr (T::has_set_at_index)
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"set"}},
+        Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{LazyString{L"set"}}}},
         Value::NewFunction(
             pool, kPurityTypePure, types::Void{},
             {vmtype, types::Number{},
@@ -233,7 +239,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             .ptr());
 
   object_type.ptr()->AddField(
-      Identifier{LazyString{L"filter"}},
+      Identifier{language::lazy_string::NonEmptySingleLine{
+          language::lazy_string::SingleLine{LazyString{L"filter"}}}},
       Value::NewFunction(
           pool, kPurityTypeUnknown, vmtype,
           {vmtype,
@@ -292,7 +299,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           .ptr());
 
   object_type.ptr()->AddField(
-      Identifier{LazyString{L"ForEach"}},
+      Identifier{language::lazy_string::NonEmptySingleLine{
+          language::lazy_string::SingleLine{LazyString{L"ForEach"}}}},
       Value::NewFunction(
           pool, kPurityTypeUnknown, types::Void{},
           {vmtype,
@@ -335,28 +343,33 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   if constexpr (T::has_contains)
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"contains"}},
+        Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{LazyString{L"contains"}}}},
         vm::NewCallback(pool, kPurityTypePure, T::Contains).ptr());
 
   if constexpr (T::has_erase_by_index) {
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"erase"}},
+        Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{LazyString{L"erase"}}}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::EraseByIndex).ptr());
   }
 
   if constexpr (T::has_erase_by_element)
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"erase"}},
+        Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{LazyString{L"erase"}}}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::EraseByElement).ptr());
 
   if constexpr (T::has_insert)
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"insert"}},
+        Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{LazyString{L"insert"}}}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::Insert).ptr());
 
   if constexpr (T::has_push_back)
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"push_back"}},
+        Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{LazyString{L"push_back"}}}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::PushBack).ptr());
 
   environment.DefineType(object_type.ptr());

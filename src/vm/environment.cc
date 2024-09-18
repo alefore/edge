@@ -29,6 +29,7 @@ using afc::language::PossibleError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::SingleLine;
 using afc::math::numbers::Number;
 
 namespace afc::vm {
@@ -83,7 +84,8 @@ const Type* Environment::LookupType(const Identifier& symbol) const {
     return &output;
   }
 
-  auto object_type = LookupObjectType(types::ObjectName(symbol.read()));
+  auto object_type =
+      LookupObjectType(types::ObjectName(symbol.read().read().read()));
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
@@ -209,9 +211,9 @@ void Environment::CaseInsensitiveLookup(
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
-      LazyString lower_case_symbol = LowerCase(symbol.read());
+      SingleLine lower_case_symbol = LowerCase(symbol.read().read());
       for (auto& item : data.table)
-        if (LowerCase(item.first.read()) == lower_case_symbol)
+        if (LowerCase(item.first.read().read()) == lower_case_symbol)
           std::ranges::copy(item.second | std::views::values | gc::view::Root,
                             std::back_inserter(*output));
     });

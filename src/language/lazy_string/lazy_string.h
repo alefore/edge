@@ -88,6 +88,13 @@ std::ostream& operator<<(std::ostream& os,
 
 std::wstring to_wstring(const LazyString&);
 
+LazyString ToLazyString(LazyString x);
+
+template <typename G>
+LazyString ToLazyString(const G& x) {
+  return ToLazyString(x.read());
+}
+
 class LazyStringIterator {
  private:
   LazyString container_;
@@ -121,6 +128,7 @@ class LazyStringIterator {
  private:
   bool IsAtEnd() const;
 };
+
 }  // namespace afc::language::lazy_string
 
 GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumber)

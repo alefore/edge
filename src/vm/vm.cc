@@ -55,6 +55,9 @@ using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using numbers::BigInt;
 
 namespace afc {
@@ -280,7 +283,7 @@ void CompileLine(Compilation& compilation, void* parser,
                  (iswalnum(str.get(pos)) || str.get(pos) == '_'))
             ++pos;
           LazyString symbol_contents = str.Substring(start, pos - start);
-          if (Identifier::New(symbol_contents) == Success(IdentifierInclude()))
+          if (symbol_contents == ToLazyString(IdentifierInclude()))
             HandleInclude(compilation, parser, str, &pos);
           else
             compilation.AddError(
@@ -508,8 +511,8 @@ void CompileLine(Compilation& compilation, void* parser,
                (iswalnum(str.get(pos)) || str.get(pos) == '_' ||
                 str.get(pos) == '~'))
           ++pos;
-        ValueOrError<Identifier> symbol_or_error =
-            Identifier::New(str.Substring(start, pos - start));
+        ValueOrError<Identifier> symbol_or_error = Identifier::New(
+            NonEmptySingleLine{SingleLine{str.Substring(start, pos - start)}});
         if (IsError(symbol_or_error)) {
           compilation.RegisterErrors<Identifier>(symbol_or_error);
           return;
@@ -580,7 +583,8 @@ void CompileLine(Compilation& compilation, void* parser,
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
       if (input.value().ptr()->IsSymbol())
-        compilation.last_token = input.value().ptr()->get_symbol().read();
+        compilation.last_token =
+            ToLazyString(input.value().ptr()->get_symbol());
       else if (input.value().ptr()->IsString())
         compilation.last_token = input.value().ptr()->get_string();
       else

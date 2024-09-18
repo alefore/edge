@@ -32,8 +32,31 @@ SingleLine SingleLine::Append(SingleLine other) const {
   return SingleLine{read().Append(other.read())};
 }
 
+wchar_t NonEmptySingleLine::get(ColumnNumber a) const { return read().get(a); }
+
+LazyString operator+(const LazyString& a, const SingleLine& b) {
+  return a + b.read();
+}
+
+LazyString operator+(const SingleLine& a, const LazyString& b) {
+  return a.read() + b;
+}
+
 SingleLine operator+(const SingleLine& a, const SingleLine& b) {
   return SingleLine{a.read() + b.read()};
+}
+
+NonEmptySingleLine operator+(const SingleLine& a, const NonEmptySingleLine& b) {
+  return NonEmptySingleLine{a + b.read()};
+}
+
+NonEmptySingleLine operator+(const NonEmptySingleLine& a, const SingleLine& b) {
+  return NonEmptySingleLine{a.read() + b};
+}
+
+NonEmptySingleLine operator+(const NonEmptySingleLine& a,
+                             const NonEmptySingleLine& b) {
+  return NonEmptySingleLine{a.read() + b.read()};
 }
 
 std::optional<ColumnNumber> FindLastNotOf(const SingleLine& input,

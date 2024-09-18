@@ -21,6 +21,8 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::vm::Identifier;
 using afc::vm::kPurityTypePure;
 
@@ -106,25 +108,25 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
 
   // Methods for LineColumn.
   environment.Define(
-      Identifier{LazyString{L"LineColumn"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"LineColumn"}}}},
       NewCallback(pool, kPurityTypePure, [](int line, int column) {
         return LineColumn(LineNumber(line), ColumnNumber(column));
       }));
 
   line_column_type.ptr()->AddField(
-      Identifier{LazyString{L"line"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"line"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
         return line_column.line.read();
       }).ptr());
 
   line_column_type.ptr()->AddField(
-      Identifier{LazyString{L"column"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"column"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
         return line_column.column.read();
       }).ptr());
 
   line_column_type.ptr()->AddField(
-      Identifier{LazyString{L"tostring"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
         return std::to_wstring(line_column.line.read()) + L", " +
                std::to_wstring(line_column.column.read());
@@ -139,26 +141,27 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
 
   // Methods for LineColumn.
   environment.Define(
-      Identifier{LazyString{L"LineColumnDelta"}},
+      Identifier{
+          NonEmptySingleLine{SingleLine{LazyString{L"LineColumnDelta"}}}},
       NewCallback(pool, kPurityTypePure, [](int line, int column) {
         return LineColumnDelta(LineNumberDelta(line),
                                ColumnNumberDelta(column));
       }));
 
   line_column_delta_type.ptr()->AddField(
-      Identifier{LazyString{L"line"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"line"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
         return line_column_delta.line.read();
       }).ptr());
 
   line_column_delta_type.ptr()->AddField(
-      Identifier{LazyString{L"column"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"column"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
         return line_column_delta.column.read();
       }).ptr());
 
   line_column_delta_type.ptr()->AddField(
-      Identifier{LazyString{L"tostring"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
         return std::to_wstring(line_column_delta.line.read()) + L", " +
                std::to_wstring(line_column_delta.column.read());
@@ -173,19 +176,19 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
 
   // Methods for Range.
   environment.Define(
-      Identifier{LazyString{L"Range"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Range"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumn begin, LineColumn end) {
         return Range(begin, end);
       }));
 
   range_type.ptr()->AddField(
-      Identifier{LazyString{L"begin"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"begin"}}}},
       NewCallback(pool, kPurityTypePure, [](Range range) {
         return range.begin();
       }).ptr());
 
   range_type.ptr()->AddField(
-      Identifier{LazyString{L"end"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"end"}}}},
       NewCallback(pool, kPurityTypePure, [](Range range) {
         return range.end();
       }).ptr());

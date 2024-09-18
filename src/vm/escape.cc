@@ -16,6 +16,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 
@@ -153,8 +154,12 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
     // Skip quotes:
     ++value_start;
     --value_end;
-    DECLARE_OR_RETURN(Identifier id, Identifier::New(token.value.Substring(
-                                         ColumnNumber{0}, colon->ToDelta())));
+    DECLARE_OR_RETURN(SingleLine id_single_line,
+                      SingleLine::New(token.value.Substring(ColumnNumber{0},
+                                                            colon->ToDelta())));
+    DECLARE_OR_RETURN(NonEmptySingleLine id_non_empty_single_line,
+                      NonEmptySingleLine::New(id_single_line));
+    DECLARE_OR_RETURN(Identifier id, Identifier::New(id_non_empty_single_line));
     DECLARE_OR_RETURN(EscapedString parsed_value,
                       EscapedString::Parse(input.Substring(
                           value_start, value_end - value_start)));
@@ -169,11 +174,8 @@ LazyString EscapedMap::Serialize() const {
       input_ |
       std::views::transform(
           [](std::pair<Identifier, EscapedString> data) -> LazyString {
-            // TODO(trivial, 2024-09-16): Change Identifier to
-            // SingleLine, avoid wrapping.
             // TODO(trivial, 2024-09-16): Return a SingleLine.
-            return (SingleLine{data.first.read()} +
-                    SingleLine{LazyString{L":"}} +
+            return (data.first.read().read() + SingleLine{LazyString{L":"}} +
                     data.second.CppRepresentation())
                 .read();
           }) |

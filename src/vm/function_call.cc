@@ -32,6 +32,7 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::view::SkipErrors;
 
 namespace afc::vm {
@@ -255,13 +256,15 @@ std::unique_ptr<Expression> NewMethodLookup(
                 });
             std::vector<Identifier> close_alternatives =
                 FilterSimilarNames(method_name, std::move(alternatives));
-            errors.push_back(Error{
-                LazyString{L"Unknown method: \""} + object_type->ToString() +
-                LazyString{L"::"} + method_name.read() + LazyString{L"\""} +
-                (close_alternatives.empty()
-                     ? LazyString{}
-                     : (LazyString{L" (did you mean \""} +
-                        close_alternatives[0].read() + LazyString{L"\"?)"}))});
+            errors.push_back(Error{LazyString{L"Unknown method: \""} +
+                                   object_type->ToString() + LazyString{L"::"} +
+                                   ToLazyString(method_name) +
+                                   LazyString{L"\""} +
+                                   (close_alternatives.empty()
+                                        ? LazyString{}
+                                        : (LazyString{L" (did you mean \""} +
+                                           ToLazyString(close_alternatives[0]) +
+                                           LazyString{L"\"?)"}))});
             continue;
           }
 

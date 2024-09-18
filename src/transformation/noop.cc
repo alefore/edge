@@ -10,6 +10,8 @@ namespace gc = afc::language::gc;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::editor {
 namespace transformation {
@@ -18,7 +20,8 @@ class Noop : public CompositeTransformation {
  public:
   static void Register(language::gc::Pool& pool, vm::Environment& environment) {
     environment.Define(
-        vm::Identifier{LazyString{L"NoopTransformation"}},
+        vm::Identifier{
+            NonEmptySingleLine{SingleLine{LazyString{L"NoopTransformation"}}}},
         vm::NewCallback(pool, vm::kPurityTypePure, []() {
           return MakeNonNullShared<Variant>(NewNoopTransformation());
         }));

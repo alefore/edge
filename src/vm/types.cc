@@ -23,6 +23,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 
 namespace std {
 size_t hash<afc::vm::PurityType>::operator()(
@@ -84,8 +85,7 @@ using language::overload;
 namespace gc = language::gc;
 
 /* static */ PossibleError IdentifierValidator::Validate(
-    const LazyString& input) {
-  if (input.empty()) return Error{LazyString{L"Identifier can't be empty."}};
+    const NonEmptySingleLine& input) {
   // TODO(2024-08-27): Improve the validation? The presence of '~' is
   // questionable. Maybe we should validate that it only occurs in the
   // beginning? We should probably also validate that numbers don't occur in the
@@ -97,8 +97,9 @@ namespace gc = language::gc;
                    L"_~"});
   if (std::optional<ColumnNumber> position = FindFirstNotOf(input, allow_list);
       position.has_value())
-    return Error{LazyString{L"Invalid character found inside identifier: "} +
-                 input.Substring(position.value(), ColumnNumberDelta{1})};
+    return Error{
+        LazyString{L"Invalid character found inside identifier: "} +
+        input.read().Substring(position.value(), ColumnNumberDelta{1})};
   return language::Success();
 }
 

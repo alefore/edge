@@ -29,6 +29,7 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -44,31 +45,31 @@ using afc::vm::Identifier;
 namespace afc::editor {
 const vm::Identifier& HistoryIdentifierValue() {
   static const vm::Identifier* output =
-      new vm::Identifier{language::lazy_string::LazyString{L"value"}};
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"value"}}}};
   return *output;
 }
 
 const vm::Identifier& HistoryIdentifierExtension() {
   static const vm::Identifier* output =
-      new vm::Identifier{language::lazy_string::LazyString{L"extension"}};
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"extension"}}}};
   return *output;
 }
 
 const vm::Identifier& HistoryIdentifierName() {
   static const vm::Identifier* output =
-      new vm::Identifier{language::lazy_string::LazyString{L"name"}};
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"name"}}}};
   return *output;
 }
 
 const vm::Identifier& HistoryIdentifierActive() {
   static const vm::Identifier* output =
-      new vm::Identifier{language::lazy_string::LazyString{L"active"}};
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"active"}}}};
   return *output;
 }
 
 const vm::Identifier& HistoryIdentifierDirectory() {
   static const vm::Identifier* output =
-      new vm::Identifier{language::lazy_string::LazyString{L"directory"}};
+      new Identifier{NonEmptySingleLine{SingleLine{LazyString{L"directory"}}}};
   return *output;
 }
 
@@ -356,7 +357,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     for (auto& [key, value] : *line_keys)
       if (key != HistoryIdentifierValue())
         current_features.insert(math::naive_bayes::Feature(
-            key.read().ToString() + L":" +
+            to_wstring(key) + L":" +
             value.EscapedRepresentation().read().ToString()));
     features_output->push_back(std::move(current_features));
 
@@ -370,12 +371,14 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
   // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : input.current_features)
     current_features.insert(math::naive_bayes::Feature(
-        (name.read() + LazyString{L":"} + value.CppRepresentation().read())
+        (name.read().read().read() + LazyString{L":"} +
+         value.CppRepresentation().read())
             .ToString()));
   // TODO(trivial, 2024-09-10): Get rid of ToString:
   for (const auto& [name, value] : GetSyntheticFeatures(input.current_features))
     current_features.insert(math::naive_bayes::Feature(
-        (name.read() + LazyString{L":"} + value.CppRepresentation().read())
+        (name.read().read().read() + LazyString{L":"} +
+         value.CppRepresentation().read())
             .ToString()));
 
   for (math::naive_bayes::Event& key :

@@ -17,6 +17,8 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::PossibleError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::math::numbers::Number;
 using afc::vm::kPurityTypePure;
 
@@ -30,7 +32,7 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   RegisterTimeType(pool, environment_value);
   gc::Root<ObjectType> bool_type = ObjectType::New(pool, types::Bool{});
   bool_type.ptr()->AddField(
-      Identifier{LazyString{L"tostring"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       NewCallback(pool, kPurityTypePure,
                   std::function<std::wstring(bool)>(
                       [](bool v) { return v ? L"true" : L"false"; }))
@@ -39,14 +41,14 @@ language::gc::Root<Environment> NewDefaultEnvironment(
 
   gc::Root<ObjectType> number_type = ObjectType::New(pool, types::Number{});
   number_type.ptr()->AddField(
-      Identifier{LazyString{L"tostring"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       NewCallback(pool, kPurityTypePure, [](Number value) {
         return futures::Past(value.ToString(5));
       }).ptr());
   environment_value.DefineType(number_type.ptr());
 
   environment_value.Define(
-      Identifier{LazyString{L"Error"}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Error"}}}},
       NewCallback(pool, kPurityTypePure, [](LazyString description) {
         return futures::Past(PossibleError(Error{description}));
       }));

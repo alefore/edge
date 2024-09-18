@@ -13,21 +13,30 @@
 #include "src/language/ghost_type.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 
 namespace afc::vm {
 struct IdentifierValidator {
   static language::PossibleError Validate(
-      const language::lazy_string::LazyString& input);
+      const language::lazy_string::NonEmptySingleLine& input);
 };
 
 // Represents a single VM identifier within a namespace (e.g., `Buffer` or
 // `lib`).
 class Identifier
-    : public language::GhostType<Identifier, language::lazy_string::LazyString,
+    : public language::GhostType<Identifier,
+                                 language::lazy_string::NonEmptySingleLine,
                                  IdentifierValidator> {
+ public:
   using GhostType::GhostType;
+
+  // TODO(easy, 2024-09-18): Remove this method. Force customers to do this
+  // explicitly.
+  Identifier(language::lazy_string::LazyString input)
+      : Identifier(language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{input}}) {}
 };
 
 // Return the identifier for "auto".

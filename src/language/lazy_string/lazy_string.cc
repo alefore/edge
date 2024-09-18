@@ -196,6 +196,8 @@ LazyStringIterator LazyString::end() const {
 
 std::wstring to_wstring(const LazyString& s) { return s.ToString(); }
 
+LazyString ToLazyString(LazyString x) { return x; }
+
 std::string LazyString::ToBytes() const { return ToByteString(ToString()); }
 
 bool LazyStringIterator::operator!=(const LazyStringIterator& other) const {
