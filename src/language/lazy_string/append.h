@@ -11,13 +11,14 @@
 
 namespace afc::language::lazy_string {
 template <std::ranges::range R>
-LazyString Concatenate(R&& inputs) {
-  // TODO: There's probably a faster way to do this. Not sure it matters.
+auto Concatenate(R&& inputs) {
+  using Type = typename std::remove_const<
+      typename std::remove_reference<decltype(*inputs.begin())>::type>::type;
   return container::Fold(
-      [](LazyString fragment, LazyString total) {
-        return std::move(total).Append(fragment);
+      [](auto fragment, auto total) {
+        return std::move(total) + std::move(fragment);
       },
-      LazyString(), inputs);
+      Type{}, inputs);
 }
 
 // Returns a range transformation that can be used to intersperse a given
@@ -28,10 +29,10 @@ LazyString Concatenate(R&& inputs) {
 //     std::vector<LazyString> inputs = ...;
 //     LazyString output =
 //         Concatenate(inputs | Intersperse(LazyString{L", "}))
-inline auto Intersperse(LazyString separator) {
-  return std::views::transform([&](LazyString v) {
-           return std::vector<LazyString>{separator, std::move(v)};
-         }) |
+template <typename S>
+auto Intersperse(S separator) {
+  return std::views::transform(
+             [&](S v) { return std::vector<S>{separator, std::move(v)}; }) |
          std::views::join |
          // Remove the first separator element.
          std::views::drop(1);
