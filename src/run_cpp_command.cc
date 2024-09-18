@@ -52,6 +52,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::vm::Identifier;
 using afc::vm::TypesToString;
 using afc::vm::VMTypeMapper;
@@ -505,7 +506,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
   CHECK(!description.empty());
   return NewLinePromptCommand(
       editor_state, description, [&editor_state, mode]() {
-        LazyString prompt;
+        LineBuilder prompt_builder;
         std::function<futures::Value<EmptyValue>(SingleLine input)> handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         Predictor predictor = EmptyPredictor;
@@ -513,14 +514,15 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
           case CppCommandMode::kLiteral:
             handler = std::bind_front(RunCppCommandLiteralHandler,
                                       std::ref(editor_state));
-            prompt = LazyString{L"cpp"};
+            prompt_builder.AppendString(SingleLine{LazyString{L"cpp"}}.read());
+            ;
             colorize_options_provider = std::bind_front(
                 CppColorizeOptionsProvider, std::ref(editor_state));
             break;
           case CppCommandMode::kShell:
             handler = std::bind_front(RunCppCommandShellHandler,
                                       std::ref(editor_state));
-            prompt = LazyString{L":"};
+            prompt_builder.AppendString(SingleLine{LazyString{L":"}}.read());
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
             // TODO(easy, 2023-09-16): Make it possible to disable the use of a
@@ -533,12 +535,14 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
                 SearchNamespaces(buffer->ptr().value()), predictor);
             break;
         }
+        prompt_builder.AppendString(SingleLine{LazyString{L" "}}.read());
+        Line prompt = std::move(prompt_builder).Build();
         return PromptOptions{
             .editor_state = editor_state,
-            .prompt = prompt + LazyString{L" "},
-            .history_file = prompt == LazyString{L":"}
+            .prompt = prompt,
+            .history_file = prompt.contents() == SingleLine{LazyString{L":"}}
                                 ? HistoryFile{LazyString{L"colon"}}
-                                : HistoryFile{prompt},
+                                : HistoryFile{prompt.contents().read()},
             .colorize_options_provider = std::move(colorize_options_provider),
             .handler = std::move(handler),
             .cancel_handler = []() { /* Nothing. */ },

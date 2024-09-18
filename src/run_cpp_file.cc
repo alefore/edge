@@ -10,6 +10,7 @@
 #include "src/file_link_mode.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/line_prompt_mode.h"
 
 namespace gc = afc::language::gc;
@@ -27,6 +28,7 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::OutgoingLink;
 
 namespace afc::editor {
@@ -107,7 +109,7 @@ class RunCppFileCommand : public Command {
     CHECK(buffer.has_value());
     Prompt(
         {.editor_state = editor_state_,
-         .prompt = LazyString{L"cmd "},
+         .prompt = LineBuilder{SingleLine{LazyString{L"cmd "}}}.Build(),
          .history_file = HistoryFile{LazyString{L"editor_commands"}},
          .initial_value = Line{buffer->ptr()->ReadLazyString(
              buffer_variables::editor_commands_path)},

@@ -36,7 +36,7 @@ struct PromptOptions {
   EditorState& editor_state;
 
   // Text to show in the prompt.
-  language::lazy_string::LazyString prompt;
+  language::text::Line prompt;
 
   // Used to set buffer_variables::contents_type on the buffer for the prompt.
   // The extensions code inspects this and can adjust behaviors.

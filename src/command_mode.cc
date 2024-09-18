@@ -84,6 +84,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::OutgoingLink;
 
@@ -607,7 +608,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           [&editor_state] {
             return PromptOptions{
                 .editor_state = editor_state,
-                .prompt = LazyString{L"...$ "},
+                .prompt = LineBuilder{SingleLine{LazyString{L"...$ "}}}.Build(),
                 .history_file = HistoryFileCommands(),
                 .handler = std::bind_front(RunMultipleCommandsHandler,
                                            std::ref(editor_state))};

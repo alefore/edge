@@ -35,6 +35,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
@@ -257,7 +258,7 @@ class SearchCommand : public Command {
 
     Prompt(
         {.editor_state = editor_state_,
-         .prompt = LazyString{L"🔎 "},
+         .prompt = LineBuilder{SingleLine{LazyString{L"🔎 "}}}.Build(),
          .history_file = HistoryFile{LazyString{L"search"}},
          .colorize_options_provider =
              [&editor_state = editor_state_,

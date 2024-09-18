@@ -41,6 +41,7 @@ using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
@@ -296,7 +297,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
     auto source_buffers = editor.active_buffers();
     return PromptOptions{
         .editor_state = editor,
-        .prompt = LazyString{L"<"},
+        .prompt = LineBuilder{SingleLine{LazyString{L"<"}}}.Build(),
         .prompt_contents_type = LazyString{L"path"},
         .history_file = HistoryFileFiles(),
         .initial_value =

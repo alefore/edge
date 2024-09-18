@@ -45,6 +45,8 @@ using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::ProcessId;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -459,12 +461,16 @@ class ForkEditorCommand : public Command {
                           .inputs = {vm::types::String{}}})});
 
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
+      LineBuilder prompt;
+      std::visit(
+          overload{IgnoreErrors{},
+                   [&prompt](Path path) { prompt.AppendString(path.read()); }},
+          children_path);
+      prompt.AppendString(SingleLine{LazyString{L"$ "}}.read(),
+                          LineModifierSet{LineModifier::kGreen});
       Prompt(PromptOptions{
           .editor_state = editor_state_,
-          .prompt = std::visit(overload{[](Error) { return LazyString{}; },
-                                        [](Path path) { return path.read(); }},
-                               children_path) +
-                    LazyString{L"$ "},
+          .prompt = std::move(prompt).Build(),
           .history_file = HistoryFileCommands(),
           .colorize_options_provider =
               prompt_state->context_command_callback.has_value()

@@ -130,8 +130,10 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
                              : L" files: " + std::to_wstring(observers.size());
   Prompt(PromptOptions{
       .editor_state = buffer.editor(),
-      .prompt = LazyString{L"unlink "} + LazyString{details} +
-                LazyString{L"? [yes/no] "},
+      .prompt = LineBuilder{SingleLine{LazyString{L"unlink "}} +
+                            SingleLine{LazyString{details}} +
+                            SingleLine{LazyString{L"? [yes/no] "}}}
+                    .Build(),
       .history_file = HistoryFile{LazyString{L"confirmation"}},
       .handler =
           [buffer = buffer.NewRoot(), observers](SingleLine input) {
