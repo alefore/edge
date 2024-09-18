@@ -8,6 +8,7 @@
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type_class.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
@@ -106,7 +107,7 @@ EventProbabilityMap GetEventProbability(const History& history) {
 
 const bool get_probability_of_event_tests_registration =
     tests::Register(L"GetEventProbability", [] {
-      Event e0(L"e0"), e1(L"e1"), e2(L"e2");
+      Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}}, e2{LazyString{L"e2"}};
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5");
       return std::vector<tests::Test>(
           {{.name = L"Empty",
@@ -176,7 +177,7 @@ FeatureProbabilityMap GetFeatureProbability(
 
 const bool get_probability_of_feature_given_event_tests_registration =
     tests::Register(L"GetFeatureProbability", []() {
-      Event e0(L"e0"), e1(L"e1");
+      Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}};
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3");
       return std::vector<tests::Test>(
           {{.name = L"Empty",
@@ -224,7 +225,8 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
       .callback =
           [] { CHECK_EQ(MinimalFeatureProbability({}), Probability{1.0}); }},
      {.name = L"SomeData", .callback = [] {
-        Event e0(L"e0"), e1(L"e1"), e2(L"e2");
+        Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}},
+            e2{LazyString{L"e2"}};
         Feature f1(L"f1"), f2(L"f2");
 
         std::unordered_map<Event, FeatureProbabilityMap> data;
@@ -320,7 +322,8 @@ std::vector<Event> Sort(const History& history,
 
 const bool bayes_sort_tests_probability_tests_registration =
     tests::Register(L"BayesSort", [] {
-      Event e0(L"e0"), e1(L"e1"), e2(L"e2"), e3(L"e3"), e4(L"e4");
+      Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}}, e2{LazyString{L"e2"}},
+          e3{LazyString{L"e3"}}, e4{LazyString{L"e4"}};
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5"), f6(L"f6");
       return std::vector<tests::Test>({
           {.name = L"EmptyHistoryAndFeatures",

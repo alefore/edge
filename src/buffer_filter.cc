@@ -338,7 +338,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
             history_value.EscapedRepresentation().read()));
     // TODO(easy, 2022-11-26): Get rid of call ToString.
     math::naive_bayes::Event event_key(
-        history_value.EscapedRepresentation().read().ToString());
+        ToLazyString(history_value.EscapedRepresentation()));
     std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
     if (filter_tokens.empty()) {
       VLOG(6) << "Accepting value (empty filters): " << line.contents();
@@ -383,19 +383,18 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
 
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features))
-    if (ValueOrError<EscapedString> data =
-            EscapedString::Parse(key.ReadLazyString());
+    if (ValueOrError<EscapedString> data = EscapedString::Parse(key.read());
         !IsError(data))
       output.matches.push_back(FilterSortBufferOutput::Match{
           .preview = ColorizeLine(
-              key.ReadLazyString(),
-              container::MaterializeVector(
-                  history_value_tokens[key] |
-                  std::views::transform([](const Token& token) {
-                    VLOG(6) << "Add token BOLD: " << token;
-                    return TokenAndModifiers{
-                        token, LineModifierSet{LineModifier::kCyan}};
-                  }))),
+              key.read(), container::MaterializeVector(
+                              history_value_tokens[key] |
+                              std::views::transform([](const Token& token) {
+                                VLOG(6) << "Add token BOLD: " << token;
+                                return TokenAndModifiers{
+                                    token,
+                                    LineModifierSet{LineModifier::kCyan}};
+                              }))),
           .data = LineSequence::BreakLines(
               ValueOrDie(std::move(data)).OriginalString())});
   return output;

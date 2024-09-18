@@ -11,11 +11,9 @@ namespace afc::math::naive_bayes {
 using ::operator<<;
 
 // An Event represents an arbitrary action, such as opening a specific file.
-class Event : public language::GhostType<Event, std::wstring> {
- public:
-  language::lazy_string::LazyString ReadLazyString() const {
-    return language::lazy_string::LazyString{read()};
-  }
+class Event
+    : public language::GhostType<Event, language::lazy_string::LazyString> {
+  using GhostType::GhostType;
 };
 
 // A Feature represents some arbitrary characteristic of the environment where
