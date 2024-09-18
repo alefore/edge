@@ -196,7 +196,18 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
         Internal, std::initializer_list<std::pair<const K, V>>>
       : GhostType(Internal(init_list)) {}
 
-  static auto New(Internal internal) {
+  static ValueOrError<External> New(ValueOrError<Internal> internal)
+    requires(!ghost_type_internal::IsAlwaysValid<Validator>)
+  {
+    if (const Error* error = std::get_if<Error>(&internal); error != nullptr)
+      return *error;
+    return ghost_type_internal::Factory<External>::New(
+        std::get<Internal>(internal));
+  }
+
+  static External New(Internal internal)
+    requires(ghost_type_internal::IsAlwaysValid<Validator>)
+  {
     return ghost_type_internal::Factory<External>::New(internal);
   }
 
