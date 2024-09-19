@@ -598,28 +598,28 @@ void OpenBuffer::SignalEndOfFile() {
 void OpenBuffer::SendEndOfFileToProcess() {
   if (fd() == nullptr) {
     status().SetInformationText(Line{
-        SingleLine{LazyString{L"No active subprocess for current buffer."}}});
+        SINGLE_LINE_CONSTANT(L"No active subprocess for current buffer.")});
     return;
   }
   if (Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
       status().SetInformationText(LineBuilder{
-          SingleLine{LazyString{L"Sending EOF failed: "}} +
+          SINGLE_LINE_CONSTANT(L"Sending EOF failed: ") +
           SingleLine{LazyString{FromByteString(
               strerror(errno))}}}.Build());
       return;
     }
-    status().SetInformationText(Line{SingleLine{LazyString{L"EOF sent"}}});
+    status().SetInformationText(Line{SINGLE_LINE_CONSTANT(L"EOF sent")});
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
       status().SetInformationText(LineBuilder{
-          SingleLine{LazyString{L"shutdown(SHUT_WR) failed: "}} +
+          SINGLE_LINE_CONSTANT(L"shutdown(SHUT_WR) failed: ") +
           SingleLine{LazyString{FromByteString(
               strerror(errno))}}}.Build());
       return;
     }
-    status().SetInformationText(Line{SingleLine{LazyString{L"shutdown sent"}}});
+    status().SetInformationText(Line{SINGLE_LINE_CONSTANT(L"shutdown sent")});
   }
 }
 
@@ -727,11 +727,11 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   gc::Root<OpenBuffer> root = NewRoot();
   environment_->Define(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"buffer"}}}},
+      Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"buffer")}},
       VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
 
   environment_->Define(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"sleep"}}}},
+      Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"sleep")}},
       vm::NewCallback(editor().gc_pool(),
                       PurityType{.reads_external_inputs = true},
                       [weak_this](double delay_seconds) {
@@ -1339,7 +1339,7 @@ void OpenBuffer::ToggleActiveCursors() {
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
   status_.SetInformationText(LineBuilder{
-      SingleLine{LazyString{L"cursors stack ("}} +
+      SINGLE_LINE_CONSTANT(L"cursors stack (") +
       SingleLine{LazyString{std::to_wstring(stack_size)}} +
       SingleLine{
           LazyString{L"): +"}}}.Build());
@@ -1353,7 +1353,7 @@ void OpenBuffer::PopActiveCursors() {
     return;
   }
   status_.SetInformationText(LineBuilder{
-      SingleLine{LazyString{L"cursors stack ("}} +
+      SINGLE_LINE_CONSTANT(L"cursors stack (") +
       SingleLine{LazyString{std::to_wstring(stack_size - 1)}} +
       SingleLine{
           LazyString{L"): -"}}}.Build());
@@ -1431,7 +1431,7 @@ void OpenBuffer::CreateCursor() {
       range.set_begin(tmp_first);
     }
   }
-  status_.SetInformationText(Line{SingleLine{LazyString{L"Cursor created."}}});
+  status_.SetInformationText(Line{SINGLE_LINE_CONSTANT(L"Cursor created.")});
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position,
@@ -1710,7 +1710,7 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
     case SIGINT:
       if (child_pid_ != std::nullopt) {
         status_.SetInformationText(LineBuilder{
-            SingleLine{LazyString{L"SIGINT >> pid:"}} +
+            SINGLE_LINE_CONSTANT(L"SIGINT >> pid:") +
             SingleLine{LazyString{std::to_wstring(
                 child_pid_->read())}}}.Build());
         file_system_driver().Kill(child_pid_.value(), signal);
@@ -2025,10 +2025,10 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                // TODO(trivial, 2024-09-17): Avoid SingleLine of
                                // URL here. Change URL to be SingleLine, or use
                                // EscapedString?
-                               editor.status()
-                                   .SetExpiringInformationText(LineBuilder{
-                                       SingleLine{LazyString{L"Open: "}} +
-                                       SingleLine{url.read()}}.Build()));
+                               editor.status().SetExpiringInformationText(
+                                   LineBuilder{SINGLE_LINE_CONSTANT(L"Open: ") +
+                                               SingleLine{url.read()}}
+                                       .Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
                            // std::wstring from the URL's LazyString.
