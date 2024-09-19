@@ -20,6 +20,7 @@ extern "C" {
 
 using namespace afc::editor;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -27,12 +28,16 @@ using afc::language::text::MutableLineSequence;
 
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
-  auto parser = NewCppTreeParser(
-      {SingleLine{LazyString{L"auto"}}, SingleLine{LazyString{L"int"}},
-       SingleLine{LazyString{L"char"}}, SingleLine{LazyString{L"if"}},
-       SingleLine{LazyString{L"while"}}, SingleLine{LazyString{L"const"}},
-       SingleLine{LazyString{L"for"}}},
-      {SingleLine{LazyString{L"optoins"}}}, IdentifierBehavior::kNone);
+  auto parser =
+      NewCppTreeParser({NonEmptySingleLine{SingleLine{LazyString{L"auto"}}},
+                        NonEmptySingleLine{SingleLine{LazyString{L"int"}}},
+                        NonEmptySingleLine{SingleLine{LazyString{L"char"}}},
+                        NonEmptySingleLine{SingleLine{LazyString{L"if"}}},
+                        NonEmptySingleLine{SingleLine{LazyString{L"while"}}},
+                        NonEmptySingleLine{SingleLine{LazyString{L"const"}}},
+                        NonEmptySingleLine{SingleLine{LazyString{L"for"}}}},
+                       {NonEmptySingleLine{SingleLine{LazyString{L"optoins"}}}},
+                       IdentifierBehavior::kNone);
 
   std::wifstream input(argv[1]);
 
