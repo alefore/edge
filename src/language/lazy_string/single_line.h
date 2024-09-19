@@ -13,10 +13,29 @@ struct SingleLineValidator {
   static language::PossibleError Validate(const LazyString& input);
 };
 
+namespace internal {
+constexpr bool ContainsNewline(const wchar_t* input) {
+  return std::wstring_view(input).find('\n') != std::wstring_view::npos;
+}
+}  // namespace internal
+
 class SingleLine
     : public GhostType<SingleLine, LazyString, SingleLineValidator> {
  public:
   using GhostType::GhostType;
+
+  template <const wchar_t* const input>
+  static constexpr SingleLine FromConstant() {
+    static_assert(!internal::ContainsNewline(input),
+                  "String can't contain newline characters.");
+    return SingleLine{LazyString{std::wstring{input}}};
+  }
+
+  template <wchar_t c>
+  static SingleLine Padding(ColumnNumberDelta len) {
+    static_assert(c != L'\n' && c != L'\r', "Character can't be newline.");
+    return SingleLine{LazyString{len, c}};
+  }
 
   wchar_t get(ColumnNumber) const;
   SingleLine Substring(ColumnNumber) const;
