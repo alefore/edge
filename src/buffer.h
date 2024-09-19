@@ -230,7 +230,7 @@ class OpenBuffer {
   void AppendLazyString(language::lazy_string::LazyString input);
   void AppendLine(language::lazy_string::SingleLine line);
   void AppendRawLine(
-      language::lazy_string::LazyString str,
+      language::lazy_string::SingleLine line,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::kShow);
 

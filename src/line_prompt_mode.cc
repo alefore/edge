@@ -338,6 +338,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
       return;
     }
 
+    // TODO(easy, 2024-09-19): Avoid read():
     prompt_buffer_.ptr()->AppendRawLine(
         ColorizeLine(line->contents().read(), std::move(options.tokens)));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));

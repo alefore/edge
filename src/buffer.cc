@@ -1066,8 +1066,7 @@ void OpenBuffer::AppendLine(SingleLine str) {
   if (reading_from_parser_) {
     switch (str.get(ColumnNumber(0))) {
       case 'E':
-        // TODO(trivial, 2024-09-19): Avoid `read()`:
-        return AppendRawLine(str.Substring(ColumnNumber(1)).read());
+        return AppendRawLine(str.Substring(ColumnNumber(1)));
     }
     return;
   }
@@ -1080,16 +1079,12 @@ void OpenBuffer::AppendLine(SingleLine str) {
     }
   }
 
-  // TODO(trivial, 2024-09-19): Avoid `read()`:
-  AppendRawLine(str.read());
+  AppendRawLine(std::move(str));
 }
 
 void OpenBuffer::AppendRawLine(
-    LazyString str, MutableLineSequence::ObserverBehavior observer_behavior) {
-  // TODO(trivial, 2024-09-17): Avoid having to wrap `str` in Singleline. It
-  // should already be SingleLine.
-  AppendRawLine(LineBuilder(SingleLine{std::move(str)}).Build(),
-                observer_behavior);
+    SingleLine str, MutableLineSequence::ObserverBehavior observer_behavior) {
+  AppendRawLine(LineBuilder{std::move(str)}.Build(), observer_behavior);
 }
 
 void OpenBuffer::AppendRawLine(

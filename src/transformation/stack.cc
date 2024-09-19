@@ -59,7 +59,7 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
       delete_buffer->AppendToLastLine(LineBuilder{
           SingleLine{LazyString{
               FromByteString(line_str)}}}.Build());
-      delete_buffer->AppendRawLine(Line());
+      delete_buffer->AppendRawLine(Line{});
     }
   }
 }
@@ -126,7 +126,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         if (input.delete_buffer.has_value()) {
           input.delete_buffer->ptr()->AppendToLastLine(
               LineBuilder{SingleLine{error.read()}}.Build());
-          input.delete_buffer->ptr()->AppendRawLine(Line());
+          input.delete_buffer->ptr()->AppendRawLine(Line{});
           output.added_to_paste_buffer = true;
         }
         return futures::Past(std::move(output));
