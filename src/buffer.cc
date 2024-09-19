@@ -1628,8 +1628,6 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
     infrastructure::TerminalName name() override {
-      // TODO(easy, 2024-08-06): Change to_wstring to to_lazystring and remove
-      // extra wrapping here.
       return infrastructure::TerminalName{LazyString{L"Terminal:"} +
                                           ToLazyString(buffer_.name())};
     }
