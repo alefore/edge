@@ -51,12 +51,20 @@ void ForEachColumn(const StringType& input, Callback callback) {
   });
 }
 
+template <typename StringType>
 std::optional<ColumnNumber> FindFirstOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars);
+    const StringType& input, const std::unordered_set<wchar_t>& chars) {
+  return FindFirstOf(input, chars, ColumnNumber{});
+}
 
+template <typename StringType>
 std::optional<ColumnNumber> FindFirstOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars,
-    ColumnNumber start);
+    const StringType& input, const std::unordered_set<wchar_t>& chars,
+    ColumnNumber start) {
+  return FindFirstColumnWithPredicate(
+      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); },
+      start);
+}
 
 template <typename StringType>
 std::optional<ColumnNumber> FindFirstNotOf(

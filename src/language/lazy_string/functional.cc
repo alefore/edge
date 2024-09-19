@@ -3,19 +3,6 @@
 #include "src/tests/tests.h"
 
 namespace afc::language::lazy_string {
-std::optional<ColumnNumber> FindFirstOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars) {
-  return FindFirstOf(input, chars, ColumnNumber{});
-}
-
-std::optional<ColumnNumber> FindFirstOf(
-    const LazyString& input, const std::unordered_set<wchar_t>& chars,
-    ColumnNumber start) {
-  return FindFirstColumnWithPredicate(
-      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); },
-      start);
-}
-
 namespace {
 const bool starts_with_tests_registration = tests::Register(
     L"LazyString.StartsWith",
