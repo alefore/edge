@@ -89,8 +89,8 @@ std::optional<ColumnNumber> FindLastNotOf(
 
 template <typename StringType, typename StringTypePrefix>
 bool StartsWith(const StringType& input, const StringTypePrefix& prefix) {
-  return input.SubstringWithRangeChecks(ColumnNumber{}, prefix.size()) ==
-         prefix;
+  return ToLazyString(input.SubstringWithRangeChecks(
+             ColumnNumber{}, prefix.size())) == ToLazyString(prefix);
 }
 }  // namespace afc::language::lazy_string
 namespace std {

@@ -175,10 +175,9 @@ SingleLine BuildHistoryLine(EditorState& editor, LazyString input) {
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
-    DeleteNotification::Value abort_value, LazyString filter) {
+    DeleteNotification::Value abort_value, SingleLine filter) {
   BufferName name{LazyString{L"- history filter: "} +
-                  ToLazyString(history_buffer.ptr()->name()) +
-                  LazyString{L": "} + filter};
+                  ToLazyString(history_buffer.ptr()->name()) + LazyString{L": "} + filter};
   gc::Root<OpenBuffer> filter_buffer_root =
       OpenBuffer::New({.editor = editor_state, .name = name});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
@@ -433,7 +432,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,
-                           line.contents().read())
+                           line.contents())
                  .Transform([status_value_viewer](
                                 gc::Root<OpenBuffer> filtered_history) {
                    LOG(INFO) << "Propagating history information to status.";
@@ -585,7 +584,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
                           prompt_state_->history(), abort_value,
-                          input.contents().read())
+                          input.contents())
                 .Transform([](gc::Root<OpenBuffer> history_filtered) {
                   history_filtered.ptr()->set_current_position_line(
                       LineNumber(0) +

@@ -14,8 +14,8 @@ namespace afc::vm::natural {
 // This can be used to select a `preview` function: the environment can define
 // function `PreviewFoo` and `Foo` and we can select which one should be used.
 language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
-    const language::lazy_string::LazyString& input,
-    const language::lazy_string::LazyString& function_name_prefix,
+    const language::lazy_string::SingleLine& input,
+    const language::lazy_string::SingleLine& function_name_prefix,
     const Environment& environment,
     const std::vector<Namespace>& search_namespaces, language::gc::Pool& pool);
 }  // namespace afc::vm::natural

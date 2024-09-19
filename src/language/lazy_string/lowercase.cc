@@ -69,4 +69,19 @@ LazyString UpperCase(LazyString input) {
   return LazyString(MakeNonNullShared<UpperCaseImpl>(std::move(input)));
 }
 
+SingleLine LowerCase(SingleLine input) {
+  return SingleLine{LowerCase(input.read())};
+}
+
+SingleLine UpperCase(SingleLine input) {
+  return SingleLine{UpperCase(input.read())};
+}
+
+NonEmptySingleLine LowerCase(NonEmptySingleLine input) {
+  return NonEmptySingleLine{LowerCase(input.read())};
+}
+
+NonEmptySingleLine UpperCase(NonEmptySingleLine input) {
+  return NonEmptySingleLine{UpperCase(input.read())};
+}
 }  // namespace afc::language::lazy_string

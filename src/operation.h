@@ -99,7 +99,7 @@ struct CommandSetShell {
 struct CommandPaste {
   CommandArgumentRepetitions repetitions = {1};
   std::vector<language::lazy_string::LazyString> queries;
-  std::optional<language::lazy_string::LazyString> query_input;
+  std::optional<language::lazy_string::SingleLine> query_input;
 };
 
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,

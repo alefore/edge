@@ -16,6 +16,7 @@ using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 
@@ -93,18 +94,17 @@ const bool get_local_file_path_tests_registration = tests::Register(
 }  // namespace
 
 std::vector<URL> GetLocalFileURLsWithExtensions(
-    const LazyString& file_context_extensions, const URL& url) {
+    const SingleLine& file_context_extensions, const URL& url) {
   std::vector<URL> output = {url};
   return std::visit(
       overload{[&](Error) { return output; },
                [&](Path path) {
                  std::vector<Token> extensions =
                      TokenizeBySpaces(file_context_extensions);
-                 for (const Token& extension_token : extensions) {
-                   CHECK(!extension_token.value.empty());
-                   output.push_back(URL::FromPath(
-                       Path::WithExtension(path, extension_token.value)));
-                 }
+                 // TODO(trivial, 2024-09-19): Here we can avoid a for loop.
+                 for (const Token& extension_token : extensions)
+                   output.push_back(URL::FromPath(Path::WithExtension(
+                       path, ToLazyString(extension_token.value))));
                  return output;
                }},
       url.GetLocalFilePath());

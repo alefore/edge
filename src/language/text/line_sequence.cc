@@ -19,6 +19,8 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Concatenate;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 
@@ -225,6 +227,11 @@ std::wstring LineSequence::ToString() const {
 lazy_string::LazyString LineSequence::ToLazyString() const {
   // TODO(easy, 2023-09-11): Provide a more efficient implementation.
   return LazyString{ToString()};
+}
+
+lazy_string::SingleLine LineSequence::FoldLines() const {
+  return Concatenate(*this | std::views::transform(&Line::contents) |
+                     Intersperse(SingleLine{LazyString{L" "}}));
 }
 
 LineNumberDelta LineSequence::size() const {

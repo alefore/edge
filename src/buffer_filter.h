@@ -6,6 +6,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
@@ -32,7 +33,7 @@ language::text::Line ColorizeLine(language::lazy_string::LazyString line,
 
 struct FilterSortBufferInput {
   futures::DeleteNotification::Value abort_value;
-  language::lazy_string::LazyString filter;
+  language::lazy_string::SingleLine filter;
   language::text::LineSequence history;
   std::multimap<vm::Identifier, vm::EscapedString> current_features;
 };

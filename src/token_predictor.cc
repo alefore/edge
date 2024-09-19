@@ -17,6 +17,7 @@ using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -47,67 +48,74 @@ bool find_token_tests = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            CHECK(!FindToken(TokenizeBySpaces(LazyString()), ColumnNumber())
+            CHECK(!FindToken(TokenizeBySpaces(SingleLine{}), ColumnNumber())
                        .has_value());
           }},
      {.name = L"SpacesInTheMiddle",
       .callback =
           [] {
-            CHECK(!FindToken(TokenizeBySpaces(LazyString{L"012    89"}),
-                             ColumnNumber(15))
+            CHECK(!FindToken(
+                       TokenizeBySpaces(SingleLine{LazyString{L"012    89"}}),
+                       ColumnNumber(15))
                        .has_value());
           }},
      {.name = L"MiddleSecondToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
-                          ColumnNumber(8))
-                    .value(),
-                Token({.value = LazyString{L"678901"},
-                       .begin = ColumnNumber(6),
-                       .end = ColumnNumber(12)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(SingleLine{
+                                   LazyString{L"01234 678901 345678"}}),
+                               ColumnNumber(8))
+                         .value(),
+                     Token({.value = NonEmptySingleLine{SingleLine{
+                                LazyString{L"678901"}}},
+                            .begin = ColumnNumber(6),
+                            .end = ColumnNumber(12)}));
           }},
      {.name = L"EndSecondToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
-                          ColumnNumber(12))
-                    .value(),
-                Token({.value = LazyString{L"678901"},
-                       .begin = ColumnNumber(6),
-                       .end = ColumnNumber(12)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(SingleLine{
+                                   LazyString{L"01234 678901 345678"}}),
+                               ColumnNumber(12))
+                         .value(),
+                     Token({.value = NonEmptySingleLine{SingleLine{
+                                LazyString{L"678901"}}},
+                            .begin = ColumnNumber(6),
+                            .end = ColumnNumber(12)}));
           }},
      {.name = L"BeginThirdToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
-                          ColumnNumber(13))
-                    .value(),
-                Token({.value = LazyString{L"345678"},
-                       .begin = ColumnNumber(13),
-                       .end = ColumnNumber(19)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(SingleLine{
+                                   LazyString{L"01234 678901 345678"}}),
+                               ColumnNumber(13))
+                         .value(),
+                     Token({.value = NonEmptySingleLine{SingleLine{
+                                LazyString{L"345678"}}},
+                            .begin = ColumnNumber(13),
+                            .end = ColumnNumber(19)}));
           }},
      {.name = L"MiddleLastToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
-                          ColumnNumber(15))
-                    .value(),
-                Token({.value = LazyString{L"345678"},
-                       .begin = ColumnNumber(13),
-                       .end = ColumnNumber(19)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(SingleLine{
+                                   LazyString{L"01234 678901 345678"}}),
+                               ColumnNumber(15))
+                         .value(),
+                     Token({.value = NonEmptySingleLine{SingleLine{
+                                LazyString{L"345678"}}},
+                            .begin = ColumnNumber(13),
+                            .end = ColumnNumber(19)}));
           }},
      {.name = L"EndOfString", .callback = [] {
-        CHECK_EQ(FindToken(TokenizeBySpaces(LazyString{L"01234 678901"}),
-                           ColumnNumber(12))
-                     .value(),
-                 Token({.value = LazyString{L"678901"},
-                        .begin = ColumnNumber(6),
-                        .end = ColumnNumber(12)}));
+        CHECK_EQ(
+            FindToken(TokenizeBySpaces(SingleLine{LazyString{L"01234 678901"}}),
+                      ColumnNumber(12))
+                .value(),
+            Token(
+                {.value = NonEmptySingleLine{SingleLine{LazyString{L"678901"}}},
+                 .begin = ColumnNumber(6),
+                 .end = ColumnNumber(12)}));
       }}});
 
 // Transforms a sequence of expansions for a token inside an input into a
@@ -149,7 +157,8 @@ bool transform_lines_tests = tests::Register(
           [] {
             SortedLineSequenceUniqueLines result = TransformLines(
                 SingleLine{LazyString{L"foo src/buf blah"}},
-                Token{.value = LazyString{L"src/buf"},
+                Token{.value = NonEmptySingleLine{SingleLine{
+                          LazyString{L"src/buf"}}},
                       .begin = ColumnNumber(4),
                       .end = ColumnNumber(11)},
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
@@ -162,7 +171,8 @@ bool transform_lines_tests = tests::Register(
           [] {
             SortedLineSequenceUniqueLines result = TransformLines(
                 SingleLine{LazyString{L"src/buf"}},
-                Token{.value = LazyString{L"src/buf"},
+                Token{.value = NonEmptySingleLine{SingleLine{
+                          LazyString{L"src/buf"}}},
                       .begin = ColumnNumber(0),
                       .end = ColumnNumber(7)},
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
@@ -175,7 +185,8 @@ bool transform_lines_tests = tests::Register(
           [] {
             SortedLineSequenceUniqueLines result = TransformLines(
                 SingleLine{LazyString{L"src/buf and again src/buf"}},
-                Token{.value = LazyString{L"src/buf"},
+                Token{.value = NonEmptySingleLine{SingleLine{
+                          LazyString{L"src/buf"}}},
                       .begin = ColumnNumber(18),
                       .end = ColumnNumber(25)},
                 LineSequence::ForTests({L"src/buffer.cc"}));
@@ -184,12 +195,13 @@ bool transform_lines_tests = tests::Register(
             CHECK(result.read().lines() == expected);
           }},
      {.name = L"ExactMatchLinesSequence", .callback = [] {
-        SortedLineSequenceUniqueLines result =
-            TransformLines(SingleLine{LazyString{L"foo src/buf blah"}},
-                           Token{.value = LazyString{L"src/buf"},
-                                 .begin = ColumnNumber(4),
-                                 .end = ColumnNumber(11)},
-                           LineSequence::ForTests({L"src/buf"}));
+        SortedLineSequenceUniqueLines result = TransformLines(
+            SingleLine{LazyString{L"foo src/buf blah"}},
+            Token{
+                .value = NonEmptySingleLine{SingleLine{LazyString{L"src/buf"}}},
+                .begin = ColumnNumber(4),
+                .end = ColumnNumber(11)},
+            LineSequence::ForTests({L"src/buf"}));
         LineSequence expected = LineSequence::ForTests({L"foo src/buf blah"});
         CHECK(result.read().lines() == expected);
       }}});
@@ -203,10 +215,8 @@ Predictor TokenPredictor(Predictor predictor) {
           LOG(INFO) << "Found token: " << token_to_expand;
           input.input_column =
               input.input_column - token_to_expand.begin.ToDelta();
-          // TODO(easy, 2024-09-18): Avoid conversion to
-          // LazyString->SingleLine here:
-          SingleLine original_input = std::exchange(
-              input.input, SingleLine{LazyString{token_to_expand.value}});
+          SingleLine original_input =
+              std::exchange(input.input, token_to_expand.value.read());
           return predictor(input).Transform([original_input, token_to_expand](
                                                 PredictorOutput output) {
             return futures::Past(PredictorOutput{
@@ -223,8 +233,7 @@ Predictor TokenPredictor(Predictor predictor) {
           LOG(INFO) << "No expansion.";
           return predictor(input);
         },
-        // TODO(trivial, 2024-09-18): Avoid `read`?
-        FindToken(TokenizeBySpaces(input.input.read()), input.input_column));
+        FindToken(TokenizeBySpaces(input.input), input.input_column));
   };
 }
 }  // namespace afc::editor

@@ -596,12 +596,15 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   std::set<SingleLine> words;
   for (const OpenBuffer& buffer : input.source_buffers | gc::view::Value) {
     RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
-    std::ranges::copy(TokenizeBySpaces(buffer.ReadLazyString(
-                          buffer_variables::language_keywords)) |
-                          std::views::transform([](const Token& token) {
-                            return SingleLine{token.value};
-                          }),
-                      std::inserter(words, words.end()));
+    std::ranges::copy(
+        TokenizeBySpaces(
+            LineSequence::BreakLines(
+                buffer.ReadLazyString(buffer_variables::language_keywords))
+                .FoldLines()) |
+            std::views::transform(
+                // TODO(trivial, 2024-09-19): Avoid the need to call `read()`.
+                [](const Token& token) { return token.value.read(); }),
+        std::inserter(words, words.end()));
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName{LazyString{L"Dictionary"}}});

@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
 class ParseState {
   gc::Pool& pool_;
   const std::vector<Token>& tokens_;
-  const LazyString& function_name_prefix_;
+  const SingleLine& function_name_prefix_;
   const Environment& environment_;
   const std::vector<vm::Namespace>& search_namespaces_;
 
@@ -87,7 +87,7 @@ class ParseState {
 
  public:
   ParseState(gc::Pool& pool, const std::vector<Token>& tokens,
-             const LazyString& function_name_prefix,
+             const SingleLine& function_name_prefix,
              const Environment& environment,
              const std::vector<vm::Namespace>& search_namespaces)
       : pool_(pool),
@@ -112,14 +112,11 @@ class ParseState {
                               PushValue(value, extended_candidates);
                           },
                           IgnoreErrors{}},
-                 first_token ? Identifier::New(NonEmptySingleLine::New(
-                                   SingleLine::New(token.value) +
-                                   // TODO(2024-09-18, trivial): Avoid having to
-                                   // wrap function_name_prefix_ here.
-                                   SingleLine::New(function_name_prefix_)))
-                             : Identifier::New(NonEmptySingleLine::New(
-                                   SingleLine::New(token.value))));
-      PushValue(Value::NewString(pool_, token.value), extended_candidates);
+                 first_token
+                     ? Identifier::New(token.value + function_name_prefix_)
+                     : Identifier::New(token.value));
+      PushValue(Value::NewString(pool_, ToLazyString(token.value)),
+                extended_candidates);
       if (extended_candidates.empty())
         return Error{LazyString{L"No valid parses found."}};
       first_token = false;
@@ -250,7 +247,7 @@ class ParseState {
 };
 
 ValueOrError<NonNull<std::shared_ptr<Expression>>> CompileTokens(
-    const std::vector<Token>& tokens, const LazyString& function_name_prefix,
+    const std::vector<Token>& tokens, const SingleLine& function_name_prefix,
     const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
   return ParseState(pool, tokens, function_name_prefix, environment,
@@ -260,7 +257,7 @@ ValueOrError<NonNull<std::shared_ptr<Expression>>> CompileTokens(
 }  // namespace
 
 language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
-    const LazyString& input, const LazyString& function_name_prefix,
+    const SingleLine& input, const SingleLine& function_name_prefix,
     const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
   return CompileTokens(TokenizeBySpaces(input), function_name_prefix,
@@ -281,7 +278,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"\"foo\""}, LazyString{},
+                   Compile(SingleLine{LazyString{L"\"foo\""}}, SingleLine{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK_EQ(
                    ValueOrDie(Evaluate(expression, pool, environment, nullptr)
@@ -302,9 +299,10 @@ bool tests_registration = tests::Register(
                        SingleLine{LazyString{L"SomeFunction"}}}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    []() -> std::wstring { return L"quux"; }));
-               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"SomeFunction"}, LazyString{},
-                           environment.ptr().value(), {kEmptyNamespace}, pool));
+               NonNull<std::shared_ptr<Expression>> expression =
+                   ValueOrDie(Compile(SingleLine{LazyString{L"SomeFunction"}},
+                                      SingleLine{}, environment.ptr().value(),
+                                      {kEmptyNamespace}, pool));
                CHECK_EQ(
                    ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                   .Get()
@@ -329,7 +327,7 @@ bool tests_registration = tests::Register(
                                             L"}";
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"Moo Moo"}, LazyString{},
+                   Compile(SingleLine{LazyString{L"Moo Moo"}}, SingleLine{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
                CHECK_EQ(
@@ -355,8 +353,9 @@ bool tests_registration = tests::Register(
                                      return L"quux";
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"UnaryFunction bar"}, LazyString{},
-                           environment.ptr().value(), {kEmptyNamespace}, pool));
+                   Compile(SingleLine{LazyString{L"UnaryFunction bar"}},
+                           SingleLine{}, environment.ptr().value(),
+                           {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
                                     .value())
@@ -378,8 +377,9 @@ bool tests_registration = tests::Register(
                                      return L"quux";
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"UnaryFunction ba.r"}, LazyString{},
-                           environment.ptr().value(), {kEmptyNamespace}, pool));
+                   Compile(SingleLine{LazyString{L"UnaryFunction ba.r"}},
+                           SingleLine{}, environment.ptr().value(),
+                           {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
                                     .value())
@@ -402,10 +402,11 @@ bool tests_registration = tests::Register(
                          CHECK(b == L"foo");
                          return L"quux";
                        }));
-               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"SomeFunction \"bar\" \"foo\""},
-                           LazyString{}, environment.ptr().value(),
-                           {kEmptyNamespace}, pool));
+               NonNull<std::shared_ptr<Expression>> expression =
+                   ValueOrDie(Compile(
+                       SingleLine{LazyString{L"SomeFunction \"bar\" \"foo\""}},
+                       SingleLine{}, environment.ptr().value(),
+                       {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
                                     .value())
@@ -424,9 +425,9 @@ bool tests_registration = tests::Register(
                                  calls++;
                                  return L"[" + a + L"]";
                                }));
-           NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-               Compile(LazyString{L"foo foo foo \"bar\" "}, LazyString{},
-                       environment.ptr().value(), {kEmptyNamespace}, pool));
+           NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(Compile(
+               SingleLine{LazyString{L"foo foo foo \"bar\" "}}, SingleLine{},
+               environment.ptr().value(), {kEmptyNamespace}, pool));
            CHECK_EQ(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                    .Get()
                                    .value())

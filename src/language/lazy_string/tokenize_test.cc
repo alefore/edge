@@ -8,6 +8,7 @@
 
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::editor {
 namespace {
@@ -15,11 +16,11 @@ namespace {
 const bool tokenize_by_spaces_tests_registration = tests::Register(
     L"TokenizeBySpaces",
     {{.name = L"EmptyString",
-      .callback = [] { CHECK_EQ(TokenizeBySpaces(LazyString()).size(), 0ul); }},
+      .callback = [] { CHECK_EQ(TokenizeBySpaces(SingleLine{}).size(), 0ul); }},
      {.name = L"SingleToken",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(LazyString{L"alejandro"});
+            auto value = TokenizeBySpaces(SingleLine{LazyString{L"alejandro"}});
             CHECK_EQ(value.size(), 1ul);
             CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(0));
@@ -28,8 +29,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"ThreeSimpleTokens",
       .callback =
           [] {
-            auto value =
-                TokenizeBySpaces(LazyString{L"alejandro forero cuervo"});
+            auto value = TokenizeBySpaces(
+                SingleLine{LazyString{{L"alejandro forero cuervo"}}});
             CHECK_EQ(value.size(), 3ul);
 
             CHECK_EQ(value[0].value, LazyString{L"alejandro"});
@@ -47,7 +48,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SpaceSurroundedSingleToken",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(LazyString{L"  alejandro  "});
+            auto value =
+                TokenizeBySpaces(SingleLine{LazyString{L"  alejandro  "}});
             CHECK_EQ(value.size(), 1ul);
             CHECK_EQ(value[0].value, LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(2));
@@ -57,7 +59,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
       .callback =
           [] {
             auto value = TokenizeBySpaces(
-                LazyString{L"  alejandro   forero   cuervo   "});
+                SingleLine{LazyString{L"  alejandro   forero   cuervo   "}});
             CHECK_EQ(value.size(), 3ul);
 
             CHECK_EQ(value[0].value, LazyString{L"alejandro"});
@@ -75,7 +77,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SingleQuotedString",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(LazyString{L"\"alejandro\""});
+            auto value =
+                TokenizeBySpaces(SingleLine{LazyString{L"\"alejandro\""}});
             CHECK_EQ(value.size(), 1ul);
 
             CHECK_EQ(value[0].value, LazyString{L"alejandro"});
@@ -85,7 +88,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SpaceSurroundedSingleQuotedString",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(LazyString{L"  \"alejandro\"  "});
+            auto value =
+                TokenizeBySpaces(SingleLine{LazyString{L"  \"alejandro\"  "}});
             CHECK_EQ(value.size(), 1ul);
 
             CHECK_EQ(value[0].value, LazyString{L"alejandro"});
@@ -95,8 +99,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"MultiWordQuotedString",
       .callback =
           [] {
-            auto value =
-                TokenizeBySpaces(LazyString{L"\"alejandro forero cuervo\""});
+            auto value = TokenizeBySpaces(
+                SingleLine{LazyString{L"\"alejandro forero cuervo\""}});
             CHECK_EQ(value.size(), 1ul);
 
             CHECK_EQ(value[0].value, LazyString{L"alejandro forero cuervo"});
@@ -106,8 +110,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SeveralQuotedStrings",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(
-                LazyString{L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo"});
+            auto value = TokenizeBySpaces(SingleLine{
+                LazyString{L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo"}});
             CHECK_EQ(value.size(), 3ul);
 
             CHECK_EQ(value[0].value, LazyString{L"a l e j a n d r o"});
@@ -123,7 +127,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
             CHECK_EQ(value[2].end, ColumnNumber(42));
           }},
      {.name = L"RunawayQuote", .callback = [] {
-        auto value = TokenizeBySpaces(LazyString{L"alejandro for\"ero"});
+        auto value =
+            TokenizeBySpaces(SingleLine{LazyString{L"alejandro for\"ero"}});
         CHECK_EQ(value.size(), 2ul);
 
         CHECK_EQ(value[0].value, LazyString{L"alejandro"});

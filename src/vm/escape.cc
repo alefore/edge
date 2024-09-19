@@ -136,7 +136,7 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
     SingleLine input) {
   TRACK_OPERATION(EscapedMap_Parse);
   EscapedMap::Map output;
-  for (const Token& token : TokenizeBySpaces(input.read())) {
+  for (const Token& token : TokenizeBySpaces(input)) {
     std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});
     if (colon == std::nullopt)
       return Error{
@@ -154,12 +154,10 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
     // Skip quotes:
     ++value_start;
     --value_end;
-    DECLARE_OR_RETURN(SingleLine id_single_line,
-                      SingleLine::New(token.value.Substring(ColumnNumber{0},
-                                                            colon->ToDelta())));
-    DECLARE_OR_RETURN(NonEmptySingleLine id_non_empty_single_line,
-                      NonEmptySingleLine::New(id_single_line));
-    DECLARE_OR_RETURN(Identifier id, Identifier::New(id_non_empty_single_line));
+    DECLARE_OR_RETURN(
+        Identifier id,
+        Identifier::New(NonEmptySingleLine::New(
+            token.value.Substring(ColumnNumber{0}, colon->ToDelta()))));
     DECLARE_OR_RETURN(
         EscapedString parsed_value,
         // TODO(trivial, 2024-09-19): Get rid of `read()`:

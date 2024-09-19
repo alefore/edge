@@ -6,11 +6,12 @@
 #include <vector>
 
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
 struct Token {
-  LazyString value = {};
+  NonEmptySingleLine value = {};
   language::lazy_string::ColumnNumber begin;
   // `end` is the first column that isn't part of the token.
   language::lazy_string::ColumnNumber end;
@@ -26,7 +27,7 @@ std::ostream& operator<<(std::ostream& os, const Token& lc);
 // Can handle \. For example, the string `foo\" bar\\x` gives the two tokens
 // `foo"` and `bar\x`.
 std::vector<Token> TokenizeBySpaces(
-    const language::lazy_string::LazyString& command);
+    const language::lazy_string::SingleLine& command);
 
 // Given: src/CreateSomethingOrOther/buffer_list.cc
 // Returns: "src", "Create", "Something", "Or", "Other", "buffer", "list", "cc"
@@ -39,7 +40,7 @@ std::vector<Token> TokenizeNameForPrefixSearches(
 // to `AllFilterTokensAreValidPrefixes`, allowing filter tokens to extend past
 // a given element from `tokens` (.e.g., searching for "foo ba" will match).
 std::vector<Token> ExtendTokensToEndOfString(
-    language::lazy_string::LazyString str, std::vector<Token> tokens);
+    language::lazy_string::SingleLine str, std::vector<Token> tokens);
 
 // If all tokens in `filter` are valid prefix (by a case-insensitive comparison)
 // of a token in `substrings`, returns a vector with the same length as

@@ -14,7 +14,7 @@ class OpenBuffer;
 void AddFragment(EditorState& editor, language::text::LineSequence fragment);
 
 struct FindFragmentQuery {
-  language::lazy_string::LazyString filter;
+  language::lazy_string::SingleLine filter;
   size_t results_limit = 50;
 };
 

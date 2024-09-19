@@ -35,6 +35,9 @@ class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
   using GhostType::GhostType;
 
   wchar_t get(ColumnNumber) const;
+  SingleLine Substring(ColumnNumber) const;
+  SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
+  SingleLine SubstringWithRangeChecks(ColumnNumber, ColumnNumberDelta) const;
 };
 
 LazyString operator+(const LazyString& a, const SingleLine& b);
@@ -58,8 +61,6 @@ template <typename Callback>
 void ForEachColumn(const SingleLine& input, Callback&& callback) {
   ForEachColumn(input.read(), std::forward<Callback>(callback));
 }
-
-SingleLine LowerCase(SingleLine input);
 }  // namespace afc::language::lazy_string
 
 #endif

@@ -39,6 +39,20 @@ SingleLine SingleLine::Append(SingleLine other) const {
 
 wchar_t NonEmptySingleLine::get(ColumnNumber a) const { return read().get(a); }
 
+SingleLine NonEmptySingleLine::Substring(ColumnNumber start) const {
+  return read().Substring(start);
+}
+
+SingleLine NonEmptySingleLine::Substring(ColumnNumber start,
+                                         ColumnNumberDelta len) const {
+  return read().Substring(start, len);
+}
+
+SingleLine NonEmptySingleLine::SubstringWithRangeChecks(
+    ColumnNumber start, ColumnNumberDelta len) const {
+  return read().SubstringWithRangeChecks(start, len);
+}
+
 LazyString operator+(const LazyString& a, const SingleLine& b) {
   return a + b.read();
 }
@@ -67,9 +81,5 @@ NonEmptySingleLine operator+(const NonEmptySingleLine& a,
 std::optional<ColumnNumber> FindLastNotOf(const SingleLine& input,
                                           std::unordered_set<wchar_t> chars) {
   return FindLastNotOf(input.read(), std::move(chars));
-}
-
-SingleLine LowerCase(SingleLine input) {
-  return SingleLine{LowerCase(input.read())};
 }
 }  // namespace afc::language::lazy_string

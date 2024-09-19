@@ -18,6 +18,7 @@
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
+#include "src/language/text/line_sequence.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
@@ -54,6 +55,7 @@ using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LineSequence;
 using afc::vm::Identifier;
 using afc::vm::TypesToString;
 using afc::vm::VMTypeMapper;
@@ -67,12 +69,12 @@ struct SearchNamespaces {
           static const vm::Namespace kEmptyNamespace;
           std::vector<vm::Namespace> output = {kEmptyNamespace};
           std::ranges::copy(
-              TokenizeBySpaces(buffer.ReadLazyString(
-                  buffer_variables::cpp_prompt_namespaces)) |
+              TokenizeBySpaces(LineSequence::BreakLines(
+                                   buffer.ReadLazyString(
+                                       buffer_variables::cpp_prompt_namespaces))
+                                   .FoldLines()) |
                   std::views::transform([](Token token) {
-                    return vm::Namespace{{Identifier{
-                        // TODO(trivial, 2024-09-18): Avoid wrapping here.
-                        NonEmptySingleLine{SingleLine{token.value}}}}};
+                    return vm::Namespace{{Identifier{token.value}}};
                   }),
               std::back_inserter(output));
           return output;
@@ -110,8 +112,8 @@ struct ParsedCommand {
 };
 
 ValueOrError<ParsedCommand> Parse(
-    gc::Pool& pool, LazyString command, const vm::Environment& environment,
-    LazyString function_name_prefix,
+    gc::Pool& pool, SingleLine command, const vm::Environment& environment,
+    SingleLine function_name_prefix,
     std::unordered_set<vm::Type> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
   std::vector<Token> output_tokens = TokenizeBySpaces(command);
@@ -133,17 +135,14 @@ ValueOrError<ParsedCommand> Parse(
   std::vector<gc::Root<vm::Value>> functions;
   for (const auto& n : search_namespaces.namespaces) {
     environment.CaseInsensitiveLookup(
-        n,
-        // TODO(2024-09-18, trivial): Avoid wrapping here:
-        Identifier{NonEmptySingleLine{SingleLine{
-            function_name_prefix + LazyString{output_tokens[0].value}}}},
+        n, Identifier{function_name_prefix + output_tokens[0].value},
         &functions);
     if (!functions.empty()) break;
   }
 
   if (functions.empty()) {
-    Error error{LazyString{L"Unknown symbol: "} + function_name_prefix +
-                output_tokens[0].value};
+    Error error{LazyString{L"Unknown symbol: "} +
+                ToLazyString(function_name_prefix + output_tokens[0].value)};
     VLOG(5) << "Parse: " << error;
     return error;
   }
@@ -186,10 +185,10 @@ ValueOrError<ParsedCommand> Parse(
     // TODO(2024-01-02, trivial): Convert to vector<LazyString>.
     auto argument_values =
         MakeNonNullShared<Protected<std::vector<std::wstring>>>(
-            container::MaterializeVector(output_tokens | std::views::drop(1) |
-                                         std::views::transform([](auto& v) {
-                                           return v.value.ToString();
-                                         })));
+            container::MaterializeVector(
+                output_tokens | std::views::drop(1) |
+                std::views::transform(
+                    [](auto& v) { return ToLazyString(v.value).ToString(); })));
 
     output_function_inputs.push_back(
         vm::NewConstantExpression(VMTypeMapper<decltype(argument_values)>::New(
@@ -201,27 +200,26 @@ ValueOrError<ParsedCommand> Parse(
         std::get<vm::types::Function>(output_function.value().ptr()->type);
     size_t expected_arguments = function_type.inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
-      return Error{LazyString{L"Too many arguments given for `"} +
-                   output_tokens[0].value + LazyString{L"` (expected: "} +
-                   LazyString{std::to_wstring(expected_arguments)} +
-                   LazyString{L")"}};
+      return Error{
+          LazyString{L"Too many arguments given for `"} +
+          ToLazyString(output_tokens[0].value) + LazyString{L"` (expected: "} +
+          LazyString{std::to_wstring(expected_arguments)} + LazyString{L")"}};
     }
 
-    for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
-      output_function_inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(pool, it->value)));
-    }
+    for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it)
+      output_function_inputs.push_back(vm::NewConstantExpression(
+          vm::Value::NewString(pool, ToLazyString(it->value))));
 
-    while (output_function_inputs.size() < expected_arguments) {
+    while (output_function_inputs.size() < expected_arguments)
       output_function_inputs.push_back(
           vm::NewConstantExpression(vm::Value::NewString(pool, LazyString{})));
-    }
   } else if (!all_types_found.empty()) {
     return Error{LazyString{L"Incompatible type found: "} +
-                 output_tokens[0].value + LazyString{L": "} +
+                 ToLazyString(output_tokens[0].value) + LazyString{L": "} +
                  TypesToString(all_types_found)};
   } else {
-    return Error{LazyString{L"No definition found: "} + output_tokens[0].value};
+    return Error{LazyString{L"No definition found: "} +
+                 ToLazyString(output_tokens[0].value)};
   }
   return ParsedCommand{
       .tokens = std::move(output_tokens),
@@ -230,10 +228,10 @@ ValueOrError<ParsedCommand> Parse(
           std::move(output_function_inputs))};
 }
 
-ValueOrError<ParsedCommand> Parse(gc::Pool& pool, LazyString command,
+ValueOrError<ParsedCommand> Parse(gc::Pool& pool, SingleLine command,
                                   vm::Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
-  return Parse(pool, std::move(command), environment, LazyString{},
+  return Parse(pool, std::move(command), environment, SingleLine{},
                {vm::types::Void{}, vm::types::String{}}, search_namespaces);
 }
 
@@ -248,7 +246,7 @@ bool tests_parse_registration = tests::Register(
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output = Parse(
-                pool, LazyString(), environment.ptr().value(), LazyString(),
+                pool, SingleLine{}, environment.ptr().value(), SingleLine{},
                 std::unordered_set<vm::Type>({vm::types::String{}}),
                 SearchNamespaces(buffer.ptr().value()));
             CHECK_EQ(std::get<Error>(output), Error{LazyString{}});
@@ -261,8 +259,8 @@ bool tests_parse_registration = tests::Register(
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output =
-                Parse(pool, LazyString{L"foo bar"}, environment.ptr().value(),
-                      LazyString(),
+                Parse(pool, SingleLine{LazyString{L"foo bar"}},
+                      environment.ptr().value(), SingleLine(),
                       std::unordered_set<vm::Type>({vm::types::String{}}),
                       SearchNamespaces(buffer.ptr().value()));
             Error error = std::get<Error>(output);
@@ -283,8 +281,8 @@ bool tests_parse_registration = tests::Register(
             Identifier{NonEmptySingleLine{SingleLine{LazyString{L"foo"}}}},
             vm::Value::NewString(pool, LazyString{L"bar"}));
         ValueOrError<ParsedCommand> output = Parse(
-            pool, LazyString{L"foo"}, environment.ptr().value(), LazyString(),
-            std::unordered_set<vm::Type>({vm::types::String{}}),
+            pool, SingleLine{LazyString{L"foo"}}, environment.ptr().value(),
+            SingleLine{}, std::unordered_set<vm::Type>({vm::types::String{}}),
             SearchNamespaces(buffer.ptr().value()));
         CHECK(!std::holds_alternative<Error>(output));
       }}});
@@ -308,6 +306,19 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(EditorState& editor_state,
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
 
+void MaybePushTokenAndModifiers(SingleLine line, LineModifierSet modifiers,
+                                std::vector<TokenAndModifiers>& output) {
+  std::visit(overload{[&output, modifiers](NonEmptySingleLine token_value) {
+                        output.push_back({.token = {.value = token_value,
+                                                    .begin = ColumnNumber(0),
+                                                    .end = ColumnNumber(0) +
+                                                           token_value.size()},
+                                          .modifiers = modifiers});
+                      },
+                      IgnoreErrors{}},
+             NonEmptySingleLine::New(line));
+}
+
 futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
     EditorState& editor, SingleLine line,
     NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
@@ -325,11 +336,8 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                 {.values = {
                      {VersionPropertyKey{LazyString{L"type"}},
                       vm::TypesToString(compilation_result.first->Types())}}});
-            ColorizePromptOptions output{
-                .tokens = {{.token = {.value = LazyString{},
-                                      .begin = ColumnNumber(0),
-                                      .end = ColumnNumber(0) + line.size()},
-                            .modifiers = modifiers}}};
+            ColorizePromptOptions output;
+            MaybePushTokenAndModifiers(line, modifiers, output.tokens);
             if (compilation_result.first->Types() ==
                 std::vector<vm::Type>({vm::types::Void{}}))
               return futures::Past(output);
@@ -377,17 +385,13 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           : editor.environment().ptr())
           .value();
 
-  std::visit(
-      overload{IgnoreErrors{},
-               [&](ParsedCommand) {
-                 output->tokens.push_back(
-                     {.token = {.value = LazyString{},
-                                .begin = ColumnNumber(0),
-                                .end = ColumnNumber() + line.size()},
-                      .modifiers = {LineModifier::kCyan}});
-               }},
-      // TODO(trivial, 2024-09-13): Remove read().
-      Parse(editor.gc_pool(), line.read(), environment, search_namespaces));
+  std::visit(overload{IgnoreErrors{},
+                      [&](ParsedCommand) {
+                        MaybePushTokenAndModifiers(
+                            line, LineModifierSet{LineModifier::kCyan},
+                            output->tokens);
+                      }},
+             Parse(editor.gc_pool(), line, environment, search_namespaces));
 
   using BufferMapper = vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>;
   return Predict(predictor,
@@ -435,9 +439,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           [](Error) { return futures::Past(EmptyValue()); });
                 }},
             buffer.has_value()
-                // TODO(trivial, 2024-09-13): Remove read().
-                ? Parse(editor.gc_pool(), line.read(), environment,
-                        LazyString{L"Preview"},
+                ? Parse(editor.gc_pool(), line, environment,
+                        SingleLine{LazyString{L"Preview"}},
                         {vm::GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()},
                         search_namespaces)
                 : ValueOrError<ParsedCommand>(
@@ -491,7 +494,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
                        return futures::Past(error);
                      });
                }},
-      Parse(editor_state.gc_pool(), command.read(),
+      Parse(editor_state.gc_pool(), command,
             buffer->ptr()->environment().value(), search_namespaces));
 }
 

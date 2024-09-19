@@ -28,6 +28,7 @@ extern "C" {
 #include "src/infrastructure/file_descriptor_reader.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
+#include "src/language/error/view.h"
 #include "src/language/gc_container.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -905,16 +906,15 @@ class InsertMode : public InputReceiver {
       const OpenBuffer& buffer) {
     return MakeNonNullShared<std::vector<Path>>(container::MaterializeVector(
         TokenizeBySpaces(
-            buffer.ReadLazyString(buffer_variables::completion_model_paths)) |
-        std::views::transform([](Token path_str) {
-          return OptionalFrom(Path::New(path_str.value));
-        }) |
-        std::views::filter(
-            [](const std::optional<Path>& t) { return t.has_value(); }) |
-        std::views::transform([](std::optional<Path> path) {
-          VLOG(5) << "Loading model: " << *path;
+            LineSequence::BreakLines(
+                buffer.Read(buffer_variables::completion_model_paths))
+                .FoldLines()) |
+        std::views::transform(
+            [](Token path) { return Path::New(ToLazyString(path.value)); }) |
+        language::view::SkipErrors | std::views::transform([](Path path) {
+          VLOG(5) << "Loading model: " << path;
           return Path::Join(PathComponent::FromString(L"completion_models"),
-                            std::move(*path));
+                            std::move(path));
         })));
   }
 

@@ -673,16 +673,21 @@ void OpenBuffer::UpdateTreeParser() {
             .parser_name =
                 ParserId{ReadLazyString(buffer_variables::tree_parser)},
             .typos_set = language::container::MaterializeUnorderedSet(
-                TokenizeBySpaces(ReadLazyString(buffer_variables::typos)) |
-                std::views::transform(&Token::value) |
-                std::views::transform(
-                    [](LazyString i) { return SingleLine{i}; })),
-            .language_keywords = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(
-                    ReadLazyString(buffer_variables::language_keywords)) |
+                    LineSequence::BreakLines(Read(buffer_variables::typos))
+                        .FoldLines()) |
                 std::views::transform(&Token::value) |
+                // TODO(trivial, 2024-09-19): Avoid the need for `read()` here:
                 std::views::transform(
-                    [](LazyString i) { return SingleLine{i}; })),
+                    [](NonEmptySingleLine i) { return i.read(); })),
+            .language_keywords = language::container::MaterializeUnorderedSet(
+                TokenizeBySpaces(LineSequence::BreakLines(
+                                     Read(buffer_variables::language_keywords))
+                                     .FoldLines()) |
+                std::views::transform(&Token::value) |
+                // TODO(trivial, 2024-09-19): Avoid the need for `read()` here:
+                std::views::transform(
+                    [](NonEmptySingleLine i) { return i.read(); })),
             .symbol_characters =
                 ReadLazyString(buffer_variables::symbol_characters),
             .identifier_behavior =
@@ -1937,7 +1942,9 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   }
 
   std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(
-      buffer.ReadLazyString(buffer_variables::file_context_extensions),
+      LineSequence::BreakLines(
+          buffer.Read(buffer_variables::file_context_extensions))
+          .FoldLines(),
       *initial_url);
 
   std::vector<Path> search_paths = {};

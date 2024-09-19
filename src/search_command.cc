@@ -33,7 +33,9 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::Token;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -127,10 +129,17 @@ ColorizePromptOptions SearchResultsModifiers(
                }},
       result_or_error);
 
-  return {.tokens = {{.token = {.value = LazyString{},
-                                .begin = ColumnNumber(0),
-                                .end = ColumnNumber(0) + line.size()},
-                      .modifiers = std::move(modifiers)}}};
+  return std::visit(
+      overload{[&modifiers](NonEmptySingleLine value) {
+                 return ColorizePromptOptions{
+                     .tokens = {
+                         {.token = Token{.value = value,
+                                         .begin = ColumnNumber(0),
+                                         .end = ColumnNumber(0) + value.size()},
+                          .modifiers = std::move(modifiers)}}};
+               },
+               [](Error) { return ColorizePromptOptions{}; }},
+      NonEmptySingleLine::New(line));
 }
 
 // Wraps a progress channel and provides a builder to create "child" progress

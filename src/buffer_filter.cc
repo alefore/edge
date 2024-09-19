@@ -334,7 +334,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     EscapedString history_value = range.first->second;
     VLOG(8) << "Considering history value: " << history_value;
     std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-        history_value.EscapedRepresentation().read(),
+        history_value.EscapedRepresentation(),
         TokenizeNameForPrefixSearches(
             history_value.EscapedRepresentation().read()));
     math::naive_bayes::Event event_key(
@@ -405,7 +405,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L""},
+                       DeleteNotification::Never(), SingleLine{},
                        LineSequence(), features});
                CHECK(output.matches.empty());
              }},
@@ -415,7 +415,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L""},
+                       DeleteNotification::Never(), SingleLine{LazyString{L""}},
                        container::Materialize<LineSequence>(std::vector<Line>{
                            LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
                                .Build(),
@@ -437,7 +437,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L"quux"},
+                       DeleteNotification::Never(),
+                       SingleLine{LazyString{L"quux"}},
                        container::Materialize<LineSequence>(std::vector<Line>{
                            LineBuilder{
                                SingleLine{LazyString{L"value:\"foobar\""}}}
@@ -453,7 +454,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L"nbar"},
+                       DeleteNotification::Never(),
+                       SingleLine{LazyString{L"nbar"}},
                        LineSequence::WithLine(LineBuilder{
                            SingleLine{LazyString{L"value:\"foo\\nbardo\""}}}
                                                   .Build()),
@@ -477,7 +479,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L"nbar"},
+                       DeleteNotification::Never(),
+                       SingleLine{LazyString{L"nbar"}},
                        LineSequence::WithLine(LineBuilder{
                            SingleLine{LazyString{L"value:\"foo\\nbar\""}}}
                                                   .Build()),
@@ -492,7 +495,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L"f"},
+                       DeleteNotification::Never(),
+                       SingleLine{LazyString{L"f"}},
                        container::Materialize<LineSequence>(std::vector<Line>{
                            LineBuilder{
                                SingleLine{LazyString{L"value:\"foobar \\\""}}}
@@ -521,7 +525,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                std::multimap<Identifier, EscapedString> features;
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
-                       DeleteNotification::Never(), LazyString{L"ls"},
+                       DeleteNotification::Never(),
+                       SingleLine{LazyString{L"ls"}},
                        LineSequence::WithLine(LineBuilder{
                            SingleLine{LazyString{L"value:\"ls\\n\""}}}
                                                   .Build()),

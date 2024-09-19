@@ -340,7 +340,7 @@ transformation::Stack GetTransformation(
       paste.repetitions, std::nullopt,
       MakeNonNullShared<transformation::Paste>(
           transformation::Paste{FindFragmentQuery{
-              .filter = paste.query_input.value_or(LazyString{})}}));
+              .filter = paste.query_input.value_or(SingleLine{})}}));
 }
 
 class State {
@@ -836,29 +836,30 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
   if (output->query_input.has_value()) {
     cmap.SetFallback(
         {'\n', ControlChar::kEscape}, [output](ExtendedChar extended_c) {
-          std::visit(overload{[output](ControlChar c) {
-                                switch (c) {
-                                  case ControlChar::kBackspace:
-                                    if (output->query_input->empty())
-                                      output->query_input = std::nullopt;
-                                    else
-                                      output->query_input =
-                                          output->query_input->Substring(
-                                              ColumnNumber{},
-                                              output->query_input->size() -
+          std::visit(
+              overload{
+                  [output](ControlChar c) {
+                    switch (c) {
+                      case ControlChar::kBackspace:
+                        if (output->query_input->empty())
+                          output->query_input = std::nullopt;
+                        else
+                          output->query_input = output->query_input->Substring(
+                              ColumnNumber{}, output->query_input->size() -
                                                   ColumnNumberDelta{1});
-                                    // TODO(trivial, 2024-09-16): Handle more
-                                    // control characters.
-                                  default:
-                                    break;
-                                }
-                              },
-                              [&](wchar_t c) {
-                                output->query_input =
-                                    output->query_input.value() +
-                                    LazyString{ColumnNumberDelta{1}, c};
-                              }},
-                     extended_c);
+                        // TODO(trivial, 2024-09-16): Handle more
+                        // control characters.
+                      default:
+                        break;
+                    }
+                  },
+                  [&](wchar_t c) {
+                    CHECK(c != L'\n');  // Exempted above (in cmap.SetFallback).
+                    output->query_input =
+                        output->query_input.value() +
+                        SingleLine{LazyString{ColumnNumberDelta{1}, c}};
+                  }},
+              extended_c);
         });
     return;
   }
@@ -872,7 +873,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
                      .description = Description{LazyString{L"Filter"}},
                      .handler = [output](ExtendedChar) {
                        CHECK(!output->query_input.has_value());
-                       output->query_input = LazyString{};
+                       output->query_input = SingleLine{};
                      }});
 }
 

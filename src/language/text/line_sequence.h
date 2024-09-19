@@ -59,6 +59,7 @@ class LineSequence {
   LineSequence ViewRange(language::text::Range range) const;
 
   lazy_string::LazyString ToLazyString() const;
+  lazy_string::SingleLine FoldLines() const;
   std::wstring ToString() const;
 
   LineNumberDelta size() const;

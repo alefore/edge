@@ -28,6 +28,7 @@ using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LineSequence;
 
 namespace afc::editor {
 namespace {
@@ -49,7 +50,7 @@ struct Operation {
   };
   Type type;
   size_t number = 0;
-  LazyString text_input = LazyString();
+  SingleLine text_input = SingleLine{};
 };
 
 struct Data {
@@ -150,9 +151,10 @@ bool CharConsumer(ExtendedChar c, Data& data) {
         return true;
       } else if (wchar_t* regular_char = std::get_if<wchar_t>(&c);
                  regular_char != nullptr) {
+        CHECK(*regular_char != L'\n');  // Handled above.
         data.operations.back().text_input =
             data.operations.back().text_input.Append(
-                LazyString{ColumnNumberDelta{1}, *regular_char});
+                SingleLine{LazyString{ColumnNumberDelta{1}, *regular_char}});
         return true;
       } else {
         return false;
@@ -190,7 +192,8 @@ Line BuildStatus(const Data& data) {
                             LineModifierSet{LineModifier::kCyan});
         output.AppendString(LazyString{L":"},
                             LineModifierSet{LineModifier::kDim});
-        output.AppendString(operation.text_input);
+        // TODO(easy, 2024-09-19): Get rid of `read()`.
+        output.AppendString(operation.text_input.read());
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
           output.AppendString(LazyString{L"…"},
@@ -207,7 +210,8 @@ Line BuildStatus(const Data& data) {
         output.AppendString(LazyString{L":"},
                             LineModifierSet{LineModifier::kDim});
 
-        output.AppendString(operation.text_input);
+        // TODO(easy, 2024-09-19): Get rid of `read()`.
+        output.AppendString(operation.text_input.read());
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
           output.AppendString(LazyString{L"…"},
@@ -358,12 +362,16 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                   Indices new_indices;
                   for (auto& index : state.indices) {
                     gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
-                    if (LazyString str{
-                            buffer.ptr()->Read(buffer_variables::name)};
+                    if (SingleLine name =
+                            LineSequence::BreakLines(
+                                buffer.ptr()->Read(buffer_variables::name))
+                                .FoldLines();
                         FindFilterPositions(
-                            filter,
-                            ExtendTokensToEndOfString(
-                                str, TokenizeNameForPrefixSearches(str)))
+                            filter, ExtendTokensToEndOfString(
+                                        name, TokenizeNameForPrefixSearches(
+                                                  // TODO(trivial, 2024-09-19):
+                                                  // Get rid of read():
+                                                  name.read())))
                             .has_value()) {
                       new_indices.push_back(index);
                     }
@@ -394,14 +402,11 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                         editor.thread_pool()
                             .Run(std::bind_front(
                                 SearchHandler, Direction::kForwards,
-                                // TODO(trivial, 2024-09-16): Don't convert to
-                                // SingleLine here!
-                                SearchOptions{
-                                    .search_query = SingleLine{text_input},
-                                    .required_positions = 1,
-                                    .case_sensitive =
-                                        buffer.Read(buffer_variables::
-                                                        search_case_sensitive)},
+                                SearchOptions{.search_query = text_input,
+                                              .required_positions = 1,
+                                              .case_sensitive = buffer.Read(
+                                                  buffer_variables::
+                                                      search_case_sensitive)},
                                 buffer.contents().snapshot()))
                             .Transform([new_state, index](
                                            std::vector<LineColumn> results) {
