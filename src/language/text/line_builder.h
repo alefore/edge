@@ -52,9 +52,9 @@ class LineBuilder {
   void InsertCharacterAtPosition(language::lazy_string::ColumnNumber position);
   void AppendCharacter(wchar_t c,
                        afc::infrastructure::screen::LineModifierSet modifier);
-  void AppendString(language::lazy_string::LazyString suffix);
+  void AppendString(language::lazy_string::SingleLine suffix);
   void AppendString(
-      language::lazy_string::LazyString suffix,
+      language::lazy_string::SingleLine suffix,
       std::optional<afc::infrastructure::screen::LineModifierSet> modifier);
 
   // This function has linear complexity on the number of modifiers in `line`

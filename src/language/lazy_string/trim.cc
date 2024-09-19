@@ -8,14 +8,6 @@
 
 namespace afc::language::lazy_string {
 
-LazyString TrimLeft(LazyString source, std::wstring space_characters) {
-  TRACK_OPERATION(LazyString_StringTrimLeft);
-  return source.Substring(
-      FindFirstColumnWithPredicate(source, [&](ColumnNumber, wchar_t c) {
-        return space_characters.find(c) == std::wstring::npos;
-      }).value_or(ColumnNumber(0) + source.size()));
-}
-
 LazyString Trim(LazyString in) { return Trim(in, {L' '}); }
 SingleLine Trim(SingleLine in) { return Trim(in, {L' '}); }
 

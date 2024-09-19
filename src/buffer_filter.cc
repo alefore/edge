@@ -265,7 +265,9 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
     if (end <= position) return;
     VLOG(8) << "Adding substring with modifiers: " << position << ", "
             << modifiers;
-    options.AppendString(line.Substring(position, end - position),
+    // TODO(easy, 2024-09-19): This is suspcious. Why is it safe? Remove the
+    // wrapping (maybe turn `line` into a SingleLine).
+    options.AppendString(SingleLine{line.Substring(position, end - position)},
                          std::move(modifiers));
     position = end;
   };
@@ -464,8 +466,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
 
                LineBuilder expected_preview{SingleLine{LazyString{L"foo\\"}}};
                expected_preview.AppendString(
-                   LazyString{L"nbar"}, LineModifierSet{LineModifier::kCyan});
-               expected_preview.AppendString(LazyString{L"do"});
+                   SingleLine{LazyString{L"nbar"}},
+                   LineModifierSet{LineModifier::kCyan});
+               expected_preview.AppendString(SingleLine{LazyString{L"do"}});
 
                CHECK_EQ(
                    output.matches[0],
@@ -535,8 +538,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
 
                LineBuilder expected_preview;
                expected_preview.AppendString(
-                   LazyString{L"ls"}, LineModifierSet{LineModifier::kCyan});
-               expected_preview.AppendString(LazyString{L"\\n"});
+                   SingleLine{LazyString{L"ls"}},
+                   LineModifierSet{LineModifier::kCyan});
+               expected_preview.AppendString(SingleLine{LazyString{L"\\n"}});
 
                CHECK_EQ(output.matches[0],
                         (FilterSortBufferOutput::Match{

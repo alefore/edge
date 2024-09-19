@@ -4,13 +4,21 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
 // Returns a copy with all left space characters removed.
-LazyString TrimLeft(LazyString a, std::wstring space_characters);
+template <typename StringType>
+StringType TrimLeft(StringType source, std::wstring space_characters) {
+  TRACK_OPERATION(LazyString_StringTrimLeft);
+  return source.Substring(
+      FindFirstColumnWithPredicate(source, [&](ColumnNumber, wchar_t c) {
+        return space_characters.find(c) == std::wstring::npos;
+      }).value_or(ColumnNumber(0) + source.size()));
+}
 
 // StringType is expected to be either LazyString or SingleLine.
 template <typename StringType>

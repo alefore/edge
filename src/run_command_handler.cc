@@ -67,6 +67,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
 using afc::vm::EscapedString;
 
 namespace afc {
@@ -466,9 +467,12 @@ class ForkEditorCommand : public Command {
       LineBuilder prompt;
       std::visit(
           overload{IgnoreErrors{},
-                   [&prompt](Path path) { prompt.AppendString(path.read()); }},
+                   [&prompt](Path path) {
+                     prompt.AppendString(
+                         LineSequence::BreakLines(path.read()).FoldLines());
+                   }},
           children_path);
-      prompt.AppendString(SingleLine{LazyString{L"$ "}}.read(),
+      prompt.AppendString(SINGLE_LINE_CONSTANT(L"$ "),
                           LineModifierSet{LineModifier::kGreen});
       Prompt(PromptOptions{
           .editor_state = editor_state_,

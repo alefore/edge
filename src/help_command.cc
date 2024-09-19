@@ -42,79 +42,94 @@ LineBuilder DescribeSequence(const std::vector<ExtendedChar>& input) {
   LineBuilder output;
   for (const ExtendedChar& c : input)
     std::visit(
-        overload{[&](wchar_t regular_c) {
-                   switch (regular_c) {
-                     case '\t':
-                       output.AppendString(LazyString{L"Tab"}, std::nullopt);
-                       break;
-                     case '\n':
-                       output.AppendString(LazyString{L"↩"}, std::nullopt);
-                       break;
-                     default:
-                       output.AppendString(
-                           LazyString{ColumnNumberDelta{1}, regular_c},
-                           std::nullopt);
-                   }
-                 },
-                 [&](ControlChar control) {
-                   switch (control) {
-                     case ControlChar::kEscape:
-                       output.AppendString(LazyString{L"Esc"}, std::nullopt);
-                       break;
-                     case ControlChar::kDownArrow:
-                       output.AppendString(LazyString{L"↓"}, std::nullopt);
-                       break;
-                     case ControlChar::kUpArrow:
-                       output.AppendString(LazyString{L"↑"}, std::nullopt);
-                       break;
-                     case ControlChar::kLeftArrow:
-                       output.AppendString(LazyString{L"←"}, std::nullopt);
-                       break;
-                     case ControlChar::kRightArrow:
-                       output.AppendString(LazyString{L"→"}, std::nullopt);
-                       break;
-                     case ControlChar::kBackspace:
-                       output.AppendString(LazyString{L"← Backspace"},
-                                           std::nullopt);
-                       break;
-                     case ControlChar::kPageDown:
-                       output.AppendString(LazyString{L"PgDn"}, std::nullopt);
-                       break;
-                     case ControlChar::kPageUp:
-                       output.AppendString(LazyString{L"PgUp"}, std::nullopt);
-                       break;
-                     case ControlChar::kHome:
-                       output.AppendString(LazyString{L"Home"}, std::nullopt);
-                       break;
-                     case ControlChar::kEnd:
-                       output.AppendString(LazyString{L"End"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlA:
-                       output.AppendString(LazyString{L"^a"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlD:
-                       output.AppendString(LazyString{L"^d"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlE:
-                       output.AppendString(LazyString{L"^e"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlK:
-                       output.AppendString(LazyString{L"^k"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlL:
-                       output.AppendString(LazyString{L"^l"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlU:
-                       output.AppendString(LazyString{L"^u"}, std::nullopt);
-                       break;
-                     case ControlChar::kCtrlV:
-                       output.AppendString(LazyString{L"^v"}, std::nullopt);
-                       break;
-                     case ControlChar::kDelete:
-                       output.AppendString(LazyString{L"Delete"}, std::nullopt);
-                       break;
-                   }
-                 }},
+        overload{
+            [&](wchar_t regular_c) {
+              switch (regular_c) {
+                case '\t':
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"Tab"),
+                                      std::nullopt);
+                  break;
+                case '\n':
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"↩"), std::nullopt);
+                  break;
+                default:
+                  output.AppendString(
+                      SingleLine{LazyString{ColumnNumberDelta{1}, regular_c}},
+                      std::nullopt);
+              }
+            },
+            [&](ControlChar control) {
+              switch (control) {
+                case ControlChar::kEscape:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"Esc"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kDownArrow:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"↓"), std::nullopt);
+                  break;
+                case ControlChar::kUpArrow:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"↑"), std::nullopt);
+                  break;
+                case ControlChar::kLeftArrow:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"←"), std::nullopt);
+                  break;
+                case ControlChar::kRightArrow:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"→"), std::nullopt);
+                  break;
+                case ControlChar::kBackspace:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"← Backspace"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kPageDown:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"PgDn"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kPageUp:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"PgUp"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kHome:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"Home"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kEnd:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"End"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlA:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^a"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlD:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^d"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlE:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^e"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlK:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^k"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlL:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^l"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlU:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^u"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kCtrlV:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"^v"),
+                                      std::nullopt);
+                  break;
+                case ControlChar::kDelete:
+                  output.AppendString(SINGLE_LINE_CONSTANT(L"Delete"),
+                                      std::nullopt);
+                  break;
+              }
+            }},
         c);
   return output;
 }
@@ -122,9 +137,11 @@ LineBuilder DescribeSequence(const std::vector<ExtendedChar>& input) {
 LineBuilder DescribeSequenceWithQuotes(
     const std::vector<infrastructure::ExtendedChar>& input) {
   LineBuilder output;
-  output.AppendString(LazyString{L"`"}, LineModifierSet{LineModifier::kDim});
+  output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
+                      LineModifierSet{LineModifier::kDim});
   output.Append(DescribeSequence(input));
-  output.AppendString(LazyString{L"`"}, LineModifierSet{LineModifier::kDim});
+  output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
+                      LineModifierSet{LineModifier::kDim});
   return output;
 }
 
@@ -246,9 +263,12 @@ class HelpCommand : public Command {
                    output);
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
-        line.AppendString(LazyString{L"* "}, std::nullopt);
+        line.AppendString(SINGLE_LINE_CONSTANT(L"* "), std::nullopt);
         line.Append(DescribeSequenceWithQuotes(input));
-        line.AppendString(LazyString{L" - "} + command->Description(),
+        line.AppendString(SINGLE_LINE_CONSTANT(L" - ") +
+                              // TODO(easy, 2024-09-19): Avoid having to wrap in
+                              // SingleLine here:
+                              SingleLine{command->Description()},
                           std::nullopt);
         output.push_back(std::move(line).Build());
       }

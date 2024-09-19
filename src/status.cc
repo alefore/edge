@@ -12,6 +12,7 @@
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
+#include "src/language/text/line_sequence.h"
 
 using afc::concurrent::VersionPropertyReceiver;
 using afc::infrastructure::screen::LineModifier;
@@ -28,6 +29,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LineSequence;
 
 namespace afc::editor {
 namespace gc = language::gc;
@@ -160,11 +162,11 @@ Line Status::prompt_extra_information_line() const {
   const VersionPropertyReceiver::PropertyValues values = receiver->GetValues();
   LineBuilder options;
   if (!values.property_values.empty()) {
-    options.AppendString(LazyString{L"    🛈  "}, dim);
+    options.AppendString(SingleLine{LazyString{L"    🛈  "}}, dim);
     bool need_separator = false;
     for (const auto& [key, value] : values.property_values) {
       if (need_separator) {
-        options.AppendString(LazyString{L" "}, empty);
+        options.AppendString(SingleLine::Char<L' '>(), empty);
       }
       need_separator = true;
 
@@ -173,16 +175,22 @@ Line Status::prompt_extra_information_line() const {
                                           Value::Status::kExpired
                                   ? dim
                                   : empty;
-      options.AppendString(key.read(), modifiers);
+      // TODO(easy, 2024-09-19): Avoid SingleLine.
+      options.AppendString(SingleLine{key.read()}, modifiers);
       if (!std::holds_alternative<LazyString>(value.value) ||
           !std::get<LazyString>(value.value).empty()) {
-        options.AppendString(LazyString{L":"}, dim);
-        options.AppendString(
-            std::visit(
-                overload{[](LazyString v) { return v; },
-                         [](int v) { return LazyString{std::to_wstring(v)}; }},
-                value.value),
-            modifiers);
+        options.AppendString(SingleLine::Char<L':'>(), dim);
+        options.AppendString(std::visit(overload{[](LazyString v) {
+                                                   // TODO(easy, 2024-09-19):
+                                                   // Avoid having to wrap here.
+                                                   return SingleLine{v};
+                                                 },
+                                                 [](int v) {
+                                                   return SingleLine{LazyString{
+                                                       std::to_wstring(v)}};
+                                                 }},
+                                        value.value),
+                             modifiers);
       }
     }
   }
@@ -190,7 +198,8 @@ Line Status::prompt_extra_information_line() const {
     case VersionPropertyReceiver::VersionExecution::kDone:
       break;
     case VersionPropertyReceiver::VersionExecution::kRunning:
-      options.AppendString(LazyString{L" …"}, dim);
+      options.AppendString(SingleLine::Char<L' '>() + SingleLine::Char<L'…'>(),
+                           dim);
       break;
   }
 
@@ -245,7 +254,7 @@ void Status::Set(Error error) {
     return;
   }
   LineBuilder text;
-  text.AppendString(error.read(),
+  text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
                     LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
   data_ = MakeNonNullShared<Data>(
       Data{.type = Type::kWarning, .text = std::move(text).Build()});
@@ -274,21 +283,24 @@ void Status::Bell() {
   ValidatePreconditions();
   static const ColumnNumberDelta kMaxLength(40);
 
-  static const std::vector<wchar_t> notes = {L'🎵', L'🎶'};
+  static const std::vector<SingleLine> notes = {SingleLine::Char<L'🎵'>(),
+                                                SingleLine::Char<L'🎶'>()};
 
   LineBuilder output;
   if (FindFirstColumnWithPredicate(
           data_->text.contents(), [&](ColumnNumber, const wchar_t& c) {
             return c != L'🎼' && c != L'…' && c != L' ' &&
-                   std::find(notes.begin(), notes.end(), c) == notes.end();
+                   std::find(notes.begin(), notes.end(),
+                             SingleLine{LazyString{ColumnNumberDelta{1}, c}}) ==
+                       notes.end();
           }) != std::nullopt) {
-    output.AppendString(LazyString{L"🎼"});
+    output.AppendString(SingleLine{LazyString{L"🎼"}});
   } else {
     LineBuilder previous = LineBuilder(std::move(data_->text));
     if (previous.contents().size() > kMaxLength) {
       previous.DeleteCharacters(ColumnNumber(),
                                 previous.contents().size() - kMaxLength);
-      output.AppendString(LazyString{L"…"});
+      output.AppendString(SingleLine{LazyString{L"…"}});
     }
     output.Append(std::move(previous));
   }
@@ -300,8 +312,7 @@ void Status::Bell() {
   static const std::vector<LineModifier> effects = {
       LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
   output.AppendString(
-      LazyString{L" "} +
-          LazyString{std::wstring(1ul, notes.at(rand() % notes.size()))},
+      SingleLine::Char<L' '>() + notes.at(rand() % notes.size()),
       LineModifierSet{colors.at(rand() % colors.size()),
                       effects.at(rand() % effects.size())});
   data_->text = std::move(output).Build();

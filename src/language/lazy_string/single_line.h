@@ -31,10 +31,15 @@ class SingleLine
     return SingleLine{LazyString{std::wstring{input}}};
   }
 
-  template <wchar_t c>
-  static SingleLine Padding(ColumnNumberDelta len) {
+  template <wchar_t c = L' '>
+  static constexpr SingleLine Padding(ColumnNumberDelta len) {
     static_assert(c != L'\n' && c != L'\r', "Character can't be newline.");
     return SingleLine{LazyString{len, c}};
+  }
+
+  template <wchar_t c>
+  static constexpr SingleLine Char() {
+    return Padding<c>(ColumnNumberDelta{1});
   }
 
   wchar_t get(ColumnNumber) const;
@@ -43,6 +48,12 @@ class SingleLine
   SingleLine SubstringWithRangeChecks(ColumnNumber, ColumnNumberDelta) const;
   SingleLine Append(SingleLine) const;
 };
+
+#define SINGLE_LINE_CONSTANT(x)                  \
+  std::invoke([] {                               \
+    static constexpr wchar_t kMessage[] = x;     \
+    return SingleLine::FromConstant<kMessage>(); \
+  })
 
 struct NonEmptySingleLineValidator {
   static language::PossibleError Validate(const SingleLine& input);

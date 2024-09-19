@@ -183,7 +183,7 @@ LineWithCursor LineWithCursor::View(
             ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
         VLOG(8) << "Handling TAB character at position: " << output_column
                 << ", target: " << target;
-        line_output.AppendString(LazyString{target - output_column, L' '},
+        line_output.AppendString(SingleLine::Padding(target - output_column),
                                  std::nullopt);
         output_column = target;
         break;

@@ -6,6 +6,8 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_builder.h"
 
 using afc::infrastructure::screen::LineModifier;
@@ -13,6 +15,7 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -30,29 +33,34 @@ Line FrameLine(FrameOutputProducerOptions options) {
           : LineModifierSet();
   LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
-  output.AppendString(LazyString{L"──"}, line_modifiers);
+  output.AppendString(SingleLine::Padding<L'─'>(ColumnNumberDelta{2}),
+                      line_modifiers);
   if (!options.title.empty())
-    output.AppendString(LazyString{L" "} + options.title + LazyString{L" "},
-                        title_modifiers);
+    output.AppendString(
+        SingleLine::Char<L' '>() + options.title + SingleLine::Char<L' '>(),
+        title_modifiers);
   if (options.position_in_parent.has_value()) {
-    output.AppendString(LazyString{L"─("}, line_modifiers);
+    output.AppendString(SingleLine::Char<L'─'>() + SingleLine::Char<L'('>(),
+                        line_modifiers);
     // Add 1 because that matches what the repetitions do. Humans
     // typically start counting from 1.
     output.AppendString(
-        LazyString{std::to_wstring(1 + options.position_in_parent.value())},
+        SingleLine{LazyString{
+            std::to_wstring(1 + options.position_in_parent.value())}},
         LineModifierSet{LineModifier::kBold, LineModifier::kCyan});
-    output.AppendString(LazyString{L")"}, line_modifiers);
+    output.AppendString(SingleLine::Char<L')'>(), line_modifiers);
   }
 
   if (!options.extra_information.size().IsZero()) {
-    output.AppendString(LazyString{L"─<"}, line_modifiers);
+    output.AppendString(SingleLine::Char<L'─'>() + SingleLine::Char<L'<'>(),
+                        line_modifiers);
     output.AppendString(options.extra_information, line_modifiers);
-    output.AppendString(LazyString{L">"}, line_modifiers);
+    output.AppendString(SingleLine::Char<L'>'>(), line_modifiers);
   }
 
   output.AppendString(
-      LazyString{options.width - ColumnNumberDelta(output.modifiers_size()),
-                 L'─'},
+      SingleLine::Padding<L'─'>(options.width -
+                                ColumnNumberDelta(output.modifiers_size())),
       line_modifiers);
 
   return std::move(output).Build();

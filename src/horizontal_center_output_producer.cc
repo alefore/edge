@@ -15,6 +15,7 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::editor {
 using V = ColumnsVector;
@@ -34,8 +35,8 @@ LineWithCursor::Generator::Vector CenterOutput(
                     std::views::transform(
                         [](LineModifier m) -> std::optional<V::Padding> {
                           return V::Padding{.modifiers = LineModifierSet{m},
-                                            .head = LazyString{},
-                                            .body = LazyString{L"█"}};
+                                            .head = SingleLine{},
+                                            .body = SingleLine::Char<L'█'>()};
                         })),
                 .width = lines.width});
   return OutputFromColumnsVector(std::move(columns_vector));

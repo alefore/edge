@@ -28,6 +28,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
@@ -179,7 +180,7 @@ SearchRange GetRange(const NavigateState& navigate_state,
 Line BuildStatus(const NavigateState& state) {
   LineBuilder output{SingleLine{LazyString{L"navigate"}}};
   for (const auto& operation : state.operations) {
-    output.AppendString(LazyString{L" "});
+    output.AppendString(SingleLine::Padding(ColumnNumberDelta{1}));
     output.Append(DescribeForStatus(operation));
   }
   return std::move(output).Build();

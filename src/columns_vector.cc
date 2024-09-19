@@ -59,7 +59,7 @@ LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
                             ColumnNumberDelta size) {
   LineBuilder options;
   CHECK(!padding.body.size().IsZero());
-  LazyString contents = padding.head;
+  SingleLine contents = padding.head;
   while (contents.size() < size)
     contents = std::move(contents).Append(padding.body);
   options.AppendString(std::move(contents).Substring(ColumnNumber(), size),
@@ -137,7 +137,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
                   *columns_vector->columns[i].padding[line.read()],
                   padding_needed));
             } else if (padding_needed > ColumnNumberDelta(0)) {
-              options.AppendString(LazyString{padding_needed, L' '},
+              options.AppendString(SingleLine::Padding(padding_needed),
                                    current_modifiers);
             }
             columns_shown = initial_column;
@@ -220,13 +220,15 @@ const bool buffer_tests_registration = tests::Register(
         ColumnsVector columns_vector;
         columns_vector.push_back(
             ColumnsVector::Column{.lines = {}, .width = ColumnNumberDelta(5)});
+        static constexpr wchar_t kFoo[] = L"foo";
         columns_vector.push_back(ColumnsVector::Column{
             .lines = RepeatLine({.line = Line{SingleLine{LazyString{L"bar"}}}},
                                 LineNumberDelta(10)),
             .padding = {std::vector<std::optional<ColumnsVector::Padding>>(
-                5, ColumnsVector::Padding{.modifiers = {},
-                                          .head = LazyString(),
-                                          .body = LazyString{L"Foo"}})}});
+                5, ColumnsVector::Padding{
+                       .modifiers = {},
+                       .head = SingleLine(),
+                       .body = SingleLine::FromConstant<kFoo>()})}});
         LineWithCursor::Generator::Vector output =
             OutputFromColumnsVector(std::move(columns_vector));
         for (auto& entry : output.lines) entry.generate();

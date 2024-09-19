@@ -170,51 +170,50 @@ Line BuildStatus(const Data& data) {
   // TODO(trivial, 2023-12-30): Avoid explicit for loop, Concatenate.
   for (size_t i = 0; i < data.operations.size(); ++i) {
     const auto& operation = data.operations[i];
-    output.AppendString(LazyString{L" "});
+    output.AppendString(SingleLine::Char<L' '>());
     switch (operation.type) {
       case Operation::Type::kForward:
-        output.AppendString(LazyString{L"⮞"});
+        output.AppendString(SingleLine::Char<L'⮞'>());
         break;
       case Operation::Type::kBackward:
-        output.AppendString(LazyString{L"⮜"});
+        output.AppendString(SingleLine::Char<L'⮜'>());
         break;
       case Operation::Type::kPrevious:
-        output.AppendString(LazyString{L"⮝"});
+        output.AppendString(SingleLine::Char<L'⮝'>());
         break;
       case Operation::Type::kNext:
-        output.AppendString(LazyString{L"⮟"});
+        output.AppendString(SingleLine::Char<L'⮟'>());
         break;
       case Operation::Type::kNumber:
-        output.AppendString(LazyString{std::to_wstring(operation.number)});
+        output.AppendString(
+            SingleLine{LazyString{std::to_wstring(operation.number)}});
         break;
       case Operation::Type::kFilter:
-        output.AppendString(LazyString{L"w"},
+        output.AppendString(SingleLine::Char<L'w'>(),
                             LineModifierSet{LineModifier::kCyan});
-        output.AppendString(LazyString{L":"},
+        output.AppendString(SingleLine::Char<L':'>(),
                             LineModifierSet{LineModifier::kDim});
-        // TODO(easy, 2024-09-19): Get rid of `read()`.
-        output.AppendString(operation.text_input.read());
+        output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
-          output.AppendString(LazyString{L"…"},
+          output.AppendString(SingleLine::Char<L'…'>(),
                               LineModifierSet{LineModifier::kYellow});
         }
         break;
       case Operation::Type::kWarningFilter:
-        output.AppendString(LazyString{L" !"},
+        output.AppendString(SINGLE_LINE_CONSTANT(L" !"),
                             LineModifierSet{LineModifier::kRed});
         break;
       case Operation::Type::kSearch:
-        output.AppendString(LazyString{L"/"},
+        output.AppendString(SingleLine::Char<L'/'>(),
                             LineModifierSet{LineModifier::kGreen});
-        output.AppendString(LazyString{L":"},
+        output.AppendString(SingleLine::Char<L':'>(),
                             LineModifierSet{LineModifier::kDim});
 
-        // TODO(easy, 2024-09-19): Get rid of `read()`.
-        output.AppendString(operation.text_input.read());
+        output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
-          output.AppendString(LazyString{L"…"},
+          output.AppendString(SingleLine::Char<L'…'>(),
                               LineModifierSet{LineModifier::kYellow});
         }
         break;

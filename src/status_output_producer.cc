@@ -33,6 +33,7 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::ForEachColumn;
 using language::lazy_string::LazyString;
+using language::lazy_string::SingleLine;
 using language::lazy_string::UpperCase;
 using language::text::Line;
 using language::text::LineBuilder;
@@ -76,42 +77,44 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       options.status.GetType() != Status::Type::kWarning) {
     if (options.buffer->current_position_line() >
         options.buffer->contents().EndLine()) {
-      output.AppendString(LazyString{L"🚀"});
+      output.AppendString(SingleLine::Char<L'🚀'>());
     } else {
-      output.AppendString(LazyString{to_wstring(
-          options.buffer->current_position_line() + LineNumberDelta(1))});
+      output.AppendString(SingleLine{LazyString{to_wstring(
+          options.buffer->current_position_line() + LineNumberDelta(1))}});
     }
-    output.AppendString(LazyString{L" of "}, {{LineModifier::kDim}});
-    output.AppendString(LazyString{
-        to_wstring(options.buffer->contents().EndLine() + LineNumberDelta(1))});
-    output.AppendString(LazyString{L", "}, {{LineModifier::kDim}});
-    output.AppendString(LazyString{to_wstring(
-        options.buffer->current_position_col() + ColumnNumberDelta(1))});
-    output.AppendString(LazyString{L" 🧭 "}, {{LineModifier::kDim}});
+    output.AppendString(SINGLE_LINE_CONSTANT(L" of "), {{LineModifier::kDim}});
+    output.AppendString(SingleLine{LazyString{to_wstring(
+        options.buffer->contents().EndLine() + LineNumberDelta(1))}});
+    output.AppendString(SINGLE_LINE_CONSTANT(L", "), {{LineModifier::kDim}});
+    output.AppendString(SingleLine{LazyString{to_wstring(
+        options.buffer->current_position_col() + ColumnNumberDelta(1))}});
+    output.AppendString(SINGLE_LINE_CONSTANT(L" 🧭 "), {{LineModifier::kDim}});
 
     if (LazyString marks_text = options.buffer->GetLineMarksText();
         !marks_text.empty()) {
-      output.AppendString(marks_text);
+      // TODO(easy, 2024-09-19): Avoid wrapping it here.
+      output.AppendString(SingleLine{marks_text});
       output.AppendCharacter(' ', {});
     }
 
     auto active_cursors = options.buffer->active_cursors();
     if (active_cursors.size() != 1) {
       output.AppendString(
-          LazyString{L" "} +
+          SingleLine::Char<L' '>() +
               (options.buffer->Read(buffer_variables::multiple_cursors)
-                   ? LazyString{L"✨"}
-                   : LazyString{L"👥"}),
+                   ? SingleLine::Char<L'✨'>()
+                   : SingleLine::Char<L'👥'>()),
           std::nullopt);
-      output.AppendString(LazyString{L":"},
+      output.AppendString(SingleLine::Char<L':'>(),
+                          LineModifierSet{LineModifier::kDim});
+      output.AppendString(SingleLine{LazyString{std::to_wstring(
+                              active_cursors.current_index() + 1)}},
+                          std::nullopt);
+      output.AppendString(SingleLine::Char<L'/'>(),
                           LineModifierSet{LineModifier::kDim});
       output.AppendString(
-          LazyString{std::to_wstring(active_cursors.current_index() + 1)},
-          std::nullopt);
-      output.AppendString(LazyString{L"/"},
-                          LineModifierSet{LineModifier::kDim});
-      output.AppendString(
-          LazyString{std::to_wstring(active_cursors.size())} + LazyString{L" "},
+          SingleLine{LazyString{std::to_wstring(active_cursors.size())}} +
+              SingleLine::Char<L' '>(),
           std::nullopt);
     }
 
@@ -157,14 +160,18 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (!flags.empty()) {
-      output.AppendString(LazyString{L"  "} +
-                          OpenBuffer::FlagsToString(std::move(flags)));
+      output.AppendString(
+          SingleLine{LazyString{L"  "}} +
+          // TODO(easy, 2024-09-19): Avoid wrapping it here:
+          SingleLine{OpenBuffer::FlagsToString(std::move(flags))});
     }
 
     if (options.status.text().empty()) {
-      output.AppendString(LazyString{L"  “"} +
-                          GetBufferContext(*options.buffer) +
-                          LazyString{L"” "});
+      output.AppendString(
+          SINGLE_LINE_CONSTANT(L"  “") +
+          // TODO(easy, 2024-09-19): Make GetBufferContext return SingleLine.
+          SingleLine{GetBufferContext(*options.buffer)} +
+          SINGLE_LINE_CONSTANT(L"” "));
     }
 
     int running = 0;
@@ -181,14 +188,14 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       }
     }
     if (running > 0) {
-      output.AppendString(LazyString{L"  🏃"} +
-                          LazyString{std::to_wstring(running)} +
-                          LazyString{L"  "});
+      output.AppendString(SINGLE_LINE_CONSTANT(L"  🏃") +
+                          SingleLine{LazyString{std::to_wstring(running)}} +
+                          SINGLE_LINE_CONSTANT(L"  "));
     }
     if (failed > 0) {
-      output.AppendString(LazyString{L"  💥"} +
-                          LazyString{std::to_wstring(failed)} +
-                          LazyString{L"  "});
+      output.AppendString(SINGLE_LINE_CONSTANT(L"  💥") +
+                          SingleLine{LazyString{std::to_wstring(failed)}} +
+                          SINGLE_LINE_CONSTANT(L"  "));
     }
   }
 
@@ -216,7 +223,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     if (options.buffer != nullptr) {
       if (Line editor_status_text = options.buffer->editor().status().text();
           !editor_status_text.empty()) {
-        output.AppendString(LazyString{L" 🌼 "});
+        output.AppendString(SingleLine{LazyString{L" 🌼 "}});
         output.Append(LineBuilder{editor_status_text});
       }
     }

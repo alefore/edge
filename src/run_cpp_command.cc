@@ -521,15 +521,14 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
           case CppCommandMode::kLiteral:
             handler = std::bind_front(RunCppCommandLiteralHandler,
                                       std::ref(editor_state));
-            prompt_builder.AppendString(SingleLine{LazyString{L"cpp"}}.read());
-            ;
+            prompt_builder.AppendString(SINGLE_LINE_CONSTANT(L"cpp"));
             colorize_options_provider = std::bind_front(
                 CppColorizeOptionsProvider, std::ref(editor_state));
             break;
           case CppCommandMode::kShell:
             handler = std::bind_front(RunCppCommandShellHandler,
                                       std::ref(editor_state));
-            prompt_builder.AppendString(SingleLine{LazyString{L":"}}.read());
+            prompt_builder.AppendString(SingleLine::Char<L':'>());
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
             // TODO(easy, 2023-09-16): Make it possible to disable the use of a
@@ -542,7 +541,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
                 SearchNamespaces(buffer->ptr().value()), predictor);
             break;
         }
-        prompt_builder.AppendString(SingleLine{LazyString{L" "}}.read());
+        prompt_builder.AppendString(SingleLine::Char<L' '>());
         Line prompt = std::move(prompt_builder).Build();
         return PromptOptions{
             .editor_state = editor_state,

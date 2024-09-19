@@ -216,7 +216,8 @@ const bool line_set_character_tests_registration = tests::Register(
     L"LineTestsSetCharacter",
     {{.name = L"ConsecutiveSets", .callback = [] {
         LineBuilder options;
-        options.AppendString(LazyString{L"ALEJANDRO"}, std::nullopt);
+        options.AppendString(SingleLine{LazyString{L"ALEJANDRO"}},
+                             std::nullopt);
         CHECK_EQ(options.contents(), SingleLine{LazyString{L"ALEJANDRO"}});
         CHECK(options.modifiers().empty());
 
@@ -322,16 +323,14 @@ void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
 }
 
-void LineBuilder::AppendString(LazyString suffix) {
+void LineBuilder::AppendString(SingleLine suffix) {
   AppendString(std::move(suffix), std::nullopt);
 }
 
 void LineBuilder::AppendString(
-    LazyString suffix, std::optional<LineModifierSet> suffix_modifiers) {
-  // TODO(trivial, 2024-09-17): Change the type of `suffix` to SingleLine, avoid
-  // wrapping it here.
+    SingleLine suffix, std::optional<LineModifierSet> suffix_modifiers) {
   ValidateInvariants();
-  LineBuilder suffix_line(SingleLine{std::move(suffix)});
+  LineBuilder suffix_line(std::move(suffix));
   if (suffix_modifiers.has_value() &&
       suffix_line.data_.contents.size() > ColumnNumberDelta(0)) {
     suffix_line.data_.modifiers[ColumnNumber(0)] = suffix_modifiers.value();

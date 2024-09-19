@@ -27,6 +27,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineNumberDelta;
 
@@ -163,17 +164,17 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
     output.Append(std::move(child_lines));
   }
 
-  if (children_skipped > 0) {
+  if (children_skipped > 0)
     output.lines.push_back(
         {.inputs_hash = {}, .generate = [children_skipped] {
            return LineWithCursor{
                .line = FrameLine(
-                   {.title = LazyString{L"Additional files: "} +
-                             LazyString{std::to_wstring(children_skipped)},
+                   {.title = SINGLE_LINE_CONSTANT(L"Additional files: ") +
+                             SingleLine{
+                                 LazyString{std::to_wstring(children_skipped)}},
                     .active_state =
                         FrameOutputProducerOptions::ActiveState::kActive})};
          }});
-  }
 
   return output;
 }

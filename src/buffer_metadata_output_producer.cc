@@ -224,10 +224,11 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
 
   if (count == 0) return LineBuilder{SingleLine{LazyString{L" "}}};
 
-  LazyString output_str{ColumnNumberDelta{1}, L'0' + count};
+  SingleLine output_str =
+      SingleLine{LazyString{ColumnNumberDelta{1}, L'0' + count}};
   LineModifierSet modifiers;
   if (count == kStopCount) {
-    output_str = LazyString{L"+"};
+    output_str = SingleLine::Char<L'+'>();
     modifiers.insert(LineModifier::kBold);
   }
   if (range.Contains(*cursors.active())) {
@@ -344,8 +345,9 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   }
 
   CHECK_LT(base_char, chars.size());
-  line_options.AppendString(LazyString{ColumnNumberDelta{1}, chars[base_char]},
-                            modifiers);
+  line_options.AppendString(
+      SingleLine{LazyString{ColumnNumberDelta{1}, chars[base_char]}},
+      modifiers);
   return line_options;
 }
 
@@ -357,7 +359,9 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
 
   auto parse_tree = options.buffer.simplified_parse_tree();
   line_options.AppendString(
-      DrawTree(line, options.buffer.lines_size(), parse_tree.value()),
+      // TODO(easy, 2024-09-19): Avoid wrapping here.
+      SingleLine{
+          DrawTree(line, options.buffer.lines_size(), parse_tree.value())},
       std::nullopt);
 
   if (options.buffer.lines_size() >
@@ -369,9 +373,10 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
     }
     if (!options.zoomed_out_tree.children().empty()) {
       line_options.AppendString(
-          DrawTree(line - initial_line(options).ToDelta(),
-                   LineNumberDelta(options.screen_lines.size()),
-                   options.zoomed_out_tree),
+          // TODO(easy, 2024-09-19): Avoid wrapping here.
+          SingleLine{DrawTree(line - initial_line(options).ToDelta(),
+                              LineNumberDelta(options.screen_lines.size()),
+                              options.zoomed_out_tree)},
           std::nullopt);
     }
   }
@@ -737,9 +742,11 @@ std::vector<LineBuilder> ComputePrefixLines(
       ColumnNumberDelta padding_size = target.size() < *indents
                                            ? *indents - target.size()
                                            : ColumnNumberDelta();
-      target.AppendString(LazyString{padding_size, padding_dash ? L'─' : L' '} +
-                              LazyString{ColumnNumberDelta{1}, c},
-                          boxes[index].modifiers);
+      target.AppendString(
+          (padding_dash ? SingleLine::Padding<L'─'>(padding_size)
+                        : SingleLine::Padding<L' '>(padding_size)) +
+              SingleLine{LazyString{ColumnNumberDelta{1}, c}},
+          boxes[index].modifiers);
       *indents = target.size() - ColumnNumberDelta(1);
     };
 
@@ -799,14 +806,12 @@ std::vector<LineBuilder> ComputePrefixLines(
       LineBuilder& target = output[(b.position + l).read()];
       CHECK_LE(target.size(), indents);
       target.AppendString(
-          LazyString{
-              indents - target.size(),
-              target.size().IsZero() ||
-                      std::wstring(L"╮│╯").find_first_of(target.contents().get(
-                          ColumnNumber() + target.contents().size() -
-                          ColumnNumberDelta(1))) != std::wstring::npos
-                  ? L' '
-                  : L'─'},
+          target.size().IsZero() ||
+                  std::wstring(L"╮│╯").find_first_of(target.contents().get(
+                      ColumnNumber() + target.contents().size() -
+                      ColumnNumberDelta(1))) != std::wstring::npos
+              ? SingleLine::Padding<L' '>(indents - target.size())
+              : SingleLine::Padding<L'─'>(indents - target.size()),
           b.modifiers);
     }
     // Add the wrappings around the box.
@@ -895,8 +900,8 @@ ColumnsVector::Column BufferMetadataOutput(
     output.padding.push_back(
         lines_referenced.contains(i)
             ? ColumnsVector::Padding{.modifiers = {LineModifier::kYellow},
-                                     .head = LazyString{L"  ←"},
-                                     .body = LazyString{L"-"}}
+                                     .head = SINGLE_LINE_CONSTANT(L"  ←"),
+                                     .body = SingleLine::Char<L'-'>()}
             : std::optional<ColumnsVector::Padding>{});
     metadata_by_line[source].pop_front();
   }

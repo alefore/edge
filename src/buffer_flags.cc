@@ -16,6 +16,7 @@ using afc::language::GetValueOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -56,8 +57,9 @@ LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
             return LineWithCursor::Generator::New(CaptureAndHash(
                 [](LineModifier m) {
                   LineBuilder options;
-                  options.AppendString(LazyString{ColumnNumberDelta(80), L'█'},
-                                       LineModifierSet{m});
+                  options.AppendString(
+                      SingleLine::Padding<L'█'>(ColumnNumberDelta(80)),
+                      LineModifierSet{m});
                   return LineWithCursor{.line = std::move(options).Build()};
                 },
                 modifier));

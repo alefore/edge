@@ -38,12 +38,14 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
 namespace afc::editor {
@@ -52,7 +54,7 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-LineWithCursor ProducerForString(LazyString src, LineModifierSet modifiers) {
+LineWithCursor ProducerForString(SingleLine src, LineModifierSet modifiers) {
   LineBuilder options;
   options.AppendString(std::move(src), std::move(modifiers));
   return LineWithCursor{.line = std::move(options).Build()};
@@ -66,10 +68,10 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
   LineWithCursor::Generator::Vector rows;
   if (lines.size() > LineNumberDelta(1)) {
-    rows = RepeatLine(ProducerForString(LazyString{L"│"}, modifiers),
+    rows = RepeatLine(ProducerForString(SingleLine::Char<L'│'>(), modifiers),
                       lines.size() - LineNumberDelta(1));
   }
-  rows.Append(RepeatLine(ProducerForString(LazyString{L"╰"}, modifiers),
+  rows.Append(RepeatLine(ProducerForString(SingleLine::Char<L'╰'>(), modifiers),
                          LineNumberDelta(1)));
 
   columns_vector.push_back(
@@ -134,7 +136,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
         .generate = [original_generator = buffer_output.lines.back().generate] {
           LineWithCursor output = original_generator();
           LineBuilder line_options;
-          line_options.AppendString(output.line.contents().read(),
+          line_options.AppendString(output.line.contents(),
                                     LineModifierSet{LineModifier::kDim});
           output.line = std::move(line_options).Build();
           return output;
@@ -154,7 +156,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
                  ColumnNumberDelta(1)) /
                 2;
             LineBuilder line_options;
-            line_options.AppendString(LazyString{padding_size, L' '});
+            line_options.AppendString(SingleLine::Padding(padding_size));
             if (output.cursor.has_value())
               output.cursor = *output.cursor + padding_size;
             line_options.Append(LineBuilder(std::move(output.line)));
@@ -462,7 +464,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;
           frame_options.title =
-              buffer.ptr()->ReadLazyString(buffer_variables::name);
+              LineSequence::BreakLines(
+                  buffer.ptr()->ReadLazyString(buffer_variables::name))
+                  .FoldLines();
 
           frame_options.position_in_parent =
               options_.position_in_parent.value();
@@ -473,8 +477,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
                 FrameOutputProducerOptions::ActiveState::kActive;
           }
 
+          // TODO(trivial, 2024-09-19): Get rid of wrapping.
           frame_options.extra_information =
-              OpenBuffer::FlagsToString(buffer.ptr()->Flags());
+              SingleLine{OpenBuffer::FlagsToString(buffer.ptr()->Flags())};
           frame_options.width = ColumnNumberDelta(
               buffer.ptr()->Read(buffer_variables::line_width));
           bool add_left_frame =
@@ -482,8 +487,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
 
           frame_options.prefix =
               (options.size.line > kTopFrameLines && add_left_frame)
-                  ? LazyString{L"╭"}
-                  : LazyString{L"─"};
+                  ? SingleLine::Char<L'╭'>()
+                  : SingleLine::Char<L'─'>();
 
           auto frame_lines =
               RepeatLine({.line = FrameLine(std::move(frame_options))},

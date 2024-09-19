@@ -21,20 +21,22 @@
 #include "src/language/wstring.h"
 #include "src/widget.h"
 
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::CaptureAndHash;
+using afc::language::HashableContainer;
+using afc::language::MakeNonNullShared;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineRange;
+using afc::language::text::Range;
+
 namespace afc {
 namespace editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::CaptureAndHash;
-using language::HashableContainer;
-using language::MakeNonNullShared;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineNumberDelta;
-using language::text::LineRange;
-using language::text::Range;
 
 /* static */ ColumnNumberDelta LineNumberOutputWidth(
     LineNumberDelta lines_size) {
@@ -71,15 +73,15 @@ LineWithCursor::Generator::Vector LineNumberOutput(
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
         [](LineRange range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
-          LazyString number =
-              range.begin_column().IsZero()
-                  ? LazyString{to_wstring(range.line() + LineNumberDelta(1))}
-                  : LazyString{L"↪"};
+          SingleLine number = range.begin_column().IsZero()
+                                  ? SingleLine{LazyString{to_wstring(
+                                        range.line() + LineNumberDelta(1))}}
+                                  : SingleLine::Char<L'↪'>();
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
-          LazyString padding{width - ColumnNumberDelta(number.size() + 1),
-                             L' '};
+          SingleLine padding =
+              SingleLine::Padding(width - ColumnNumberDelta(number.size() + 1));
           LineBuilder line_options;
-          line_options.AppendString(padding + number + LazyString{L":"},
+          line_options.AppendString(padding + number + SingleLine::Char<L':'>(),
                                     modifiers.container);
           return LineWithCursor{.line = std::move(line_options).Build()};
         },

@@ -71,7 +71,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
   for (const PathComponent& path_full : components | std::views::reverse) {
     if (columns.IsZero() && reserved.IsZero()) break;
     LineBuilder current_output;
-    auto Add = [&current_output, &columns](LazyString s,
+    auto Add = [&current_output, &columns](SingleLine s,
                                            const LineModifierSet& m) {
       CHECK_LE(s.size(), columns);
       current_output.AppendString(s, m);
@@ -97,7 +97,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
     }
 
     if (columns == ColumnNumberDelta(1)) {
-      Add(LazyString{L"…"}, dim);
+      Add(SingleLine::Char<L'…'>(), dim);
     } else {
       ASSIGN_OR_RETURN(
           PathComponent path,
@@ -111,22 +111,32 @@ ValueOrError<LineBuilder> GetOutputComponents(
                         : path_full.read().Substring(
                               ColumnNumber{}, columns - separator_size)));
       if (output_items.empty())
-        std::visit(overload{[&](Error) { Add(path.read(), modifiers); },
-                            [&](const PathComponent& path_without_extension) {
-                              if (std::optional<LazyString> extension =
-                                      path.extension();
-                                  extension.has_value()) {
-                                Add(path_without_extension.read(), bold);
-                                Add(LazyString{L"."}, dim);
-                                Add(extension.value(), bold);
-                              } else {
-                                Add(path.read(), modifiers);
-                              }
-                            }},
-                   path.remove_extension());
+        std::visit(
+            overload{
+                [&](Error) {
+                  Add(LineSequence::BreakLines(path.read()).FoldLines(),
+                      modifiers);
+                },
+                [&](const PathComponent& path_without_extension) {
+                  if (std::optional<LazyString> extension = path.extension();
+                      extension.has_value()) {
+                    Add(LineSequence::BreakLines(path_without_extension.read())
+                            .FoldLines(),
+                        bold);
+                    Add(SingleLine::Char<L'.'>(), dim);
+                    Add(LineSequence::BreakLines(extension.value()).FoldLines(),
+                        bold);
+                  } else {
+                    Add(LineSequence::BreakLines(path.read()).FoldLines(),
+                        modifiers);
+                  }
+                }},
+            path.remove_extension());
       else if (columns > ColumnNumberDelta(1)) {
-        Add(path.read(), modifiers);
-        Add(path == path_full ? LazyString{L"/"} : LazyString{L"…"}, dim);
+        Add(LineSequence::BreakLines(path.read()).FoldLines(), modifiers);
+        Add(path == path_full ? SingleLine::Char<L'/'>()
+                              : SingleLine::Char<L'…'>(),
+            dim);
       }
     }
     output_items.push_front(std::move(current_output));
@@ -160,86 +170,99 @@ const bool get_output_components_tests_registration = tests::Register(
     {{.name = L"SingleFits",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"foo";
             CHECK_EQ(
-                GetOutputComponentsForTesting(L"foo", ColumnNumberDelta(80)),
-                SingleLine{LazyString{L"foo"}});
+                GetOutputComponentsForTesting(kMessage, ColumnNumberDelta(80)),
+                SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"SingleTrim",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"lejandro";
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro",
                                                    ColumnNumberDelta(8)),
-                     SingleLine{LazyString{L"lejandro"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"SingleFitsExactly",
       .callback =
           [] {
-            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro",
-                                                   ColumnNumberDelta(9)),
-                     SingleLine{LazyString{L"alejandro"}});
+            static constexpr wchar_t kMessage[] = L"alejandro";
+            CHECK_EQ(
+                GetOutputComponentsForTesting(kMessage, ColumnNumberDelta(9)),
+                SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleFits",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"alejandro/forero/cuervo";
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(80)),
-                     SingleLine{LazyString{L"alejandro/forero/cuervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleFitsExactly",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"alejandro/forero/cuervo";
+
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(23)),
-                     SingleLine{LazyString{L"alejandro/forero/cuervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimFirst",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"alejandr…forero/cuervo";
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(22)),
-                     SingleLine{LazyString{L"alejandr…forero/cuervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimSignificant",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"a…f…cuervo";
             CHECK_EQ(GetOutputComponentsForTesting(
                          L"alejandro/forero/cuervo",
                          ColumnNumberDelta((1 + 1) + (1 + 1) + 6)),
-                     SingleLine{LazyString{L"a…f…cuervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimSpill",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"fo…cuervo";
             CHECK_EQ(
                 GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                               ColumnNumberDelta(2 + 1 + 6)),
-                SingleLine{LazyString{L"fo…cuervo"}});
+                SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimToFirst",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"uervo";
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(5)),
-                     SingleLine{LazyString{L"uervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimExact",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"cuervo";
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(6)),
-                     SingleLine{LazyString{L"cuervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimUnusedSpill",
       .callback =
           [] {
+            static constexpr wchar_t kMessage[] = L"…cuervo";
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(7)),
-                     SingleLine{LazyString{L"…cuervo"}});
+                     SingleLine::FromConstant<kMessage>());
           }},
      {.name = L"MultipleTrimSmallSpill", .callback = [] {
+        static constexpr wchar_t kMessage[] = L"f…cuervo";
         CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                ColumnNumberDelta(8)),
-                 SingleLine{LazyString{L"f…cuervo"}});
+                 SingleLine::FromConstant<kMessage>());
       }}});
 
 // Converts the `std::vector` of `BuffersList::filter_` to an
@@ -426,7 +449,7 @@ LineBuilder GetBufferContents(const LineSequence& contents,
   LineBuilder output;
   if ((line.EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
     ColumnNumberDelta padding = (columns - line.EndColumn().ToDelta()) / 2;
-    output.AppendString(LazyString{padding, L' '});
+    output.AppendString(SingleLine::Padding(padding));
   }
 
   LineBuilder line_without_suffix(line);
@@ -469,8 +492,9 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   LineBuilder output;
   std::visit(
       overload{[&](Error) {
-                 std::replace(name.begin(), name.end(), L'\n', L' ');
-                 LazyString output_name = LazyString{std::move(name)};
+                 SingleLine output_name =
+                     LineSequence::BreakLines(LazyString{std::move(name)})
+                         .FoldLines();
                  if (output_name.size() > ColumnNumberDelta(2) &&
                      output_name.get(ColumnNumber(0)) == L'$' &&
                      output_name.get(ColumnNumber(1)) == L' ') {
@@ -623,7 +647,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
         std::nullopt, [options, prefix_width, path_components, index]() {
           LineBuilder line_options_output;
 
-          static const LazyString kSeparator = LazyString{L" "};
+          static const SingleLine kSeparator = SingleLine::Char<L' '>();
           const std::vector<ColumnNumberDelta> columns_width =
               OptionalFrom(DivideLine(options->size.column, kSeparator.size(),
                                       options->buffers_per_line))
@@ -639,9 +663,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 options->buffers.at(index + j).ptr().value();
             CHECK_GE(start.ToDelta(), line_options_output.contents().size());
             line_options_output.AppendString(
-                LazyString{
-                    start.ToDelta() - line_options_output.contents().size(),
-                    L' '},
+                SingleLine::Padding(start.ToDelta() -
+                                    line_options_output.contents().size()),
                 LineModifierSet());
 
             if (j > 0) {
@@ -657,11 +680,12 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
 
-            LazyString number_prefix{std::to_wstring(index + j + 1)};
+            SingleLine number_prefix =
+                SingleLine{LazyString{std::to_wstring(index + j + 1)}};
             line_options_output.AppendString(
-                LazyString{prefix_width - number_prefix.size() - kProgressWidth,
-                           L' '}
-                    .Append(number_prefix),
+                SingleLine::Padding(prefix_width - number_prefix.size() -
+                                    kProgressWidth) +
+                    number_prefix,
                 GetNumberModifiers(options.value(), buffer, filter_result));
 
             CHECK_EQ(line_options_output.contents().size(),
@@ -688,9 +712,12 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
-                  progress, filter_result == FilterResult::kExcluded
-                                ? LineModifierSet{LineModifier::kDim}
-                                : progress_modifier);
+                  // TODO(trivial, 2024-09-19): Avoid having to wrap `progress`
+                  // here.
+                  SingleLine{progress},
+                  filter_result == FilterResult::kExcluded
+                      ? LineModifierSet{LineModifier::kDim}
+                      : progress_modifier);
 
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width);

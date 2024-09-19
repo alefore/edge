@@ -17,6 +17,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -73,8 +74,11 @@ Line KeyCommandsMapSequence::SummaryLine() const {
       entries_by_category[entry.second].push_back(*regular_c);
   for (const std::pair<const KeyCommandsMap::Category, std::wstring>& category :
        entries_by_category) {
-    output.AppendString(LazyString{L" "} + LazyString{category.second},
-                        LineModifierSet{LineModifier::kDim});
+    // TODO(trivial, 2024-09-19): Change category.second to NonEmptySingleLine.
+    // Avoid wrapping it here.
+    output.AppendString(
+        SingleLine::Char<L' '>() + SingleLine{LazyString{category.second}},
+        LineModifierSet{LineModifier::kDim});
   }
   return std::move(output).Build();
 }
@@ -99,10 +103,11 @@ LineSequence KeyCommandsMapSequence::Help() const {
     LineBuilder category_line;
     LazyString category_name = KeyCommandsMap::ToString(category_entry.first);
     category_line.AppendString(
-        LazyString{longest_category - category_name.size(), L' '});
-    category_line.AppendString(category_name,
+        SingleLine{LazyString{longest_category - category_name.size(), L' '}});
+    // TODO(easy, 2024-09-19): Avoid having to wrap category_name.
+    category_line.AppendString(SingleLine{category_name},
                                LineModifierSet{LineModifier::kBold});
-    category_line.AppendString(LazyString{L":"});
+    category_line.AppendString(SingleLine{LazyString{L":"}});
     // We use an inverted map to group commands with identical descriptions.
     std::map<Description, std::set<ExtendedChar>> inverted_map;
     for (const std::pair<const ExtendedChar, Description>& entry :
@@ -111,10 +116,11 @@ LineSequence KeyCommandsMapSequence::Help() const {
         inverted_map[entry.second].insert(entry.first);
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
-      category_line.AppendString(LazyString{L" "});
-      category_line.AppendString(entry.first.read(),
+      category_line.AppendString(SingleLine::Char<L' '>());
+      // TODO(easy, 2024-09-19): Avoid having to wrap entry.first?
+      category_line.AppendString(SingleLine{LazyString{entry.first.read()}},
                                  LineModifierSet{LineModifier::kCyan});
-      category_line.AppendString(LazyString{L":"},
+      category_line.AppendString(SingleLine::Char<L':'>(),
                                  LineModifierSet{LineModifier::kDim});
       for (ExtendedChar c : entry.second)
         category_line.Append(LineBuilder(DescribeSequence({c})));
