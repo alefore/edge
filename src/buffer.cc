@@ -1009,15 +1009,9 @@ const BufferDisplayData& OpenBuffer::display_data() const {
 }
 
 void OpenBuffer::AppendLazyString(LazyString input) {
-  ColumnNumber start;
-  ForEachColumn(input, [&](ColumnNumber i, wchar_t c) {
-    CHECK_GE(i, start);
-    if (c == '\n') {
-      AppendLine(input.Substring(start, i - start));
-      start = i + ColumnNumberDelta(1);
-    }
-  });
-  AppendLine(input.Substring(start));
+  LineSequence lines = LineSequence::BreakLines(input);
+  // TODO(trivial, 2024-09-19): Find a way to do this without MaterializeVector.
+  AppendLines(language::container::MaterializeVector(lines));
 }
 
 void OpenBuffer::SortContents(
@@ -1068,11 +1062,12 @@ void OpenBuffer::InsertLine(LineNumber line_position, Line line) {
       UpdateLineMetadata(*this, line_processor_map_, {std::move(line)})[0]);
 }
 
-void OpenBuffer::AppendLine(LazyString str) {
+void OpenBuffer::AppendLine(SingleLine str) {
   if (reading_from_parser_) {
     switch (str.get(ColumnNumber(0))) {
       case 'E':
-        return AppendRawLine(str.Substring(ColumnNumber(1)));
+        // TODO(trivial, 2024-09-19): Avoid `read()`:
+        return AppendRawLine(str.Substring(ColumnNumber(1)).read());
     }
     return;
   }
@@ -1085,7 +1080,8 @@ void OpenBuffer::AppendLine(LazyString str) {
     }
   }
 
-  AppendRawLine(str);
+  // TODO(trivial, 2024-09-19): Avoid `read()`:
+  AppendRawLine(str.read());
 }
 
 void OpenBuffer::AppendRawLine(

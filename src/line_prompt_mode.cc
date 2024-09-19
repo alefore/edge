@@ -177,7 +177,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
     DeleteNotification::Value abort_value, SingleLine filter) {
   BufferName name{LazyString{L"- history filter: "} +
-                  ToLazyString(history_buffer.ptr()->name()) + LazyString{L": "} + filter};
+                  ToLazyString(history_buffer.ptr()->name()) +
+                  LazyString{L": "} + filter};
   gc::Root<OpenBuffer> filter_buffer_root =
       OpenBuffer::New({.editor = editor_state, .name = name});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
@@ -666,8 +667,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
       GetHistoryBuffer(editor, history_file)
           .Transform([history_line = BuildHistoryLine(editor, input)](
                          gc::Root<OpenBuffer> history) {
-            // TODO(2024-09-19, trivial): Avoid call to `read()`:
-            history.ptr()->AppendLine(history_line.read());
+            history.ptr()->AppendLine(history_line);
             return Success();
           });
       return;
