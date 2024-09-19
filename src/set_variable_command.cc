@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
 #include "src/language/container.h"
+#include "src/language/error/view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -32,6 +33,7 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Trim;
 using afc::language::text::Line;
@@ -53,7 +55,12 @@ Predictor VariablesPredictor() {
                           buffer_variables::IntStruct()->VariableNames()),
                       container::MaterializeVector(
                           buffer_variables::DoubleStruct()->VariableNames())} |
-          std::views::join),
+          std::views::join | std::views::transform([](LazyString name) {
+            // TODO(easy, 2024-09-19): Change VariableNames to return NonEmpty
+            // already.
+            return NonEmptySingleLine::New(SingleLine::New(name));
+          }) |
+          language::view::SkipErrors),
       '_');
 }
 }  // namespace

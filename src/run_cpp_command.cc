@@ -451,9 +451,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
       });
 }
 
-std::vector<LazyString> GetCppTokens(
+std::vector<NonEmptySingleLine> GetCppTokens(
     std::optional<gc::Root<OpenBuffer>> buffer) {
-  std::vector<LazyString> output;
+  std::vector<NonEmptySingleLine> output;
   std::set<Identifier> output_set;  // Avoid duplicates.
   if (buffer.has_value())
     buffer->ptr()->environment()->ForEach(
@@ -462,7 +462,7 @@ std::vector<LazyString> GetCppTokens(
           // TODO(easy, 2023-09-16): Would be good to filter more stringently.
           VLOG(10) << "Checking symbol: " << name;
           if (value->IsFunction() && output_set.insert(name).second)
-            output.push_back(LowerCase(name.read().read().read()));
+            output.push_back(LowerCase(name.read()));
         });
   VLOG(4) << "Found tokens: " << output.size();
   return output;

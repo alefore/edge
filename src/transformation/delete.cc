@@ -148,8 +148,10 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
             }
             return futures::Past(EmptyValue());
           },
-      .predictor =
-          PrecomputedPredictor({LazyString{L"no"}, LazyString{L"yes"}}, '/')});
+      .predictor = PrecomputedPredictor(
+          {NonEmptySingleLine{SingleLine{LazyString{L"no"}}},
+           NonEmptySingleLine{SingleLine{LazyString{L"yes"}}}},
+          '/')});
 }
 }  // namespace
 namespace transformation {

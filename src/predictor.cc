@@ -61,6 +61,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -405,45 +406,60 @@ futures::Value<PredictorOutput> EmptyPredictor(PredictorInput) {
 }
 
 namespace {
-std::vector<LazyString> RegisterVariations(LazyString prediction,
-                                           wchar_t separator) {
-  std::vector<LazyString> output;
+std::vector<NonEmptySingleLine> RegisterVariations(SingleLine prediction,
+                                                   wchar_t separator) {
   DVLOG(5) << "Generating predictions for: " << prediction;
-  while (true) {
-    std::optional<ColumnNumber> next = FindFirstNotOf(prediction, {separator});
-    if (next == std::nullopt) return output;
-    prediction = prediction.Substring(*next);
-    output.push_back(prediction);
-    DVLOG(6) << "Prediction: " << prediction;
-    next = FindFirstOf(prediction, {separator});
-    if (next == std::nullopt) return output;
-    prediction = prediction.Substring(*next);
-  }
-  return output;
+  return container::MaterializeVector(
+      std::invoke([&] {
+        std::vector<ColumnNumber> starting_position;
+        std::optional<ColumnNumber> next =
+            FindFirstNotOf(prediction, {separator});
+        while (next.has_value()) {
+          starting_position.push_back(next.value());
+          next = FindFirstOf(prediction, {separator}, next.value());
+          if (next.has_value())
+            next = FindFirstNotOf(prediction, {separator}, next.value());
+        }
+        return starting_position;
+      }) |
+      std::views::transform([&prediction](ColumnNumber start) {
+        return NonEmptySingleLine::New(prediction.Substring(start));
+      }) |
+      language::view::SkipErrors);
 }
 
+const bool register_variations_tests_registration = tests::Register(
+    L"RegisterVariations",
+    {{.name = L"SimpleCall", .callback = [] {
+        CHECK(RegisterVariations(SingleLine{LazyString{L"    foo    bar  "}},
+                                 L' ') ==
+              std::vector<NonEmptySingleLine>(
+                  {NonEmptySingleLine{SingleLine{LazyString{L"foo    bar  "}}},
+                   NonEmptySingleLine{SingleLine{LazyString{L"bar  "}}}}));
+      }}});
 }  // namespace
 
-Predictor PrecomputedPredictor(const std::vector<LazyString>& predictions,
-                               wchar_t separator) {
-  const NonNull<std::shared_ptr<std::multimap<LazyString, LazyString>>>
+Predictor PrecomputedPredictor(
+    const std::vector<NonEmptySingleLine>& predictions, wchar_t separator) {
+  const NonNull<
+      std::shared_ptr<std::multimap<NonEmptySingleLine, NonEmptySingleLine>>>
       contents;
-  for (const LazyString& prediction : predictions)
+  for (const NonEmptySingleLine& prediction : predictions)
     std::ranges::copy(
-        RegisterVariations(prediction, separator) |
-            std::views::transform([&prediction](const LazyString& key) {
+        RegisterVariations(prediction.read(), separator) |
+            std::views::transform([&prediction](const NonEmptySingleLine& key) {
               return std::make_pair(key, prediction);
             }),
         std::inserter(contents.value(), contents->end()));
   return [contents](PredictorInput input) {
+    ValueOrError<NonEmptySingleLine> input_value =
+        NonEmptySingleLine::New(input.input);
+    if (IsError(input_value)) return futures::Past(PredictorOutput{});
     MutableLineSequence output_contents;
-    // TODO(trivial, 2024-09-19): Avoid call to read().
-    for (auto it = contents->lower_bound(input.input.read());
+    for (auto it = contents->lower_bound(ValueOrDie(std::move(input_value)));
          it != contents->end(); ++it) {
       if (StartsWith((*it).first, input.input)) {
-        // TODO(trivial, 2024-09-17): Avoid SingleLine here. Contents should
-        // already contain SingleLine.
-        output_contents.push_back(LineBuilder{SingleLine{it->second}}.Build());
+        output_contents.push_back(LineBuilder{it->second.read()}.Build());
       } else {
         break;
       }
@@ -461,11 +477,14 @@ Predictor PrecomputedPredictor(const std::vector<LazyString>& predictions,
 }
 
 namespace {
-const bool buffer_tests_registration =
+const bool precomputed_predictor_tests_registration =
     tests::Register(L"PrecomputedPredictor", [] {
       const static Predictor test_predictor = PrecomputedPredictor(
-          {LazyString{L"foo"}, LazyString{L"bar"}, LazyString{L"bard"},
-           LazyString{L"foo_bar"}, LazyString{L"alejo"}},
+          {NonEmptySingleLine{SingleLine{LazyString{L"foo"}}},
+           NonEmptySingleLine{SingleLine{LazyString{L"bar"}}},
+           NonEmptySingleLine{SingleLine{LazyString{L"bard"}}},
+           NonEmptySingleLine{SingleLine{LazyString{L"foo_bar"}}},
+           NonEmptySingleLine{SingleLine{LazyString{L"alejo"}}}},
           L'_');
       auto predict = [&](std::wstring input) {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();

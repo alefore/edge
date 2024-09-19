@@ -69,8 +69,16 @@ std::optional<ColumnNumber> FindFirstOf(
 template <typename StringType>
 std::optional<ColumnNumber> FindFirstNotOf(
     const StringType& input, const std::unordered_set<wchar_t>& chars) {
+  return FindFirstNotOf(input, chars, ColumnNumber{});
+}
+
+template <typename StringType>
+std::optional<ColumnNumber> FindFirstNotOf(
+    const StringType& input, const std::unordered_set<wchar_t>& chars,
+    ColumnNumber start) {
   return FindFirstColumnWithPredicate(
-      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
+      input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); },
+      start);
 }
 
 template <typename StringType>
