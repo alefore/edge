@@ -586,25 +586,24 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
 }
 
 void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
-                    std::set<SingleLine>* words) {
+                    std::set<NonEmptySingleLine>* words) {
   DCHECK(words != nullptr);
   if (tree.children().empty() &&
       tree.range().begin().line == tree.range().end().line) {
     CHECK_LE(tree.range().begin().column, tree.range().end().column);
     std::optional<Line> line = buffer.LineAt(tree.range().begin().line);
     CHECK(line.has_value());
-    if (SingleLine word = line->Substring(
-            tree.range().begin().column,
-            std::min(tree.range().end().column, line->EndColumn()) -
-                tree.range().begin().column);
-        !word.empty()) {
-      DVLOG(5) << "Found leave: " << word;
-      words->insert(word);
-    }
+    std::visit(overload{[&words](NonEmptySingleLine word) {
+                          DVLOG(5) << "Found leave: " << word;
+                          words->insert(word);
+                        },
+                        IgnoreErrors{}},
+               NonEmptySingleLine::New(line->Substring(
+                   tree.range().begin().column,
+                   std::min(tree.range().end().column, line->EndColumn()) -
+                       tree.range().begin().column)));
   }
-  for (auto& child : tree.children()) {
-    RegisterLeaves(buffer, child, words);
-  }
+  for (auto& child : tree.children()) RegisterLeaves(buffer, child, words);
 }
 
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
@@ -612,7 +611,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
     return futures::Past(
         PredictorOutput({.contents = SortedLineSequenceUniqueLines(
                              SortedLineSequence(LineSequence()))}));
-  std::set<SingleLine> words;
+  std::set<NonEmptySingleLine> words;
   for (const OpenBuffer& buffer : input.source_buffers | gc::view::Value) {
     RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
     std::ranges::copy(
@@ -620,9 +619,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
             LineSequence::BreakLines(
                 buffer.ReadLazyString(buffer_variables::language_keywords))
                 .FoldLines()) |
-            std::views::transform(
-                // TODO(trivial, 2024-09-19): Avoid the need to call `read()`.
-                [](const Token& token) { return token.value.read(); }),
+            std::views::transform(&Token::value),
         std::inserter(words, words.end()));
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
@@ -630,8 +627,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   // TODO(2023-11-26, Ranges): Add a method to Buffer that takes the range
   // directly, to avoid the need to call MaterializeVector.
   dictionary.ptr()->AppendLines(container::MaterializeVector(
-      words |
-      std::views::transform([](SingleLine word) { return Line(word); })));
+      words | std::views::transform(
+                  [](NonEmptySingleLine word) { return Line{word.read()}; })));
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }
