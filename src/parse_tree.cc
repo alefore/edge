@@ -27,6 +27,7 @@ using afc::language::hash_combine;
 using afc::language::MakeHashableIteratorRange;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
@@ -280,6 +281,15 @@ const ParseTree& FollowRoute(const ParseTree& root,
 }
 
 namespace {
+bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
+              const SingleLine& pattern) {
+  return std::visit(overload{[](Error) { return false; },
+                             [&values](NonEmptySingleLine non_empty_pattern) {
+                               return values.contains(non_empty_pattern);
+                             }},
+                    NonEmptySingleLine::New(pattern));
+}
+
 class NullTreeParser : public TreeParser {
  public:
   ParseTree FindChildren(const LineSequence&, Range range) override {
@@ -289,12 +299,12 @@ class NullTreeParser : public TreeParser {
 
 class WordsTreeParser : public TreeParser {
   const std::unordered_set<wchar_t> symbol_characters_;
-  const std::unordered_set<SingleLine> typos_;
+  const std::unordered_set<NonEmptySingleLine> typos_;
   const NonNull<std::unique_ptr<TreeParser>> delegate_;
 
  public:
   WordsTreeParser(LazyString symbol_characters,
-                  std::unordered_set<SingleLine> typos,
+                  std::unordered_set<NonEmptySingleLine> typos,
                   NonNull<std::unique_ptr<TreeParser>> delegate)
       : symbol_characters_(
             container::MaterializeUnorderedSet(symbol_characters)),
@@ -324,7 +334,7 @@ class WordsTreeParser : public TreeParser {
             contents.contents().Substring(begin, column - begin);
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
-        if (typos_.contains(keyword)) child.InsertModifier(LineModifier::kRed);
+        if (Contains(typos_, keyword)) child.InsertModifier(LineModifier::kRed);
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));
       }
@@ -374,7 +384,7 @@ NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
 }
 
 NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
-    LazyString symbol_characters, std::unordered_set<SingleLine> typos,
+    LazyString symbol_characters, std::unordered_set<NonEmptySingleLine> typos,
     NonNull<std::unique_ptr<TreeParser>> delegate) {
   return MakeNonNullUnique<WordsTreeParser>(
       std::move(symbol_characters), std::move(typos), std::move(delegate));

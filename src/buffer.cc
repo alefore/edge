@@ -676,18 +676,12 @@ void OpenBuffer::UpdateTreeParser() {
                 TokenizeBySpaces(
                     LineSequence::BreakLines(Read(buffer_variables::typos))
                         .FoldLines()) |
-                std::views::transform(&Token::value) |
-                // TODO(trivial, 2024-09-19): Avoid the need for `read()` here:
-                std::views::transform(
-                    [](NonEmptySingleLine i) { return i.read(); })),
+                std::views::transform(&Token::value)),
             .language_keywords = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(LineSequence::BreakLines(
                                      Read(buffer_variables::language_keywords))
                                      .FoldLines()) |
-                std::views::transform(&Token::value) |
-                // TODO(trivial, 2024-09-19): Avoid the need for `read()` here:
-                std::views::transform(
-                    [](NonEmptySingleLine i) { return i.read(); })),
+                std::views::transform(&Token::value)),
             .symbol_characters =
                 ReadLazyString(buffer_variables::symbol_characters),
             .identifier_behavior =

@@ -10,8 +10,8 @@
 
 namespace afc::editor {
 language::NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
-    std::unordered_set<language::lazy_string::SingleLine> keywords,
-    std::unordered_set<language::lazy_string::SingleLine> typos,
+    std::unordered_set<language::lazy_string::NonEmptySingleLine> keywords,
+    std::unordered_set<language::lazy_string::NonEmptySingleLine> typos,
     IdentifierBehavior identifier_behavior);
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_CPP_PARSE_TREE_H__

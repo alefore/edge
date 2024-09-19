@@ -9,21 +9,25 @@
 #include "src/parsers/util.h"
 #include "src/seek.h"
 
+using afc::editor::parsers::ParseDoubleQuotedString;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
+
 namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::SingleLine;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
-using parsers::ParseDoubleQuotedString;
 
 namespace {
 enum State {
@@ -47,15 +51,24 @@ static const std::wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
+bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
+              const SingleLine& pattern) {
+  return std::visit(overload{[](Error) { return false; },
+                             [&values](NonEmptySingleLine non_empty_pattern) {
+                               return values.contains(non_empty_pattern);
+                             }},
+                    NonEmptySingleLine::New(pattern));
+}
+
 class CppTreeParser : public parsers::LineOrientedTreeParser {
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;
-  const std::unordered_set<SingleLine> keywords_;
-  const std::unordered_set<SingleLine> typos_;
+  const std::unordered_set<NonEmptySingleLine> keywords_;
+  const std::unordered_set<NonEmptySingleLine> typos_;
   const IdentifierBehavior identifier_behavior_;
 
  public:
-  CppTreeParser(std::unordered_set<SingleLine> keywords,
-                std::unordered_set<SingleLine> typos,
+  CppTreeParser(std::unordered_set<NonEmptySingleLine> keywords,
+                std::unordered_set<NonEmptySingleLine> typos,
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"},
@@ -213,9 +226,9 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                          .contents()
                          .Substring(original_position.column, length);
     LineModifierSet modifiers;
-    if (keywords_.contains(str)) {
+    if (Contains(keywords_, str)) {
       modifiers.insert(LineModifier::kCyan);
-    } else if (typos_.contains(str)) {
+    } else if (Contains(typos_, str)) {
       modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
@@ -315,8 +328,8 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
-    std::unordered_set<SingleLine> keywords,
-    std::unordered_set<SingleLine> typos,
+    std::unordered_set<NonEmptySingleLine> keywords,
+    std::unordered_set<NonEmptySingleLine> typos,
     IdentifierBehavior identifier_behavior) {
   return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),
                                           identifier_behavior);

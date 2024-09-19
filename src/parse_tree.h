@@ -152,7 +152,7 @@ language::NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser();
 language::NonNull<std::unique_ptr<TreeParser>> NewCharTreeParser();
 language::NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
     language::lazy_string::LazyString word_characters,
-    std::unordered_set<language::lazy_string::SingleLine> typos,
+    std::unordered_set<language::lazy_string::NonEmptySingleLine> typos,
     language::NonNull<std::unique_ptr<TreeParser>> delegate);
 language::NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
     language::NonNull<std::unique_ptr<TreeParser>> delegate);
