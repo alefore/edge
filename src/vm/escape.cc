@@ -133,10 +133,10 @@ bool cpp_unescape_string_tests_registration =
 EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 
 /* static */ language::ValueOrError<EscapedMap> EscapedMap::Parse(
-    language::lazy_string::LazyString input) {
+    SingleLine input) {
   TRACK_OPERATION(EscapedMap_Parse);
   EscapedMap::Map output;
-  for (const Token& token : TokenizeBySpaces(input)) {
+  for (const Token& token : TokenizeBySpaces(input.read())) {
     std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});
     if (colon == std::nullopt)
       return Error{
@@ -160,9 +160,11 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
     DECLARE_OR_RETURN(NonEmptySingleLine id_non_empty_single_line,
                       NonEmptySingleLine::New(id_single_line));
     DECLARE_OR_RETURN(Identifier id, Identifier::New(id_non_empty_single_line));
-    DECLARE_OR_RETURN(EscapedString parsed_value,
-                      EscapedString::Parse(input.Substring(
-                          value_start, value_end - value_start)));
+    DECLARE_OR_RETURN(
+        EscapedString parsed_value,
+        // TODO(trivial, 2024-09-19): Get rid of `read()`:
+        EscapedString::Parse(
+            input.Substring(value_start, value_end - value_start).read()));
     output.insert({id, parsed_value});
   }
 

@@ -43,7 +43,7 @@ class EscapedMap {
   explicit EscapedMap(Map input);
 
   static language::ValueOrError<EscapedMap> Parse(
-      language::lazy_string::LazyString input);
+      language::lazy_string::SingleLine input);
 
   language::lazy_string::SingleLine Serialize() const;
 

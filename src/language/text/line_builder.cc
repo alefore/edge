@@ -146,9 +146,8 @@ LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 
 Line LineBuilder::Build() && {
-  data_.escaped_map_supplier = MakeCachedSupplier([input = data_.contents] {
-    return vm::EscapedMap::Parse(std::move(input).read());
-  });
+  data_.escaped_map_supplier = MakeCachedSupplier(
+      std::bind_front(vm::EscapedMap::Parse, data_.contents));
   return Line(std::move(data_));
 }
 
