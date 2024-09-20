@@ -11,6 +11,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
@@ -88,7 +89,8 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     Error error{LazyString{L"Regex failure: "} +
                 LazyString{FromByteString(e.what())}};
     options.progress_channel->Push(
-        {.values = {{VersionPropertyKey{LazyString{L"!"}}, error.read()}}});
+        {.values = {{VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"!")},
+                     error.read()}}});
     return error;
   }
 
@@ -104,15 +106,17 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
         std::back_inserter(positions));
     if (positions.size() > initial_size)
       options.progress_channel->Push(ProgressInformation{
-          .counters = {{VersionPropertyKey{LazyString{L"matches"}},
-                        previously_found_matches + positions.size()}}});
+          .counters = {
+              {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"matches")},
+               previously_found_matches + positions.size()}}});
     if (!options.abort_value.has_value() &&
         (!options.required_positions.has_value() ||
          options.required_positions.value() > positions.size()))
       return true;
     options.progress_channel->Push(ProgressInformation{
         .values = {
-            {VersionPropertyKey{LazyString{L"partial"}}, LazyString{}}}});
+            {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"partial")},
+             LazyString{}}}});
     return false;
   });
   VLOG(5) << "Perform search found matches: " << positions.size();

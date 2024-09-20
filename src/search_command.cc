@@ -176,8 +176,8 @@ class ProgressAggregator {
           }
 
           if (data->children_created > 1) {
-            data->aggregates
-                .values[VersionPropertyKey{LazyString{L"buffers"}}] =
+            data->aggregates.values[VersionPropertyKey{
+                NON_EMPTY_SINGLE_LINE_CONSTANT(L"buffers")}] =
                 LazyString{std::to_wstring(data->buffers_with_matches)} +
                 LazyString{L"/"} +
                 LazyString{std::to_wstring(data->children_created)};
@@ -189,7 +189,8 @@ class ProgressAggregator {
 
  private:
   static bool HasMatches(const ProgressInformation& info) {
-    auto it = info.counters.find(VersionPropertyKey{LazyString{L"matches"}});
+    auto it = info.counters.find(
+        VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"matches")});
     return it != info.counters.end() && it->second > 0;
   }
 
@@ -298,7 +299,9 @@ class SearchCommand : public Command {
                                     buffer_variables::search_case_sensitive)) {
                               progress_channel->Push(
                                   {.values = {
-                                       {VersionPropertyKey{LazyString{L"case"}},
+                                       {VersionPropertyKey{
+                                            NON_EMPTY_SINGLE_LINE_CONSTANT(
+                                                L"case")},
                                         LazyString{L"on"}}}});
                             }
                             if (line.size().IsZero()) {

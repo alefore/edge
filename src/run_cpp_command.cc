@@ -334,7 +334,8 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             modifiers.insert(LineModifier::kCyan);
             progress_channel->Push(
                 {.values = {
-                     {VersionPropertyKey{LazyString{L"type"}},
+                     {VersionPropertyKey{
+                          NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")},
                       vm::TypesToString(compilation_result.first->Types())}}});
             ColorizePromptOptions output;
             MaybePushTokenAndModifiers(line, modifiers, output.tokens);
@@ -351,21 +352,26 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                   std::ostringstream oss;
                   oss << value.ptr().value();
                   progress_channel->Push(
-                      {.values = {{VersionPropertyKey{LazyString{L"value"}},
-                                   LazyString{FromByteString(oss.str())}}}});
+                      {.values = {
+                           {VersionPropertyKey{
+                                NON_EMPTY_SINGLE_LINE_CONSTANT(L"value")},
+                            LazyString{FromByteString(oss.str())}}}});
                   return futures::Past(Success());
                 })
                 .ConsumeErrors([progress_channel](Error error) {
                   progress_channel->Push(
-                      {.values = {{VersionPropertyKey{LazyString{L"runtime"}},
-                                   error.read()}}});
+                      {.values = {
+                           {VersionPropertyKey{
+                                NON_EMPTY_SINGLE_LINE_CONSTANT(L"runtime")},
+                            error.read()}}});
                   return futures::Past(EmptyValue());
                 })
                 .Transform([output](EmptyValue) { return output; });
           },
           [&](Error error) {
             progress_channel->Push(
-                {.values = {{VersionPropertyKey{LazyString{L"error"}},
+                {.values = {{VersionPropertyKey{
+                                 NON_EMPTY_SINGLE_LINE_CONSTANT(L"error")},
                              error.read()}}});
             return futures::Past(ColorizePromptOptions());
           }},

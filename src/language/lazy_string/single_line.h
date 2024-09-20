@@ -69,6 +69,12 @@ class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
  public:
   using GhostType::GhostType;
 
+  template <const wchar_t* const input>
+  static constexpr NonEmptySingleLine FromConstant() {
+    static_assert(!std::wstring_view(input).empty(), "String can't be empty.");
+    return NonEmptySingleLine{SingleLine::FromConstant<input>()};
+  }
+
   explicit NonEmptySingleLine(int);
   explicit NonEmptySingleLine(size_t);
 
@@ -77,6 +83,13 @@ class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
   SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
   SingleLine SubstringWithRangeChecks(ColumnNumber, ColumnNumberDelta) const;
 };
+
+#define NON_EMPTY_SINGLE_LINE_CONSTANT(x)                                  \
+  std::invoke([] {                                                         \
+    static constexpr wchar_t kMessage[] = x;                               \
+    return afc::language::lazy_string::NonEmptySingleLine{                 \
+        afc::language::lazy_string::SingleLine::FromConstant<kMessage>()}; \
+  })
 
 LazyString operator+(const LazyString& a, const SingleLine& b);
 LazyString operator+(const SingleLine& a, const LazyString& b);

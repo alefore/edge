@@ -11,6 +11,7 @@
 #include "src/language/gc.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 
@@ -19,7 +20,7 @@ namespace afc::concurrent {
 // The key that uniquely identifies a given property.
 class VersionPropertyKey
     : public language::GhostType<VersionPropertyKey,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::NonEmptySingleLine> {
   using GhostType::GhostType;
   friend class VersionPropertyReceiver;
 };

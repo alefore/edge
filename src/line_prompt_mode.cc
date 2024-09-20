@@ -27,6 +27,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
 #include "src/language/text/line_builder.h"
@@ -444,7 +445,8 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                              ->LineAt(filtered_history.ptr()->EndLine())
                              ->empty();
                      status_value_viewer->SetStatusValue(
-                         VersionPropertyKey{LazyString{L"history"}},
+                         VersionPropertyKey{
+                             NON_EMPTY_SINGLE_LINE_CONSTANT(L"history")},
                          filtered_history.ptr()->lines_size().read() -
                              (last_line_empty ? 1 : 0));
                    }
@@ -726,8 +728,9 @@ InsertModeOptions PromptState::insert_mode_options() {
             NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
                 prompt_state->NewProgressChannel(status_version_value);
             progress_channel->Push(ProgressInformation{
-                .values = {{VersionPropertyKey{LazyString{L"🔮"}},
-                            LazyString{L"…"}}}});
+                .values = {
+                    {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
+                     LazyString{L"…"}}}});
             Predict(
                 prompt_state->options().predictor,
                 PredictorInput{
@@ -742,7 +745,8 @@ InsertModeOptions PromptState::insert_mode_options() {
                             input](std::optional<PredictResults> results) {
                   if (!results.has_value()) {
                     status_version_value->SetStatusValue(
-                        VersionPropertyKey{LazyString{L"🔮"}},
+                        VersionPropertyKey{
+                            NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
                         LazyString{L"empty"});
                     return EmptyValue();
                   }
@@ -755,7 +759,8 @@ InsertModeOptions PromptState::insert_mode_options() {
                     LOG(INFO) << "Prediction advanced from " << input << " to "
                               << results.value();
                     status_version_value->SetStatusValue(
-                        VersionPropertyKey{LazyString{L"🔮"}},
+                        VersionPropertyKey{
+                            NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
                         LazyString{L"advanced"});
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
@@ -783,7 +788,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                   }
                   LOG(INFO) << "Prediction didn't advance.";
                   status_version_value->SetStatusValue(
-                      VersionPropertyKey{LazyString{L"🔮"}},
+                      VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
                       LazyString{L"stuck"});
                   auto buffers =
                       prompt_state->editor_state().buffer_registry().buffers();

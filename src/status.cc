@@ -175,8 +175,7 @@ Line Status::prompt_extra_information_line() const {
                                           Value::Status::kExpired
                                   ? dim
                                   : empty;
-      // TODO(easy, 2024-09-19): Avoid SingleLine.
-      options.AppendString(SingleLine{key.read()}, modifiers);
+      options.AppendString(key.read().read(), modifiers);
       if (!std::holds_alternative<LazyString>(value.value) ||
           !std::get<LazyString>(value.value).empty()) {
         options.AppendString(SingleLine::Char<L':'>(), dim);
