@@ -46,12 +46,11 @@ SortedLineSequence SortedLineSequence::FilterLines(
                             text::FilterLines(lines_, predicate), compare_);
 }
 
-bool SortedLineSequence::contains(lazy_string::SingleLine key) const {
+bool SortedLineSequence::contains(SingleLine key) const {
   LineSequenceIterator it = upper_bound(LineBuilder{key}.Build());
   if (it == lines().begin()) return false;
   --it;
-  // TODO(trivial, 2024-09-16): Remove this SingleLine wrapper.
-  return (*it).contents() == SingleLine{key};
+  return (*it).contents() == key;
 }
 
 SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
