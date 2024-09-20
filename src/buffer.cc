@@ -2021,12 +2021,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          case RemoteURLBehavior::kLaunchBrowser:
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
-                               // TODO(trivial, 2024-09-17): Avoid SingleLine of
-                               // URL here. Change URL to be SingleLine, or use
-                               // EscapedString?
                                editor.status().SetExpiringInformationText(
                                    LineBuilder{SINGLE_LINE_CONSTANT(L"Open: ") +
-                                               SingleLine{url.read()}}
+                                               url.read()}
                                        .Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
@@ -2036,7 +2033,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                ForkCommandOptions{
                                    .command = LazyString{L"xdg-open "} +
                                               LazyString{ShellEscape(
-                                                  url.read().ToString())},
+                                                  ToLazyString(url.read())
+                                                      .ToString())},
                                    .insertion_type =
                                        BuffersList::AddBufferType::kIgnore,
                                });
@@ -2507,7 +2505,7 @@ SingleLine OpenBuffer::GetLineMarksText() const {
   size_t expired_marks = GetExpiredLineMarks().size();
   SingleLine output;
   if (marks > 0 || expired_marks > 0) {
-    output = SINGLE_LINE_CONSTANT(L"marks:") + NonEmptySingleLine{marks}.read();
+    output = SINGLE_LINE_CONSTANT(L"marks:") + NonEmptySingleLine{marks};
     if (expired_marks > 0)
       output += Parenthesize(NonEmptySingleLine{expired_marks}).read();
   }

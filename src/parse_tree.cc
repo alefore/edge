@@ -458,9 +458,9 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
 ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
                                  const LineSequence& contents) {
   if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
-      tree.properties().end()) {
-    return URL{contents.ViewRange(tree.range()).ToLazyString()};
-  }
+      tree.properties().end())
+    return URL::New(NonEmptySingleLine::New(
+        SingleLine::New(contents.ViewRange(tree.range()).ToLazyString())));
   for (const auto& child : tree.children())
     if (ValueOrError<URL> output = FindLinkTarget(child, contents);
         std::holds_alternative<URL>(output))

@@ -24,9 +24,12 @@ class EscapedString
 
   static language::ValueOrError<EscapedString> Parse(
       language::lazy_string::LazyString input);
+  static language::ValueOrError<EscapedString> ParseURL(
+      language::lazy_string::SingleLine input);
 
   language::lazy_string::SingleLine EscapedRepresentation() const;
   language::lazy_string::SingleLine CppRepresentation() const;
+  language::lazy_string::SingleLine URLRepresentation() const;
 
   // Returns the original (unescaped) string.
   language::lazy_string::LazyString OriginalString() const;

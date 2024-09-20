@@ -11,6 +11,7 @@
 using afc::language::Error;
 using afc::language::NonNull;
 using afc::language::ValueOrDie;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
@@ -25,7 +26,7 @@ namespace afc::vm {
   return EscapedString(input);
 }
 
-/* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
+/* static */ ValueOrError<EscapedString> EscapedString::Parse(
     language::lazy_string::LazyString input) {
   TRACK_OPERATION(EscapedString_Parse);
   LazyString original_string;
@@ -33,9 +34,7 @@ namespace afc::vm {
   while (position.ToDelta() < input.size()) {
     std::optional<ColumnNumber> escape = FindFirstOf(input, {L'\\'}, position);
     original_string += input.Substring(
-        position,
-        (escape.has_value() ? escape.value() : ColumnNumber{} + input.size()) -
-            position);
+        position, escape.value_or(ColumnNumber{} + input.size()) - position);
     position = escape.value_or(ColumnNumber{} + input.size());
     if (escape.has_value()) {
       if ((++position).ToDelta() >= input.size())
@@ -54,6 +53,53 @@ namespace afc::vm {
                        input.Substring(position, ColumnNumberDelta(1))};
       }
       ++position;
+    }
+  }
+  return EscapedString(original_string);
+}
+
+ValueOrError<size_t> HexCharToSizeT(wchar_t hex_char) {
+  if (hex_char >= L'0' && hex_char <= L'9') {
+    return static_cast<size_t>(hex_char - L'0');
+  } else if (hex_char >= L'a' && hex_char <= L'f') {
+    return static_cast<size_t>(hex_char - L'a' + 10);
+  } else if (hex_char >= L'A' && hex_char <= L'F') {
+    return static_cast<size_t>(hex_char - L'A' + 10);
+  }
+  return Error{LazyString{L"Invalid hex character"}};
+}
+
+// Function to convert two hex characters (from an escape sequence) to a wchar_t
+ValueOrError<wchar_t> URLEscapeDecode(wchar_t first, wchar_t second) {
+  DECLARE_OR_RETURN(size_t high, HexCharToSizeT(first));
+  DECLARE_OR_RETURN(size_t low, HexCharToSizeT(second));
+  CHECK_LE(high, 15ul);
+  CHECK_LE(low, 15ul);
+  return static_cast<wchar_t>((high << 4) | low);
+}
+
+/* static */ ValueOrError<EscapedString> EscapedString::ParseURL(
+    language::lazy_string::SingleLine input) {
+  TRACK_OPERATION(EscapedString_ParseURL);
+  LazyString original_string;
+  ColumnNumber position;
+  while (position.ToDelta() < input.size()) {
+    std::optional<ColumnNumber> escape = FindFirstOf(input, {L'%'}, position);
+    original_string =
+        original_string +
+        input.Substring(
+            position,
+            escape.value_or(ColumnNumber{} + input.size()) - position);
+    position = escape.value_or(ColumnNumber{} + input.size());
+    if (escape.has_value()) {
+      if (position.ToDelta() + ColumnNumberDelta{3} > input.size())
+        return Error{LazyString{L"URL string finished inside escape code."}};
+      DECLARE_OR_RETURN(
+          wchar_t next_char,
+          URLEscapeDecode(input.get(position + ColumnNumberDelta{1}),
+                          input.get(position + ColumnNumberDelta{2})));
+      original_string += LazyString{ColumnNumberDelta{1}, next_char};
+      position += ColumnNumberDelta{3};
     }
   }
   return EscapedString(original_string);
@@ -86,6 +132,27 @@ SingleLine EscapedString::EscapedRepresentation() const {
 SingleLine EscapedString::CppRepresentation() const {
   return SingleLine{LazyString{L"\""}} + EscapedRepresentation() +
          SingleLine{LazyString{L"\""}};
+}
+
+SingleLine EscapedString::URLRepresentation() const {
+  SingleLine output;
+  // TODO(2024-09-20): This could be optimized based on
+  // FindFirstColumnWithPredicate, avoiding fragmentation.
+  ForEachColumn(read(), [&output](ColumnNumber, wchar_t c) {
+    if (!(iswalnum(c) || c == L'-' || c == L'_' || c == L'.' || c == L'~')) {
+      static const SingleLine kHexDigits =
+          SINGLE_LINE_CONSTANT(L"0123456789ABCDEF");
+      output += SingleLine::Char<'%'>() +
+                kHexDigits.Substring(
+                    ColumnNumber{static_cast<size_t>((c >> 4) & 0xF)},
+                    ColumnNumberDelta{1}) +
+                kHexDigits.Substring(ColumnNumber{static_cast<size_t>(c & 0xF)},
+                                     ColumnNumberDelta{1});
+    } else {
+      output += SingleLine{LazyString{ColumnNumberDelta{1}, c}};
+    }
+  });
+  return output;
 }
 
 // Returns the original (unescaped) string.
@@ -132,8 +199,7 @@ bool cpp_unescape_string_tests_registration =
 
 EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
 
-/* static */ language::ValueOrError<EscapedMap> EscapedMap::Parse(
-    SingleLine input) {
+/* static */ ValueOrError<EscapedMap> EscapedMap::Parse(SingleLine input) {
   TRACK_OPERATION(EscapedMap_Parse);
   EscapedMap::Map output;
   for (const Token& token : TokenizeBySpaces(input)) {

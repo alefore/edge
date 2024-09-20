@@ -10,7 +10,9 @@
 
 namespace afc::editor {
 
-class URL : public language::GhostType<URL, language::lazy_string::LazyString> {
+class URL
+    : public language::GhostType<URL,
+                                 language::lazy_string::NonEmptySingleLine> {
  public:
   using GhostType::GhostType;
 
