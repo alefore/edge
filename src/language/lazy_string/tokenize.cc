@@ -96,21 +96,18 @@ std::vector<Token> TokenizeBySpaces(const SingleLine& command) {
   return output;
 }
 
-PossibleError PushIfNonEmpty(const LazyString& source, Token token,
+PossibleError PushIfNonEmpty(const SingleLine& source, Token token,
                              std::vector<Token>& output) {
   CHECK_LE(token.begin, token.end);
   if (token.begin < token.end) {
-    ASSIGN_OR_RETURN(
-        token.value,
-        // TODO(trivial, 2024-09-19): Avoid call to SingleLine::New.
-        NonEmptySingleLine::New(SingleLine::New(
-            source.Substring(token.begin, token.end - token.begin))));
+    ASSIGN_OR_RETURN(token.value, NonEmptySingleLine::New(source.Substring(
+                                      token.begin, token.end - token.begin)));
     output.push_back(std::move(token));
   }
   return EmptyValue{};
 }
 
-std::vector<Token> TokenizeGroupsAlnum(const LazyString& name) {
+std::vector<Token> TokenizeGroupsAlnum(const SingleLine& name) {
   std::vector<Token> output;
   for (ColumnNumber i; i.ToDelta() < name.size();) {
     while (i.ToDelta() < name.size() && !isalnum(name.get(i))) {
@@ -147,7 +144,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
 }
 #endif
 
-std::vector<Token> TokenizeNameForPrefixSearches(const LazyString& name) {
+std::vector<Token> TokenizeNameForPrefixSearches(const SingleLine& name) {
   std::vector<Token> output;
   for (const auto& input_token : TokenizeGroupsAlnum(name)) {
     ColumnNumber i = input_token.begin;

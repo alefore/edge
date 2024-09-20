@@ -366,11 +366,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                                 buffer.ptr()->Read(buffer_variables::name))
                                 .FoldLines();
                         FindFilterPositions(
-                            filter, ExtendTokensToEndOfString(
-                                        name, TokenizeNameForPrefixSearches(
-                                                  // TODO(trivial, 2024-09-19):
-                                                  // Get rid of read():
-                                                  name.read())))
+                            filter,
+                            ExtendTokensToEndOfString(
+                                name, TokenizeNameForPrefixSearches(name)))
                             .has_value()) {
                       new_indices.push_back(index);
                     }

@@ -32,7 +32,7 @@ std::vector<Token> TokenizeBySpaces(
 // Given: src/CreateSomethingOrOther/buffer_list.cc
 // Returns: "src", "Create", "Something", "Or", "Other", "buffer", "list", "cc"
 std::vector<Token> TokenizeNameForPrefixSearches(
-    const language::lazy_string::LazyString& path);
+    const language::lazy_string::SingleLine& path);
 
 // Given a string "foo bar hey" and the tokens "foo", "bar", and "hey", returns
 // the tokens for "foo bar hey", "bar hey", "hey". This is useful to turn the

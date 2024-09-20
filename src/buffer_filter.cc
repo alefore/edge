@@ -337,8 +337,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     VLOG(8) << "Considering history value: " << history_value;
     std::vector<Token> line_tokens = ExtendTokensToEndOfString(
         history_value.EscapedRepresentation(),
-        TokenizeNameForPrefixSearches(
-            history_value.EscapedRepresentation().read()));
+        TokenizeNameForPrefixSearches(history_value.EscapedRepresentation()));
     math::naive_bayes::Event event_key(
         ToLazyString(history_value.EscapedRepresentation()));
     std::vector<math::naive_bayes::FeaturesSet>* features_output = nullptr;
