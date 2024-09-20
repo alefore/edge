@@ -197,7 +197,6 @@ class EdgeStruct {
 
   const EdgeVariable<T>* find_variable(
       const language::lazy_string::LazyString& name) {
-    // TODO(trivial, 2024-08-28): Use container GetValueOrDefault.
     auto it = variables_.find(name);
     return it == variables_.end() ? nullptr : it->second.get().get();
   }
