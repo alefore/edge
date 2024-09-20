@@ -85,10 +85,10 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
       OpenDir(path));
 }
 
-void StartDeleteFile(EditorState& editor_state, std::wstring path) {
-  int result = unlink(ToByteString(path).c_str());
+void StartDeleteFile(EditorState& editor_state, vm::EscapedString path) {
+  int result = unlink(path.OriginalString().ToBytes().c_str());
   editor_state.status().SetInformationText(LineBuilder{
-      SingleLine{LazyString{path}} + SingleLine{LazyString{L": unlink: "}} +
+      path.EscapedRepresentation() + SingleLine{LazyString{L": unlink: "}} +
       SingleLine{LazyString{result == 0 ? L"done"
                                         : L"ERROR: " +
                                               FromByteString(strerror(errno))}}}
@@ -162,15 +162,16 @@ Line ShowLine(EditorState& editor, const dirent& entry) {
       {DT_SOCK, FileType{.description = SingleLine{LazyString{L" (unix sock)"}},
                          .modifiers = {LineModifier::kMagenta}}}};
 
-  auto path = FromByteString(entry.d_name);
+  vm::EscapedString path =
+      vm::EscapedString::FromString(LazyString{FromByteString(entry.d_name)});
 
   FileType type =
       GetValueOrDefault(types, entry.d_type, GetValueOrDie(types, DT_REG));
 
-  LineBuilder line_options{SingleLine{LazyString{path}} + type.description};
-  if (!type.modifiers.empty()) {
+  LineBuilder line_options{path.EscapedRepresentation() + type.description};
+
+  if (!type.modifiers.empty())
     line_options.set_modifiers(ColumnNumber(0), type.modifiers);
-  }
 
   // See note about why GetMetadata is disabled (above).
   // line_options.SetMetadata(GetMetadata(target, path));
