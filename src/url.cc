@@ -13,6 +13,7 @@
 using afc::infrastructure::Path;
 using afc::language::Error;
 using afc::language::GetValueOrDefault;
+using afc::language::IgnoreErrors;
 using afc::language::IsError;
 using afc::language::NonNull;
 using afc::language::overload;
@@ -23,6 +24,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::editor {
 
@@ -118,17 +120,18 @@ const bool get_local_file_path_tests_registration = tests::Register(
 std::vector<URL> GetLocalFileURLsWithExtensions(
     const SingleLine& file_context_extensions, const URL& url) {
   std::vector<URL> output = {url};
-  return std::visit(
-      overload{[&](Error) { return output; },
+  std::visit(
+      overload{IgnoreErrors{},
                [&](Path path) {
-                 std::vector<Token> extensions =
-                     TokenizeBySpaces(file_context_extensions);
-                 // TODO(trivial, 2024-09-19): Here we can avoid a for loop.
-                 for (const Token& extension_token : extensions)
-                   output.push_back(URL::FromPath(Path::WithExtension(
-                       path, ToLazyString(extension_token.value))));
-                 return output;
+                 std::ranges::copy(
+                     TokenizeBySpaces(file_context_extensions) |
+                         std::views::transform([&path](const Token& extension) {
+                           return URL::FromPath(Path::WithExtension(
+                               path, ToLazyString(extension.value)));
+                         }),
+                     std::back_inserter(output));
                }},
       url.GetLocalFilePath());
+  return output;
 }
 }  // namespace afc::editor
