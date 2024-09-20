@@ -16,36 +16,38 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lowercase.h"
+#include "src/language/text/line_sequence.h"
 #include "src/line_marks.h"
 #include "src/section_brackets_producer.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::Pointer;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::ForEachColumn;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::UpperCase;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+
 namespace afc::editor {
 namespace {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::Pointer;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::ForEachColumn;
-using language::lazy_string::LazyString;
-using language::lazy_string::SingleLine;
-using language::lazy_string::UpperCase;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
 
-namespace gc = language::gc;
-
-// TODO(trivial, 2024-09-10): Return SingleLine.
-LazyString GetBufferContext(const OpenBuffer& buffer) {
+SingleLine GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
   if (auto current_line_marks =
           marks.lower_bound(LineColumn(buffer.position().line));
@@ -56,17 +58,11 @@ LazyString GetBufferContext(const OpenBuffer& buffer) {
     if (source != buffer.editor().buffers()->end() &&
         LineNumber(0) + source->second.ptr()->contents().size() >
             mark.source_line) {
-      return source->second.ptr()
-          ->contents()
-          .at(mark.source_line)
-          .contents()
-          .read();
+      return source->second.ptr()->contents().at(mark.source_line).contents();
     }
   }
-  // TODO(trivial, 2024-08-28): Avoid call to ToString below:
-  std::wstring name = buffer.Read(buffer_variables::name).ToString();
-  std::replace(name.begin(), name.end(), L'\n', L' ');
-  return LazyString{name};
+  return LineSequence::BreakLines(buffer.Read(buffer_variables::name))
+      .FoldLines();
 }
 
 // This produces the main view of the status, ignoring the context. It handles
@@ -166,11 +162,9 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (options.status.text().empty()) {
-      output.AppendString(
-          SINGLE_LINE_CONSTANT(L"  “") +
-          // TODO(easy, 2024-09-19): Make GetBufferContext return SingleLine.
-          SingleLine{GetBufferContext(*options.buffer)} +
-          SINGLE_LINE_CONSTANT(L"” "));
+      output.AppendString(SINGLE_LINE_CONSTANT(L"  “") +
+                          GetBufferContext(*options.buffer) +
+                          SINGLE_LINE_CONSTANT(L"” "));
     }
 
     int running = 0;
