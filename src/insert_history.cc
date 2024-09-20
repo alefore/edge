@@ -32,14 +32,12 @@ bool IsMatch(EditorState& editor,
   return std::visit(
       overload{[](std::vector<LineColumn> matches) { return !matches.empty(); },
                [](Error) { return false; }},
-      SearchHandler(editor.modifiers().direction,
-                    // TODO(easy, 2024-09-16, crash): Avoid explicit conversion
-                    // to SingleLine. Receive already SingleLine.
-                    afc::editor::SearchOptions{
-                        .search_query = SingleLine{search_options.query},
-                        .required_positions = 1,
-                        .case_sensitive = false},
-                    candidate));
+      SearchHandler(
+          editor.modifiers().direction,
+          afc::editor::SearchOptions{.search_query = search_options.query,
+                                     .required_positions = 1,
+                                     .case_sensitive = false},
+          candidate));
 }
 }  // namespace
 

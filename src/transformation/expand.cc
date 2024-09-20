@@ -153,7 +153,7 @@ class PredictorTransformation : public CompositeTransformation {
 class InsertHistoryTransformation : public CompositeTransformation {
  public:
   InsertHistoryTransformation(transformation::Variant delete_transformation,
-                              LazyString query)
+                              SingleLine query)
       : delete_transformation_(std::move(delete_transformation)),
         search_options_({.query = std::move(query)}) {}
 
@@ -403,7 +403,7 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
                 DeleteLastCharacters(query.size() + ColumnNumberDelta(1)),
-                query.read()));
+                query));
       }
     }
     return std::move(transformation_future)
