@@ -108,12 +108,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
       var != nullptr) {
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
-    editor_state.status().SetInformationText(LineBuilder{
-        (editor_state.Read(var) ? SingleLine{LazyString{L"🗸 "}}
-                                : SingleLine{LazyString{L"⛶ "}}) +
-        // TODO(easy, 2024-09-17): `name` should already be SingleLine, avoid
-        // wrapping it.
-        SingleLine{name}}.Build());
+    editor_state.status().SetInformationText(
+        LineBuilder{(editor_state.Read(var) ? SINGLE_LINE_CONSTANT(L"🗸 ")
+                                            : SINGLE_LINE_CONSTANT(L"⛶ ")) +
+                    name}
+            .Build());
     return futures::Past(EmptyValue());
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name.read());
