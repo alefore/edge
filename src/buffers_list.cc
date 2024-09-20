@@ -691,19 +691,21 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width - kProgressWidth);
 
-            LazyString progress;
+            SingleLine progress;
             LineModifierSet progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
-              progress = LazyString{L"!"};
+              progress = SingleLine::Char<L'!'>();
               progress_modifier.insert(LineModifier::kRed);
             } else if (!buffer.GetExpiredLineMarks().empty()) {
-              progress = LazyString{L"!"};
+              progress = SingleLine::Char<L'!'>();
             } else if (buffer.ShouldDisplayProgress()) {
               progress = ProgressString(buffer.Read(buffer_variables::progress),
-                                        OverflowBehavior::kModulo);
+                                        OverflowBehavior::kModulo)
+                             .read();
             } else {
               progress = ProgressStringFillUp(buffer.lines_size().read(),
-                                              OverflowBehavior::kModulo);
+                                              OverflowBehavior::kModulo)
+                             .read();
               progress_modifier.insert(LineModifier::kDim);
             }
             // If we ever make ProgressString return more than a single
@@ -712,12 +714,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
-                  // TODO(trivial, 2024-09-19): Avoid having to wrap `progress`
-                  // here.
-                  SingleLine{progress},
-                  filter_result == FilterResult::kExcluded
-                      ? LineModifierSet{LineModifier::kDim}
-                      : progress_modifier);
+                  progress, filter_result == FilterResult::kExcluded
+                                ? LineModifierSet{LineModifier::kDim}
+                                : progress_modifier);
 
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width);

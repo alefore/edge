@@ -2132,10 +2132,10 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
   }
 
   if (ShouldDisplayProgress()) {
-    output.insert(  // TODO(easy, 2024-09-20): Make ProgressString already
-                    // return SingleLine, avoid wrapping.
-        {BufferFlagKey{SingleLine{ProgressString(
-             Read(buffer_variables::progress), OverflowBehavior::kModulo)}},
+    output.insert(
+        {BufferFlagKey{ProgressString(Read(buffer_variables::progress),
+                                      OverflowBehavior::kModulo)
+                           .read()},
          BufferFlagValue{}});
   }
 

@@ -26,6 +26,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -37,13 +38,14 @@ namespace error = language::error;
 
 using ::operator<<;
 
-wchar_t Braille(size_t counter) {
+namespace {
+NonEmptySingleLine Braille(size_t counter) {
   wchar_t c = L'⠀';
   c += (counter & 0x80 ? 0x01 : 0) + (counter & 0x40 ? 0x08 : 0) +
        (counter & 0x20 ? 0x02 : 0) + (counter & 0x10 ? 0x10 : 0) +
        (counter & 0x08 ? 0x04 : 0) + (counter & 0x04 ? 0x20 : 0) +
        (counter & 0x02 ? 0x40 : 0) + (counter & 0x01 ? 0x80 : 0);
-  return c;
+  return NonEmptySingleLine{SingleLine{LazyString{ColumnNumberDelta{1}, c}}};
 }
 
 size_t HandleOverflow(size_t counter, OverflowBehavior overflow_behavior,
@@ -58,9 +60,11 @@ size_t HandleOverflow(size_t counter, OverflowBehavior overflow_behavior,
   }
   return counter;
 }
+}  // namespace
 
-LazyString ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
-  static const std::vector<wchar_t> values = {
+NonEmptySingleLine ProgressString(size_t counter,
+                                  OverflowBehavior overflow_behavior) {
+  static const std::vector<NonEmptySingleLine> values = {
       // From the top left, to the bottom right.
       Braille(0x80),
       Braille(0xC0),
@@ -89,22 +93,18 @@ LazyString ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
 
   static const size_t kLargestValue = values.size();
 
-  return LazyString{
-      ColumnNumberDelta{1},
-      values[HandleOverflow(counter, overflow_behavior, kLargestValue)]};
+  return values[HandleOverflow(counter, overflow_behavior, kLargestValue)];
 }
 
-LazyString ProgressStringFillUp(size_t lines,
-                                OverflowBehavior overflow_behavior) {
-  if (lines <= 1) {
-    return LazyString{L"∅"};
-  }
-  std::wstring output = L" _▁▂▃▄▅▆▇█";
-  size_t kInitial = 32;
-  if (lines < kInitial) return LazyString{L" "};
-  int index = HandleOverflow(floor(log2(lines / kInitial)), overflow_behavior,
-                             output.size());
-  return LazyString{ColumnNumberDelta{1}, output[index]};
+NonEmptySingleLine ProgressStringFillUp(size_t lines,
+                                        OverflowBehavior overflow_behavior) {
+  if (lines <= 1) return NonEmptySingleLine{SingleLine::Char<L'∅'>()};
+  static const SingleLine output = SINGLE_LINE_CONSTANT(L" _▁▂▃▄▅▆▇█");
+  static const size_t kInitial = 32;
+  if (lines < kInitial) return NonEmptySingleLine{SingleLine::Char<L' '>()};
+  const ColumnNumber index{HandleOverflow(
+      floor(log2(lines / kInitial)), overflow_behavior, output.size().read())};
+  return NonEmptySingleLine(output.Substring(index, ColumnNumberDelta{1}));
 }
 
 Status::Status(infrastructure::audio::Player& audio_player)
