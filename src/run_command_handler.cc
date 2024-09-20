@@ -274,17 +274,20 @@ futures::Value<PossibleError> GenerateContents(
       });
 }
 
-LazyString DurationToString(size_t duration) {
-  static const std::vector<std::pair<size_t, std::wstring>> time_units = {
-      {60, L"s"}, {60, L"m"}, {24, L"h"}, {99999999, L"d"}};
+NonEmptySingleLine DurationToString(size_t duration) {
+  static const std::vector<std::pair<size_t, NonEmptySingleLine>> time_units = {
+      {60, NonEmptySingleLine{SingleLine::Char<L's'>()}},
+      {60, NonEmptySingleLine{SingleLine::Char<L'm'>()}},
+      {24, NonEmptySingleLine{SingleLine::Char<L'h'>()}},
+      {99999999, NonEmptySingleLine{SingleLine::Char<L'd'>()}}};
   size_t factor = 1;
   for (auto& entry : time_units) {
     if (duration < factor * entry.first) {
-      return LazyString{std::to_wstring(duration / factor) + entry.second};
+      return NonEmptySingleLine(duration / factor) + entry.second;
     }
     factor *= entry.first;
   }
-  return LazyString{L"very-long"};
+  return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"very-long")};
 }
 
 std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
@@ -308,9 +311,8 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
           {BufferFlagKey{SINGLE_LINE_CONSTANT(L" 💥")}, BufferFlagValue{}});
     }
     if (now > data.time_end)
-      // TODO(trivial, 2024-09-20): Avoid having to wrap here:
       output.insert(
-          {BufferFlagKey{SingleLine{DurationToString(now - data.time_end)}},
+          {BufferFlagKey{DurationToString(now - data.time_end).read()},
            BufferFlagValue{}});
   }
 
@@ -320,8 +322,7 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
             ? now
             : data.time_end;
     output[BufferFlagKey{SINGLE_LINE_CONSTANT(L"⏲ ")}] =
-        // TODO(trivial, 2024-09-20): Avoid having to wrap here:
-        BufferFlagValue{SingleLine{DurationToString(end - data.time_start)}};
+        BufferFlagValue{DurationToString(end - data.time_start).read()};
   }
 
   auto update = buffer.last_progress_update();
@@ -356,10 +357,8 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
       output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
           BufferFlagValue{SingleLine::Char<L'🗩'>()};
     }
-    // TODO(trivial, 2024-09-20): Avoid having to wrap here.
-    output.insert(
-        {BufferFlagKey{SingleLine{DurationToString(now - update.tv_sec)}},
-         BufferFlagValue{}});
+    output.insert({BufferFlagKey{DurationToString(now - update.tv_sec).read()},
+                   BufferFlagValue{}});
   }
   return output;
 }
