@@ -1097,10 +1097,8 @@ void OpenBuffer::AppendRawLine(
       observer_behavior);
 }
 
-void OpenBuffer::AppendToLastLine(LazyString str) {
-  // TODO(trivial, 2024-09-17): Avoid having to wrap `str` in Singleline. It
-  // should already be SingleLine.
-  AppendToLastLine(LineBuilder{SingleLine{std::move(str)}}.Build());
+void OpenBuffer::AppendToLastLine(SingleLine str) {
+  AppendToLastLine(LineBuilder{std::move(str)}.Build());
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {

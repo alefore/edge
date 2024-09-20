@@ -129,13 +129,15 @@ futures::Value<PossibleError> GenerateContents(
   }
   std::optional<gc::Root<OpenBuffer>> source = source_weak.Lock();
   if (!source.has_value()) {
-    target.AppendToLastLine(LazyString{L"Source buffer no longer loaded."});
+    target.AppendToLastLine(
+        SINGLE_LINE_CONSTANT(L"Source buffer no longer loaded."));
     return futures::Past(Success());
   }
 
   auto tree = source->ptr()->simplified_parse_tree();
   target.AppendToLastLine(
-      LazyString{source->ptr()->Read(buffer_variables::name)});
+      vm::EscapedString(source->ptr()->Read(buffer_variables::name))
+          .EscapedRepresentation());
   static const vm::Namespace kEmptyNamespace;
   size_t depth = 3ul;
   if (std::optional<gc::Root<vm::Value>> depth_value =

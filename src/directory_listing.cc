@@ -207,7 +207,9 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
   output.Set(buffer_variables::tree_parser, ParserId::Markdown().read());
-  output.AppendToLastLine(LazyString{L"# 🗁  File listing: "} + path.read());
+  output.AppendToLastLine(
+      SINGLE_LINE_CONSTANT(L"# 🗁  File listing: ") +
+      vm::EscapedString::FromString(path.read()).EscapedRepresentation());
   output.AppendEmptyLine();
 
   return output.editor()

@@ -40,12 +40,13 @@ std::wstring GetMetadata(std::wstring line) {
   buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
 
   // We add this so that tests can refer to it.
-  buffer.ptr()->AppendToLastLine(LazyString{L"5.0/2.0"});
+  buffer.ptr()->AppendToLastLine(SINGLE_LINE_CONSTANT(L"5.0/2.0"));
   buffer.ptr()->AppendEmptyLine();
-  buffer.ptr()->AppendToLastLine(LazyString{L"5.0/ does not compile"});
+  buffer.ptr()->AppendToLastLine(
+      SINGLE_LINE_CONSTANT(L"5.0/ does not compile"));
   buffer.ptr()->AppendEmptyLine();
 
-  buffer.ptr()->AppendToLastLine(LazyString{line});
+  buffer.ptr()->AppendToLastLine(SingleLine{LazyString{line}});
 
   // Gives it a chance to execute:
   buffer.ptr()->editor().work_queue()->Execute();

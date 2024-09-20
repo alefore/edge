@@ -178,10 +178,10 @@ class TestsHelper {
   gc::Root<OpenBuffer> buffer_ = [this] {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
     OpenBuffer& buffer = buffer_root.ptr().value();
-    buffer.AppendToLastLine(LazyString{L"foobarhey"});
-    buffer.AppendRawLine(Line{SingleLine{LazyString{L"  foxbarnowl"}}});
-    buffer.AppendRawLine(Line{SingleLine{LazyString{L"  aaaaa "}}});
-    buffer.AppendRawLine(Line{SingleLine{LazyString{L"  alejo forero "}}});
+    buffer.AppendToLastLine(SINGLE_LINE_CONSTANT(L"foobarhey"));
+    buffer.AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  foxbarnowl")});
+    buffer.AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  aaaaa ")});
+    buffer.AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  alejo forero ")});
     return buffer_root;
   }();
 
