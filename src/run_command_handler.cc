@@ -294,18 +294,24 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
 
   std::map<BufferFlagKey, BufferFlagValue> output;
   if (buffer.child_pid().has_value()) {
-    output.insert({BufferFlagKey{LazyString{L" …"}}, BufferFlagValue{}});
+    output.insert(
+        {BufferFlagKey{SINGLE_LINE_CONSTANT(L" …")}, BufferFlagValue{}});
   } else if (buffer.child_exit_status().has_value()) {
     if (!WIFEXITED(buffer.child_exit_status().value())) {
-      output.insert({BufferFlagKey{LazyString{L"💀"}}, BufferFlagValue{}});
+      output.insert(
+          {BufferFlagKey{SingleLine::Char<L'💀'>()}, BufferFlagValue{}});
     } else if (WEXITSTATUS(buffer.child_exit_status().value()) == 0) {
-      output.insert({BufferFlagKey{LazyString{L" 🏁"}}, BufferFlagValue{}});
+      output.insert(
+          {BufferFlagKey{SINGLE_LINE_CONSTANT(L" 🏁")}, BufferFlagValue{}});
     } else {
-      output.insert({BufferFlagKey{LazyString{L" 💥"}}, BufferFlagValue{}});
+      output.insert(
+          {BufferFlagKey{SINGLE_LINE_CONSTANT(L" 💥")}, BufferFlagValue{}});
     }
     if (now > data.time_end)
-      output.insert({BufferFlagKey{DurationToString(now - data.time_end)},
-                     BufferFlagValue{}});
+      // TODO(trivial, 2024-09-20): Avoid having to wrap here:
+      output.insert(
+          {BufferFlagKey{SingleLine{DurationToString(now - data.time_end)}},
+           BufferFlagValue{}});
   }
 
   if (now > data.time_start && data.time_start > 0) {
@@ -313,8 +319,9 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
         (buffer.child_pid().has_value() || data.time_end < data.time_start)
             ? now
             : data.time_end;
-    output[BufferFlagKey{LazyString{L"⏲ "}}] =
-        BufferFlagValue{DurationToString(end - data.time_start)};
+    output[BufferFlagKey{SINGLE_LINE_CONSTANT(L"⏲ ")}] =
+        // TODO(trivial, 2024-09-20): Avoid having to wrap here:
+        BufferFlagValue{SingleLine{DurationToString(end - data.time_start)}};
   }
 
   auto update = buffer.last_progress_update();
@@ -328,30 +335,31 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
     VLOG(5) << buffer.ReadLazyString(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
     if (lines_read_rate > 5) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L"🗫"}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
+          BufferFlagValue{SingleLine::Char<L'🗫'>()};
     } else if (lines_read_rate > 2) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L"🗪"}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
+          BufferFlagValue{SingleLine::Char<L'🗪'>()};
     } else if (error_input != nullptr &&
                GetElapsedSecondsSince(error_input->last_input_received()) < 5) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L"🗯"}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
+          BufferFlagValue{SingleLine::Char<L'🗯'>()};
     } else if (seconds_since_input > 60 * 2) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L"💤"}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
+          BufferFlagValue{SingleLine::Char<L'💤'>()};
     } else if (seconds_since_input > 60) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L"z"}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
+          BufferFlagValue{SingleLine::Char<L'z'>()};
     } else if (seconds_since_input > 5) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L""}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] = BufferFlagValue{};
     } else if (seconds_since_input >= 0) {
-      output[BufferFlagKey{LazyString{L"🤖"}}] =
-          BufferFlagValue{LazyString{L"🗩"}};
+      output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
+          BufferFlagValue{SingleLine::Char<L'🗩'>()};
     }
-    output.insert({BufferFlagKey{DurationToString(now - update.tv_sec)},
-                   BufferFlagValue{}});
+    // TODO(trivial, 2024-09-20): Avoid having to wrap here.
+    output.insert(
+        {BufferFlagKey{SingleLine{DurationToString(now - update.tv_sec)}},
+         BufferFlagValue{}});
   }
   return output;
 }

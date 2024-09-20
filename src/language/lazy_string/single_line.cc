@@ -37,6 +37,12 @@ SingleLine SingleLine::Append(SingleLine other) const {
   return SingleLine{read().Append(other.read())};
 }
 
+NonEmptySingleLine::NonEmptySingleLine(int i)
+    : NonEmptySingleLine(SingleLine{LazyString{std::to_wstring(i)}}) {}
+
+NonEmptySingleLine::NonEmptySingleLine(size_t i)
+    : NonEmptySingleLine(SingleLine{LazyString{std::to_wstring(i)}}) {}
+
 wchar_t NonEmptySingleLine::get(ColumnNumber a) const { return read().get(a); }
 
 SingleLine NonEmptySingleLine::Substring(ColumnNumber start) const {

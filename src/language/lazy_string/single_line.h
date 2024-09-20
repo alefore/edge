@@ -64,6 +64,9 @@ class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
  public:
   using GhostType::GhostType;
 
+  NonEmptySingleLine(int);
+  NonEmptySingleLine(size_t);
+
   wchar_t get(ColumnNumber) const;
   SingleLine Substring(ColumnNumber) const;
   SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
@@ -90,6 +93,11 @@ std::optional<ColumnNumber> FindLastNotOf(const SingleLine& input,
 template <typename Callback>
 void ForEachColumn(const SingleLine& input, Callback&& callback) {
   ForEachColumn(input.read(), std::forward<Callback>(callback));
+}
+
+template <typename StringType>
+auto Parenthesize(StringType input) {
+  return SingleLine::Char<L'('>() + input + SingleLine::Char<L')'>();
 }
 }  // namespace afc::language::lazy_string
 

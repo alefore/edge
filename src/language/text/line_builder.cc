@@ -20,6 +20,7 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 
 namespace afc::language::text {
@@ -140,6 +141,9 @@ LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
 LineBuilder::LineBuilder(SingleLine input_contents)
     : data_(Line::Data{.contents = std::move(input_contents), .metadata = {}}) {
 }
+
+LineBuilder::LineBuilder(NonEmptySingleLine input_contents)
+    : LineBuilder(input_contents.read()) {}
 
 LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 

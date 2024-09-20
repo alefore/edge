@@ -423,11 +423,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (target_buffer.get() != &options.buffer) {
     output.push_back(MetadataLine{
         info_char, info_char_modifier,
-        // TODO(trivial, 2024-09-17): Change FlagsToString to return a Line
-        // already, avoid this wrapping.
-        LineBuilder{
-            SingleLine{OpenBuffer::FlagsToString(target_buffer->Flags())}}
-            .Build(),
+        LineBuilder{OpenBuffer::FlagsToString(target_buffer->Flags())}.Build(),
         MetadataLine::Type::kFlags});
 #if 0
   } else if (contents.modified()) {

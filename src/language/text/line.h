@@ -44,6 +44,7 @@ class Line {
   // TODO(2024-01-24): Get rid of this function.
   explicit Line(language::lazy_string::LazyString text);
   explicit Line(language::lazy_string::SingleLine text);
+  explicit Line(language::lazy_string::NonEmptySingleLine text);
 
   Line(const Line& line);
 

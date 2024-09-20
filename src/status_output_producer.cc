@@ -34,6 +34,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::UpperCase;
 using afc::language::text::Line;
@@ -115,28 +116,32 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
     std::map<BufferFlagKey, BufferFlagValue> flags = options.buffer->Flags();
     if (options.modifiers.repetitions.has_value()) {
-      flags.insert({BufferFlagKey{LazyString{std::to_wstring(
-                        options.modifiers.repetitions.value())}},
+      flags.insert({BufferFlagKey{NonEmptySingleLine(
+                                      options.modifiers.repetitions.value())
+                                      .read()},
                     BufferFlagValue{}});
     }
     if (options.modifiers.default_direction == Direction::kBackwards) {
-      flags.insert({BufferFlagKey{LazyString{L"REVERSE"}}, BufferFlagValue{}});
+      flags.insert(
+          {BufferFlagKey{SINGLE_LINE_CONSTANT(L"REVERSE")}, BufferFlagValue{}});
     } else if (options.modifiers.direction == Direction::kBackwards) {
-      flags.insert({BufferFlagKey{LazyString{L"reverse"}}, BufferFlagValue{}});
+      flags.insert(
+          {BufferFlagKey{SINGLE_LINE_CONSTANT(L"reverse")}, BufferFlagValue{}});
     }
 
     if (options.modifiers.default_insertion ==
         Modifiers::ModifyMode::kOverwrite) {
-      flags.insert(
-          {BufferFlagKey{LazyString{L"OVERWRITE"}}, BufferFlagValue{}});
+      flags.insert({BufferFlagKey{SINGLE_LINE_CONSTANT(L"OVERWRITE")},
+                    BufferFlagValue{}});
     } else if (options.modifiers.insertion ==
                Modifiers::ModifyMode::kOverwrite) {
-      flags.insert(
-          {BufferFlagKey{LazyString{L"overwrite"}}, BufferFlagValue{}});
+      flags.insert({BufferFlagKey{SINGLE_LINE_CONSTANT(L"overwrite")},
+                    BufferFlagValue{}});
     }
 
     if (options.modifiers.strength == Modifiers::Strength::kStrong) {
-      flags.insert({BufferFlagKey{LazyString{L"💪"}}, BufferFlagValue{}});
+      flags.insert(
+          {BufferFlagKey{SINGLE_LINE_CONSTANT(L"💪")}, BufferFlagValue{}});
     }
 
     LazyString structure;
@@ -151,15 +156,14 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     if (!structure.empty()) {
       if (options.modifiers.sticky_structure)
         structure = UpperCase(std::move(structure));
-      flags[BufferFlagKey{LazyString{L"St:"}}] = BufferFlagValue{structure};
+      flags[BufferFlagKey{SINGLE_LINE_CONSTANT(L"St:")}] =
+          // TODO(trivial, 2024-09-20): Avoid having to wrap structure here.
+          BufferFlagValue{SingleLine{structure}};
     }
 
-    if (!flags.empty()) {
-      output.AppendString(
-          SingleLine{LazyString{L"  "}} +
-          // TODO(easy, 2024-09-19): Avoid wrapping it here:
-          SingleLine{OpenBuffer::FlagsToString(std::move(flags))});
-    }
+    if (!flags.empty())
+      output.AppendString(SingleLine::Padding(ColumnNumberDelta{2}) +
+                          OpenBuffer::FlagsToString(std::move(flags)));
 
     if (options.status.text().empty()) {
       output.AppendString(SINGLE_LINE_CONSTANT(L"  “") +

@@ -477,9 +477,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
                 FrameOutputProducerOptions::ActiveState::kActive;
           }
 
-          // TODO(trivial, 2024-09-19): Get rid of wrapping.
           frame_options.extra_information =
-              SingleLine{OpenBuffer::FlagsToString(buffer.ptr()->Flags())};
+              OpenBuffer::FlagsToString(buffer.ptr()->Flags());
           frame_options.width = ColumnNumberDelta(
               buffer.ptr()->Read(buffer_variables::line_width));
           bool add_left_frame =

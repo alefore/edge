@@ -24,6 +24,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 
 namespace afc::language::text {
@@ -34,6 +35,8 @@ Line::Line(LazyString contents) : Line(SingleLine{std::move(contents)}) {}
 
 Line::Line(SingleLine contents)
     : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
+
+Line::Line(NonEmptySingleLine text) : Line(text.read()) {}
 
 Line::Line(const Line& line)
     : data_(line.data_), hash_(ComputeHash(data_.value())) {}

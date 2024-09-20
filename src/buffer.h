@@ -58,14 +58,18 @@ class OpenBufferMutableLineSequenceObserver;
 
 struct BufferFlagKey
     : public language::GhostType<BufferFlagKey,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::SingleLine> {
   using GhostType::GhostType;
 };
 
 struct BufferFlagValue
     : public language::GhostType<BufferFlagValue,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::SingleLine> {
+ public:
   using GhostType::GhostType;
+  // Convenience constructor.
+  BufferFlagValue(language::lazy_string::NonEmptySingleLine input)
+      : BufferFlagValue(input.read()) {}
 };
 
 class OpenBuffer {
@@ -328,7 +332,7 @@ class OpenBuffer {
 
   bool dirty() const;
   std::map<BufferFlagKey, BufferFlagValue> Flags() const;
-  static language::lazy_string::LazyString FlagsToString(
+  static language::lazy_string::SingleLine FlagsToString(
       std::map<BufferFlagKey, BufferFlagValue> flags);
 
   futures::Value<language::EmptyValue> ApplyToCursors(

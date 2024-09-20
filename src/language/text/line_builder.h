@@ -27,6 +27,8 @@ class LineBuilder {
 
   explicit LineBuilder(const Line&);
   explicit LineBuilder(language::lazy_string::SingleLine input_contents);
+  explicit LineBuilder(
+      language::lazy_string::NonEmptySingleLine input_contents);
 
   LineBuilder(LineBuilder&&) = default;
   LineBuilder& operator=(LineBuilder&&) = default;

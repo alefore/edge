@@ -398,8 +398,9 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
     return Success();
   }
   if (child_pid_.has_value() && !Read(buffer_variables::term_on_close))
-    return Error{LazyString{L"Running subprocess (pid: " +
-                            std::to_wstring(child_pid_->read()) + L")"}};
+    return Error{LazyString{L"Running subprocess "} +
+                 Parenthesize(LazyString{L"pid: "} +
+                              LazyString{std::to_wstring(child_pid_->read())})};
   return Success();
 }
 
@@ -939,7 +940,8 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       Path file_path,
       AugmentError(
           LazyString{L"Unable to persist buffer with invalid path "} +
-              (dirty() ? LazyString{L" (dirty)"} : LazyString{L" (clean)"}) +
+              Parenthesize(dirty() ? LazyString{L"dirty"}
+                                   : LazyString{L"clean"}) +
               LazyString{L" "} +
               (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
                                                 : LazyString{L"not modified"}),
@@ -1166,9 +1168,9 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },
                [&](NonNull<std::unique_ptr<Expression>> expression) {
-                 LOG(INFO) << ReadLazyString(buffer_variables::path) << " ("
-                           << ReadLazyString(buffer_variables::name)
-                           << "): Evaluating file: " << path;
+                 LOG(INFO) << ReadLazyString(buffer_variables::path) << " "
+                           << Parenthesize(Read(buffer_variables::name))
+                           << ": Evaluating file: " << path;
                  return Evaluate(
                      std::move(expression), editor().gc_pool(),
                      environment_.ToRoot(),
@@ -1338,11 +1340,11 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  status_.SetInformationText(LineBuilder{
-      SINGLE_LINE_CONSTANT(L"cursors stack (") +
-      SingleLine{LazyString{std::to_wstring(stack_size)}} +
-      SingleLine{
-          LazyString{L"): +"}}}.Build());
+  status_.SetInformationText(
+      LineBuilder{SINGLE_LINE_CONSTANT(L"cursors stack ") +
+                  Parenthesize(NonEmptySingleLine{stack_size}) +
+                  SINGLE_LINE_CONSTANT(L": +")}
+          .Build());
 }
 
 void OpenBuffer::PopActiveCursors() {
@@ -1352,11 +1354,11 @@ void OpenBuffer::PopActiveCursors() {
         Error{LazyString{L"cursors stack: -: Stack is empty!"}});
     return;
   }
-  status_.SetInformationText(LineBuilder{
-      SINGLE_LINE_CONSTANT(L"cursors stack (") +
-      SingleLine{LazyString{std::to_wstring(stack_size - 1)}} +
-      SingleLine{
-          LazyString{L"): -"}}}.Build());
+  status_.SetInformationText(
+      LineBuilder{SINGLE_LINE_CONSTANT(L"cursors stack ") +
+                  Parenthesize(NonEmptySingleLine(stack_size - 1)) +
+                  SINGLE_LINE_CONSTANT(L": -")}
+          .Build());
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
@@ -1700,8 +1702,7 @@ const struct timespec OpenBuffer::time_last_exit() const {
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {
-  status_.SetInformationText(
-      Line{SingleLine{LazyString{std::to_wstring(signal.read())}}});
+  status_.SetInformationText(Line{NonEmptySingleLine{signal.read()}});
   if (file_adapter_->WriteSignal(signal)) return;
 
   switch (signal.read()) {
@@ -1709,8 +1710,8 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       if (child_pid_ != std::nullopt) {
         status_.SetInformationText(LineBuilder{
             SINGLE_LINE_CONSTANT(L"SIGINT >> pid:") +
-            SingleLine{LazyString{std::to_wstring(
-                child_pid_->read())}}}.Build());
+            NonEmptySingleLine{
+                child_pid_->read()}}.Build());
         file_system_driver().Kill(child_pid_.value(), signal);
         return;
       }
@@ -2118,93 +2119,100 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
   if (options_.describe_status) output = options_.describe_status(*this);
 
   if (size_t size = undo_state_.UndoStackSize(); size > 0)
-    output.insert({BufferFlagKey{LazyString{L"↶"}},
-                   BufferFlagValue{LazyString{std::to_wstring(size)}}});
+    output.insert({BufferFlagKey{SingleLine::Char<L'↶'>()},
+                   BufferFlagValue{NonEmptySingleLine{size}}});
 
   if (size_t size = undo_state_.RedoStackSize(); size > 0)
-    output.insert({BufferFlagKey{LazyString{L"↷"}},
-                   BufferFlagValue{LazyString{std::to_wstring(size)}}});
+    output.insert({BufferFlagKey{SingleLine::Char<L'↷'>()},
+                   BufferFlagValue{NonEmptySingleLine{size}}});
 
   if (disk_state() == DiskState::kStale) {
-    output.insert({BufferFlagKey{LazyString{L"🐾"}}, BufferFlagValue{}});
+    output.insert(
+        {BufferFlagKey{SingleLine::Char<L'🐾'>()}, BufferFlagValue{}});
   }
 
   if (ShouldDisplayProgress()) {
-    output.insert(
-        {BufferFlagKey{ProgressString(Read(buffer_variables::progress),
-                                      OverflowBehavior::kModulo)},
+    output.insert(  // TODO(easy, 2024-09-20): Make ProgressString already
+                    // return SingleLine, avoid wrapping.
+        {BufferFlagKey{SingleLine{ProgressString(
+             Read(buffer_variables::progress), OverflowBehavior::kModulo)}},
          BufferFlagValue{}});
   }
 
   if (fd() != nullptr) {
-    output.insert({BufferFlagKey{LazyString{L"<"}}, BufferFlagValue{}});
+    output.insert({BufferFlagKey{SingleLine::Char<L'<'>()}, BufferFlagValue{}});
     switch (contents_.size().read()) {
       case 1:
-        output.insert({BufferFlagKey{LazyString{L"⚊"}}, BufferFlagValue{}});
+        output.insert(
+            {BufferFlagKey{SingleLine::Char<L'⚊'>()}, BufferFlagValue{}});
         break;
       case 2:
-        output.insert({BufferFlagKey{LazyString{L"⚌ "}}, BufferFlagValue{}});
+        output.insert(
+            {BufferFlagKey{SINGLE_LINE_CONSTANT(L"⚌ ")}, BufferFlagValue{}});
         break;
       case 3:
-        output.insert({BufferFlagKey{LazyString{L"☰ "}}, BufferFlagValue{}});
+        output.insert(
+            {BufferFlagKey{SINGLE_LINE_CONSTANT(L"☰ ")}, BufferFlagValue{}});
         break;
       default:
-        output.insert({BufferFlagKey{LazyString{L"☰ "}},
-                       BufferFlagValue{LazyString{
-                           std::to_wstring(contents_.size().read())}}});
+        output.insert(
+            {BufferFlagKey{SINGLE_LINE_CONSTANT(L"☰ ")},
+             BufferFlagValue{NonEmptySingleLine{contents_.size().read()}}});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
-      output.insert({BufferFlagKey{LazyString{L"↓"}}, BufferFlagValue{}});
-    }
-    if (LazyString pts_path = ReadLazyString(buffer_variables::pts_path);
-        !pts_path.empty())
       output.insert(
-          {BufferFlagKey{LazyString{L"💻"}}, BufferFlagValue{pts_path}});
+          {BufferFlagKey{SingleLine::Char<L'↓'>()}, BufferFlagValue{}});
+    }
+    if (SingleLine pts_path =
+            LineSequence::BreakLines(ReadLazyString(buffer_variables::pts_path))
+                .FoldLines();
+        !pts_path.empty())
+      output.insert({BufferFlagKey{SingleLine::Char<L'💻'>()},
+                     BufferFlagValue{pts_path}});
   }
 
   if (work_queue()->RecentUtilization() > 0.1) {
-    output.insert({BufferFlagKey{LazyString{L"⏳"}}, BufferFlagValue{}});
+    output.insert(
+        {BufferFlagKey{SingleLine::Char<L'⏳'>()}, BufferFlagValue{}});
   }
 
   if (Read(buffer_variables::pin)) {
-    output.insert({BufferFlagKey{LazyString{L"📌"}}, BufferFlagValue{}});
+    output.insert(
+        {BufferFlagKey{SingleLine::Char<L'📌'>()}, BufferFlagValue{}});
   }
 
   if (child_pid_.has_value()) {
-    output.insert(
-        {BufferFlagKey{LazyString{L"🟡"}},
-         BufferFlagValue{LazyString{std::to_wstring(child_pid_->read())}}});
+    output.insert({BufferFlagKey{SingleLine::Char<L'🟡'>()},
+                   BufferFlagValue{NonEmptySingleLine{child_pid_->read()}}});
   } else if (!child_exit_status_.has_value()) {
     // Nothing.
   } else if (WIFEXITED(child_exit_status_.value())) {
     auto exit_status = WEXITSTATUS(child_exit_status_.value());
     if (exit_status == 0)
-      output.insert({BufferFlagKey{LazyString{L"🟢"}}, BufferFlagValue{}});
-    else
       output.insert(
-          {BufferFlagKey{LazyString{L"🔴"}},
-           BufferFlagValue{LazyString{std::to_wstring(exit_status)}}});
+          {BufferFlagKey{SingleLine::Char<L'🟢'>()}, BufferFlagValue{}});
+    else
+      output.insert({BufferFlagKey{SingleLine::Char<L'🔴'>()},
+                     BufferFlagValue{NonEmptySingleLine(exit_status)}});
   } else if (WIFSIGNALED(child_exit_status_.value())) {
-    output.insert({BufferFlagKey{LazyString{L"🟣"}},
-                   BufferFlagValue{LazyString{std::to_wstring(
-                       WTERMSIG(child_exit_status_.value()))}}});
+    output.insert({BufferFlagKey{SingleLine::Char<L'🟣'>()},
+                   BufferFlagValue{NonEmptySingleLine{
+                       WTERMSIG(child_exit_status_.value())}}});
   } else {
-    output.insert({BufferFlagKey{LazyString{L"exit-status"}},
-                   BufferFlagValue{LazyString{
-                       std::to_wstring(child_exit_status_.value())}}});
+    output.insert(
+        {BufferFlagKey{SINGLE_LINE_CONSTANT(L"exit-status")},
+         BufferFlagValue{NonEmptySingleLine{child_exit_status_.value()}}});
   }
 
   if (SingleLine marks = GetLineMarksText(); !marks.empty()) {
     output.insert(
-        // TODO(trivial, 2024-09-20): Avoid `read()`:
-        {BufferFlagKey{marks.read()},
-         BufferFlagValue{}});  // TODO: Show better?
+        {BufferFlagKey{marks}, BufferFlagValue{}});  // TODO: Show better?
   }
 
   return output;
 }
 
-/* static */ LazyString OpenBuffer::FlagsToString(
+/* static */ SingleLine OpenBuffer::FlagsToString(
     std::map<BufferFlagKey, BufferFlagValue> flags) {
   return Concatenate(
       flags |
@@ -2212,7 +2220,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
           [](const std::pair<BufferFlagKey, BufferFlagValue>& f) {
             return f.first.read() + f.second.read();
           }) |
-      Intersperse(LazyString{L"  "}));
+      Intersperse(SingleLine::Padding(ColumnNumberDelta{2})));
 }
 
 const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
@@ -2499,13 +2507,9 @@ SingleLine OpenBuffer::GetLineMarksText() const {
   size_t expired_marks = GetExpiredLineMarks().size();
   SingleLine output;
   if (marks > 0 || expired_marks > 0) {
-    output = SINGLE_LINE_CONSTANT(L"marks:") +
-             SingleLine{LazyString{std::to_wstring(marks)}};
-    if (expired_marks > 0) {
-      output += SingleLine::Char<L'('>() +
-                SingleLine{LazyString{std::to_wstring(expired_marks)}} +
-                SingleLine::Char<L')'>();
-    }
+    output = SINGLE_LINE_CONSTANT(L"marks:") + NonEmptySingleLine{marks}.read();
+    if (expired_marks > 0)
+      output += Parenthesize(NonEmptySingleLine{expired_marks}).read();
   }
   return output;
 }
