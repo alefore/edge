@@ -76,9 +76,7 @@ struct ResolvePathOptions {
 
   // This is not a Path because it may contain various embedded tokens such as
   // a ':LINE:COLUMN' suffix. A Path will be extracted from it.
-  //
-  // TODO(trivial, 2024-08-04): Convert to LazyString.
-  std::wstring path = L"";
+  language::lazy_string::LazyString path = {};
   std::vector<infrastructure::Path> search_paths = {};
   infrastructure::Path home_directory;
 
@@ -122,25 +120,24 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
   using language::Success;
   using language::ValueOrError;
   using language::lazy_string::ColumnNumber;
+  using language::lazy_string::ColumnNumberDelta;
+  using language::lazy_string::LazyString;
 
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
     input.search_paths.push_back(Path::LocalDirectory());
   }
 
-  std::visit(overload{IgnoreErrors{},
-                      [&](Path path) {
-                        input.path = Path::ExpandHomeDirectory(
-                                         input.home_directory, path)
-                                         .read()
-                                         .ToString();
-                      }},
-             // TODO(trivial, 2024-08-04): Convert input.path to LazyString and
-             // get rid of this conversion.
-             Path::New(language::lazy_string::LazyString{input.path}));
-  if (!input.path.empty() && input.path[0] == L'/') {
+  std::visit(
+      overload{
+          IgnoreErrors{},
+          [&](Path path) {
+            input.path =
+                Path::ExpandHomeDirectory(input.home_directory, path).read();
+          }},
+      Path::New(input.path));
+  if (StartsWith(input.path, LazyString{L"/"}))
     input.search_paths = {Path::Root()};
-  }
 
   language::NonNull<std::shared_ptr<std::optional<
       language::ValueOrError<ResolvePathOutput<ValidatorOutput>>>>>
@@ -150,25 +147,24 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
              [input, output](Path search_path) {
                struct State {
                  const Path search_path;
-                 size_t str_end;
+                 std::optional<ColumnNumber> str_end;
                };
                auto state = std::make_shared<State>(
                    State{.search_path = std::move(search_path),
-                         .str_end = input.path.size()});
+                         .str_end = ColumnNumber{} + input.path.size()});
                return futures::While([input, output, state]() {
-                        if (state->str_end == input.path.npos ||
-                            state->str_end == 0) {
+                        if (state->str_end == std::nullopt ||
+                            state->str_end->IsZero()) {
                           return Past(IterationControlCommand::kStop);
                         }
 
-                        // TODO(trivial, 2024-08-04): Get rid of this LazyString
-                        // conversion.
                         ValueOrError<Path> input_path =
-                            Path::New(language::lazy_string::LazyString{
-                                input.path.substr(0, state->str_end)});
+                            Path::New(input.path.Substring(
+                                ColumnNumber{}, state->str_end->ToDelta()));
                         if (IsError(input_path)) {
-                          state->str_end =
-                              input.path.find_last_of(':', state->str_end - 1);
+                          state->str_end = FindLastOf(
+                              input.path, {L':'},
+                              *state->str_end - ColumnNumberDelta{1});
                           return Past(IterationControlCommand::kContinue);
                         }
                         auto path_with_prefix =
@@ -182,26 +178,29 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                               std::optional<language::text::LineColumn>
                                   output_position;
                               for (size_t i = 0; i < 2; i++) {
-                                while (state->str_end < input.path.size() &&
-                                       ':' == input.path[state->str_end]) {
-                                  state->str_end++;
-                                }
-                                if (state->str_end == input.path.size()) {
+                                while (state->str_end->ToDelta() <
+                                           input.path.size() &&
+                                       input.path.get(*state->str_end) == L':')
+                                  ++(*state->str_end);
+                                if (state->str_end->ToDelta() ==
+                                    input.path.size())
                                   break;
-                                }
-                                size_t next_str_end =
-                                    input.path.find(':', state->str_end);
-                                const std::wstring arg = input.path.substr(
-                                    state->str_end, next_str_end);
-                                if (i == 0 && arg.size() > 0 && arg[0] == '/') {
+                                std::optional<ColumnNumber> next_str_end =
+                                    FindFirstOf(input.path, {L':'},
+                                                *state->str_end);
+                                CHECK_GE(*next_str_end, *state->str_end);
+                                const LazyString arg = input.path.Substring(
+                                    *state->str_end,
+                                    *next_str_end - *state->str_end);
+                                if (i == 0 &&
+                                    StartsWith(arg, LazyString{L"/"})) {
                                   output_pattern =
-                                      language::lazy_string::LazyString{
-                                          arg.substr(1)};
+                                      arg.Substring(ColumnNumber{1});
                                   break;
                                 } else {
                                   size_t value;
                                   try {
-                                    value = stoi(arg);
+                                    value = stoi(arg.ToString());
                                     if (value > 0) {
                                       value--;
                                     }
@@ -228,9 +227,7 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                                   }
                                 }
                                 state->str_end = next_str_end;
-                                if (state->str_end == input.path.npos) {
-                                  break;
-                                }
+                                if (state->str_end == std::nullopt) break;
                               }
                               std::optional<Path> resolved_path =
                                   OptionalFrom(path_with_prefix.Resolve());
@@ -247,8 +244,9 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                               return Success(IterationControlCommand::kStop);
                             })
                             .ConsumeErrors([state, input](Error) {
-                              state->str_end = input.path.find_last_of(
-                                  ':', state->str_end - 1);
+                              state->str_end = FindLastOf(
+                                  input.path, {L':'},
+                                  *state->str_end - ColumnNumberDelta{1});
                               return Past(IterationControlCommand::kContinue);
                             });
                       })

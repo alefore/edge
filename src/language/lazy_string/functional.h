@@ -34,13 +34,21 @@ std::optional<ColumnNumber> FindFirstColumnWithPredicate(
 
 template <typename StringType, typename Predicate>
 std::optional<ColumnNumber> FindLastColumnWithPredicate(const StringType& input,
-                                                        const Predicate& f) {
-  for (ColumnNumberDelta delta; delta < input.size(); ++delta)
-    if (ColumnNumber column =
-            ColumnNumber{} + input.size() - delta - ColumnNumberDelta{1};
-        f(column, input.get(column)))
+                                                        const Predicate& f,
+                                                        ColumnNumber end) {
+  CHECK_LT(end.ToDelta(), input.size());
+  for (ColumnNumberDelta delta; delta <= end.ToDelta(); ++delta)
+    if (ColumnNumber column = end - delta; f(column, input.get(column)))
       return column;
   return std::nullopt;
+}
+
+template <typename StringType, typename Predicate>
+std::optional<ColumnNumber> FindLastColumnWithPredicate(const StringType& input,
+                                                        const Predicate& f) {
+  if (input.empty()) return std::nullopt;
+  return FindLastColumnWithPredicate(
+      input, f, ColumnNumber{} + input.size() - ColumnNumberDelta{1});
 }
 
 template <typename StringType, typename Callback>
@@ -81,11 +89,22 @@ std::optional<ColumnNumber> FindFirstNotOf(
       start);
 }
 
+// The search only includes characters at or before position `pos`.
+template <typename StringType>
+std::optional<ColumnNumber> FindLastOf(const StringType& input,
+                                       const std::unordered_set<wchar_t>& chars,
+                                       ColumnNumber pos) {
+  return FindLastColumnWithPredicate(
+      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); },
+      pos);
+}
+
 template <typename StringType>
 std::optional<ColumnNumber> FindLastOf(
     const StringType& input, const std::unordered_set<wchar_t>& chars) {
-  return FindLastColumnWithPredicate(
-      input, [&chars](ColumnNumber, wchar_t c) { return chars.contains(c); });
+  if (input.empty()) return std::nullopt;
+  return FindLastOf(input, chars,
+                    ColumnNumber{} + input.size() - ColumnNumberDelta{1});
 }
 
 template <typename StringType>

@@ -410,12 +410,8 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
               return futures::Past(Error{LazyString{L"Unable to find buffer"}});
             });
       }};
-  if (path.has_value()) {
-    // TODO(trivial, 2024-08-04): Change `path` to LazyString and remove this
-    // conversion.
-    resolve_path_options.path =
-        editor_state.expand_path(path.value()).read().ToString();
-  }
+  if (path.has_value())
+    resolve_path_options.path = editor_state.expand_path(path.value()).read();
 
   return ResolvePath(resolve_path_options)
       .Transform([](ResolvePathOutput<gc::Root<OpenBuffer>> input)
@@ -576,8 +572,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                                      ? options.editor_state
                                            .expand_path(options.path.value())
                                            .read()
-                                           .ToString()
-                                     : L"",
+                                     : LazyString{},
                              .search_paths = std::move(search_paths),
                              .home_directory =
                                  options.editor_state.home_directory(),

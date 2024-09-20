@@ -561,14 +561,12 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
               buffer->default_commands()->Add(
                   keys_values,
                   [buffer, path]() {
-                    std::wstring resolved_path;
                     ResolvePathOptions<EmptyValue>::New(
                         buffer->editor(), MakeNonNullShared<FileSystemDriver>(
                                               buffer->editor().thread_pool()))
                         .Transform([buffer, path](
                                        ResolvePathOptions<EmptyValue> options) {
-                          // TODO(easy, 2024-01-05): Avoid call to ToString.
-                          options.path = path.ToString();
+                          options.path = path;
                           return futures::OnError(
                               ResolvePath(std::move(options))
                                   .Transform([buffer, path](

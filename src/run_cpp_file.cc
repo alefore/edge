@@ -59,7 +59,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                  editor_state, MakeNonNullShared<FileSystemDriver>(
                                    editor_state.thread_pool()))
                  .Transform([input](ResolvePathOptions<EmptyValue> options) {
-                   options.path = input.read().ToString();
+                   options.path = input.read();
                    return ResolvePath(std::move(options));
                  }),
              [buffer, input](Error error) {
