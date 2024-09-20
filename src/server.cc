@@ -81,15 +81,13 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 PossibleError SendPathToServer(FileDescriptor server_fd,
                                const Path& input_path) {
   LOG(INFO) << "Sending path to server: " << input_path;
-  // TODO(trivial, 2023-12-31): Create command as a LazyString and only convert
-  // to bytes at the end.
-  std::string command = "editor.ConnectTo(" +
-                        EscapedString::FromString(input_path.read())
-                            .CppRepresentation()
-                            .ToBytes() +
-                        ");\n";
+  LazyString command =
+      LazyString{L"editor.ConnectTo("} +
+      EscapedString::FromString(input_path.read()).CppRepresentation() +
+      LazyString{L");\n"};
   LOG(INFO) << "Sending connection command: " << command;
-  if (write(server_fd.read(), command.c_str(), command.size()) == -1) {
+  std::string command_str = command.ToBytes();
+  if (write(server_fd.read(), command_str.c_str(), command_str.size()) == -1) {
     return Error{input_path.read() + LazyString{L": write failed: "} +
                  LazyString{FromByteString(strerror(errno))}};
   }
