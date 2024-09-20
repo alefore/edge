@@ -5,6 +5,7 @@
 
 #include "src/direction.h"
 #include "src/infrastructure/screen/cursors.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 
@@ -30,6 +31,8 @@ enum class Structure {
 };
 
 std::ostream& operator<<(std::ostream& os, const Structure& structure);
+language::lazy_string::NonEmptySingleLine ToNonEmptySingleLine(
+    const Structure& structure);
 
 Structure StructureLower(Structure);
 

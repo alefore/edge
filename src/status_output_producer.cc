@@ -144,21 +144,19 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           {BufferFlagKey{SINGLE_LINE_CONSTANT(L"💪")}, BufferFlagValue{}});
     }
 
-    LazyString structure;
+    SingleLine structure;
     if (options.modifiers.structure == Structure::kTree) {
-      structure = LazyString{
-          L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">"};
+      structure = SINGLE_LINE_CONSTANT(L"tree<") +
+                  NonEmptySingleLine(options.buffer->tree_depth()).read() +
+                  SINGLE_LINE_CONSTANT(L">");
     } else if (options.modifiers.structure != Structure::kChar) {
-      std::ostringstream oss;
-      oss << options.modifiers.structure;
-      structure = LazyString{FromByteString(oss.str())};
+      structure = ToNonEmptySingleLine(options.modifiers.structure);
     }
     if (!structure.empty()) {
       if (options.modifiers.sticky_structure)
         structure = UpperCase(std::move(structure));
       flags[BufferFlagKey{SINGLE_LINE_CONSTANT(L"St:")}] =
-          // TODO(trivial, 2024-09-20): Avoid having to wrap structure here.
-          BufferFlagValue{SingleLine{structure}};
+          BufferFlagValue{structure};
     }
 
     if (!flags.empty())

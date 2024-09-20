@@ -7,13 +7,15 @@
 #include "src/parse_tree.h"
 #include "src/seek.h"
 
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::Range;
+
 namespace afc::editor {
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::LineColumn;
-using language::text::LineNumberDelta;
-using language::text::Range;
 
 namespace {
 Seek StartSeekToLimit(const SeekInput& input) {
@@ -65,45 +67,52 @@ bool FindTreeRange(const NonNull<std::shared_ptr<const ParseTree>>& root,
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const Structure& structure) {
+  os << ToNonEmptySingleLine(structure);
+  return os;
+}
+
+language::lazy_string::NonEmptySingleLine ToNonEmptySingleLine(
+    const Structure& structure) {
   switch (structure) {
     case Structure::kChar:
-      os << "char";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"char")};
       break;
     case Structure::kWord:
-      os << "word";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"word")};
       break;
     case Structure::kSymbol:
-      os << "symbol";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"symbol")};
       break;
     case Structure::kLine:
-      os << "line";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"line")};
       break;
     case Structure::kMark:
-      os << "mark";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"mark")};
       break;
     case Structure::kPage:
-      os << "page";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"page")};
       break;
     case Structure::kSearch:
-      os << "search";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"search")};
       break;
     case Structure::kTree:
-      os << "tree";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"tree")};
       break;
     case Structure::kCursor:
-      os << "cursor";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"cursor")};
       break;
     case Structure::kSentence:
-      os << "sentence";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"sentence")};
       break;
     case Structure::kParagraph:
-      os << "paragraph";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"paragraph")};
       break;
     case Structure::kBuffer:
-      os << "buffer";
+      return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"buffer")};
       break;
   }
-  return os;
+  LOG(FATAL) << "Invalid structure";
+  return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"invalid")};
 }
 
 Structure StructureLower(Structure structure) {
