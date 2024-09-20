@@ -70,7 +70,6 @@ void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
   output.AppendString(SingleLine::Char<L'('>(),
                       LineModifierSet{LineModifier::kDim});
   SingleLine separator;
-  // TODO(easy, 2024-09-20): Don't use ranges::for_each. Use Concatenate.
   std::ranges::for_each(
       arguments | std::views::filter(std::not_fn(&SingleLine::empty)),
       [&](const SingleLine& a) {
