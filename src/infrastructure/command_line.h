@@ -55,7 +55,7 @@ enum class TestsBehavior { kRunAndExit, kListAndExit, kIgnore };
 struct FlagName
     : public language::GhostType<FlagName,
                                  language::lazy_string::NonEmptySingleLine> {
-  FlagName(language::lazy_string::NonEmptySingleLine input);
+  using GhostType::GhostType;
   FlagName(std::wstring input);  // For convenience.
   const language::lazy_string::LazyString& GetLazyString() const;
   const language::lazy_string::SingleLine& GetSingleLine() const;
@@ -64,7 +64,7 @@ struct FlagName
 struct FlagShortHelp
     : public language::GhostType<FlagShortHelp,
                                  language::lazy_string::NonEmptySingleLine> {
-  FlagShortHelp(language::lazy_string::NonEmptySingleLine input);
+  using GhostType::GhostType;
   FlagShortHelp(std::wstring input);  // For convenience.
   const language::lazy_string::LazyString& GetLazyString() const;
 };

@@ -13,9 +13,6 @@ using afc::language::lazy_string::SingleLine;
 
 namespace afc::command_line_arguments {
 
-FlagName::FlagName(NonEmptySingleLine input)
-    : language::GhostType<FlagName, NonEmptySingleLine>(input) {}
-
 FlagName::FlagName(std::wstring input)
     : FlagName(NonEmptySingleLine{SingleLine{LazyString{input}}}) {}
 
@@ -24,9 +21,6 @@ const LazyString& FlagName::GetLazyString() const {
 }
 
 const SingleLine& FlagName::GetSingleLine() const { return read().read(); }
-
-FlagShortHelp::FlagShortHelp(NonEmptySingleLine input)
-    : language::GhostType<FlagShortHelp, NonEmptySingleLine>(input) {}
 
 FlagShortHelp::FlagShortHelp(std::wstring input)
     : FlagShortHelp(NonEmptySingleLine{SingleLine{LazyString{input}}}) {}
