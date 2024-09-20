@@ -368,7 +368,7 @@ class OpenBuffer {
   GetLineMarks() const;
   const std::multimap<language::text::LineColumn, LineMarks::ExpiredMark>&
   GetExpiredLineMarks() const;
-  language::lazy_string::LazyString GetLineMarksText() const;
+  language::lazy_string::SingleLine GetLineMarksText() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Extensions

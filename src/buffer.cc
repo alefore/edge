@@ -2194,9 +2194,11 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
                        std::to_wstring(child_exit_status_.value())}}});
   }
 
-  if (LazyString marks = GetLineMarksText(); !marks.empty()) {
+  if (SingleLine marks = GetLineMarksText(); !marks.empty()) {
     output.insert(
-        {BufferFlagKey{marks}, BufferFlagValue{}});  // TODO: Show better?
+        // TODO(trivial, 2024-09-20): Avoid `read()`:
+        {BufferFlagKey{marks.read()},
+         BufferFlagValue{}});  // TODO: Show better?
   }
 
   return output;
@@ -2492,15 +2494,17 @@ OpenBuffer::GetExpiredLineMarks() const {
   return editor().line_marks().GetExpiredMarksForTargetBuffer(name());
 }
 
-LazyString OpenBuffer::GetLineMarksText() const {
+SingleLine OpenBuffer::GetLineMarksText() const {
   size_t marks = GetLineMarks().size();
   size_t expired_marks = GetExpiredLineMarks().size();
-  LazyString output;
+  SingleLine output;
   if (marks > 0 || expired_marks > 0) {
-    output = LazyString{L"marks:"} + LazyString{std::to_wstring(marks)};
+    output = SINGLE_LINE_CONSTANT(L"marks:") +
+             SingleLine{LazyString{std::to_wstring(marks)}};
     if (expired_marks > 0) {
-      output += LazyString{L"("} + LazyString{std::to_wstring(expired_marks)} +
-                LazyString{L")"};
+      output += SingleLine::Char<L'('>() +
+                SingleLine{LazyString{std::to_wstring(expired_marks)}} +
+                SingleLine::Char<L')'>();
     }
   }
   return output;

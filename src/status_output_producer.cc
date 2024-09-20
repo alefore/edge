@@ -90,10 +90,9 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
         options.buffer->current_position_col() + ColumnNumberDelta(1))}});
     output.AppendString(SINGLE_LINE_CONSTANT(L" 🧭 "), {{LineModifier::kDim}});
 
-    if (LazyString marks_text = options.buffer->GetLineMarksText();
+    if (SingleLine marks_text = options.buffer->GetLineMarksText();
         !marks_text.empty()) {
-      // TODO(easy, 2024-09-19): Avoid wrapping it here.
-      output.AppendString(SingleLine{marks_text});
+      output.AppendString(marks_text);
       output.AppendCharacter(' ', {});
     }
 
