@@ -83,7 +83,7 @@ transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
 
 class PredictorTransformation : public CompositeTransformation {
  public:
-  PredictorTransformation(Predictor predictor, LazyString text)
+  PredictorTransformation(Predictor predictor, SingleLine text)
       : predictor_(std::move(predictor)), text_(std::move(text)) {
     CHECK_GT(text_.size(), ColumnNumberDelta());
   }
@@ -97,9 +97,7 @@ class PredictorTransformation : public CompositeTransformation {
                predictor_,
                PredictorInput{
                    .editor = input.buffer.editor(),
-                   // TODO(trivial, 2024-09-18): Avoid converting text_ to
-                   // SingleLine here.
-                   .input = SingleLine{text_},
+                   .input = text_,
                    .input_column = ColumnNumber() + text_.size(),
                    // TODO: Ugh, the const_cast below is fucking ugly. I have a
                    // lake in my model: should PredictionOptions::source_buffer
@@ -119,17 +117,17 @@ class PredictorTransformation : public CompositeTransformation {
               ColumnNumberDelta(results->common_prefix.value().size()) <
                   text.size()) {
             CHECK_LE(results->predictor_output.longest_prefix, text.size());
-            LazyString prefix = text.Substring(
+            SingleLine prefix = text.Substring(
                 ColumnNumber(0), results->predictor_output.longest_prefix);
             if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
               // TODO(trivial, 2024-09-17: Change `prefix` to already be a
               // SingleLine, to avoid crashing here if it has \n.
               buffer.status().SetInformationText(LineBuilder{
-                  SingleLine{LazyString{
-                      L"No matches found. Longest prefix with matches: \""}} +
-                  SingleLine{prefix} +
-                  SingleLine{LazyString{L"\""}}}.Build());
+                  SINGLE_LINE_CONSTANT(
+                      L"No matches found. Longest prefix with matches: \"") +
+                  prefix + SINGLE_LINE_CONSTANT(L"\"")}
+                                                     .Build());
             }
             return Output();
           }
@@ -149,7 +147,7 @@ class PredictorTransformation : public CompositeTransformation {
 
  private:
   const Predictor predictor_;
-  const LazyString text_;
+  const SingleLine text_;
 };
 
 class InsertHistoryTransformation : public CompositeTransformation {
@@ -197,7 +195,7 @@ bool predictor_transformation_tests_register = tests::Register(
                     [&](PredictorInput) -> futures::Value<PredictorOutput> {
                       return std::move(inner_future.value);
                     },
-                    LazyString{L"foo"}));
+                    SINGLE_LINE_CONSTANT(L"foo")));
         LOG(INFO) << "Notifying inner future";
         CHECK(!final_value.has_value());
         std::move(inner_future.consumer)(
@@ -354,7 +352,8 @@ class ExpandTransformation : public CompositeTransformation {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           transformation_future =
               futures::Past(std::make_unique<PredictorTransformation>(
-                  FilePredictor, path.read()));
+                  FilePredictor, vm::EscapedString::FromString(path.read())
+                                     .EscapedRepresentation()));
         }
         break;
       case ' ':
@@ -386,8 +385,8 @@ class ExpandTransformation : public CompositeTransformation {
           transformation_future =
               std::move(predictor_future)
                   .Transform([symbol](Predictor predictor) {
-                    return std::make_unique<PredictorTransformation>(
-                        predictor, symbol.read());
+                    return std::make_unique<PredictorTransformation>(predictor,
+                                                                     symbol);
                   });
         }
         break;
