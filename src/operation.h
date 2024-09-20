@@ -33,7 +33,7 @@ class CommandArgumentRepetitions {
       : entries_({{.additive_default = repetitions,
                    .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
 
-  language::lazy_string::LazyString ToString() const;
+  language::lazy_string::SingleLine ToString() const;
   // Returns the total sum of all entries.
   int get() const;
   std::list<int> get_list() const;
@@ -84,7 +84,7 @@ struct CommandReachPage {
 
 // Finds occurrences of a given string.
 struct CommandReachQuery {
-  language::lazy_string::LazyString query;
+  language::lazy_string::SingleLine query;
 };
 
 struct CommandReachBisect {
@@ -93,7 +93,7 @@ struct CommandReachBisect {
 };
 
 struct CommandSetShell {
-  language::lazy_string::LazyString input;
+  language::lazy_string::SingleLine input;
 };
 
 struct CommandPaste {

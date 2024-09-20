@@ -51,6 +51,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -63,32 +64,27 @@ using ::operator<<;
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-void SerializeCall(LazyString name, std::vector<LazyString> arguments,
+void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
                    LineBuilder& output) {
-  // TODO(easy, 2024-09-19): Avoid wrapping name here:
-  output.AppendString(SingleLine{name}, LineModifierSet{LineModifier::kCyan});
+  output.AppendString(name.read(), LineModifierSet{LineModifier::kCyan});
   output.AppendString(SingleLine::Char<L'('>(),
                       LineModifierSet{LineModifier::kDim});
   SingleLine separator;
+  // TODO(easy, 2024-09-20): Don't use ranges::for_each. Use Concatenate.
   std::ranges::for_each(
-      arguments | std::views::filter(std::not_fn(&LazyString::empty)),
-      [&](const LazyString& a) {
+      arguments | std::views::filter(std::not_fn(&SingleLine::empty)),
+      [&](const SingleLine& a) {
         output.AppendString(separator, LineModifierSet{LineModifier::kDim});
-        // TODO(trivial, 2024-09-19): Avoid having to wrap all arguments.
-        output.AppendString(SingleLine{a}, std::nullopt);
+        output.AppendString(a, std::nullopt);
         separator = SINGLE_LINE_CONSTANT(L", ");
       });
   output.AppendString(SingleLine::Char<L')'>(),
                       LineModifierSet{LineModifier::kDim});
 }
 
-LazyString StructureToString(std::optional<Structure> structure) {
-  std::ostringstream oss;
-  if (structure.has_value())
-    oss << *structure;
-  else
-    oss << "?";
-  return LazyString{language::FromByteString(oss.str())};
+NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
+  if (structure.has_value()) return ToNonEmptySingleLine(*structure);
+  return NON_EMPTY_SINGLE_LINE_CONSTANT(L"?");
 }
 
 Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
@@ -105,24 +101,37 @@ Modifiers GetModifiers(std::optional<Structure> structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
-static const Description kMoveDown = Description{LazyString{L"🧗👇"}};
-static const Description kMoveUp = Description{LazyString{L"🧗👆"}};
-static const Description kPageDown = Description{LazyString{L"📜👇"}};
-static const Description kPageUp = Description{LazyString{L"📜👆"}};
-static const Description kMoveLeft = Description{LazyString{L"👈"}};
-static const Description kMoveRight = Description{LazyString{L"👉"}};
-static const Description kHomeLeft = Description{LazyString{L"🏠👈"}};
-static const Description kHomeRight = Description{LazyString{L"🏠👉"}};
-static const Description kHomeUp = Description{LazyString{L"🏠👆"}};
-static const Description kHomeDown = Description{LazyString{L"🏠👇"}};
-static const Description kReachQuery = Description{LazyString{L"🔮"}};
-static const Description kDescriptionShell = Description{LazyString{L"🌀"}};
-static const Description kDescriptionPaste = Description{LazyString{L"📎"}};
+static const Description kMoveDown =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🧗👇")};
+static const Description kMoveUp =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🧗👆")};
+static const Description kPageDown =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
+static const Description kPageUp =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👆")};
+static const Description kMoveLeft =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👈")};
+static const Description kMoveRight =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👉")};
+static const Description kHomeLeft =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👈")};
+static const Description kHomeRight =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👉")};
+static const Description kHomeUp =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👆")};
+static const Description kHomeDown =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👇")};
+static const Description kReachQuery =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")};
+static const Description kDescriptionShell =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🌀")};
+static const Description kDescriptionPaste =
+    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📎")};
 
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
   SerializeCall(
-      LazyString{L"🦀"},
-      {StructureToString(reach.structure), reach.repetitions.ToString()},
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"🦀"),
+      {StructureToString(reach.structure).read(), reach.repetitions.ToString()},
       output);
 }
 
@@ -132,7 +141,7 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
            ? (reach.structure == Structure::kLine ? kHomeUp : kHomeRight)
            : (reach.structure == Structure::kLine ? kHomeDown : kHomeLeft))
           .read(),
-      {StructureToString(reach.structure), reach.repetitions.ToString()},
+      {StructureToString(reach.structure).read(), reach.repetitions.ToString()},
       output);
 }
 
@@ -149,34 +158,37 @@ void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
-  SerializeCall(
-      kReachQuery.read(),
-      {c.query + LazyString{ColumnNumberDelta(3) -
-                                std::min(ColumnNumberDelta(3), c.query.size()),
-                            L'_'}},
-      output);
+  SerializeCall(kReachQuery.read(),
+                {c.query + SingleLine::Padding<L'_'>(
+                               ColumnNumberDelta(3) -
+                               std::min(ColumnNumberDelta(3), c.query.size()))},
+                output);
 }
 
 void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
-  LazyString backwards =
-      c.structure == Structure::kLine ? LazyString{L"👆"} : LazyString{L"👈"};
-  LazyString forwards =
-      c.structure == Structure::kLine ? LazyString{L"👇"} : LazyString{L"👉"};
-  SerializeCall(LazyString{L"🪓"},
-                {StructureToString(c.structure),
-                 Concatenate(c.directions |
-                             std::views::transform(
-                                 [&](const Direction& direction) -> LazyString {
-                                   switch (direction) {
-                                     case Direction::kForwards:
-                                       return forwards;
-                                     case Direction::kBackwards:
-                                       return backwards;
-                                   }
-                                   LOG(FATAL) << "Invalid direction.";
-                                   return LazyString{L" "};
-                                 }))},
-                output);
+  NonEmptySingleLine backwards = c.structure == Structure::kLine
+                                     ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")
+                                     : NON_EMPTY_SINGLE_LINE_CONSTANT(L"👈");
+  NonEmptySingleLine forwards = c.structure == Structure::kLine
+                                    ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")
+                                    : NON_EMPTY_SINGLE_LINE_CONSTANT(L"👉");
+  SerializeCall(
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓"),
+      std::vector<SingleLine>{
+          StructureToString(c.structure).read(),
+          Concatenate(c.directions |
+                      std::views::transform(
+                          [&](const Direction& direction) -> SingleLine {
+                            switch (direction) {
+                              case Direction::kForwards:
+                                return forwards.read();
+                              case Direction::kBackwards:
+                                return backwards.read();
+                            }
+                            LOG(FATAL) << "Invalid direction.";
+                            return SINGLE_LINE_CONSTANT(L" ");
+                          }))},
+      output);
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
@@ -185,12 +197,12 @@ void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
 
 void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
   SerializeCall(kDescriptionPaste.read(),
-                std::vector<LazyString>{paste.repetitions.ToString(),
+                std::vector<SingleLine>{paste.repetitions.ToString(),
                                         paste.query_input.has_value()
-                                            ? LazyString{L"\""} +
+                                            ? SINGLE_LINE_CONSTANT(L"\"") +
                                                   paste.query_input.value() +
-                                                  LazyString{L"\""}
-                                            : LazyString{}},
+                                                  SINGLE_LINE_CONSTANT(L"\"")
+                                            : SingleLine{}},
                 output);
 }
 
@@ -314,7 +326,8 @@ transformation::Stack GetTransformation(
   transformation::Stack transformation;
   transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
-          reach_query.query));
+          // TODO(trivial, 2024-09-20): Avoid call to `read()`:
+          reach_query.query.read()));
   return transformation;
 }
 
@@ -333,7 +346,7 @@ transformation::Stack GetTransformation(
     transformation::Stack& stack, CommandSetShell shell) {
   stack.post_transformation_behavior =
       transformation::Stack::PostTransformationBehavior::kCommandSystem;
-  stack.shell = transformation::ShellCommand(shell.input);
+  stack.shell = transformation::ShellCommand(shell.input.read());
   return transformation::Stack{};
 }
 
@@ -545,9 +558,7 @@ void CheckStructureChar(KeyCommandsMap& cmap,
   for (const std::pair<const wchar_t, Structure>& entry :
        structure_bindings()) {
     VLOG(9) << "Add key: " << entry.second;
-    std::stringstream structure_stream;
-    structure_stream << entry.second;
-    LazyString structure_name{FromByteString(structure_stream.str())};
+    NonEmptySingleLine structure_name = StructureToString(entry.second);
     cmap.Insert(entry.first,
                 {.category = KeyCommandsMap::Category::kStructure,
                  .description = Description{structure_name},
@@ -589,22 +600,26 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
 
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
-  cmap.Insert(ControlChar::kBackspace,
-              {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description{LazyString{L"PopRepetitions"}},
-               .active = !output->empty(),
-               .handler = [output](ExtendedChar) { output->PopValue(); }});
+  cmap.Insert(
+      ControlChar::kBackspace,
+      {.category = KeyCommandsMap::Category::kStringControl,
+       .description =
+           Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"PopRepetitions")},
+       .active = !output->empty(),
+       .handler = [output](ExtendedChar) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
-    cmap.Insert(L'0' + i,
-                {.category = KeyCommandsMap::Category::kRepetitions,
-                 .description = Description{LazyString{L"Repetitions"}},
-                 .handler = [output, i](ExtendedChar) { output->factor(i); }});
+    cmap.Insert(
+        L'0' + i,
+        {.category = KeyCommandsMap::Category::kRepetitions,
+         .description =
+             Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Repetitions")},
+         .handler = [output, i](ExtendedChar) { output->factor(i); }});
 }
 
-static const Description kBisectLeft{LazyString{L"🪓👈"}};
-static const Description kBisectRight{LazyString{L"🪓👉"}};
-static const Description kBisectUp{LazyString{L"🪓👆"}};
-static const Description kBisectDown{LazyString{L"🪓👇"}};
+static const Description kBisectLeft{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👈")};
+static const Description kBisectRight{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👉")};
+static const Description kBisectUp{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👆")};
+static const Description kBisectDown{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👇")};
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
@@ -672,11 +687,14 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
             output->repetitions.sum(delta);
           }};
     };
-    cmap.Insert(L'j', handler(Description{LazyString{L"👇"}}))
+    cmap.Insert(L'j',
+                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
         .Insert(ControlChar::kDownArrow,
-                handler(Description{LazyString{L"👇"}}))
-        .Insert(L'k', handler(Description{LazyString{L"👆"}}))
-        .Insert(ControlChar::kUpArrow, handler(Description{LazyString{L"👆"}}));
+                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
+        .Insert(L'k',
+                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}))
+        .Insert(ControlChar::kUpArrow,
+                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}));
   }
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
@@ -695,7 +713,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                        State* state) {
   cmap.Insert(L'K', {.category = KeyCommandsMap::Category::kNewCommand,
-                     .description = Description{LazyString{L"🪓👆"}},
+                     .description =
+                         Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👆")},
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() < 0,
                      .handler =
@@ -705,7 +724,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                                .directions = {Direction::kBackwards}});
                          }})
       .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
-                     .description = Description{LazyString{L"🪓👇"}},
+                     .description =
+                         Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👇")},
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() > 0,
                      .handler = [state](ExtendedChar) {
@@ -758,31 +778,33 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
                      [output](ExtendedChar extended_c) {
                        std::visit(overload{[](ControlChar) {},
                                            [&](wchar_t c) {
-                                             output->query += LazyString{
-                                                 ColumnNumberDelta{1}, c};
+                                             output->query +=
+                                                 SingleLine{LazyString{
+                                                     ColumnNumberDelta{1}, c}};
                                            }},
                                   extended_c);
                      });
-  cmap.Insert(ControlChar::kBackspace,
-              {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description{LazyString{L"Backspace"}},
-               .active = !output->query.empty(),
-               .handler = [output](ExtendedChar) {
-                 output->query = output->query.Substring(
-                     ColumnNumber{},
-                     output->query.size() - ColumnNumberDelta{1});
-               }});
+  cmap.Insert(
+      ControlChar::kBackspace,
+      {.category = KeyCommandsMap::Category::kStringControl,
+       .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
+       .active = !output->query.empty(),
+       .handler = [output](ExtendedChar) {
+         output->query = output->query.Substring(
+             ColumnNumber{}, output->query.size() - ColumnNumberDelta{1});
+       }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                        State*) {
-  cmap.Insert(ControlChar::kBackspace,
-              {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description{LazyString{L"Pop"}},
-               .active = !output->directions.empty(),
-               .handler = [output](ExtendedChar) {
-                 return output->directions.pop_back();
-               }});
+  cmap.Insert(
+      ControlChar::kBackspace,
+      {.category = KeyCommandsMap::Category::kStringControl,
+       .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Pop")},
+       .active = !output->directions.empty(),
+       .handler = [output](ExtendedChar) {
+         return output->directions.pop_back();
+       }});
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
     cmap.Insert(L'h',
@@ -817,7 +839,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description{LazyString{L"Backspace"}},
+               .description =
+                   Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
                .active = !output->input.empty(),
                .handler =
                    [output](ExtendedChar) {
@@ -829,8 +852,9 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
                    [output](ExtendedChar extended_c) {
                      std::visit(overload{[](ControlChar) {},
                                          [&](wchar_t c) {
-                                           output->input += LazyString{
-                                               ColumnNumberDelta{1}, c};
+                                           output->input +=
+                                               SingleLine{LazyString{
+                                                   ColumnNumberDelta{1}, c}};
                                          }},
                                 extended_c);
                    });
@@ -871,10 +895,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
   cmap.Insert(
           L'p',
           {.category = KeyCommandsMap::Category::kRepetitions,
-           .description = Description{LazyString{L"Paste"}},
+           .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Paste")},
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
       .Insert(L'f', {.category = KeyCommandsMap::Category::kStringControl,
-                     .description = Description{LazyString{L"Filter"}},
+                     .description =
+                         Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Filter")},
                      .handler = [output](ExtendedChar) {
                        CHECK(!output->query_input.has_value());
                        output->query_input = SingleLine{};
@@ -938,12 +963,15 @@ class OperationMode : public EditorMode {
     }
 
     cmap.PushNew()
-        .Insert(L'\n', {.category = KeyCommandsMap::Category::kTop,
-                        .description = Description{LazyString{L"Apply"}},
-                        .handler = [this](ExtendedChar) { state_.Commit(); }})
+        .Insert(L'\n',
+                {.category = KeyCommandsMap::Category::kTop,
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Apply")},
+                 .handler = [this](ExtendedChar) { state_.Commit(); }})
         .Insert(ControlChar::kBackspace,
                 {.category = KeyCommandsMap::Category::kStringControl,
-                 .description = Description{LazyString{L"Backspace"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
                  .handler = [this](ExtendedChar) {
                    state_.UndoLast();
                    ShowStatus();
@@ -1016,7 +1044,8 @@ class OperationMode : public EditorMode {
     cmap.PushNew()
         .Insert(ControlChar::kEscape,
                 {.category = KeyCommandsMap::Category::kStringControl,
-                 .description = Description{LazyString{L"Cancel"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Cancel")},
                  .handler =
                      [&state = state_](ExtendedChar) {
                        if (state.top_command().post_transformation_behavior ==
@@ -1099,7 +1128,8 @@ class OperationMode : public EditorMode {
     cmap.OnHandle([this] { ShowStatus(); });
     cmap.Insert(L'd',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description{LazyString{L"Delete"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Delete")},
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1130,7 +1160,8 @@ class OperationMode : public EditorMode {
                                ExtendedChar) { state.Push(CommandPaste{}); }})
         .Insert(L'?',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description{LazyString{L"Help"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Help")},
                  .handler =
                      [&state = state_, top_command](ExtendedChar) mutable {
                        top_command.show_help = !top_command.show_help;
@@ -1138,7 +1169,8 @@ class OperationMode : public EditorMode {
                      }})
         .Insert(L'~',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description{LazyString{L"SwitchCase"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SwitchCase")},
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1155,7 +1187,8 @@ class OperationMode : public EditorMode {
                      }})
         .Insert(L'$',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description{LazyString{L"Shell"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Shell")},
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1177,7 +1210,8 @@ class OperationMode : public EditorMode {
         .Insert(L'|', push(kDescriptionShell, CommandSetShell{}))
         .Insert(L'+',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description{LazyString{L"CursorEveryLine"}},
+                 .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                     L"CursorEveryLine")},
                  .handler =
                      [&state = state_, top_command](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1262,11 +1296,14 @@ class OperationMode : public EditorMode {
 };
 }  // namespace
 
-LazyString CommandArgumentRepetitions::ToString() const {
-  LazyString output;
-  for (auto& r : get_list()) {
-    if (!output.empty() && r > 0) output += LazyString{L"+"};
-    output += LazyString{std::to_wstring(r)};
+SingleLine CommandArgumentRepetitions::ToString() const {
+  SingleLine output;
+  // TODO(trivial, 2024-09-20): Switch to Concatenate/Intersperse.
+  for (int r : get_list()) {
+    // TODO(trivial, 2024-09-20): Define operator+, use it below:
+    if (!output.empty() && r > 0) output = output + SINGLE_LINE_CONSTANT(L"+");
+    // TODO(trivial, 2024-09-20): Define operator+, use it below:
+    output = output + NonEmptySingleLine(r);
   }
   return output;
 }

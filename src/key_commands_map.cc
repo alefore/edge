@@ -112,13 +112,11 @@ LineSequence KeyCommandsMapSequence::Help() const {
     std::map<Description, std::set<ExtendedChar>> inverted_map;
     for (const std::pair<const ExtendedChar, Description>& entry :
          category_entry.second)
-      if (entry.second != Description{LazyString{}})
-        inverted_map[entry.second].insert(entry.first);
+      inverted_map[entry.second].insert(entry.first);
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
       category_line.AppendString(SingleLine::Char<L' '>());
-      // TODO(easy, 2024-09-19): Avoid having to wrap entry.first?
-      category_line.AppendString(SingleLine{LazyString{entry.first.read()}},
+      category_line.AppendString(entry.first.read().read(),
                                  LineModifierSet{LineModifier::kCyan});
       category_line.AppendString(SingleLine::Char<L':'>(),
                                  LineModifierSet{LineModifier::kDim});
@@ -143,13 +141,14 @@ const bool key_commands_map_tests_registration = tests::Register(
           [] {
             KeyCommandsMap map;
             bool executed = false;
-            map.Insert(L'a',
-                       {.category = KeyCommandsMap::Category::kStringControl,
-                        .description = Description{LazyString{L"Test"}},
-                        .handler = [&executed](ExtendedChar) {
-                          CHECK(!executed);
-                          executed = true;
-                        }});
+            map.Insert(
+                L'a', {.category = KeyCommandsMap::Category::kStringControl,
+                       .description =
+                           Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Test")},
+                       .handler = [&executed](ExtendedChar) {
+                         CHECK(!executed);
+                         executed = true;
+                       }});
             CHECK(map.Execute(L'a'));
             CHECK(executed);
           }},
@@ -161,7 +160,8 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.Insert(
                 L'b',
                 {.category = KeyCommandsMap::Category::kStringControl,
-                 .description = Description{LazyString{L"Test"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Test")},
                  .handler = [&executed](ExtendedChar) { executed = true; }});
             map.Erase(L'b');
             CHECK(!map.Execute(L'b'));
@@ -201,7 +201,8 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.Insert(
                 L'c',
                 {.category = KeyCommandsMap::Category::kDirection,
-                 .description = Description{LazyString{L"Test callback"}},
+                 .description =
+                     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Test")},
                  .handler = [](ExtendedChar) { /* Handler code here */ }});
             CHECK(map.FindCallbackOrNull(L'c') != nullptr);
           }},
@@ -214,7 +215,8 @@ const bool key_commands_map_tests_registration = tests::Register(
                 .Insert(
                     L'd',
                     {.category = KeyCommandsMap::Category::kStructure,
-                     .description = Description{LazyString{L"OnHandle test"}},
+                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                         L"OnHandle test")},
                      .handler = [](ExtendedChar) { /* Handler code here */ }});
             for (size_t i = 0; i < 5; i++) {
               CHECK_EQ(on_handle_executions, i);
@@ -259,19 +261,23 @@ const bool key_commands_map_tests_registration = tests::Register(
             KeyCommandsMap map;
             size_t execution_count[3] = {0, 0, 0};
 
-            map.Insert(L'0',
-                       {.category = KeyCommandsMap::Category::kStringControl,
-                        .description = Description{LazyString{L"Execute0"}},
-                        .handler = [&](ExtendedChar) { execution_count[0]++; }})
+            map.Insert(
+                   L'0',
+                   {.category = KeyCommandsMap::Category::kStringControl,
+                    .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                        L"Execute0")},
+                    .handler = [&](ExtendedChar) { execution_count[0]++; }})
                 .Insert(
                     L'1',
                     {.category = KeyCommandsMap::Category::kRepetitions,
-                     .description = Description{LazyString{L"Execute1"}},
+                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                         L"Execute1")},
                      .handler = [&](ExtendedChar) { execution_count[1]++; }})
                 .Insert(
                     L'2',
                     {.category = KeyCommandsMap::Category::kDirection,
-                     .description = Description{LazyString{L"Execute2"}},
+                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                         L"Execute2")},
                      .handler = [&](ExtendedChar) { execution_count[2]++; }});
 
             map.Execute(L'0');
@@ -295,7 +301,8 @@ const bool key_commands_map_tests_registration = tests::Register(
 
         map.Insert(L'0',
                    {.category = KeyCommandsMap::Category::kStringControl,
-                    .description = Description{LazyString{L"Handler for '0'"}},
+                    .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                        L"Handler for '0'")},
                     .handler =
                         [&executions](ExtendedChar c) {
                           CHECK(c == ExtendedChar(L'0'));
@@ -303,7 +310,8 @@ const bool key_commands_map_tests_registration = tests::Register(
                         }})
             .Insert(L'1',
                     {.category = KeyCommandsMap::Category::kRepetitions,
-                     .description = Description{LazyString{L"Handler for '1'"}},
+                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                         L"Handler for '1'")},
                      .handler =
                          [&executions](ExtendedChar c) {
                            CHECK(c == ExtendedChar(L'1'));
@@ -311,7 +319,8 @@ const bool key_commands_map_tests_registration = tests::Register(
                          }})
             .Insert(L'2',
                     {.category = KeyCommandsMap::Category::kDirection,
-                     .description = Description{LazyString{L"Handler for '2'"}},
+                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
+                         L"Handler for '2'")},
                      .handler = [&executions](ExtendedChar c) {
                        CHECK(c == ExtendedChar(L'2'));
                        executions++;
