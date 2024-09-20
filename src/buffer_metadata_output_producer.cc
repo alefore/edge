@@ -70,7 +70,7 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
                     : connect_final_char;
 }
 
-LazyString DrawTree(LineNumber line, LineNumberDelta lines_size,
+SingleLine DrawTree(LineNumber line, LineNumberDelta lines_size,
                     const ParseTree& root) {
   TRACK_OPERATION(BufferMetadataOutput_DrawTree);
 
@@ -135,7 +135,7 @@ LazyString DrawTree(LineNumber line, LineNumberDelta lines_size,
   }
   // TODO(easy, 2024-07-26): Turn `output` to a LazyString to avoid
   // conversion.
-  return LazyString{output};
+  return SingleLine{LazyString{output}};
 }
 
 struct MetadataLine {
@@ -359,9 +359,7 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
 
   auto parse_tree = options.buffer.simplified_parse_tree();
   line_options.AppendString(
-      // TODO(easy, 2024-09-19): Avoid wrapping here.
-      SingleLine{
-          DrawTree(line, options.buffer.lines_size(), parse_tree.value())},
+      DrawTree(line, options.buffer.lines_size(), parse_tree.value()),
       std::nullopt);
 
   if (options.buffer.lines_size() >
