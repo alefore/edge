@@ -461,7 +461,7 @@ LineBuilder GetBufferContents(const LineSequence& contents,
 }
 
 LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
-                                   std::wstring name,
+                                   SingleLine buffer_name,
                                    const LineSequence& contents,
                                    LineModifierSet modifiers,
                                    SelectionState selection_state,
@@ -492,9 +492,7 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   LineBuilder output;
   std::visit(
       overload{[&](Error) {
-                 SingleLine output_name =
-                     LineSequence::BreakLines(LazyString{std::move(name)})
-                         .FoldLines();
+                 SingleLine output_name = buffer_name;
                  if (output_name.size() > ColumnNumberDelta(2) &&
                      output_name.get(ColumnNumber(0)) == L'$' &&
                      output_name.get(ColumnNumber(1)) == L' ') {
@@ -520,15 +518,13 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   return output;
 }
 
-// GLOG_alsologtostderr=y ./edge --tests=run
-// --tests_filter=GetBufferVisibleString.LongExtension
 const bool get_buffer_visible_string_tests_registration = tests::Register(
     L"GetBufferVisibleString",
     std::vector<tests::Test>{
         {.name = L"LongExtension", .callback = [] {
            GetBufferVisibleString(
-               ColumnNumberDelta(48), L"name_irrelevant", LineSequence(),
-               LineModifierSet{}, SelectionState::kIdle,
+               ColumnNumberDelta(48), SINGLE_LINE_CONSTANT(L"name_irrelevant"),
+               LineSequence(), LineModifierSet{}, SelectionState::kIdle,
                ValueOrDie(
                    ValueOrDie(Path::New(LazyString{
                                   L"edge-clang/edge/src/args.cc/.edge_state"}))
@@ -737,8 +733,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             if (columns_width[j] > prefix_width) {
               LineBuilder visible_string = GetBufferVisibleString(
                   columns_width[j] - prefix_width,
-                  // TODO(trivial, 2024-09-11): Get rid of call to ToString.
-                  buffer.Read(buffer_variables::name).ToString(),
+                  LineSequence::BreakLines(buffer.Read(buffer_variables::name))
+                      .FoldLines(),
                   buffer.contents().snapshot(),
                   buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                  : LineModifierSet{},
