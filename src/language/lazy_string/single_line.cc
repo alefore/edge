@@ -37,6 +37,11 @@ SingleLine SingleLine::Append(SingleLine other) const {
   return SingleLine{read().Append(other.read())};
 }
 
+SingleLine& SingleLine::operator=(const NonEmptySingleLine& other) {
+  *this = other.read();
+  return *this;
+}
+
 NonEmptySingleLine::NonEmptySingleLine(int i)
     : NonEmptySingleLine(SingleLine{LazyString{std::to_wstring(i)}}) {}
 

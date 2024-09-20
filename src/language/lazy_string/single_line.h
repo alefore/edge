@@ -19,6 +19,8 @@ constexpr bool ContainsNewline(const wchar_t* input) {
 }
 }  // namespace internal
 
+class NonEmptySingleLine;
+
 class SingleLine
     : public GhostType<SingleLine, LazyString, SingleLineValidator> {
  public:
@@ -47,12 +49,15 @@ class SingleLine
   SingleLine Substring(ColumnNumber, ColumnNumberDelta) const;
   SingleLine SubstringWithRangeChecks(ColumnNumber, ColumnNumberDelta) const;
   SingleLine Append(SingleLine) const;
+
+  // For convenience:
+  SingleLine& operator=(const NonEmptySingleLine& other);
 };
 
-#define SINGLE_LINE_CONSTANT(x)                  \
-  std::invoke([] {                               \
-    static constexpr wchar_t kMessage[] = x;     \
-    return SingleLine::FromConstant<kMessage>(); \
+#define SINGLE_LINE_CONSTANT(x)                                              \
+  std::invoke([] {                                                           \
+    static constexpr wchar_t kMessage[] = x;                                 \
+    return afc::language::lazy_string::SingleLine::FromConstant<kMessage>(); \
   })
 
 struct NonEmptySingleLineValidator {
