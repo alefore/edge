@@ -23,10 +23,10 @@
 
 namespace afc::language::text {
 struct LineMetadataEntry {
-  language::lazy_string::LazyString get_value() const;
+  lazy_string::LazyString get_value() const;
 
-  language::lazy_string::LazyString initial_value;
-  futures::ListenableValue<language::lazy_string::LazyString> value;
+  lazy_string::LazyString initial_value;
+  futures::ListenableValue<lazy_string::LazyString> value;
 };
 
 struct OutgoingLink {
@@ -42,36 +42,34 @@ class Line {
   Line() : Line(Line::Data{}) {}
 
   // TODO(2024-01-24): Get rid of this function.
-  explicit Line(language::lazy_string::LazyString text);
-  explicit Line(language::lazy_string::SingleLine text);
-  explicit Line(language::lazy_string::NonEmptySingleLine text);
+  explicit Line(lazy_string::LazyString text);
+  explicit Line(lazy_string::SingleLine text);
+  explicit Line(lazy_string::NonEmptySingleLine text);
 
   Line(const Line& line);
 
-  language::lazy_string::SingleLine contents() const;
-  language::lazy_string::ColumnNumber EndColumn() const;
+  lazy_string::SingleLine contents() const;
+  lazy_string::ColumnNumber EndColumn() const;
   bool empty() const;
 
-  wchar_t get(language::lazy_string::ColumnNumber column) const;
-  language::lazy_string::SingleLine Substring(
-      language::lazy_string::ColumnNumber column,
-      language::lazy_string::ColumnNumberDelta length) const;
+  wchar_t get(lazy_string::ColumnNumber column) const;
+  lazy_string::SingleLine Substring(
+      lazy_string::ColumnNumber column,
+      lazy_string::ColumnNumberDelta length) const;
 
   // Returns the substring from pos to the end of the string.
-  language::lazy_string::SingleLine Substring(
-      language::lazy_string::ColumnNumber column) const;
+  lazy_string::SingleLine Substring(lazy_string::ColumnNumber column) const;
 
   std::wstring ToString() const { return contents().read().ToString(); }
 
-  const std::map<language::lazy_string::LazyString, LineMetadataEntry>&
-  metadata() const;
-  const std::map<language::lazy_string::ColumnNumber,
+  const std::map<lazy_string::LazyString, LineMetadataEntry>& metadata() const;
+  const std::map<lazy_string::ColumnNumber,
                  afc::infrastructure::screen::LineModifierSet>&
   modifiers() const;
 
   // Returns the modifiers that should be applied at a given column.
   afc::infrastructure::screen::LineModifierSet modifiers_at_position(
-      language::lazy_string::ColumnNumber column) const;
+      lazy_string::ColumnNumber column) const;
 
   afc::infrastructure::screen::LineModifierSet end_of_line_modifiers() const;
 
@@ -89,14 +87,13 @@ class Line {
 
  private:
   struct Data {
-    language::lazy_string::SingleLine contents =
-        language::lazy_string::SingleLine{};
+    lazy_string::SingleLine contents = lazy_string::SingleLine{};
 
     // Columns without an entry here reuse the last present value. If no
     // previous value, assume afc::infrastructure::screen::LineModifierSet().
     // There's no need to include RESET: it is assumed implicitly. In other
     // words, modifiers don't carry over past an entry.
-    std::map<language::lazy_string::ColumnNumber,
+    std::map<lazy_string::ColumnNumber,
              afc::infrastructure::screen::LineModifierSet>
         modifiers = {};
 
@@ -109,13 +106,13 @@ class Line {
     // second line.
     afc::infrastructure::screen::LineModifierSet end_of_line_modifiers = {};
 
-    std::map<language::lazy_string::LazyString, LineMetadataEntry> metadata;
+    std::map<lazy_string::LazyString, LineMetadataEntry> metadata;
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
     CachedSupplier<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
         CachedSupplier<ValueOrError<vm::EscapedMap>>{[] {
           return language::Error{
-              language::lazy_string::LazyString{L"No escaped map supplier."}};
+              lazy_string::LazyString{L"No escaped map supplier."}};
         }};
   };
 
@@ -127,6 +124,8 @@ class Line {
   language::NonNull<std::shared_ptr<const Data>> data_;
   size_t hash_;
 };
+
+lazy_string::LazyString ToLazyString(const Line& line);
 
 std::ostream& operator<<(std::ostream& os, const Line&);
 }  // namespace afc::language::text

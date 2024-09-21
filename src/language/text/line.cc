@@ -147,6 +147,10 @@ bool Line::operator<(const Line& other) const {
   return contents() < other.contents();
 }
 
+lazy_string::LazyString ToLazyString(const Line& line) {
+  return ToLazyString(line.contents());
+}
+
 std::ostream& operator<<(std::ostream& os, const Line& line) {
   os << line.contents();
   return os;
