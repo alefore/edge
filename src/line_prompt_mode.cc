@@ -32,7 +32,6 @@
 #include "src/language/overload.h"
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
-#include "src/math/naive_bayes.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
