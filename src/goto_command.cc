@@ -166,11 +166,12 @@ class GotoCommand : public Command {
 
   void ProcessInput(ExtendedChar c) override {
     if (c != ExtendedChar('g')) {
-      // TODO(trivial, 2024-07-30): Allow the old redirect to be deleted; just
-      // make sure we use a copy of editor_state_ instead.
-      std::optional<language::gc::Root<InputReceiver>> old_mode =
-          editor_state_.set_keyboard_redirect(std::nullopt);
-      editor_state_.ProcessInput({c});
+      // The call to set_keyboard_redirect may delete `this`, so we ensure we
+      // capture explicitly everything we need:
+      std::invoke([&editor = editor_state_, c] {
+        editor.set_keyboard_redirect(std::nullopt);
+        editor.ProcessInput({c});
+      });
       return;
     }
     auto structure = editor_state_.structure();
