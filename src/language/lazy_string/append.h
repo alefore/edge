@@ -10,15 +10,23 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
+class SingleLine;
+class NonEmptySingleLine;
+
 template <std::ranges::range R>
 auto Concatenate(R&& inputs) {
-  using Type = typename std::remove_const<
+  using InputType = typename std::remove_const<
       typename std::remove_reference<decltype(*inputs.begin())>::type>::type;
+  // The concatenation of non-empty lines … can still be empty (because the
+  // sequence may itself be empty). So we short-circuit this case.
+  using OutputType =
+      std::conditional_t<std::is_same_v<InputType, NonEmptySingleLine>,
+                         SingleLine, InputType>;
   return container::Fold(
       [](auto fragment, auto total) {
         return std::move(total) + std::move(fragment);
       },
-      Type{}, inputs);
+      OutputType{}, inputs);
 }
 
 // Returns a range transformation that can be used to intersperse a given
