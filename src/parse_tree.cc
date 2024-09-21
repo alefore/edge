@@ -33,6 +33,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
@@ -52,33 +53,35 @@ const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<Protected<
 
 namespace afc::editor {
 /* static */ const ParserId& ParserId::Text() {
-  static const ParserId output{LazyString{L"text"}};
-  return output;
+  static const ParserId* output = new ParserId{LazyString{L"text"}};
+  return *output;
 }
 /* static */ const ParserId& ParserId::Cpp() {
-  static const ParserId output{LazyString{L"cpp"}};
-  return output;
+  static const ParserId* output = new ParserId{LazyString{L"cpp"}};
+  return *output;
 }
 /* static */ const ParserId& ParserId::Diff() {
-  static const ParserId output{LazyString{L"diff"}};
-  return output;
+  static const ParserId* output = new ParserId{LazyString{L"diff"}};
+  return *output;
 }
 /* static */ const ParserId& ParserId::Markdown() {
-  static const ParserId output{LazyString{L"md"}};
-  return output;
+  static const ParserId* output = new ParserId{LazyString{L"md"}};
+  return *output;
 }
 /* static */ const ParserId& ParserId::Csv() {
-  static const ParserId output{LazyString{L"csv"}};
-  return output;
+  static const ParserId* output = new ParserId{LazyString{L"csv"}};
+  return *output;
 }
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
-  static const auto* output = new ParseTreeProperty(L"link");
+  static const auto* output =
+      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link")};
   return *output;
 }
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::LinkTarget() {
-  static const auto* output = new ParseTreeProperty(L"link_target");
+  static const auto* output =
+      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link_target")};
   return *output;
 }
 
@@ -86,27 +89,33 @@ namespace afc::editor {
   static const std::vector<ParseTreeProperty>* values = [] {
     auto output = new std::vector<ParseTreeProperty>();
     for (int i = 0; i < 32; i++)
-      output->push_back(ParseTreeProperty(L"table_cell_" + std::to_wstring(i)));
+      output->push_back(
+          ParseTreeProperty(NON_EMPTY_SINGLE_LINE_CONSTANT(L"table_cell_") +
+                            NonEmptySingleLine(i)));
     return output;
   }();
   if (id < values->size()) return values->at(id);
   // TODO(easy, 2023-09-16): Would be good to be able to support this better.
-  static const ParseTreeProperty output(L"table_cell_infty");
+  static const ParseTreeProperty output{
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"table_cell_infty")};
   return output;
 }
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::CellContent() {
-  static const auto* output = new ParseTreeProperty(L"cell_content");
+  static const auto* output =
+      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cell_content")};
   return *output;
 }
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::StringValue() {
-  static const auto* output = new ParseTreeProperty(L"string_value");
+  static const auto* output =
+      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"string_value")};
   return *output;
 }
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::NumberValue() {
-  static const auto* output = new ParseTreeProperty(L"number_value");
+  static const auto* output =
+      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"number_value")};
   return *output;
 }
 
@@ -407,7 +416,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                 NonNull<std::shared_ptr<const ParseTree>>>::object_type_name);
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"children"}}}},
+      Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"children")},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
@@ -427,7 +436,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"range"}}}},
+      Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"range")},
       vm::NewCallback(pool, kPurityTypeReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
@@ -435,7 +444,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"properties"}}}},
+      Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"properties")},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
@@ -444,9 +453,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                     tree->properties() |
                     std::views::transform(
                         [](const ParseTreeProperty& property) {
-                          // TODO(trivial, 2024-09-21): Change ParseTreeProperty
-                          // to be able to avoid having to wrap here.
-                          return LazyString{property.read()};
+                          return ToLazyString(property);
                         }))));
           })
           .ptr());

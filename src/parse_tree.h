@@ -11,6 +11,7 @@
 #include "src/language/ghost_type.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
@@ -33,7 +34,10 @@ class ParserId
 };
 
 class ParseTreeProperty
-    : public language::GhostType<ParseTreeProperty, std::wstring> {
+    : public language::GhostType<ParseTreeProperty,
+                                 language::lazy_string::NonEmptySingleLine> {
+  using GhostType::GhostType;
+
  public:
   static const ParseTreeProperty& Link();
   static const ParseTreeProperty& LinkTarget();
@@ -43,9 +47,6 @@ class ParseTreeProperty
 
   static const ParseTreeProperty& StringValue();
   static const ParseTreeProperty& NumberValue();
-
- private:
-  using GhostType::GhostType;
 };
 
 class ParseTree {
