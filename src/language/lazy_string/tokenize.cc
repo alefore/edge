@@ -170,9 +170,9 @@ namespace {
 // otherwise, it is case-sensitive.
 std::optional<Token> FindPrefixInTokens(NonEmptySingleLine prefix,
                                         std::vector<Token> name_tokens) {
+  const bool all_lower = prefix == LowerCase(prefix);
   for (const Token& name_token : name_tokens)
-    if (StartsWith(prefix == LowerCase(prefix) ? LowerCase(name_token.value)
-                                               : name_token.value,
+    if (StartsWith(all_lower ? LowerCase(name_token.value) : name_token.value,
                    prefix))
       return Token{
           .value = NonEmptySingleLine(name_token.value.read().Substring(
