@@ -14,6 +14,7 @@
 #include "src/key_commands_map.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/trim.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -53,6 +54,7 @@ using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::TrimLeft;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -1296,15 +1298,12 @@ class OperationMode : public EditorMode {
 }  // namespace
 
 SingleLine CommandArgumentRepetitions::ToString() const {
-  SingleLine output;
-  // TODO(trivial, 2024-09-20): Switch to Concatenate/Intersperse.
-  for (int r : get_list()) {
-    // TODO(trivial, 2024-09-20): Define operator+, use it below:
-    if (!output.empty() && r > 0) output = output + SINGLE_LINE_CONSTANT(L"+");
-    // TODO(trivial, 2024-09-20): Define operator+, use it below:
-    output = output + NonEmptySingleLine(r);
-  }
-  return output;
+  return TrimLeft(
+      Concatenate(get_list() | std::views::transform([](int r) {
+                    return (r > 0 ? SingleLine::Char<L'+'>() : SingleLine{}) +
+                           NonEmptySingleLine(r);
+                  })),
+      {L'+'});
 }
 
 int CommandArgumentRepetitions::get() const {
