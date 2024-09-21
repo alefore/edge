@@ -105,9 +105,9 @@ class Handler {
     return {
         Handler<ParsedValues>({FlagName{L"help"}, FlagName{L"h"}},
                               FlagShortHelp{L"Display help and exit"})
-            .SetHelp(
+            .SetHelp(language::lazy_string::LazyString{
                 L"The `--help` command-line argument displays a brief overview "
-                L"of the available command line arguments and exits.")
+                L"of the available command line arguments and exits."})
             .Run([](ParsingData<ParsedValues>* data) { DisplayHelp(data); }),
         Handler<ParsedValues>({FlagName{L"tests"}},
                               FlagShortHelp{L"Unit tests behavior"})
@@ -292,14 +292,12 @@ class Handler {
 
   const std::vector<FlagName>& aliases() const { return aliases_; }
   const FlagShortHelp& short_help() const { return short_help_; }
-  Handler<ParsedValues>& SetHelp(std::wstring help) {
+  Handler<ParsedValues>& SetHelp(language::lazy_string::LazyString help) {
     help_ = std::move(help);
     return *this;
   }
   language::lazy_string::LazyString help() const {
-    // TODO(trivial, 2024-09-13): Avoid need to wrap help_.
-    return help_.empty() ? short_help_.GetLazyString()
-                         : language::lazy_string::LazyString{help_};
+    return help_.empty() ? short_help_.GetLazyString() : help_;
   }
   std::wstring argument() const { return name_; }
   std::wstring argument_description() const { return argument_description_; }
@@ -374,7 +372,7 @@ class Handler {
 
   std::vector<FlagName> aliases_;
   FlagShortHelp short_help_;
-  std::wstring help_;
+  language::lazy_string::LazyString help_;
 
   VariableType type_ = VariableType::kNone;
   std::wstring name_;

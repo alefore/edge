@@ -102,25 +102,25 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>(
           {FlagName{L"fork"}, FlagName{L"f"}},
           FlagShortHelp{L"Create a buffer running a shell command"})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"The `--fork` command-line argument must be followed by a shell "
               L"command. Edge will create a buffer running that command.\n\n"
               L"Example:\n\n"
               L"    edge --fork \"ls -lR /tmp\" --fork \"make\"\n\n"
               L"If Edge is running nested (inside an existing Edge), it will "
-              L"cause the parent instance to open those buffers.")
+              L"cause the parent instance to open those buffers."})
           .Require(L"shellcmd", L"Shell command to run")
           .PushBackTo(&CommandLineValues::commands_to_fork),
 
       Handler<CommandLineValues>({FlagName{L"run"}},
                                  FlagShortHelp{L"Run a VM command"})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"The `--run` command-line argument must be followed by a string "
               L"with a VM command to run.\n\n"
               L"Example:\n\n"
               L"    edge --run 'string flags = \"-R\"; editor.ForkCommand(\"ls "
               L"\" + "
-              L"flags, true);'\n\n")
+              L"flags, true);'\n\n"})
           .Require(L"vmcmd", L"VM command to run")
           .AppendTo(&CommandLineValues::commands_to_run),
 
@@ -139,7 +139,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>(
           {FlagName{L"server"}, FlagName{L"s"}},
           FlagShortHelp{L"Run in daemon mode (at an optional path)"})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"The `--server` command-line argument causes Edge to run in "
               L"*background* mode: without reading any input from stdin nor "
               L"producing any output to stdout. Instead, Edge will wait for "
@@ -159,7 +159,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"You can then connect a client:\n\n"
               L"    edge --client /tmp/edge-server-blah"
               L"If your session is terminated (e.g. your SSH connection dies), "
-              L"you can run the client command again.")
+              L"you can run the client command again."})
           .Accept(L"path", L"Path to the pipe in which to run the server")
           .Set(&CommandLineValues::server_path,
                [](LazyString input) -> ValueOrError<std::optional<Path>> {
@@ -202,7 +202,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 
       Handler<CommandLineValues>({FlagName{L"X"}},
                                  FlagShortHelp{L"If nested, exit early"})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"When `edge` runs nested (i.e., under a parent instance), the "
               L"child instance will not create any buffers for any files that "
               L"the user may have passed as command-line arguments nor any "
@@ -216,7 +216,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"nested instance of Edge. However, when `-X` is given, the "
               L"child instance will exit as soon as it has successfully "
               L"communicated with the parent (without waiting for the user to "
-              L"delete corresponding buffers.")
+              L"delete corresponding buffers."})
           .Set(&CommandLineValues::nested_edge_behavior,
                CommandLineValues::NestedEdgeBehavior::kExitEarly),
 
@@ -268,35 +268,35 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>(
           {FlagName{L"p"}},
           FlagShortHelp{L"Apply search paths to initial local paths."})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"Apply search paths  initial local paths: local paths given on "
               L"the command line (in the invocation to Edge) will be looked up "
               L"based on search paths (rather than simply attempting to open "
-              L"them as relative paths to the current working directory).")
+              L"them as relative paths to the current working directory)."})
           .Set(&CommandLineValues::initial_path_resolution_behavior,
                CommandLineValues::LocalPathResolutionBehavior::kAdvanced),
 
       Handler<CommandLineValues>(
           {FlagName{L"prompt_history_read_only"}},
           FlagShortHelp{L"Don't append new entries to prompt history."})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"By default, Edge appends new values given to prompts (e.g., "
               L"the open file or execute command prompts) to corresponding "
               L"files in the Edge runtime path (e.g., ~/.edge or $EDGE_PATH). "
               L"If this flag is given, that functionality is disabled (but "
-              L"Edge will still attempt to read prompt history files).")
+              L"Edge will still attempt to read prompt history files)."})
           .Set(&CommandLineValues::prompt_history_behavior,
                CommandLineValues::HistoryFileBehavior::kReadOnly),
 
       Handler<CommandLineValues>(
           {FlagName{L"positions_history_read_only"}},
           FlagShortHelp{L"Don't append new entries to positions history."})
-          .SetHelp(
+          .SetHelp(LazyString{
               L"By default, Edge keeps track of positions you've visited in "
               L"`$EDGE_PATH/positions`. If this flag is given, that "
               L"functionality "
               L"is disabled (but Edge may still attempt to read previous "
-              L"state).")
+              L"state)."})
           .Set(&CommandLineValues::positions_history_behavior,
                CommandLineValues::HistoryFileBehavior::kReadOnly)};
   return handlers;
