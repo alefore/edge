@@ -4,6 +4,7 @@
 #include "src/buffer_variables.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/container.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/line_with_cursor.h"
 #include "src/path_flags.h"
@@ -26,23 +27,23 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
   using flags::Color;
   using flags::InputKey;
   using flags::InputValue;
-  InputKey path(L"path");
+  static const InputKey path{NON_EMPTY_SINGLE_LINE_CONSTANT(L"path")};
 
   static const std::map<Color, LineModifier> modifiers = {
-      {Color(L"red"), LineModifier::kRed},
-      {Color(L"green"), LineModifier::kGreen},
-      {Color(L"blue"), LineModifier::kBlue},
-      {Color(L"cyan"), LineModifier::kCyan},
-      {Color(L"yellow"), LineModifier::kYellow},
-      {Color(L"magenta"), LineModifier::kMagenta},
-      {Color(L"white"), LineModifier::kWhite}};
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"red")}, LineModifier::kRed},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"green")}, LineModifier::kGreen},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"blue")}, LineModifier::kBlue},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cyan")}, LineModifier::kCyan},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"yellow")}, LineModifier::kYellow},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"magenta")},
+       LineModifier::kMagenta},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"white")}, LineModifier::kWhite}};
   static const std::vector<Color> color_values = container::MaterializeVector(
       modifiers | std::views::transform([](auto p) { return p.first; }));
   std::vector<InputKey> spec = {path, path, path};
   std::vector<Color> flag = flags::GenerateFlags(
       spec, color_values,
-      // TODO(trivial, 2024-09-11): Avoid call to ToString.
-      {{path, InputValue(buffer.Read(buffer_variables::path).ToString())}});
+      {{path, InputValue{buffer.Read(buffer_variables::path)}}});
   CHECK_EQ(flag.size(), spec.size());
   return container::MaterializeVector(flag |
                                       std::views::transform([](Color color) {
