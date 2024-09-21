@@ -18,7 +18,7 @@ namespace afc::editor {
 class BufferSyntaxParser {
  public:
   struct ParserOptions {
-    ParserId parser_name;
+    std::optional<ParserId> parser_name;
     std::unordered_set<language::lazy_string::NonEmptySingleLine> typos_set;
     std::unordered_set<language::lazy_string::NonEmptySingleLine>
         language_keywords;

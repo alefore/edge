@@ -23,9 +23,11 @@ namespace afc::editor {
 enum class IdentifierBehavior { kNone, kColorByHash };
 
 class ParserId
-    : public language::GhostType<ParserId, language::lazy_string::LazyString> {
+    : public language::GhostType<ParserId,
+                                 language::lazy_string::NonEmptySingleLine> {
  public:
   using GhostType::GhostType;
+
   static const ParserId& Text();
   static const ParserId& Cpp();
   static const ParserId& Diff();

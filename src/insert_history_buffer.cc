@@ -40,7 +40,8 @@ void ShowInsertHistoryBuffer(EditorState& editor) {
                        .generate_contents = &InsertHistoryBufferContents});
   OpenBuffer& buffer = buffer_root.ptr().value();
 
-  buffer.Set(buffer_variables::tree_parser, ParserId::Markdown().read());
+  buffer.Set(buffer_variables::tree_parser,
+             ToLazyString(ParserId::Markdown().read()));
   buffer.Set(buffer_variables::wrap_from_content, true);
   buffer.Set(buffer_variables::allow_dirty_delete, true);
 

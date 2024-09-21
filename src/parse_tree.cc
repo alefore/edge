@@ -53,23 +53,28 @@ const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<Protected<
 
 namespace afc::editor {
 /* static */ const ParserId& ParserId::Text() {
-  static const ParserId* output = new ParserId{LazyString{L"text"}};
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"text")};
   return *output;
 }
 /* static */ const ParserId& ParserId::Cpp() {
-  static const ParserId* output = new ParserId{LazyString{L"cpp"}};
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cpp")};
   return *output;
 }
 /* static */ const ParserId& ParserId::Diff() {
-  static const ParserId* output = new ParserId{LazyString{L"diff"}};
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"diff")};
   return *output;
 }
 /* static */ const ParserId& ParserId::Markdown() {
-  static const ParserId* output = new ParserId{LazyString{L"md"}};
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"md")};
   return *output;
 }
 /* static */ const ParserId& ParserId::Csv() {
-  static const ParserId* output = new ParserId{LazyString{L"csv"}};
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"csv")};
   return *output;
 }
 

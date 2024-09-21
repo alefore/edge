@@ -110,6 +110,7 @@ using afc::language::NonNull;
 using afc::language::ObservableValue;
 using afc::language::Observers;
 using afc::language::OnceOnlyFunction;
+using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::Pointer;
 using afc::language::PossibleError;
@@ -671,8 +672,8 @@ void OpenBuffer::UpdateTreeParser() {
       })
       .Transform([this, root_this = NewRoot()](SortedLineSequence dictionary) {
         buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
-            .parser_name =
-                ParserId{ReadLazyString(buffer_variables::tree_parser)},
+            .parser_name = OptionalFrom(ParserId::New(NonEmptySingleLine::New(
+                SingleLine::New(Read(buffer_variables::tree_parser))))),
             .typos_set = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(
                     LineSequence::BreakLines(Read(buffer_variables::typos))

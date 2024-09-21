@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/parsers/markdown.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
@@ -181,7 +182,8 @@ class HelpCommand : public Command {
   static futures::Value<language::PossibleError> GenerateContents(
       const MapModeCommands& commands, gc::Root<OpenBuffer> input,
       OpenBuffer& output) {
-    output.Set(buffer_variables::tree_parser, ParserId::Markdown().read());
+    output.Set(buffer_variables::tree_parser,
+               language::lazy_string::ToLazyString(ParserId::Markdown()));
     output.Set(buffer_variables::wrap_from_content, true);
     output.Set(buffer_variables::allow_dirty_delete, true);
     output.InsertInPosition(GenerateLines(commands, input.ptr().value()),

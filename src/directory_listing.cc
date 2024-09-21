@@ -8,6 +8,7 @@
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/line_prompt_mode.h"
 #include "src/parsers/markdown.h"
@@ -37,6 +38,7 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineSequence;
@@ -206,7 +208,8 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
   LOG(INFO) << "GenerateDirectoryListing: " << path;
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
-  output.Set(buffer_variables::tree_parser, ParserId::Markdown().read());
+  output.Set(buffer_variables::tree_parser,
+             language::lazy_string::ToLazyString(ParserId::Markdown()));
   output.AppendToLastLine(
       SINGLE_LINE_CONSTANT(L"# 🗁  File listing: ") +
       vm::EscapedString::FromString(path.read()).EscapedRepresentation());
