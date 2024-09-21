@@ -166,12 +166,14 @@ std::vector<Token> TokenizeNameForPrefixSearches(const SingleLine& name) {
 
 namespace {
 // Does any of the elements in `name_tokens` start with `prefix`? If so, returns
-// a corresponding token.
+// a corresponding token. If `prefix` is all lower-case, the match ignores case;
+// otherwise, it is case-sensitive.
 std::optional<Token> FindPrefixInTokens(NonEmptySingleLine prefix,
                                         std::vector<Token> name_tokens) {
-  prefix = LowerCase(prefix);
   for (const Token& name_token : name_tokens)
-    if (StartsWith(LowerCase(name_token.value), prefix))
+    if (StartsWith(prefix == LowerCase(prefix) ? LowerCase(name_token.value)
+                                               : name_token.value,
+                   prefix))
       return Token{
           .value = NonEmptySingleLine(name_token.value.read().Substring(
               ColumnNumber(0), ColumnNumberDelta(prefix.size()))),
@@ -179,6 +181,57 @@ std::optional<Token> FindPrefixInTokens(NonEmptySingleLine prefix,
           .end = name_token.begin + ColumnNumberDelta(prefix.size())};
   return std::nullopt;
 }
+
+const bool get_synthetic_features_tests_registration = tests::Register(
+    L"FindPrefixInTokens", std::invoke([] {
+      auto test = [](std::wstring name, std::wstring prefix,
+                     std::optional<Token> expected_result) {
+        return tests::Test{
+            .name = name, .callback = [prefix, expected_result] {
+              static const NonEmptySingleLine input =
+                  NON_EMPTY_SINGLE_LINE_CONSTANT(L"foo/bar/quux/SomethingElse");
+              std::optional<Token> result = FindPrefixInTokens(
+                  NonEmptySingleLine(SingleLine(LazyString(prefix))),
+                  ExtendTokensToEndOfString(
+                      input.read(),
+                      TokenizeNameForPrefixSearches(input.read())));
+              if (result.has_value())
+                LOG(INFO) << "Result: " << result.value();
+              else
+                LOG(INFO) << "No match!";
+              CHECK(result == expected_result);
+            }};
+      };
+      return std::vector<tests::Test>{
+          test(L"NoMatch", L"xxxx", std::nullopt),
+          test(L"LowerCaseIdenticalMatch", L"bar",
+               Token{
+                   .value = NON_EMPTY_SINGLE_LINE_CONSTANT(L"bar"),
+                   .begin = ColumnNumber{4},
+                   .end = ColumnNumber{7},
+               }),
+          test(L"UpperCaseIdenticalMatch", L"Somet",
+               Token{
+                   .value = NON_EMPTY_SINGLE_LINE_CONSTANT(L"Somet"),
+                   .begin = ColumnNumber{13},
+                   .end = ColumnNumber{18},
+               }),
+          test(L"LowerCaseDifferentMatch", L"some",
+               Token{
+                   .value = NON_EMPTY_SINGLE_LINE_CONSTANT(L"Some"),
+                   .begin = ColumnNumber{13},
+                   .end = ColumnNumber{17},
+               }),
+          test(L"UpperCaseDifferentMatch", L"bAr", std::nullopt),
+          test(L"NoMatchNotAtStart", L"ome", std::nullopt),
+          test(L"MatchAfterCaseSwitch", L"else",
+               Token{
+                   .value = NON_EMPTY_SINGLE_LINE_CONSTANT(L"Else"),
+                   .begin = ColumnNumber{22},
+                   .end = ColumnNumber{26},
+               }),
+      };
+    }));
 }  // namespace
 
 std::vector<Token> ExtendTokensToEndOfString(SingleLine str,

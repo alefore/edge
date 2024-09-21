@@ -11,7 +11,7 @@
 
 namespace afc::language::lazy_string {
 struct Token {
-  NonEmptySingleLine value = {};
+  NonEmptySingleLine value;
   language::lazy_string::ColumnNumber begin;
   // `end` is the first column that isn't part of the token.
   language::lazy_string::ColumnNumber end;

@@ -130,9 +130,9 @@ ColorizePromptOptions DrawPath(
           }
         }
     }
-    output.tokens.push_back(
-        TokenAndModifiers{.token = {.begin = column, .end = column.next()},
-                          .modifiers = std::move(modifiers)});
+    output.tokens.push_back(TokenAndModifiers{
+        .token = {.value = {}, .begin = column, .end = column.next()},
+        .modifiers = std::move(modifiers)});
   });
   return output;
 }
