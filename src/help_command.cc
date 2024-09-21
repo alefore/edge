@@ -261,7 +261,7 @@ class HelpCommand : public Command {
     for (const auto& category : commands.Coallesce()) {
       // TODO(trivial, 2024-09-11): Turn category.first into SingleLine, avoid
       // wrapping here.
-      StartSection(SingleLine{LazyString{L"### "}} + SingleLine{category.first},
+      StartSection(SINGLE_LINE_CONSTANT(L"### ") + SingleLine{category.first},
                    output);
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
