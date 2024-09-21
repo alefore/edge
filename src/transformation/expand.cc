@@ -117,12 +117,10 @@ class PredictorTransformation : public CompositeTransformation {
               ColumnNumberDelta(results->common_prefix.value().size()) <
                   text.size()) {
             CHECK_LE(results->predictor_output.longest_prefix, text.size());
-            SingleLine prefix = text.Substring(
-                ColumnNumber(0), results->predictor_output.longest_prefix);
-            if (!prefix.size().IsZero()) {
+            if (SingleLine prefix = text.Substring(
+                    ColumnNumber(0), results->predictor_output.longest_prefix);
+                !prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
-              // TODO(trivial, 2024-09-17: Change `prefix` to already be a
-              // SingleLine, to avoid crashing here if it has \n.
               buffer.status().SetInformationText(LineBuilder{
                   SINGLE_LINE_CONSTANT(
                       L"No matches found. Longest prefix with matches: \"") +
