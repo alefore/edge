@@ -439,12 +439,14 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
-            return MakeNonNullShared<Protected<std::set<std::wstring>>>(
+            return MakeNonNullShared<Protected<std::set<LazyString>>>(
                 MakeProtected(container::MaterializeSet(
                     tree->properties() |
                     std::views::transform(
                         [](const ParseTreeProperty& property) {
-                          return property.read();
+                          // TODO(trivial, 2024-09-21): Change ParseTreeProperty
+                          // to be able to avoid having to wrap here.
+                          return LazyString{property.read()};
                         }))));
           })
           .ptr());

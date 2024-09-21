@@ -172,7 +172,7 @@ ValueOrError<ParsedCommand> Parse(
     } else if (function_type->inputs.size() == 1 &&
                function_type->inputs[0] ==
                    vm::GetVMType<NonNull<std::shared_ptr<
-                       Protected<std::vector<std::wstring>>>>>::vmtype()) {
+                       Protected<std::vector<LazyString>>>>>::vmtype()) {
       function_vector = candidate;
     }
   }
@@ -182,13 +182,12 @@ ValueOrError<ParsedCommand> Parse(
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
-    // TODO(2024-01-02, trivial): Convert to vector<LazyString>.
     auto argument_values =
-        MakeNonNullShared<Protected<std::vector<std::wstring>>>(
+        MakeNonNullShared<Protected<std::vector<LazyString>>>(
             container::MaterializeVector(
                 output_tokens | std::views::drop(1) |
                 std::views::transform(
-                    [](auto& v) { return ToLazyString(v.value).ToString(); })));
+                    [](const Token& v) { return ToLazyString(v.value); })));
 
     output_function_inputs.push_back(
         vm::NewConstantExpression(VMTypeMapper<decltype(argument_values)>::New(

@@ -7,6 +7,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
@@ -19,8 +20,10 @@ using afc::language::FromByteString;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::UpperCase;
 using afc::math::numbers::Number;
 
 namespace afc::language::gc {
@@ -34,12 +37,12 @@ namespace gc = language::gc;
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
-    std::shared_ptr<Protected<std::vector<std::wstring>>>>>::object_type_name =
+    std::shared_ptr<Protected<std::vector<LazyString>>>>>::object_type_name =
     types::ObjectName{LazyString{L"VectorString"}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
-    std::shared_ptr<Protected<std::set<std::wstring>>>>>::object_type_name =
+    std::shared_ptr<Protected<std::set<LazyString>>>>>::object_type_name =
     types::ObjectName{LazyString{L"SetString"}};
 
 template <typename Callable>
@@ -53,12 +56,12 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> string_type = ObjectType::New(pool, types::String{});
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"size"}}}}, pool,
-      [](const std::wstring& str) { return str.size(); }, string_type);
+      [](const LazyString& str) { return str.size().read(); }, string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"toint"}}}}, pool,
-      [](const std::wstring& str) -> futures::ValueOrError<int> {
+      [](const LazyString& str) -> futures::ValueOrError<int> {
         try {
-          return futures::Past(Success(std::stoi(str)));
+          return futures::Past(Success(std::stoi(str.ToString())));
         } catch (const std::out_of_range& ia) {
           return futures::Past(Error{LazyString{L"toint: stoi failure: "} +
                                      LazyString{FromByteString(ia.what())}});
@@ -70,21 +73,13 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"empty"}}}}, pool,
-      [](const std::wstring& str) { return str.empty(); }, string_type);
+      [](const LazyString& str) { return str.empty(); }, string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tolower"}}}}, pool,
-      [](std::wstring str) {
-        for (auto& i : str) i = std::tolower(i, std::locale(""));
-        return str;
-      },
-      string_type);
+      [](LazyString str) { return LowerCase(str); }, string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"toupper"}}}}, pool,
-      [](std::wstring str) {
-        for (auto& i : str) i = std::toupper(i, std::locale(""));
-        return str;
-      },
-      string_type);
+      [](LazyString str) { return UpperCase(str); }, string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"shell_escape"}}}},
       pool, language::ShellEscape, string_type);
@@ -102,10 +97,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"starts_with"}}}},
       pool,
-      [](const std::wstring& str, const std::wstring& prefix) {
-        return prefix.size() <= str.size() &&
-               (std::mismatch(prefix.begin(), prefix.end(), str.begin())
-                    .first == prefix.end());
+      [](const LazyString& str, const LazyString& prefix) {
+        return StartsWith(str, prefix);
       },
       string_type);
   AddMethod(
@@ -161,7 +154,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type);
   environment.DefineType(string_type.ptr());
 
-  container::Export<std::vector<std::wstring>>(pool, environment);
-  container::Export<std::set<std::wstring>>(pool, environment);
+  container::Export<std::vector<LazyString>>(pool, environment);
+  container::Export<std::set<LazyString>>(pool, environment);
 }
 }  // namespace afc::vm

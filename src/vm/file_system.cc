@@ -4,6 +4,7 @@
 #include "src/infrastructure/dirname_vm.h"
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
 #include "src/vm/string.h"
@@ -18,6 +19,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::vm {
 void RegisterFileSystemFunctions(
@@ -37,18 +39,16 @@ void RegisterFileSystemFunctions(
           pool, kPurityTypeReader,
           [file_system_driver](LazyString pattern)
               -> futures::ValueOrError<NonNull<
-                  std::shared_ptr<Protected<std::vector<std::wstring>>>>> {
+                  std::shared_ptr<Protected<std::vector<LazyString>>>>> {
             return file_system_driver->Glob(pattern).Transform(
                 [](std::vector<Path> input)
-                    -> language::ValueOrError<NonNull<std::shared_ptr<
-                        Protected<std::vector<std::wstring>>>>> {
+                    -> language::ValueOrError<NonNull<
+                        std::shared_ptr<Protected<std::vector<LazyString>>>>> {
                   return language::Success(
-                      MakeNonNullShared<Protected<std::vector<std::wstring>>>(
+                      MakeNonNullShared<Protected<std::vector<LazyString>>>(
                           MakeProtected(language::container::MaterializeVector(
                               input | std::views::transform([](Path& path) {
-                                // TODO(2024-08-04): Change VectorString to use
-                                // LazyString and avoid the call to ToString.
-                                return path.read().ToString();
+                                return ToLazyString(path);
                               })))));
                 });
           }));

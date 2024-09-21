@@ -32,6 +32,7 @@ class ParserId
   static const ParserId& Csv();
 };
 
+// TODO(easy, 2024-09-21): Convert to GhostType?
 class ParseTreeProperty {
  public:
   static const ParseTreeProperty& Link();

@@ -28,16 +28,15 @@ using afc::vm::kPurityTypeUnknown;
 
 namespace afc ::editor {
 futures::ValueOrError<
-    NonNull<std::shared_ptr<Protected<std::vector<std::wstring>>>>>
-Justify(
-    NonNull<std::shared_ptr<Protected<std::vector<std::wstring>>>> input_ptr,
-    int width) {
-  return input_ptr->lock([&](std::vector<std::wstring>& input) {
+    NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>>>
+Justify(NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> input_ptr,
+        int width) {
+  return input_ptr->lock([&](std::vector<LazyString>& input) {
     LOG(INFO) << "Evaluating breaks with inputs: " << input.size();
 
     // Push back a dummy string for the end. This is the goal of our graph
     // search.
-    input.push_back(L"*");
+    input.push_back(LazyString{L"*"});
 
     // At position i, contains the best solution to reach word i. The values are
     // the cost of the solution, and the solution itself.
@@ -48,7 +47,7 @@ Justify(
         continue;
       }
       // Consider doing the next break (after word i) at word next.
-      int length = input[i].size();
+      int length = input[i].size().read();
       for (size_t next = i + 1; next < input.size(); next++) {
         if (length > width) {
           continue;  // Line was too long, this won't work.
@@ -62,18 +61,20 @@ Justify(
           std::get<1>(options[next]) = std::get<1>(options[i]);
           std::get<1>(options[next]).push_back(next);
         }
-        length += 1 + input[next].size();
+        length += 1 + input[next].size().read();
       }
     }
-    NonNull<std::shared_ptr<Protected<std::vector<std::wstring>>>>
+    NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>>
         protected_output;
-    protected_output->lock([&](std::vector<std::wstring> output) {
+    protected_output->lock([&](std::vector<LazyString> output) {
       auto route = std::get<1>(options.back());
       for (size_t line = 0; line < route.size(); line++) {
         size_t previous_word = line == 0 ? 0 : route[line - 1];
-        std::wstring output_line;
+        LazyString output_line;
         for (int word = previous_word; word < route[line]; word++) {
-          output_line += (output_line.empty() ? L"" : L" ") + input[word];
+          output_line +=
+              (output_line.empty() ? LazyString{} : LazyString{L" "}) +
+              input[word];
         }
         output.push_back(output_line);
       }
