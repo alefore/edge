@@ -23,9 +23,10 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
-using afc::language::lazy_string::ToLazyString;
 
 namespace afc::vm {
+using afc::language::lazy_string::ToLazyString;
+
 struct Instance {
   static gc::Root<Environment> Read(const Type& class_type,
                                     const gc::Root<Value>& obj) {
@@ -78,7 +79,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
             [](gc::Root<Value> value) { return Success(std::move(value)); },
             [&]() {
               return Error{LazyString{L"Unexpected: variable value is null: "} +
-                           ToLazyString(field_name)};
+                           QuoteExpr(ToLazyString(field_name))};
             }));
       });
 }

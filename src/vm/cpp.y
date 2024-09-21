@@ -328,9 +328,9 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
       Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
     compilation->AddError(Error{
-        LazyString{L"Unknown type: \""} +
-        ToLazyString(type->value().ptr()->get_symbol()) +
-        LazyString{L"\""}});
+        LazyString{L"Unknown type: "} +
+        QuoteExpr(ToLazyString(type->value().ptr()->get_symbol())) +
+        LazyString{L"."}});
     OUT = nullptr;
   } else {
     OUT = new std::vector<std::pair<Type, Identifier>>();

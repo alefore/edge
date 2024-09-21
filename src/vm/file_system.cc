@@ -48,7 +48,8 @@ void RegisterFileSystemFunctions(
                       MakeNonNullShared<Protected<std::vector<LazyString>>>(
                           MakeProtected(language::container::MaterializeVector(
                               input | std::views::transform([](Path& path) {
-                                return ToLazyString(path);
+                                return language::lazy_string::ToLazyString(
+                                    path);
                               })))));
                 });
           }));

@@ -57,11 +57,10 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
-using afc::language::lazy_string::ToLazyString;
 using numbers::BigInt;
 
-namespace afc {
-namespace vm {
+namespace afc::vm {
+using afc::language::lazy_string::ToLazyString;
 namespace {
 using ::operator<<;
 
@@ -646,5 +645,4 @@ CompileString(const LazyString& str, language::gc::Pool& pool,
   return ResultsFromCompilation(std::move(compilation));
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

@@ -182,21 +182,22 @@ Value::Expand() const {
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   using ::operator<<;
   std::visit(
-      overload{[&](const types::Void&) { os << L"<void>"; },
-               [&](const types::Bool&) {
-                 os << (value.get_bool() ? L"true" : L"false");
-               },
-               [&](const types::Number&) {
-                 os << value.get_number().ToString(kDefaultPrecision);
-               },
-               [&](const types::String&) {
-                 os << EscapedString::FromString(LazyString{value.get_string()})
-                           .CppRepresentation()
-                           .read();
-               },
-               [&](const types::Symbol&) { os << ToString(value.type); },
-               [&](const types::ObjectName&) { os << ToString(value.type); },
-               [&](const types::Function&) { os << ToString(value.type); }},
+      overload{
+          [&](const types::Void&) { os << L"<void>"; },
+          [&](const types::Bool&) {
+            os << (value.get_bool() ? L"true" : L"false");
+          },
+          [&](const types::Number&) {
+            os << value.get_number().ToString(kDefaultPrecision);
+          },
+          [&](const types::String&) {
+            os << EscapedString::FromString(LazyString{value.get_string()})
+                      .CppRepresentation()
+                      .read();
+          },
+          [&](const types::Symbol&) { os << ToLazyString(value.type); },
+          [&](const types::ObjectName&) { os << ToLazyString(value.type); },
+          [&](const types::Function&) { os << ToLazyString(value.type); }},
       value.type);
   return os;
 }

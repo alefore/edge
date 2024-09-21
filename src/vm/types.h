@@ -120,8 +120,10 @@ struct Function {
 
 types::ObjectName NameForType(Type variant_type);
 
-language::lazy_string::LazyString ToString(const Type&);
-
+language::lazy_string::LazyString ToLazyString(const Type&);
+language::lazy_string::LazyString ToQuotedLazyString(const Type&);
+language::lazy_string::LazyString QuoteExpr(
+    language::lazy_string::LazyString expr);
 language::lazy_string::LazyString TypesToString(const std::vector<Type>& types);
 language::lazy_string::LazyString TypesToString(
     const std::unordered_set<Type>& types);
@@ -141,9 +143,6 @@ class ObjectType {
                                             Type type_name);
 
   const Type& type() const { return type_; }
-  language::lazy_string::LazyString ToString() const {
-    return vm::ToString(type_);
-  }
 
   void AddField(const Identifier& name, language::gc::Ptr<Value> field);
 
@@ -163,6 +162,8 @@ class ObjectType {
   std::multimap<Identifier, language::gc::Ptr<Value>> fields_;
 };
 
+language::lazy_string::LazyString ToLazyString(const ObjectType&);
+language::lazy_string::LazyString ToQuotedLazyString(const ObjectType&);
 }  // namespace afc::vm
 
 namespace std {

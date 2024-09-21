@@ -21,9 +21,9 @@ using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::ToLazyString;
 
 namespace afc::vm {
+using afc::language::lazy_string::ToLazyString;
 namespace {
 
 class VariableLookup : public Expression {
@@ -57,7 +57,7 @@ class VariableLookup : public Expression {
         },
         [this]() {
           return Error{LazyString{L"Unexpected: variable value is null: "} +
-                       ToLazyString(symbol_)};
+                       ToLazyString(symbol_) + LazyString{L"."}};
         }));
   }
 };

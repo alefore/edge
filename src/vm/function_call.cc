@@ -32,10 +32,11 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::ToLazyString;
 using afc::language::view::SkipErrors;
 
 namespace afc::vm {
+using afc::language::lazy_string::ToLazyString;
+
 namespace {
 using ::operator<<;
 
@@ -44,8 +45,8 @@ PossibleError CheckFunctionArguments(
     const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
   const types::Function* function_type = std::get_if<types::Function>(&type);
   if (function_type == nullptr) {
-    return Error{LazyString{L"Expected function but found: `"} +
-                 ToString(type) + LazyString{L"`."}};
+    return Error{LazyString{L"Expected function but found: "} +
+                 ToQuotedLazyString(type) + LazyString{L"."}};
   }
 
   if (function_type->inputs.size() != args.size()) {
@@ -234,8 +235,9 @@ std::unique_ptr<Expression> NewMethodLookup(
               compilation.environment.ptr()->LookupObjectType(object_type_name);
 
           if (object_type == nullptr) {
-            errors.push_back(Error{LazyString{L"Unknown type: \""} +
-                                   ToString(type) + LazyString{L"\""}});
+            errors.push_back(Error{LazyString{L"Unknown type: "} +
+                                   ToQuotedLazyString(type) +
+                                   LazyString{L"."}});
             continue;
           }
 
@@ -256,15 +258,15 @@ std::unique_ptr<Expression> NewMethodLookup(
                 });
             std::vector<Identifier> close_alternatives =
                 FilterSimilarNames(method_name, std::move(alternatives));
-            errors.push_back(Error{LazyString{L"Unknown method: \""} +
-                                   object_type->ToString() + LazyString{L"::"} +
-                                   ToLazyString(method_name) +
-                                   LazyString{L"\""} +
-                                   (close_alternatives.empty()
-                                        ? LazyString{}
-                                        : (LazyString{L" (did you mean \""} +
-                                           ToLazyString(close_alternatives[0]) +
-                                           LazyString{L"\"?)"}))});
+            errors.push_back(
+                Error{LazyString{L"Unknown method: "} +
+                      QuoteExpr(ToLazyString(*object_type) + LazyString{L"::"} +
+                                ToLazyString(method_name)) +
+                      (close_alternatives.empty()
+                           ? LazyString{}
+                           : (LazyString{L" (did you mean "} +
+                              QuoteExpr(ToLazyString(close_alternatives[0])) +
+                              LazyString{L"?)"}))});
             continue;
           }
 

@@ -19,9 +19,9 @@ using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::ToLazyString;
 
 namespace afc::vm {
+using afc::language::lazy_string::ToLazyString;
 namespace {
 
 using ::operator<<;
@@ -96,10 +96,10 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
   } else {
     auto type_ptr = compilation.environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
-      compilation.AddError(Error{LazyString{L"Unknown type: `"} +
-                                 ToLazyString(type) +
-                                 LazyString{L"` for symbol `"} +
-                                 ToLazyString(symbol) + LazyString{L"`."}});
+      compilation.AddError(
+          Error{LazyString{L"Unknown type: "} + QuoteExpr(ToLazyString(type)) +
+                LazyString{L" for symbol "} + QuoteExpr(ToLazyString(symbol)) +
+                LazyString{L"."}});
       return std::nullopt;
     }
     type_def = *type_ptr;
@@ -129,9 +129,9 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (vmtype == std::nullopt) return nullptr;
   if (!value->SupportsType(*vmtype)) {
     compilation.AddError(
-        Error{LazyString{L"Unable to assign a value to a variable of type \""} +
-              ToString(*vmtype) + LazyString{L"\". Value types: "} +
-              TypesToString(value->Types())});
+        Error{LazyString{L"Unable to assign a value to a variable of type "} +
+              ToQuotedLazyString(*vmtype) + LazyString{L". Value types: "} +
+              TypesToString(value->Types()) + LazyString{L"."}});
     return nullptr;
   }
   return std::make_unique<AssignExpression>(

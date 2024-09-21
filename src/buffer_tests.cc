@@ -95,7 +95,7 @@ const bool buffer_tests_registration = tests::Register(
          .callback =
              [] {
                CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
-                     L"C++: \"number\"");
+                     L"C++: «number»");
              }},
         {.name = L"MetadataPurePow",
          .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},

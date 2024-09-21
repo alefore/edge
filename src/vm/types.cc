@@ -223,14 +223,13 @@ bool operator==(const Function& a, const Function& b) {
 
 std::ostream& operator<<(std::ostream& os, const Type& type) {
   using ::operator<<;
-  os << ToString(type);
+  os << ToLazyString(type);
   return os;
 }
 
 LazyString TypesToString(const std::vector<Type>& types) {
   return Concatenate(types | std::views::transform([](const Type& t) {
-                       return LazyString{L"\""} + ToString(t) +
-                              LazyString{L"\""};
+                       return ToQuotedLazyString(t);
                      }) |
                      Intersperse(LazyString{L", "}));
 }
@@ -239,9 +238,7 @@ LazyString TypesToString(const std::unordered_set<Type>& types) {
   return TypesToString(std::vector<Type>(types.cbegin(), types.cend()));
 }
 
-// TODO(trivial, 2024-09-21): We might as well let the callers know that we're
-// returning a NonEmptySingleLine.
-LazyString ToString(const Type& type) {
+LazyString ToLazyString(const Type& type) {
   return std::visit(
       overload{
           [](const types::Void&) { return LazyString{L"void"}; },
@@ -249,7 +246,9 @@ LazyString ToString(const Type& type) {
           [](const types::Number&) { return LazyString{L"number"}; },
           [](const types::String&) { return LazyString{L"string"}; },
           [](const types::Symbol&) { return LazyString{L"symbol"}; },
-          [](const types::ObjectName& object) { return ToLazyString(object); },
+          [](const types::ObjectName& object) {
+            return language::lazy_string::ToLazyString(object.read());
+          },
           [](const types::Function& function_type) {
             return std::invoke([&] {
                      if (function_type.function_purity.writes_external_outputs)
@@ -260,15 +259,25 @@ LazyString ToString(const Type& type) {
                        return LazyString{L"Function"};
                      return LazyString{L"function"};
                    }) +
-                   LazyString{L"<"} + ToString(function_type.output.get()) +
+                   LazyString{L"<"} + ToLazyString(function_type.output.get()) +
                    LazyString{L"("} +
                    Concatenate(function_type.inputs |
-                               std::views::transform(
-                                   [](const Type& t) { return ToString(t); }) |
+                               std::views::transform([](const Type& t) {
+                                 return ToLazyString(t);
+                               }) |
                                Intersperse(LazyString{L", "})) +
                    LazyString{L")>"};
           }},
       type);
+}
+
+language::lazy_string::LazyString QuoteExpr(
+    language::lazy_string::LazyString expr) {
+  return LazyString{L"«"} + expr + LazyString{L"»"};
+}
+
+language::lazy_string::LazyString ToQuotedLazyString(const Type& type) {
+  return QuoteExpr(ToLazyString(type));
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
@@ -280,6 +289,14 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {
   return pool.NewRoot(
       MakeNonNullUnique<ObjectType>(std::move(type), ConstructorAccessKey()));
+}
+
+language::lazy_string::LazyString ToLazyString(const ObjectType& object) {
+  return ToLazyString(object.type());
+}
+
+language::lazy_string::LazyString ToQuotedLazyString(const ObjectType& object) {
+  return ToQuotedLazyString(object.type());
 }
 
 ObjectType::ObjectType(const Type& type, ConstructorAccessKey) : type_(type) {}

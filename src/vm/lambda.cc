@@ -42,10 +42,11 @@ class LambdaExpression : public Expression {
         promotion_function =
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
-      return Error{LazyString{L"Expected a return type of `"} +
-                   ToString(expected_return_type) +
-                   LazyString{L"` but found `"} +
-                   ToString(*deduced_types.cbegin()) + LazyString{L"`."}};
+      return Error{LazyString{L"Expected a return type of "} +
+                   ToQuotedLazyString(expected_return_type) +
+                   LazyString{L" but found "} +
+                   ToQuotedLazyString(*deduced_types.cbegin()) +
+                   LazyString{L"."}};
     }
     return MakeNonNullUnique<LambdaExpression>(
         std::move(lambda_type), std::move(argument_names), std::move(body),
