@@ -1,3 +1,9 @@
+// Example usage: declare an alias `Foo` of a given type `InnerType`:
+//
+// struct Foo : public language::GhostType<Foo, InnerType> {
+//   using GhostType::GhostType;
+// };
+
 #ifndef __AFC_EDITOR_GHOST_TYPE_CLASS_H__
 #define __AFC_EDITOR_GHOST_TYPE_CLASS_H__
 
