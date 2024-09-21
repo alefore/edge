@@ -100,7 +100,8 @@ std::ostream& operator<<(std::ostream& os,
 
 std::wstring to_wstring(const LazyString&);
 
-LazyString ToLazyString(LazyString x);
+// Identity function.
+LazyString ToLazyString(LazyString);
 
 template <typename G>
 LazyString ToLazyString(const G& x) {
