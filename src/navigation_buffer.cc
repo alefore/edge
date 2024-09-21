@@ -8,6 +8,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/screen/screen.h"
 #include "src/insert_mode.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/trim.h"
@@ -16,7 +17,7 @@
 #include "src/parse_tree.h"
 
 namespace gc = afc::language::gc;
-
+namespace container = afc::language::container;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
 using afc::language::Error;
@@ -47,10 +48,9 @@ const vm::Identifier kDepthSymbol{
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  LineBuilder* line_options) {
-  LazyString trim = TrimLeft(
-      input.contents().read(),
-      // TODO(trivial, 2024-09-11): Avoid call to ToString.
-      source.Read(buffer_variables::line_prefix_characters).ToString());
+  LazyString trim = TrimLeft(input.contents().read(),
+                             container::MaterializeUnorderedSet(source.Read(
+                                 buffer_variables::line_prefix_characters)));
   CHECK_LE(trim.size(), input.contents().size());
   auto characters_trimmed =
       ColumnNumberDelta(input.contents().size() - trim.size());

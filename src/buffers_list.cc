@@ -490,25 +490,25 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   }
 
   LineBuilder output;
-  std::visit(
-      overload{[&](Error) {
-                 SingleLine output_name = buffer_name;
-                 if (output_name.size() > ColumnNumberDelta(2) &&
-                     output_name.get(ColumnNumber(0)) == L'$' &&
-                     output_name.get(ColumnNumber(1)) == L' ') {
-                   output_name = TrimLeft(
-                       std::move(output_name).Substring(ColumnNumber(1)), L" ");
-                 }
-                 output.AppendString(
-                     std::move(output_name)
-                         .SubstringWithRangeChecks(ColumnNumber(0), columns),
-                     modifiers);
-                 CHECK_LE(output.size(), columns);
-               },
-               [&output](LineBuilder processed_components) {
-                 output.Append(std::move(processed_components));
-               }},
-      GetOutputComponents(components, columns, modifiers, bold, dim));
+  std::visit(overload{[&](Error) {
+                        SingleLine output_name = buffer_name;
+                        if (output_name.size() > ColumnNumberDelta(2) &&
+                            output_name.get(ColumnNumber(0)) == L'$' &&
+                            output_name.get(ColumnNumber(1)) == L' ') {
+                          output_name = TrimLeft(
+                              std::move(output_name).Substring(ColumnNumber(1)),
+                              {L' '});
+                        }
+                        output.AppendString(std::move(output_name)
+                                                .SubstringWithRangeChecks(
+                                                    ColumnNumber(0), columns),
+                                            modifiers);
+                        CHECK_LE(output.size(), columns);
+                      },
+                      [&output](LineBuilder processed_components) {
+                        output.Append(std::move(processed_components));
+                      }},
+             GetOutputComponents(components, columns, modifiers, bold, dim));
 
   if (columns > output.EndColumn().ToDelta())
     output.Append(

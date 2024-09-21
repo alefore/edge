@@ -12,12 +12,11 @@
 namespace afc::language::lazy_string {
 // Returns a copy with all left space characters removed.
 template <typename StringType>
-StringType TrimLeft(StringType source, std::wstring space_characters) {
+StringType TrimLeft(StringType source,
+                    std::unordered_set<wchar_t> space_characters) {
   TRACK_OPERATION(LazyString_StringTrimLeft);
-  return source.Substring(
-      FindFirstColumnWithPredicate(source, [&](ColumnNumber, wchar_t c) {
-        return space_characters.find(c) == std::wstring::npos;
-      }).value_or(ColumnNumber(0) + source.size()));
+  return source.Substring(FindFirstNotOf(source, space_characters)
+                              .value_or(ColumnNumber(0) + source.size()));
 }
 
 // StringType is expected to be either LazyString or SingleLine.
