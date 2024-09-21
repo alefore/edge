@@ -316,8 +316,7 @@ class SearchCommand : public Command {
                             search_options->progress_channel =
                                 std::move(progress_channel);
                             VLOG(5) << "Starting search in buffer: "
-                                    << buffer.ReadLazyString(
-                                           buffer_variables::name);
+                                    << buffer.Read(buffer_variables::name);
                             LineSequence contents =
                                 buffer.contents().snapshot();
                             return editor_state.thread_pool()

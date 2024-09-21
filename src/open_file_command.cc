@@ -301,9 +301,9 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
         .initial_value =
             source_buffers.empty()
                 ? Line{LazyString{}}
-                : GetInitialPromptValue(editor.modifiers().repetitions,
-                                        source_buffers[0].ptr()->ReadLazyString(
-                                            buffer_variables::path)),
+                : GetInitialPromptValue(
+                      editor.modifiers().repetitions,
+                      source_buffers[0].ptr()->Read(buffer_variables::path)),
         .colorize_options_provider =
             std::bind_front(AdjustPath, std::ref(editor)),
         .handler = std::bind_front(OpenFileHandler, std::ref(editor)),

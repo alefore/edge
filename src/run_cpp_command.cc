@@ -69,10 +69,10 @@ struct SearchNamespaces {
           static const vm::Namespace kEmptyNamespace;
           std::vector<vm::Namespace> output = {kEmptyNamespace};
           std::ranges::copy(
-              TokenizeBySpaces(LineSequence::BreakLines(
-                                   buffer.ReadLazyString(
-                                       buffer_variables::cpp_prompt_namespaces))
-                                   .FoldLines()) |
+              TokenizeBySpaces(
+                  LineSequence::BreakLines(
+                      buffer.Read(buffer_variables::cpp_prompt_namespaces))
+                      .FoldLines()) |
                   std::views::transform([](Token token) {
                     return vm::Namespace{{Identifier{token.value}}};
                   }),

@@ -593,8 +593,8 @@ bool divide_line_tests = tests::Register(
 
 ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
     const OpenBuffer& buffer) {
-  LazyString path_str = buffer.ReadLazyString(buffer_variables::path);
-  if (path_str != buffer.ReadLazyString(buffer_variables::name))
+  LazyString path_str = buffer.Read(buffer_variables::path);
+  if (path_str != buffer.Read(buffer_variables::name))
     return Error{LazyString{L"name doesn't match path."}};
   ASSIGN_OR_RETURN(Path path, Path::New(path_str));
   ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());

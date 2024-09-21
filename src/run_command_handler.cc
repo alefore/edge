@@ -201,8 +201,7 @@ futures::Value<PossibleError> GenerateContents(
       close(pipefd_err[child_fd]);
     }
 
-    if (LazyString children_path =
-            target.ReadLazyString(buffer_variables::children_path);
+    if (LazyString children_path = target.Read(buffer_variables::children_path);
         !children_path.empty() && chdir(children_path.ToBytes().c_str()) == -1)
       LOG(FATAL) << children_path
                  << ": chdir failed: " << std::string(strerror(errno));
@@ -220,8 +219,8 @@ futures::Value<PossibleError> GenerateContents(
     }
     environment[L"TERM"] = LazyString{L"screen"};
     environment = LoadEnvironmentVariables(
-        editor_state.edge_path(),
-        target.ReadLazyString(buffer_variables::command), environment);
+        editor_state.edge_path(), target.Read(buffer_variables::command),
+        environment);
 
     char** envp =
         static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
@@ -237,8 +236,7 @@ futures::Value<PossibleError> GenerateContents(
 
     char* argv[] = {
         strdup("sh"), strdup("-c"),
-        strdup(
-            target.ReadLazyString(buffer_variables::command).ToBytes().c_str()),
+        strdup(target.Read(buffer_variables::command).ToBytes().c_str()),
         nullptr};
     int status = execve("/bin/sh", argv, envp);
     exit(WIFEXITED(status) ? WEXITSTATUS(status) : EX_OSERR);
@@ -333,7 +331,7 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
         buffer.fd() == nullptr
             ? -1
             : GetElapsedSecondsSince(buffer.fd()->last_input_received());
-    VLOG(5) << buffer.ReadLazyString(buffer_variables::name)
+    VLOG(5) << buffer.Read(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
     if (lines_read_rate > 5) {
       output[BufferFlagKey{SingleLine::Char<L'🤖'>()}] =
@@ -412,7 +410,7 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
   auto buffer = editor_state.current_buffer();
   if (buffer.has_value()) {
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
-        buffer->ptr()->ReadLazyString(buffer_variables::path);
+        buffer->ptr()->Read(buffer_variables::path);
   }
   name += LazyString{L" "} +
           EscapedString::FromString(input).EscapedRepresentation().read();
@@ -423,9 +421,9 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
 
 ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
   if (auto buffer = editor_state.current_buffer(); buffer.has_value()) {
-    return AugmentError(LazyString{L"Getting children path of buffer"},
-                        Path::New(buffer->ptr()->ReadLazyString(
-                            buffer_variables::children_path)));
+    return AugmentError(
+        LazyString{L"Getting children path of buffer"},
+        Path::New(buffer->ptr()->Read(buffer_variables::children_path)));
   }
   return Error{LazyString{L"Editor doesn't have a current buffer."}};
 }

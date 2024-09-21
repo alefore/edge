@@ -224,7 +224,7 @@ class HelpCommand : public Command {
                  vm::EscapedString(value).EscapedRepresentation() +
                  SingleLine{LazyString{L"`"}};
         },
-        &OpenBuffer::ReadLazyString);
+        &OpenBuffer::Read);
     DescribeVariables(
         SingleLine{LazyString{L"int"}}, buffer, output,
         buffer_variables::IntStruct(),

@@ -65,7 +65,7 @@ SingleLine GetToken(const CompositeTransformation::Input& input,
       [] { return ColumnNumber(0); },
       FindLastNotOf(line.Substring(ColumnNumber{}, end.ToDelta()),
                     container::MaterializeUnorderedSet(
-                        input.buffer.ReadLazyString(characters_variable))));
+                        input.buffer.Read(characters_variable))));
 
   return line.Substring(symbol_start,
                         end - symbol_start + ColumnNumberDelta(1));
@@ -361,8 +361,8 @@ class ExpandTransformation : public CompositeTransformation {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           futures::Value<Predictor> predictor_future =
               futures::Past(SyntaxBasedPredictor);
-          if (ValueOrError<Path> path = Path::New(
-                  input.buffer.ReadLazyString(buffer_variables::dictionary));
+          if (ValueOrError<Path> path =
+                  Path::New(input.buffer.Read(buffer_variables::dictionary));
               !IsError(path)) {
             predictor_future =
                 OpenFileIfFound(

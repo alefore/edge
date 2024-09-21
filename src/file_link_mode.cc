@@ -85,8 +85,8 @@ futures::Value<PossibleError> GenerateContents(
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
-  FUTURES_ASSIGN_OR_RETURN(
-      Path path, Path::New(target.ReadLazyString(buffer_variables::path)));
+  FUTURES_ASSIGN_OR_RETURN(Path path,
+                           Path::New(target.Read(buffer_variables::path)));
   LOG(INFO) << "GenerateContents: " << path;
   return file_system_driver->Stat(path).Transform(
       [stat_buffer, file_system_driver, &target,
@@ -105,7 +105,7 @@ futures::Value<PossibleError> GenerateContents(
 }
 
 void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
-  const LazyString path = buffer.ReadLazyString(buffer_variables::path);
+  const LazyString path = buffer.Read(buffer_variables::path);
   if (stat_buffer.st_mtime == 0) {
     LOG(INFO) << "Skipping file change check.";
     return;
@@ -137,7 +137,7 @@ futures::Value<PossibleError> Save(
       Path immediate_path,
       AugmentError(
           LazyString{L"Buffer can't be saved: Invalid “path” variable"},
-          Path::New(buffer.ReadLazyString(buffer_variables::path))));
+          Path::New(buffer.Read(buffer_variables::path))));
 
   futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
 
@@ -196,8 +196,7 @@ futures::Value<PossibleError> Save(
                         [&path](OpenBuffer& reload_buffer) {
                           LOG(INFO)
                               << "Write of " << path << " triggers reload: "
-                              << reload_buffer.ReadLazyString(
-                                     buffer_variables::name);
+                              << reload_buffer.Read(buffer_variables::name);
                           reload_buffer.Reload();
                         });
                   }
@@ -397,8 +396,8 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
               for (gc::Root<OpenBuffer> buffer :
                    editor_state.buffer_registry().buffers()) {
-                auto buffer_path = Path::New(
-                    buffer.ptr()->ReadLazyString(buffer_variables::path));
+                auto buffer_path =
+                    Path::New(buffer.ptr()->Read(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
                 ValueOrError<std::list<PathComponent>> buffer_components =
                     std::get<Path>(buffer_path).DirectorySplit();

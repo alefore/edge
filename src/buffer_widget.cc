@@ -326,7 +326,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   const OpenBuffer& buffer = input.buffer;
 
   LOG(INFO) << "BufferWidget::RecomputeData: "
-            << buffer.ReadLazyString(buffer_variables::name);
+            << buffer.Read(buffer_variables::name);
   LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
@@ -357,7 +357,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                              ? LineWrapStyle::kContentBased
                              : LineWrapStyle::kBreakWords,
       .symbol_characters = container::MaterializeUnorderedSet(
-          buffer.ReadLazyString(buffer_variables::symbol_characters)),
+          buffer.Read(buffer_variables::symbol_characters)),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),
       .columns_shown =
@@ -463,10 +463,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
 
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;
-          frame_options.title =
-              LineSequence::BreakLines(
-                  buffer.ptr()->ReadLazyString(buffer_variables::name))
-                  .FoldLines();
+          frame_options.title = LineSequence::BreakLines(
+                                    buffer.ptr()->Read(buffer_variables::name))
+                                    .FoldLines();
 
           frame_options.position_in_parent =
               options_.position_in_parent.value();

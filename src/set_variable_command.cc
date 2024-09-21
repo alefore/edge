@@ -84,7 +84,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     Prompt({.editor_state = editor_state,
             .prompt = prompt,
             .history_file = history_file,
-            .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
+            .initial_value = Line{active_buffers[0].ptr()->Read(var)},
             .handler =
                 [&editor_state, var](SingleLine input) {
                   editor_state.ResetRepetitions();

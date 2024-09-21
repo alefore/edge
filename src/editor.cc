@@ -362,7 +362,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
               -> futures::ValueOrError<OpenBuffer::PrepareToCloseOutput> {
             error = AugmentError(
                 LazyString{L"🖝  Unable to close (“*ad” to ignore): "} +
-                    buffer.ptr()->ReadLazyString(buffer_variables::name),
+                    buffer.ptr()->Read(buffer_variables::name),
                 error);
             switch (buffer.ptr()->status().InsertError(error, 30)) {
               case error::Log::InsertResult::kInserted:
@@ -556,7 +556,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                     std::views::transform(
                         [](const NonNull<OpenBuffer*>& buffer) -> LazyString {
                           return LazyString{L" "} +
-                                 buffer->ReadLazyString(buffer_variables::name);
+                                 buffer->Read(buffer_variables::name);
                         })))},
           30)) {
         case error::Log::InsertResult::kInserted:
@@ -854,22 +854,23 @@ void EditorState::PushPosition(LineColumn position) {
                     });
 
       std::move(future_positions_buffer)
-          .Transform([line_to_insert =
-                          Line(SingleLine{LazyString{position.ToString()}} +
-                               SingleLine{LazyString{L" "}} +
-                               SingleLine{buffer->ptr()->ReadLazyString(
-                                   buffer_variables::name)})](
-                         gc::Root<OpenBuffer> positions_buffer_root) {
-            OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
-            positions_buffer.CheckPosition();
-            CHECK_LE(positions_buffer.position().line,
-                     LineNumber(0) + positions_buffer.contents().size());
-            positions_buffer.InsertLine(
-                positions_buffer.current_position_line(), line_to_insert);
-            CHECK_LE(positions_buffer.position().line,
-                     LineNumber(0) + positions_buffer.contents().size());
-            return Success();
-          });
+          .Transform(
+              [line_to_insert = Line(
+                   SingleLine{LazyString{position.ToString()}} +
+                   SingleLine{LazyString{L" "}} +
+                   SingleLine{buffer->ptr()->Read(buffer_variables::name)})](
+                  gc::Root<OpenBuffer> positions_buffer_root) {
+                OpenBuffer& positions_buffer =
+                    positions_buffer_root.ptr().value();
+                positions_buffer.CheckPosition();
+                CHECK_LE(positions_buffer.position().line,
+                         LineNumber(0) + positions_buffer.contents().size());
+                positions_buffer.InsertLine(
+                    positions_buffer.current_position_line(), line_to_insert);
+                CHECK_LE(positions_buffer.position().line,
+                         LineNumber(0) + positions_buffer.contents().size());
+                return Success();
+              });
   }
 }
 

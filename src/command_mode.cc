@@ -397,8 +397,8 @@ class ActivateLink : public Command {
                     return VisitPointer(
                         optional_target,
                         [&](gc::Root<OpenBuffer> target) {
-                          if (LazyString path = target.ptr()->ReadLazyString(
-                                  buffer_variables::path);
+                          if (LazyString path =
+                                  target.ptr()->Read(buffer_variables::path);
                               !path.empty())
                             AddLineToHistory(editor_state, HistoryFileFiles(),
                                              path);

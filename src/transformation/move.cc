@@ -71,7 +71,7 @@ class MoveTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     VLOG(1) << "Move Transformation starts: "
-            << input.buffer.ReadLazyString(buffer_variables::name) << " "
+            << input.buffer.Read(buffer_variables::name) << " "
             << input.modifiers;
     // TODO: Finish moving to Structure.
     Structure structure = input.modifiers.structure;

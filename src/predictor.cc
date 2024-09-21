@@ -325,11 +325,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         std::wregex noise_regex =
             predictor_input.source_buffers.empty()
                 ? std::wregex()
-                : std::wregex(
-                      predictor_input.source_buffers[0]
-                          .ptr()
-                          ->ReadLazyString(buffer_variables::directory_noise)
-                          .ToString());
+                : std::wregex(predictor_input.source_buffers[0]
+                                  .ptr()
+                                  ->Read(buffer_variables::directory_noise)
+                                  .ToString());
         return predictor_input.editor.thread_pool().Run(std::bind_front(
             [path_input, search_paths, noise_regex](
                 NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
@@ -616,10 +615,9 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   for (const OpenBuffer& buffer : input.source_buffers | gc::view::Value) {
     RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
     std::ranges::copy(
-        TokenizeBySpaces(
-            LineSequence::BreakLines(
-                buffer.ReadLazyString(buffer_variables::language_keywords))
-                .FoldLines()) |
+        TokenizeBySpaces(LineSequence::BreakLines(
+                             buffer.Read(buffer_variables::language_keywords))
+                             .FoldLines()) |
             std::views::transform(&Token::value),
         std::inserter(words, words.end()));
   }

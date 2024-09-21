@@ -397,11 +397,11 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                     .command =
                         copy->shell.has_value()
                             ? copy->shell->read() + LazyString{L" $EDGE_INPUT"}
-                            : input.buffer.ReadLazyString(
+                            : input.buffer.Read(
                                   buffer_variables::shell_command),
                     .environment = {{L"EDGE_INPUT", LazyString{tmp_path}},
                                     {L"EDGE_PARENT_BUFFER_PATH",
-                                     input.buffer.ReadLazyString(
+                                     input.buffer.Read(
                                          buffer_variables::path)}},
                     .existing_buffer_behavior =
                         ForkCommandOptions::ExistingBufferBehavior::kIgnore});

@@ -208,8 +208,8 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
 }
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
-  FUTURES_ASSIGN_OR_RETURN(
-      Path path, Path::New(target.ReadLazyString(buffer_variables::path)));
+  FUTURES_ASSIGN_OR_RETURN(Path path,
+                           Path::New(target.Read(buffer_variables::path)));
 
   LOG(INFO) << L"Server starts: " << path;
   return target.SetInputFromPath(path);

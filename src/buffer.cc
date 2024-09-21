@@ -408,7 +408,7 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
 futures::ValueOrError<OpenBuffer::PrepareToCloseOutput>
 OpenBuffer::PrepareToClose() {
   log_->Append(LazyString{L"PrepareToClose"});
-  LOG(INFO) << "Preparing to close: " << ReadLazyString(buffer_variables::name);
+  LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
   return std::visit(
       overload{
           [&](Error error) -> futures::ValueOrError<PrepareToCloseOutput> {
@@ -430,7 +430,7 @@ OpenBuffer::PrepareToClose() {
                             LazyString{L"Already waiting for termination."}});
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
-                                << ReadLazyString(buffer_variables::name);
+                                << Read(buffer_variables::name);
                       file_system_driver().Kill(child_pid_.value(),
                                                 UnixSignal(SIGHUP));
                       auto future =
@@ -440,7 +440,7 @@ OpenBuffer::PrepareToClose() {
                            consumer = std::move(future.consumer)]() mutable {
                             CHECK(!child_pid_.has_value());
                             LOG(INFO) << "Subprocess terminated: "
-                                      << ReadLazyString(buffer_variables::name);
+                                      << Read(buffer_variables::name);
                             PrepareToClose().SetConsumer(std::move(consumer));
                           };
                       return std::move(future.value);
@@ -475,11 +475,11 @@ void OpenBuffer::Close() {
   if (dirty() && !Read(buffer_variables::allow_dirty_delete)) {
     if (Read(buffer_variables::save_on_close)) {
       log_->Append(LazyString{L"Saving buffer: "} +
-                   ReadLazyString(buffer_variables::name));
+                   Read(buffer_variables::name));
       Save(Options::SaveType::kMainFile);
     } else {
       log_->Append(LazyString{L"Saving backup: "} +
-                   ReadLazyString(buffer_variables::name));
+                   Read(buffer_variables::name));
       Save(Options::SaveType::kBackup);
     }
   }
@@ -553,8 +553,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 }
 
 void OpenBuffer::ClearContents() {
-  VLOG(5) << "Clear contents of buffer: "
-          << ReadLazyString(buffer_variables::name);
+  VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
   options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
                                                      name());
@@ -650,7 +649,7 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  futures::Past(Path::New(ReadLazyString(buffer_variables::dictionary)))
+  futures::Past(Path::New(Read(buffer_variables::dictionary)))
       .Transform([&](Path dictionary_path) {
         return OpenFileIfFound(OpenFileOptions{
             .editor_state = editor(),
@@ -684,10 +683,9 @@ void OpenBuffer::UpdateTreeParser() {
                                      Read(buffer_variables::language_keywords))
                                      .FoldLines()) |
                 std::views::transform(&Token::value)),
-            .symbol_characters =
-                ReadLazyString(buffer_variables::symbol_characters),
+            .symbol_characters = Read(buffer_variables::symbol_characters),
             .identifier_behavior =
-                ReadLazyString(buffer_variables::identifier_behavior) ==
+                Read(buffer_variables::identifier_behavior) ==
                         LazyString{L"color-by-hash"}
                     ? IdentifierBehavior::kColorByHash
                     : IdentifierBehavior::kNone,
@@ -783,7 +781,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                   });
             }
           }},
-      Path::New(ReadLazyString(buffer_variables::path)));
+      Path::New(Read(buffer_variables::path)));
 
   contents_observer_->SetOpenBuffer(weak_this);
 }
@@ -946,7 +944,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               LazyString{L" "} +
               (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
                                                 : LazyString{L"not modified"}),
-          AbsolutePath::New(ReadLazyString(buffer_variables::path))));
+          AbsolutePath::New(Read(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
     return futures::Past(ValueOrError<Path>(
@@ -1161,7 +1159,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },
                [&](NonNull<std::unique_ptr<Expression>> expression) {
-                 LOG(INFO) << ReadLazyString(buffer_variables::path) << " "
+                 LOG(INFO) << Read(buffer_variables::path) << " "
                            << Parenthesize(Read(buffer_variables::name))
                            << ": Evaluating file: " << path;
                  return Evaluate(
@@ -1936,7 +1934,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                                             }},
                                    path.Dirname());
                       }},
-             Path::New(buffer.ReadLazyString(buffer_variables::path)));
+             Path::New(buffer.Read(buffer_variables::path)));
 
   std::vector<URL> urls = urls_with_extensions;
 
@@ -2096,7 +2094,7 @@ OpenBuffer::FreezeDiskState() {
 
 bool OpenBuffer::dirty() const {
   return (disk_state_ == DiskState::kStale &&
-          (!ReadLazyString(buffer_variables::path).empty() ||
+          (!Read(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
          child_pid_.has_value() ||
@@ -2155,7 +2153,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
           {BufferFlagKey{SingleLine::Char<L'↓'>()}, BufferFlagValue{}});
     }
     if (SingleLine pts_path =
-            LineSequence::BreakLines(ReadLazyString(buffer_variables::pts_path))
+            LineSequence::BreakLines(Read(buffer_variables::pts_path))
                 .FoldLines();
         !pts_path.empty())
       output.insert({BufferFlagKey{SingleLine::Char<L'💻'>()},
@@ -2228,14 +2226,9 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
-const LazyString& OpenBuffer::ReadLazyString(
-    const EdgeVariable<LazyString>* variable) const {
-  return variables_.string_variables.Get(variable);
-}
-
 const LazyString& OpenBuffer::Read(
     const EdgeVariable<LazyString>* variable) const {
-  return ReadLazyString(variable);
+  return variables_.string_variables.Get(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<LazyString>* variable,
