@@ -17,6 +17,7 @@
 #include "src/transformation/set_position.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::infrastructure::ExtendedChar;
 using afc::language::MakeNonNullUnique;
@@ -70,23 +71,19 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
                                               const Modifiers& modifiers,
                                               LineColumn position, int calls) {
   if (structure == Structure::kChar) {
-    // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on LazyString.
-    const std::wstring& line_prefix_characters =
-        buffer.ReadLazyString(buffer_variables::line_prefix_characters)
-            .ToString();
+    const std::unordered_set<wchar_t> line_prefix_characters =
+        container::MaterializeUnorderedSet(
+            buffer.Read(buffer_variables::line_prefix_characters));
     const auto& line = buffer.LineAt(position.line);
     if (!line.has_value()) return std::nullopt;
     ColumnNumber start =
-        FindFirstColumnWithPredicate(line->contents(), [&](ColumnNumber,
-                                                           wchar_t c) {
-          return line_prefix_characters.find(c) == std::wstring::npos;
-        }).value_or(line->EndColumn());
+        FindFirstNotOf(line->contents(), line_prefix_characters)
+            .value_or(line->EndColumn());
     ColumnNumber end = line->EndColumn();
     while (start + ColumnNumberDelta(1) < end &&
-           (line_prefix_characters.find(
-                line->get(end - ColumnNumberDelta(1))) != std::wstring::npos)) {
+           (line_prefix_characters.contains(
+               line->get(end - ColumnNumberDelta(1)))))
       end--;
-    }
     position.column = ColumnNumber(ComputePosition(
         start.read(), end.read(), line->EndColumn().read(), modifiers.direction,
         modifiers.repetitions.value_or(1), calls));
