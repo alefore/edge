@@ -43,7 +43,8 @@ namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Variant>>>::object_type_name =
-    types::ObjectName{LazyString{L"Transformation"}};
+    types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Transformation")}};
 }  // namespace vm
 namespace editor {
 namespace {

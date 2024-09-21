@@ -67,9 +67,7 @@ struct Bool {};
 struct Number {};
 struct String {};
 struct Symbol {};
-class ObjectName
-    : public language::GhostType<ObjectName,
-                                 language::lazy_string::LazyString> {
+struct ObjectName : public language::GhostType<ObjectName, Identifier> {
   using GhostType::GhostType;
 };
 

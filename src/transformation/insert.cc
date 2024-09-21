@@ -31,7 +31,8 @@ namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Insert>>>::object_type_name =
-    types::ObjectName{LazyString{L"InsertTransformationBuilder"}};
+    types::ObjectName{Identifier{
+        NON_EMPTY_SINGLE_LINE_CONSTANT(L"InsertTransformationBuilder")}};
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
@@ -126,9 +127,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   gc::Root<ObjectType> builder = ObjectType::New(
       pool, VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name);
   environment.Define(
-      Identifier{NonEmptySingleLine{SingleLine{
-          VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name
-              .read()}}},
+      VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name.read(),
       vm::NewCallback(pool, PurityType{}, MakeNonNullShared<Insert>));
 
   builder.ptr()->AddField(

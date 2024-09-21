@@ -53,7 +53,8 @@ namespace vm {
 template <>
 const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::object_type_name =
-        types::ObjectName{LazyString{L"Screen"}};
+        types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Screen")}};
 }  // namespace vm
 namespace editor {
 

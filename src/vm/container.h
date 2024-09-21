@@ -125,15 +125,14 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
   using ContainerPtr = typename T::ContainerPtr;
   using language::lazy_string::LazyString;
+  using language::lazy_string::ToLazyString;
   const types::ObjectName& object_type_name =
       VMTypeMapper<ContainerPtr>::object_type_name;
   const vm::Type vmtype = GetVMType<ContainerPtr>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
-  // TODO(trivial, 2024-09-18): Remove NonEmptySingleLine wrapping here:
   environment.Define(
-      Identifier(language::lazy_string::NonEmptySingleLine{
-          language::lazy_string::SingleLine{object_type_name.read()}}),
+      object_type_name.read(),
       Value::NewFunction(
           pool, kPurityTypePure, vmtype, {},
           [&pool](std::vector<language::gc::Root<Value>> args) {
@@ -179,7 +178,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                     -> futures::ValueOrError<language::gc::Root<Value>> {
                   if (index < 0 || static_cast<size_t>(index) >= c.size()) {
                     return futures::Past(
-                        language::Error{object_type_name.read() +
+                        language::Error{ToLazyString(object_type_name) +
                                         LazyString{L": Index out of range "} +
                                         LazyString{std::to_wstring(index)} +
                                         LazyString{L" (size: "} +
@@ -213,7 +212,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                       -> futures::ValueOrError<language::gc::Root<Value>> {
                     if (index < 0 || static_cast<size_t>(index) >= c.size()) {
                       return futures::Past(language::Error{
-                          object_type_name.read() +
+                          ToLazyString(object_type_name) +
                           LazyString{L": Index out of range "} +
                           LazyString{std::to_wstring(index)} +
                           LazyString{L" (size: "} +

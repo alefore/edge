@@ -15,6 +15,7 @@ using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 using afc::math::numbers::Number;
 
 size_t constexpr kDefaultPrecision = 5ul;
@@ -162,7 +163,7 @@ ValueOrError<double> Value::ToDouble() const {
           },
           [&](const types::ObjectName& object) -> ValueOrError<double> {
             return Error{LazyString{L"Unable to convert to double: "} +
-                         object.read()};
+                         ToLazyString(object)};
           },
           [](const types::Function&) -> ValueOrError<double> {
             return Error{LazyString{L"Unable to convert to double: function"}};

@@ -25,6 +25,7 @@ using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 
 namespace std {
 size_t hash<afc::vm::PurityType>::operator()(
@@ -181,23 +182,29 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value) {
 types::ObjectName NameForType(Type variant_type) {
   return std::visit(
       overload{[](const types::Void&) {
-                 return types::ObjectName{LazyString{L"void"}};
+                 return types::ObjectName{
+                     Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"void")}};
                },
                [](const types::Bool&) {
-                 return types::ObjectName{LazyString{L"bool"}};
+                 return types::ObjectName{
+                     Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"bool")}};
                },
                [](const types::Number&) {
-                 return types::ObjectName{LazyString{L"number"}};
+                 return types::ObjectName{
+                     Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"number")}};
                },
                [](const types::String&) {
-                 return types::ObjectName{LazyString{L"string"}};
+                 return types::ObjectName{
+                     Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"string")}};
                },
                [](const types::Symbol&) {
-                 return types::ObjectName{LazyString{L"symbol"}};
+                 return types::ObjectName{
+                     Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"symbol")}};
                },
                [](const types::ObjectName& object) { return object; },
                [](const types::Function&) {
-                 return types::ObjectName{LazyString{L"function"}};
+                 return types::ObjectName{
+                     Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"function")}};
                }},
       variant_type);
 }
@@ -232,6 +239,8 @@ LazyString TypesToString(const std::unordered_set<Type>& types) {
   return TypesToString(std::vector<Type>(types.cbegin(), types.cend()));
 }
 
+// TODO(trivial, 2024-09-21): We might as well let the callers know that we're
+// returning a NonEmptySingleLine.
 LazyString ToString(const Type& type) {
   return std::visit(
       overload{
@@ -240,7 +249,7 @@ LazyString ToString(const Type& type) {
           [](const types::Number&) { return LazyString{L"number"}; },
           [](const types::String&) { return LazyString{L"string"}; },
           [](const types::Symbol&) { return LazyString{L"symbol"}; },
-          [](const types::ObjectName& object) { return object.read(); },
+          [](const types::ObjectName& object) { return ToLazyString(object); },
           [](const types::Function& function_type) {
             return std::invoke([&] {
                      if (function_type.function_purity.writes_external_outputs)

@@ -67,8 +67,8 @@ namespace afc::vm {
 }
 
 /* static */ const types::ObjectName
-    VMTypeMapper<editor::EditorState>::object_type_name =
-        types::ObjectName{LazyString{L"Editor"}};
+    VMTypeMapper<editor::EditorState>::object_type_name = types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Editor")}};
 }  // namespace afc::vm
 
 namespace afc::editor {

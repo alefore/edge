@@ -49,7 +49,8 @@ namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Delete>>>::object_type_name =
-    types::ObjectName{LazyString{L"DeleteTransformationBuilder"}};
+    types::ObjectName{Identifier{
+        NON_EMPTY_SINGLE_LINE_CONSTANT(L"DeleteTransformationBuilder")}};
 
 }  // namespace vm
 namespace editor {
@@ -274,9 +275,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
       pool, VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name);
 
   environment.Define(
-      vm::Identifier{NonEmptySingleLine{SingleLine{
-          VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name
-              .read()}}},
+      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name.read(),
       vm::NewCallback(pool, PurityType{},
                       MakeNonNullShared<transformation::Delete>));
 

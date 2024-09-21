@@ -295,8 +295,7 @@ class HelpCommand : public Command {
 
     environment->ForEachType([&](const vm::types::ObjectName& name,
                                  vm::ObjectType& type) {
-      // TODO(2024-09-11, trivial): Turn name.read() into SingleLine.
-      StartSection(SingleLine{LazyString{L"#### "}} + SingleLine{name.read()},
+      StartSection(SINGLE_LINE_CONSTANT(L"#### ") + name.read().read().read(),
                    output);
       type.ForEachField(
           [&](const vm::Identifier& field_name, vm::Value& value) {

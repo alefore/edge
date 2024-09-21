@@ -38,12 +38,13 @@ namespace gc = language::gc;
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<Protected<std::vector<LazyString>>>>>::object_type_name =
-    types::ObjectName{LazyString{L"VectorString"}};
+    types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorString")}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<Protected<std::set<LazyString>>>>>::object_type_name =
-    types::ObjectName{LazyString{L"SetString"}};
+    types::ObjectName{Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SetString")}};
 
 template <typename Callable>
 void AddMethod(const Identifier& name, language::gc::Pool& pool,

@@ -19,7 +19,8 @@ namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Repetitions>>>::object_type_name =
-    types::ObjectName{LazyString{L"RepetitionsTransformationBuilder"}};
+    types::ObjectName{Identifier{
+        NON_EMPTY_SINGLE_LINE_CONSTANT(L"RepetitionsTransformationBuilder")}};
 }  // namespace vm
 namespace editor::transformation {
 futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {

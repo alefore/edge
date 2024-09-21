@@ -16,7 +16,8 @@ using afc::language::lazy_string::LazyString;
 namespace afc::vm {
 const types::ObjectName
     VMTypeMapper<infrastructure::ExtendedChar>::object_type_name =
-        types::ObjectName{LazyString{L"ExtendedChar"}};
+        types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"ExtendedChar")}};
 
 language::gc::Root<Value> VMTypeMapper<infrastructure::ExtendedChar>::New(
     language::gc::Pool& pool, infrastructure::ExtendedChar value) {
@@ -35,7 +36,8 @@ template <>
 const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<concurrent::Protected<
         std::vector<infrastructure::ExtendedChar>>>>>::object_type_name =
-        types::ObjectName{LazyString{L"VectorExtendedChar"}};
+        types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorExtendedChar")}};
 
 }  // namespace afc::vm
 namespace afc::infrastructure {

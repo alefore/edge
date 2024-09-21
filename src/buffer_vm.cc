@@ -103,7 +103,8 @@ gc::Ptr<editor::OpenBuffer> vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::get(
 
 const vm::types::ObjectName
     vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::object_type_name =
-        vm::types::ObjectName{LazyString{L"Buffer"}};
+        vm::types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Buffer")}};
 
 /* static */ gc::Root<vm::Value>
 VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
@@ -113,12 +114,14 @@ VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
 
 const vm::types::ObjectName
     vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name =
-        vm::types::ObjectName{LazyString{L"Buffer"}};
+        vm::types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Buffer")}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::object_type_name =
-    types::ObjectName{LazyString{L"VectorBuffer"}};
+    types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorBuffer")}};
 }  // namespace afc::vm
 
 namespace afc::editor {

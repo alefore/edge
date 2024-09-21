@@ -30,17 +30,20 @@ namespace afc::vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<language::text::LineColumn>>>>>::object_type_name =
-    types::ObjectName{LazyString{L"VectorLineColumn"}};
+    types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorLineColumn")}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::set<language::text::LineColumn>>>>>::object_type_name =
-    types::ObjectName{LazyString{L"SetLineColumn"}};
+    types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SetLineColumn")}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<std::optional<language::text::Range>>>>::object_type_name =
-    types::ObjectName{LazyString{L"OptionalRange"}};
+    types::ObjectName{
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"OptionalRange")}};
 
 /* static */
 language::text::LineColumn VMTypeMapper<language::text::LineColumn>::get(
@@ -58,7 +61,8 @@ gc::Root<Value> VMTypeMapper<language::text::LineColumn>::New(
 
 const types::ObjectName
     VMTypeMapper<language::text::LineColumn>::object_type_name =
-        types::ObjectName{LazyString{L"LineColumn"}};
+        types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"LineColumn")}};
 
 /* static */
 language::text::LineColumnDelta
@@ -77,7 +81,8 @@ gc::Root<Value> VMTypeMapper<language::text::LineColumnDelta>::New(
 
 const types::ObjectName
     VMTypeMapper<language::text::LineColumnDelta>::object_type_name =
-        types::ObjectName{LazyString{L"LineColumnDelta"}};
+        types::ObjectName{
+            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"LineColumnDelta")}};
 
 /* static */
 language::text::Range VMTypeMapper<language::text::Range>::get(Value& value) {
@@ -92,7 +97,7 @@ gc::Root<Value> VMTypeMapper<language::text::Range>::New(
 }
 
 const types::ObjectName VMTypeMapper<language::text::Range>::object_type_name =
-    types::ObjectName{LazyString{L"Range"}};
+    types::ObjectName{Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Range")}};
 }  // namespace afc::vm
 namespace afc::language::text {
 using vm::Environment;
