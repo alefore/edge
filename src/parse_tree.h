@@ -32,8 +32,8 @@ class ParserId
   static const ParserId& Csv();
 };
 
-// TODO(easy, 2024-09-21): Convert to GhostType?
-class ParseTreeProperty {
+class ParseTreeProperty
+    : public language::GhostType<ParseTreeProperty, std::wstring> {
  public:
   static const ParseTreeProperty& Link();
   static const ParseTreeProperty& LinkTarget();
@@ -44,23 +44,10 @@ class ParseTreeProperty {
   static const ParseTreeProperty& StringValue();
   static const ParseTreeProperty& NumberValue();
 
-  GHOST_TYPE_EQ(ParseTreeProperty, value);
-
-  // Avoid calling this. We need to make it public simply so that we can expose
-  // it to the VM code. Everything else should avoid using this.
-  const std::wstring& read() const { return value; }
-
  private:
-  GHOST_TYPE_CONSTRUCTOR(ParseTreeProperty, std::wstring, value);
-  GHOST_TYPE_HASH_FRIEND(afc::editor::ParseTreeProperty, value);
-
-  std::wstring value;
+  using GhostType::GhostType;
 };
-}  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::ParseTreeProperty);
-
-namespace afc::editor {
 class ParseTree {
  public:
   // The empty route just means "stop at the root". Otherwise, it means to go
