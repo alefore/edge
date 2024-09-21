@@ -282,7 +282,10 @@ EdgeVariable<bool>* const search_case_sensitive =
          ->Add()
          .Name(L"search_case_sensitive")
          .Key(L"/c")
-         .Description(L"Should search (through `/`) be case sensitive?")
+         .Description(
+             L"Should search (through `/`) always be case sensitive? If false, "
+             L"the case will still be case sensitive if the filter has "
+             L"upper-case characters.")
          .Build();
 
 EdgeVariable<bool>* const search_filter_buffer =

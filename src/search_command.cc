@@ -6,6 +6,7 @@
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/search_handler.h"
@@ -33,6 +34,7 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
@@ -420,7 +422,8 @@ class SearchCommand : public Command {
     search_options.required_positions = 100;
     search_options.abort_value = abort_value;
     search_options.case_sensitive =
-        buffer.Read(buffer_variables::search_case_sensitive);
+        buffer.Read(buffer_variables::search_case_sensitive) ||
+        LowerCase(search_options.search_query) != search_options.search_query;
     return search_options;
   }
 
