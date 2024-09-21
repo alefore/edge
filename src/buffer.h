@@ -230,8 +230,6 @@ class OpenBuffer {
   void InsertLine(language::text::LineNumber line_position,
                   language::text::Line line);
 
-  // Can handle \n characters, breaking it into lines.
-  void AppendLazyString(language::lazy_string::LazyString input);
   void AppendLine(language::lazy_string::SingleLine line);
   void AppendRawLine(
       language::lazy_string::SingleLine line,

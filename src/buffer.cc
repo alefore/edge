@@ -1012,12 +1012,6 @@ const BufferDisplayData& OpenBuffer::display_data() const {
   return display_data_.value();
 }
 
-void OpenBuffer::AppendLazyString(LazyString input) {
-  LineSequence lines = LineSequence::BreakLines(input);
-  // TODO(trivial, 2024-09-19): Find a way to do this without MaterializeVector.
-  AppendLines(language::container::MaterializeVector(lines));
-}
-
 void OpenBuffer::SortContents(
     LineNumber start, LineNumberDelta length,
     std::function<bool(const Line&, const Line&)> compare) {
