@@ -444,7 +444,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                        (item.first.empty() ? LazyString{} : LazyString{L":"}) +
                        item.second.get_value();
               }) |
-          std::views::filter(&LazyString::empty));
+          std::views::filter(std::not_fn(&LazyString::empty)));
       !metadata.empty())
     output.push_back(MetadataLine{L'>', LineModifier::kGreen,
                                   LineBuilder{SingleLine{metadata}}.Build(),
