@@ -110,16 +110,14 @@ class NewLineTransformation : public CompositeTransformation {
     if (input.buffer.Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
       return futures::Past(Output());
-    // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on LazyString.
-    const std::wstring& line_prefix_characters =
-        input.buffer.Read(buffer_variables::line_prefix_characters).ToString();
     ColumnNumber prefix_end;
     if (!input.buffer.Read(buffer_variables::paste_mode)) {
+      const std::unordered_set<wchar_t> line_prefix_characters =
+          container::MaterializeUnorderedSet(
+              input.buffer.Read(buffer_variables::line_prefix_characters));
       while (prefix_end < column &&
-             (line_prefix_characters.find(line->get(prefix_end)) !=
-              line_prefix_characters.npos)) {
+             line_prefix_characters.contains(line->get(prefix_end)))
         ++prefix_end;
-      }
     }
 
     Output output;
