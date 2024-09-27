@@ -6,17 +6,21 @@
 #include <functional>
 #include <memory>
 
+#include "src/language/ghost_type_class.h"
 #include "src/language/wstring.h"
 
 namespace afc::tests {
+class BenchmarkName : public language::GhostType<BenchmarkName, std::wstring> {
+};
+
 using BenchmarkSize = size_t;
 using BenchmarkFunction = std::function<double(BenchmarkSize)>;
 
-bool RegisterBenchmark(std::wstring name, BenchmarkFunction benchmark);
+bool RegisterBenchmark(BenchmarkName name, BenchmarkFunction benchmark);
 
-void RunBenchmark(std::wstring name);
+void RunBenchmark(BenchmarkName name);
 
-std::vector<std::wstring> BenchmarkNames();
+std::vector<BenchmarkName> BenchmarkNames();
 
 }  // namespace afc::tests
 

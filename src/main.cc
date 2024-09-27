@@ -72,6 +72,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumnDelta;
+using afc::tests::BenchmarkName;
 
 namespace gc = afc::language::gc;
 
@@ -259,7 +260,7 @@ int main(int argc, const char** argv) {
 
   if (!args.benchmark.empty()) {
     // TODO(2024-09-05, trivial): Avoid this stupid conversion to std::wstring.
-    afc::tests::RunBenchmark(args.benchmark.ToString());
+    afc::tests::RunBenchmark(BenchmarkName{args.benchmark.ToString()});
     exit(0);
   }
 

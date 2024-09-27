@@ -4,6 +4,8 @@
 #include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
 
+using afc::tests::BenchmarkName;
+
 namespace afc::language {
 namespace {
 using infrastructure::Now;
@@ -32,8 +34,8 @@ IntTree::Ptr GetTree(int size) {
   return tree;
 }
 
-bool registration_add =
-    tests::RegisterBenchmark(L"ConstTree::PushBack", [](int elements) {
+bool registration_add = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::PushBack"}, [](int elements) {
       auto tree = GetTree(elements);
       auto start = Now();
       tree = IntTree::PushBack(tree, 0).get_shared();
@@ -42,8 +44,8 @@ bool registration_add =
       return SecondsBetween(start, end);
     });
 
-bool registration_prefix =
-    tests::RegisterBenchmark(L"ConstTree::Prefix", [](int elements) {
+bool registration_prefix = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Prefix"}, [](int elements) {
       auto tree = GetTree(elements);
       static const int kRuns = 1e5;
       auto start = Now();
@@ -55,8 +57,8 @@ bool registration_prefix =
       return SecondsBetween(start, end) / kRuns;
     });
 
-bool registration_suffix =
-    tests::RegisterBenchmark(L"ConstTree::Suffix", [](int elements) {
+bool registration_suffix = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Suffix"}, [](int elements) {
       auto tree = GetTree(elements);
       static const int kRuns = 1e5;
       auto start = Now();
@@ -69,8 +71,8 @@ bool registration_suffix =
       return SecondsBetween(start, end) / kRuns;
     });
 
-bool registration_tree_insert =
-    tests::RegisterBenchmark(L"ConstTree::Insert", [](int elements) {
+bool registration_tree_insert = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Insert"}, [](int elements) {
       auto tree = GetTree(elements);
       static const int kRuns = 1e5;
       auto indices = RandomIndices(kRuns, elements);
@@ -85,8 +87,8 @@ bool registration_tree_insert =
       return SecondsBetween(start, end) / kRuns;
     });
 
-bool registration_vector_insert =
-    tests::RegisterBenchmark(L"Vector::Insert", [](int elements) {
+bool registration_vector_insert = tests::RegisterBenchmark(
+    BenchmarkName{L"Vector::Insert"}, [](int elements) {
       std::vector<int> v(elements);
       auto start = Now();
       int position = random() % (elements + 1);
@@ -96,8 +98,8 @@ bool registration_vector_insert =
       return SecondsBetween(start, end);
     });
 
-bool registration_append =
-    tests::RegisterBenchmark(L"ConstTree::Append", [](int elements) {
+bool registration_append = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Append"}, [](int elements) {
       if (elements < 8) return 0.0;
       auto left = GetTree(random() % elements);
       auto right = GetTree(elements - IntTree::Size(left));
@@ -111,8 +113,8 @@ bool registration_append =
       return SecondsBetween(start, end) / kRuns;
     });
 
-bool registration_vector_append =
-    tests::RegisterBenchmark(L"Vector::Append", [](int elements) {
+bool registration_vector_append = tests::RegisterBenchmark(
+    BenchmarkName{L"Vector::Append"}, [](int elements) {
       if (elements < 8) return 0.0;
       std::vector<int> left(random() % elements);
       std::vector<int> right(elements - left.size());
@@ -136,22 +138,22 @@ double RunGet(const IntTree::Ptr& tree, const std::vector<size_t>& indices) {
   return SecondsBetween(start, end) / indices.size();
 }
 
-bool registration_get =
-    tests::RegisterBenchmark(L"ConstTree::Get", [](int elements) {
+bool registration_get = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Get"}, [](int elements) {
       static const size_t kRuns = 1e5;
       return RunGet(GetTree(elements), RandomIndices(kRuns, elements));
     });
 
-bool registration_get_first =
-    tests::RegisterBenchmark(L"ConstTree::GetFirst", [](int elements) {
+bool registration_get_first = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::GetFirst"}, [](int elements) {
       static const size_t kRuns = 1e5;
       std::vector<size_t> indices(kRuns);
       CHECK_EQ(indices.size(), kRuns);
       return RunGet(GetTree(elements), indices);
     });
 
-bool registration_get_middle =
-    tests::RegisterBenchmark(L"ConstTree::GetMiddle", [](int elements) {
+bool registration_get_middle = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::GetMiddle"}, [](int elements) {
       static const size_t kRuns = 1e5;
       std::vector<size_t> indices(kRuns, elements / 2);
       CHECK_EQ(indices.size(), kRuns);
@@ -159,7 +161,7 @@ bool registration_get_middle =
     });
 
 bool registration_vector_get =
-    tests::RegisterBenchmark(L"Vector::Get", [](int elements) {
+    tests::RegisterBenchmark(BenchmarkName{L"Vector::Get"}, [](int elements) {
       std::vector<int> v(elements);
       static const int kRuns = 1e5;
       auto start = Now();
@@ -170,8 +172,8 @@ bool registration_vector_get =
       return SecondsBetween(start, end) / kRuns;
     });
 
-bool registration_erase =
-    tests::RegisterBenchmark(L"ConstTree::Erase", [](int elements) {
+bool registration_erase = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Erase"}, [](int elements) {
       static const size_t kRuns = 1e5;
       auto indices = RandomIndices(kRuns, elements);
       auto tree = GetTree(elements);
@@ -185,8 +187,8 @@ bool registration_erase =
       return SecondsBetween(start, end) / indices.size();
     });
 
-bool registration_every =
-    tests::RegisterBenchmark(L"ConstTree::Every", [](int elements) {
+bool registration_every = tests::RegisterBenchmark(
+    BenchmarkName{L"ConstTree::Every"}, [](int elements) {
       auto tree = GetTree(elements);
       auto start = Now();
       CHECK(IntTree::Every(tree, [](int) { return true; }));

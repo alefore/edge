@@ -9,19 +9,19 @@ using afc::language::InsertOrDie;
 
 namespace afc::tests {
 namespace {
-std::unordered_map<std::wstring, BenchmarkFunction>* benchmarks_map() {
-  static std::unordered_map<std::wstring, BenchmarkFunction> output;
+std::unordered_map<BenchmarkName, BenchmarkFunction>* benchmarks_map() {
+  static std::unordered_map<BenchmarkName, BenchmarkFunction> output;
   return &output;
 }
 }  // namespace
 
-bool RegisterBenchmark(std::wstring name, BenchmarkFunction benchmark) {
+bool RegisterBenchmark(BenchmarkName name, BenchmarkFunction benchmark) {
   CHECK(benchmark != nullptr);
   InsertOrDie(*benchmarks_map(), {name, std::move(benchmark)});
   return true;
 }
 
-void RunBenchmark(std::wstring name) {
+void RunBenchmark(BenchmarkName name) {
   auto benchmark = benchmarks_map()->find(name);
   if (benchmark == benchmarks_map()->end()) {
     std::cerr << "Unknown Benchmark: " << name << std::endl;
@@ -41,8 +41,8 @@ void RunBenchmark(std::wstring name) {
   }
 }
 
-std::vector<std::wstring> BenchmarkNames() {
-  std::vector<std::wstring> output;
+std::vector<BenchmarkName> BenchmarkNames() {
+  std::vector<BenchmarkName> output;
   for (const auto& [name, _] : *benchmarks_map()) {
     output.push_back(name);
   }

@@ -40,6 +40,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::tests::BenchmarkName;
 
 namespace afc::editor {
 namespace {
@@ -228,9 +229,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               [](LazyString input) -> ValueOrError<LazyString> {
                 std::set<LazyString> benchmarks = container::MaterializeSet(
                     tests::BenchmarkNames() |
-                    std::views::transform([](const std::wstring& b) {
+                    std::views::transform([](const BenchmarkName& b) {
                       // TODO(trivial, 2024-09-05): Avoid this conversion.
-                      return LazyString{b};
+                      return LazyString{b.read()};
                     }));
                 if (benchmarks.contains(input)) return input;
                 return Error{
