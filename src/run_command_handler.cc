@@ -490,8 +490,7 @@ class ForkEditorCommand : public Command {
                   ? ([prompt_state](const SingleLine& line,
                                     NonNull<std::unique_ptr<ProgressChannel>>,
                                     DeleteNotification::Value) {
-                      // TODO(trivial, 2024-09-13): Remove call to read():
-                      return PromptChange(prompt_state.value(), line.read());
+                      return PromptChange(prompt_state.value(), line);
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
           .handler =
@@ -543,7 +542,7 @@ class ForkEditorCommand : public Command {
 
  private:
   static futures::Value<ColorizePromptOptions> PromptChange(
-      PromptState& prompt_state, const LazyString& line) {
+      PromptState& prompt_state, const SingleLine& line) {
     CHECK(prompt_state.context_command_callback.has_value());
     EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
@@ -551,7 +550,8 @@ class ForkEditorCommand : public Command {
     NonNull<std::unique_ptr<vm::Expression>> context_command_expression =
         vm::NewFunctionCall(
             vm::NewConstantExpression(*prompt_state.context_command_callback),
-            {vm::NewConstantExpression(vm::Value::NewString(pool, line))});
+            {vm::NewConstantExpression(
+                vm::Value::NewString(pool, ToLazyString(line)))});
     if (context_command_expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
