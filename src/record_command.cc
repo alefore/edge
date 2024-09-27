@@ -39,7 +39,7 @@ class RecordCommand : public Command {
     return LazyString{L"starts/stops recording a transformation"};
   }
 
-  LazyString Category() const override { return LazyString{L"Edit"}; }
+  CommandCategory Category() const override { return CommandCategory::kEdit(); }
 
   void ProcessInput(ExtendedChar) override {
     VisitPointer(

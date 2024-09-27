@@ -103,7 +103,9 @@ class Impl : public Command {
   LazyString Description() const override {
     return LazyString{L"Shows Line Marks."};
   }
-  LazyString Category() const override { return LazyString{L"Editor"}; }
+  CommandCategory Category() const override {
+    return CommandCategory::kEditor();
+  }
 
   void ProcessInput(ExtendedChar) override {
     BufferName name{LazyString{L"Marks"}};

@@ -626,7 +626,9 @@ class LinePromptCommand : public Command {
         options_supplier_(std::move(options_supplier)) {}
 
   LazyString Description() const override { return description_; }
-  LazyString Category() const override { return LazyString{L"Prompt"}; }
+  CommandCategory Category() const override {
+    return CommandCategory::kPrompt();
+  }
 
   void ProcessInput(ExtendedChar) override {
     auto buffer = editor_state_.current_buffer();

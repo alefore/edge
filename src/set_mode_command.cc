@@ -22,7 +22,7 @@ class SetModeCommand : public Command {
   SetModeCommand(SetModeCommandOptions options)
       : options_(std::move(options)) {}
 
-  LazyString Category() const override { return options_.category; }
+  CommandCategory Category() const override { return options_.category; }
   LazyString Description() const override { return options_.description; }
   void ProcessInput(ExtendedChar) override {
     options_.editor_state.set_keyboard_redirect(options_.factory());

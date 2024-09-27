@@ -162,7 +162,9 @@ class GotoCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"goes to Rth structure from the beginning"};
   }
-  LazyString Category() const override { return LazyString{L"Navigate"}; }
+  CommandCategory Category() const override {
+    return CommandCategory::kNavigate();
+  }
 
   void ProcessInput(ExtendedChar c) override {
     if (c != ExtendedChar('g')) {

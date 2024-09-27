@@ -1367,7 +1367,7 @@ gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
   return NewSetModeCommand(
       {.editor_state = editor_state,
        .description = description,
-       .category = LazyString{L"Edit"},
+       .category = CommandCategory::kEdit(),
        .factory = [top_command, &editor_state, command] {
          auto output =
              MakeNonNullUnique<OperationMode>(top_command, editor_state);

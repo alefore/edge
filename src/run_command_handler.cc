@@ -444,7 +444,9 @@ class ForkEditorCommand : public Command {
     return LazyString{
         L"Prompts for a command and creates a new buffer running it."};
   }
-  LazyString Category() const override { return LazyString{L"Buffers"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{LazyString{L"Buffers"}};
+  }
 
   void ProcessInput(ExtendedChar) override {
     gc::Pool& pool = editor_state_.gc_pool();

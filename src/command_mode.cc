@@ -107,7 +107,10 @@ class UndoCommand : public Command {
     return LazyString{};
   }
 
-  LazyString Category() const override { return LazyString{L"Edit"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Edit"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     if (direction_.has_value()) {
@@ -143,7 +146,10 @@ class GotoPreviousPositionCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"go back to previous position"};
   }
-  LazyString Category() const override { return LazyString{L"Navigate"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Navigate"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     if (!editor_state_.HasPositionsInStack()) {
@@ -204,7 +210,10 @@ class EnterInsertModeCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"enters insert mode"};
   }
-  LazyString Category() const override { return LazyString{L"Edit"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Edit"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     if (modifiers_.has_value()) {
@@ -232,7 +241,10 @@ class InsertionModifierCommand : public Command {
     return LazyString{
         L"activates replace modifier (overwrites text on insertions)"};
   }
-  LazyString Category() const override { return LazyString{L"Modifiers"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     if (editor_state_.insertion_modifier() == Modifiers::ModifyMode::kShift) {
@@ -268,7 +280,10 @@ class SetStructureCommand : public Command {
     return LazyString{L"sets the structure: "} +
            LazyString{language::FromByteString(os.str())};
   }
-  LazyString Category() const override { return LazyString{L"Modifiers"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     if (editor_state_.structure() != structure_) {
@@ -299,7 +314,10 @@ class SetStrengthCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Toggles the strength."};
   }
-  LazyString Category() const override { return LazyString{L"Modifiers"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     Modifiers modifiers(editor_state_.modifiers());
@@ -332,7 +350,10 @@ class NumberMode : public Command {
   LazyString Description() const override {
     return LazyString{L"sets repetitions for the next command."};
   }
-  LazyString Category() const override { return LazyString{L"Modifiers"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+  }
 
   void ProcessInput(ExtendedChar c) override {
     editor_state_.set_keyboard_redirect(NewRepeatMode(
@@ -354,7 +375,10 @@ class ActivateLink : public Command {
   LazyString Description() const override {
     return LazyString{L"activates the current link (if any)"};
   }
-  LazyString Category() const override { return LazyString{L"Navigate"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Navigate"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     VisitPointer(
@@ -427,7 +451,10 @@ class ResetStateCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Resets the state of the editor."};
   }
-  LazyString Category() const override { return LazyString{L"Editor"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Editor"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     editor_state_.status().Reset();
@@ -455,7 +482,10 @@ class HardRedrawCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Redraws the screen"};
   }
-  LazyString Category() const override { return LazyString{L"View"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{
+        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"View"))};
+  }
 
   void ProcessInput(ExtendedChar) override {
     editor_state_.set_screen_needs_hard_redraw(true);

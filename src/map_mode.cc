@@ -50,8 +50,8 @@ class CommandFromFunction : public Command {
       : callback_(std::move(callback)), description_(std::move(description)) {}
 
   LazyString Description() const override { return description_; }
-  LazyString Category() const override {
-    return LazyString{L"C++ Functions (Extensions)"};
+  CommandCategory Category() const override {
+    return CommandCategory{LazyString{L"C++ Functions (Extensions)"}};
   }
 
   void ProcessInput(ExtendedChar) override { callback_.value()(); }
@@ -98,9 +98,11 @@ gc::Root<MapModeCommands> MapModeCommands::NewChild() {
   return output;
 }
 
-std::map<LazyString, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
+std::map<CommandCategory,
+         std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
 MapModeCommands::Coallesce() const {
-  std::map<LazyString, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
+  std::map<CommandCategory,
+           std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
       output;
   // Avoid showing unreachable commands.
   std::set<std::vector<ExtendedChar>> already_seen;

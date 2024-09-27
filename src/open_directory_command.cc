@@ -26,6 +26,8 @@ namespace afc::editor {
 namespace {
 
 class OpenDirectoryCommand : public Command {
+  EditorState& editor_state_;
+
  public:
   OpenDirectoryCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
@@ -33,7 +35,9 @@ class OpenDirectoryCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"opens a view of the current directory"};
   }
-  LazyString Category() const override { return LazyString{L"Buffers"}; }
+  CommandCategory Category() const override {
+    return CommandCategory::kBuffers();
+  }
 
   void ProcessInput(ExtendedChar) override {
     OpenOrCreateFile(OpenFileOptions{
@@ -53,9 +57,6 @@ class OpenDirectoryCommand : public Command {
   Expand() const override {
     return {};
   }
-
- private:
-  EditorState& editor_state_;
 };
 
 }  // namespace

@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "src/command.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 
@@ -15,7 +16,7 @@ class Command;
 struct SetModeCommandOptions {
   EditorState& editor_state;
   language::lazy_string::LazyString description;
-  language::lazy_string::LazyString category;
+  CommandCategory category;
   std::function<language::gc::Root<InputReceiver>()> factory;
 };
 

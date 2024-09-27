@@ -24,7 +24,9 @@ class QuitCommand : public Command {
     return LazyString{L"Quits Edge (with an exit value of "} +
            LazyString{std::to_wstring(exit_value_)} + LazyString{L")."};
   }
-  LazyString Category() const override { return LazyString{L"Editor"}; }
+  CommandCategory Category() const override {
+    return CommandCategory::kEditor();
+  }
 
   void ProcessInput(ExtendedChar) override {
     LOG(INFO) << "Triggering termination with value: " << exit_value_;

@@ -8,6 +8,7 @@
 #include "src/concurrent/work_queue.h"
 #include "src/editor.h"
 #include "src/infrastructure/extended_char.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/vm/vm.h"
 
@@ -22,21 +23,22 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::LineSequence;
 
 namespace afc::editor {
 namespace {
-LazyString GetFirstLine(LazyString code) {
-  std::optional<ColumnNumber> end = FindFirstOf(code, {L'\n'});
-  if (end == std::nullopt) return code;
-  LazyString first_line = code.Substring(ColumnNumber{}, end->ToDelta());
+SingleLine GetFirstLine(LazyString code) {
+  SingleLine first_line =
+      LineSequence::BreakLines(std::move(code)).front().contents();
   DVLOG(5) << "First line: " << first_line;
   if (LazyString prefix = LazyString{L"// "}; StartsWith(first_line, prefix))
     return first_line.Substring(ColumnNumber{} + prefix.size());
   return first_line;
 }
 
-LazyString GetDescriptionString(LazyString code) {
-  LazyString first_line = GetFirstLine(code);
+SingleLine GetDescriptionString(LazyString code) {
+  SingleLine first_line = GetFirstLine(code);
   return VisitOptional(
       [&first_line](ColumnNumber colon) {
         return first_line.Substring(colon + ColumnNumberDelta{1});
@@ -44,13 +46,15 @@ LazyString GetDescriptionString(LazyString code) {
       [&] { return first_line; }, FindFirstOf(first_line, {L':'}));
 }
 
-LazyString GetCategoryString(LazyString code) {
-  LazyString first_line = GetFirstLine(code);
+CommandCategory GetCategoryString(LazyString code) {
+  SingleLine first_line = GetFirstLine(code);
   return VisitOptional(
       [&first_line](ColumnNumber colon) {
-        return first_line.Substring(ColumnNumber{}, colon.ToDelta());
+        return CommandCategory{ToLazyString(
+            first_line.Substring(ColumnNumber{}, colon.ToDelta()))};
       },
-      [&first_line] { return first_line; }, FindFirstOf(first_line, {L':'}));
+      [&first_line] { return CommandCategory{ToLazyString(first_line)}; },
+      FindFirstOf(first_line, {L':'}));
 }
 
 class CppCommand : public Command {
@@ -58,7 +62,7 @@ class CppCommand : public Command {
   const NonNull<std::shared_ptr<vm::Expression>> expression_;
   const LazyString code_;
   const LazyString description_;
-  const LazyString category_;
+  const CommandCategory category_;
   const gc::Ptr<vm::Environment> environment_;
 
  public:
@@ -68,12 +72,12 @@ class CppCommand : public Command {
       : editor_state_(editor_state),
         expression_(std::move(expression)),
         code_(std::move(code)),
-        description_(GetDescriptionString(code_)),
+        description_(ToLazyString(GetDescriptionString(code_))),
         category_(GetCategoryString(code_)),
         environment_(std::move(environment)) {}
 
   LazyString Description() const override { return description_; }
-  LazyString Category() const override { return category_; }
+  CommandCategory Category() const override { return category_; }
 
   void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";

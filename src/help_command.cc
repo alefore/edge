@@ -31,6 +31,7 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -158,7 +159,9 @@ class HelpCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Shows documentation."};
   }
-  LazyString Category() const override { return LazyString{L"Editor"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{LazyString{L"Editor"}};
+  }
 
   void ProcessInput(ExtendedChar) override {
     VisitOptional(
@@ -261,8 +264,10 @@ class HelpCommand : public Command {
     for (const auto& category : commands.Coallesce()) {
       // TODO(trivial, 2024-09-11): Turn category.first into SingleLine, avoid
       // wrapping here.
-      StartSection(SINGLE_LINE_CONSTANT(L"### ") + SingleLine{category.first},
-                   output);
+      StartSection(
+          SINGLE_LINE_CONSTANT(L"### ") +
+              SingleLine{language::lazy_string::ToLazyString(category.first)},
+          output);
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
         line.AppendString(SINGLE_LINE_CONSTANT(L"* "), std::nullopt);

@@ -330,7 +330,7 @@ gc::Root<Command> NewNavigateCommand(EditorState& editor_state) {
   return NewSetModeCommand(SetModeCommandOptions{
       .editor_state = editor_state,
       .description = LazyString{L"activates navigate mode."},
-      .category = LazyString{L"Navigate"},
+      .category = CommandCategory::kNavigate(),
       .factory = [&editor_state] {
         CommandArgumentMode<NavigateState>::Options options{
             .editor_state = editor_state,

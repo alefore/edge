@@ -218,7 +218,9 @@ class SearchCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Searches for a string."};
   }
-  LazyString Category() const override { return LazyString{L"Navigate"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{LazyString{L"Navigate"}};
+  }
 
   void ProcessInput(ExtendedChar) override {
     if (GetStructureSearchQuery(editor_state_.structure()) ==

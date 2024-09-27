@@ -301,7 +301,9 @@ class FindCompletionCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Autocompletes the current word."};
   }
-  LazyString Category() const override { return LazyString{L"Edit"}; }
+  CommandCategory Category() const override {
+    return CommandCategory{LazyString{L"Edit"}};
+  }
 
   void ProcessInput(ExtendedChar) override {
     // TODO(multiple_buffers): Honor.
