@@ -564,8 +564,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
       SortedLineSequence(dictionary_root.ptr()->contents().snapshot()));
 
   return [contents](PredictorInput input) {
-    // TODO(trivial, 2024-09-17): Change input.input to already be SingleLine.
-    Line input_line = LineBuilder{SingleLine{input.input}}.Build();
+    Line input_line{input.input};
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
