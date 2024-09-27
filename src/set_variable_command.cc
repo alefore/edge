@@ -146,12 +146,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     return editor_state
         .ForEachActiveBuffer([var, name](OpenBuffer& buffer) {
           buffer.toggle_bool_variable(var);
-          // TODO(trivial, 2024-09-17): Avoid having to wrap `name` in
-          // SingleLine here.
-          buffer.status().SetInformationText(LineBuilder{
-              (buffer.Read(var) ? SingleLine{LazyString{L"🗸 "}}
-                                : SingleLine{LazyString{L"⛶ "}}) +
-              SingleLine{name}}.Build());
+          buffer.status().SetInformationText(
+              LineBuilder{(buffer.Read(var) ? SINGLE_LINE_CONSTANT(L"🗸 ")
+                                            : SINGLE_LINE_CONSTANT(L"⛶ ")) +
+                          name}
+                  .Build());
           return futures::Past(EmptyValue());
         })
         .Transform([&editor_state](EmptyValue) {
