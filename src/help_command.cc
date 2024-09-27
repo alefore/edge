@@ -160,7 +160,7 @@ class HelpCommand : public Command {
     return LazyString{L"Shows documentation."};
   }
   CommandCategory Category() const override {
-    return CommandCategory{LazyString{L"Editor"}};
+    return CommandCategory::kEditor();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -262,12 +262,8 @@ class HelpCommand : public Command {
     output.push_back(L"");
 
     for (const auto& category : commands.Coallesce()) {
-      // TODO(trivial, 2024-09-11): Turn category.first into SingleLine, avoid
-      // wrapping here.
-      StartSection(
-          SINGLE_LINE_CONSTANT(L"### ") +
-              SingleLine{language::lazy_string::ToLazyString(category.first)},
-          output);
+      StartSection(SINGLE_LINE_CONSTANT(L"### ") + category.first.read().read(),
+                   output);
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
         line.AppendString(SINGLE_LINE_CONSTANT(L"* "), std::nullopt);

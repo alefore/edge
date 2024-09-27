@@ -219,7 +219,7 @@ class SearchCommand : public Command {
     return LazyString{L"Searches for a string."};
   }
   CommandCategory Category() const override {
-    return CommandCategory{LazyString{L"Navigate"}};
+    return CommandCategory::kNavigate();
   }
 
   void ProcessInput(ExtendedChar) override {

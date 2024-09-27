@@ -23,6 +23,7 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineSequence;
 
@@ -46,14 +47,15 @@ SingleLine GetDescriptionString(LazyString code) {
       [&] { return first_line; }, FindFirstOf(first_line, {L':'}));
 }
 
-CommandCategory GetCategoryString(LazyString code) {
-  SingleLine first_line = GetFirstLine(code);
+ValueOrError<CommandCategory> GetCategoryString(LazyString code) {
+  DECLARE_OR_RETURN(NonEmptySingleLine first_line,
+                    NonEmptySingleLine::New(GetFirstLine(code)));
   return VisitOptional(
       [&first_line](ColumnNumber colon) {
-        return CommandCategory{ToLazyString(
-            first_line.Substring(ColumnNumber{}, colon.ToDelta()))};
+        return CommandCategory::New(NonEmptySingleLine::New(
+            first_line.Substring(ColumnNumber{}, colon.ToDelta())));
       },
-      [&first_line] { return CommandCategory{ToLazyString(first_line)}; },
+      [&first_line] { return Success(CommandCategory{first_line}); },
       FindFirstOf(first_line, {L':'}));
 }
 
@@ -68,12 +70,13 @@ class CppCommand : public Command {
  public:
   CppCommand(EditorState& editor_state,
              NonNull<std::unique_ptr<afc::vm::Expression>> expression,
-             LazyString code, gc::Ptr<vm::Environment> environment)
+             LazyString code, CommandCategory category,
+             gc::Ptr<vm::Environment> environment)
       : editor_state_(editor_state),
         expression_(std::move(expression)),
         code_(std::move(code)),
         description_(ToLazyString(GetDescriptionString(code_))),
-        category_(GetCategoryString(code_)),
+        category_(category),
         environment_(std::move(environment)) {}
 
   LazyString Description() const override { return description_; }
@@ -100,11 +103,12 @@ class CppCommand : public Command {
 ValueOrError<gc::Root<Command>> NewCppCommand(
     EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
     const LazyString& code) {
+  ASSIGN_OR_RETURN(CommandCategory category, GetCategoryString(code));
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<vm::Expression>> result,
       vm::CompileString(code, editor_state.gc_pool(), environment));
   return editor_state.gc_pool().NewRoot(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result), code, environment.ptr()));
+      editor_state, std::move(result), code, category, environment.ptr()));
 }
 
 }  // namespace afc::editor

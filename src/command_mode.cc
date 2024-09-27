@@ -107,10 +107,7 @@ class UndoCommand : public Command {
     return LazyString{};
   }
 
-  CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Edit"))};
-  }
+  CommandCategory Category() const override { return CommandCategory::kEdit(); }
 
   void ProcessInput(ExtendedChar) override {
     if (direction_.has_value()) {
@@ -147,8 +144,7 @@ class GotoPreviousPositionCommand : public Command {
     return LazyString{L"go back to previous position"};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Navigate"))};
+    return CommandCategory::kNavigate();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -210,10 +206,7 @@ class EnterInsertModeCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"enters insert mode"};
   }
-  CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Edit"))};
-  }
+  CommandCategory Category() const override { return CommandCategory::kEdit(); }
 
   void ProcessInput(ExtendedChar) override {
     if (modifiers_.has_value()) {
@@ -242,8 +235,7 @@ class InsertionModifierCommand : public Command {
         L"activates replace modifier (overwrites text on insertions)"};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+    return CommandCategory::kModifiers();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -281,8 +273,7 @@ class SetStructureCommand : public Command {
            LazyString{language::FromByteString(os.str())};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+    return CommandCategory::kModifiers();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -315,8 +306,7 @@ class SetStrengthCommand : public Command {
     return LazyString{L"Toggles the strength."};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+    return CommandCategory::kModifiers();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -351,8 +341,7 @@ class NumberMode : public Command {
     return LazyString{L"sets repetitions for the next command."};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers"))};
+    return CommandCategory::kModifiers();
   }
 
   void ProcessInput(ExtendedChar c) override {
@@ -376,8 +365,7 @@ class ActivateLink : public Command {
     return LazyString{L"activates the current link (if any)"};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Navigate"))};
+    return CommandCategory::kNavigate();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -452,8 +440,7 @@ class ResetStateCommand : public Command {
     return LazyString{L"Resets the state of the editor."};
   }
   CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Editor"))};
+    return CommandCategory::kEditor();
   }
 
   void ProcessInput(ExtendedChar) override {
@@ -482,10 +469,7 @@ class HardRedrawCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Redraws the screen"};
   }
-  CommandCategory Category() const override {
-    return CommandCategory{
-        ToLazyString(NON_EMPTY_SINGLE_LINE_CONSTANT(L"View"))};
-  }
+  CommandCategory Category() const override { return CommandCategory::kView(); }
 
   void ProcessInput(ExtendedChar) override {
     editor_state_.set_screen_needs_hard_redraw(true);

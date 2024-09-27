@@ -51,7 +51,7 @@ class CommandFromFunction : public Command {
 
   LazyString Description() const override { return description_; }
   CommandCategory Category() const override {
-    return CommandCategory{LazyString{L"C++ Functions (Extensions)"}};
+    return CommandCategory::kCppFunctions();
   }
 
   void ProcessInput(ExtendedChar) override { callback_.value()(); }

@@ -11,37 +11,55 @@ Command::CursorMode Command::cursor_mode() const {
 
 /* static */ const CommandCategory& CommandCategory::kBuffers() {
   static const CommandCategory* const output =
-      new CommandCategory{LazyString{L"Buffers"}};
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Buffers")};
+  return *output;
+}
+
+/* static */ const CommandCategory& CommandCategory::kCppFunctions() {
+  static const CommandCategory* const output = new CommandCategory{
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"C++ Functions (Extensions)")};
   return *output;
 }
 
 /* static */ const CommandCategory& CommandCategory::kEditor() {
   static const CommandCategory* const output =
-      new CommandCategory{LazyString{L"Editor"}};
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Editor")};
   return *output;
 }
 
 /* static */ const CommandCategory& CommandCategory::kEdit() {
   static const CommandCategory* const output =
-      new CommandCategory{LazyString{L"Edit"}};
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Edit")};
   return *output;
 }
 
 /* static */ const CommandCategory& CommandCategory::kExtensions() {
   static const CommandCategory* const output =
-      new CommandCategory{LazyString{L"Extensions"}};
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Extensions")};
+  return *output;
+}
+
+/* static */ const CommandCategory& CommandCategory::kModifiers() {
+  static const CommandCategory* const output =
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Modifiers")};
   return *output;
 }
 
 /* static */ const CommandCategory& CommandCategory::kNavigate() {
   static const CommandCategory* const output =
-      new CommandCategory{LazyString{L"Navigate"}};
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Navigate")};
   return *output;
 }
 
 /* static */ const CommandCategory& CommandCategory::kPrompt() {
   static const CommandCategory* const output =
-      new CommandCategory{LazyString{L"Prompt"}};
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Prompt")};
+  return *output;
+}
+
+/* static */ const CommandCategory& CommandCategory::kView() {
+  static const CommandCategory* const output =
+      new CommandCategory{NON_EMPTY_SINGLE_LINE_CONSTANT(L"View")};
   return *output;
 }
 

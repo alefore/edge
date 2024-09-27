@@ -445,7 +445,7 @@ class ForkEditorCommand : public Command {
         L"Prompts for a command and creates a new buffer running it."};
   }
   CommandCategory Category() const override {
-    return CommandCategory{LazyString{L"Buffers"}};
+    return CommandCategory::kBuffers();
   }
 
   void ProcessInput(ExtendedChar) override {
