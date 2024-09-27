@@ -523,7 +523,7 @@ std::optional<LazyString> EditorState::GetExitNotice() const {
          LazyString{L"):\n"} +
          Concatenate(dirty_buffers_saved_to_backup_ |
                      std::views::transform([](const BufferName& name) {
-                       return LazyString{L"  "} + ToLazyString(name) +
+                       return LazyString{L"  "} + ToSingleLine(name).read() +
                               LazyString{L"\n"};
                      }));
 }
@@ -617,7 +617,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                     std::views::transform(
                                         [](const OpenBuffer& b) -> LazyString {
                                           return LazyString{L" "} +
-                                                 ToLazyString(b.name());
+                                                 ToSingleLine(b.name()).read();
                                         }))},
                   5)) {
                 case error::Log::InsertResult::kInserted:
@@ -641,19 +641,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                   SingleLine{LazyString{
                       std::to_wstring(data->pending_buffers.size())}} +
                   SingleLine{LazyString{L": "}} +
-                  // TODO(trivial, 2024-09-17): Define Concatenate and
-                  // Intersperse for SingleLine.
-                  SingleLine{Concatenate(
+                  Concatenate(
                       data->pending_buffers |
                       std::views::take(max_buffers_to_show) |
                       std::views::transform(
                           [](const gc::Root<OpenBuffer>& pending_buffer) {
-                            // TODO(easy, 2024-09-17): Change ToLazyString to
-                            // directly return a SingleLine from the buffer
-                            // name.
-                            return ToLazyString(pending_buffer.ptr()->name());
+                            return ToSingleLine(pending_buffer.ptr()->name())
+                                .read();
                           }) |
-                      Intersperse(LazyString{L", "}))} +
+                      Intersperse(SINGLE_LINE_CONSTANT(L", "))) +
                   (data->pending_buffers.size() > max_buffers_to_show
                        ? SingleLine{LazyString{L"…"}}
                        : SingleLine{LazyString{L""}}))

@@ -145,10 +145,11 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
               .name = buffer_name,
               .path = editor_state.edge_path().empty()
                           ? std::nullopt
-                          : std::make_optional(Path::Join(
-                                editor_state.edge_path().front(),
-                                ValueOrDie(PathComponent::New(
-                                    name.read() + LazyString{L"_history"})))),
+                          : std::make_optional(
+                                Path::Join(editor_state.edge_path().front(),
+                                           ValueOrDie(PathComponent::New(
+                                               name.read().read().read() +
+                                               LazyString{L"_history"})))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([&editor_state](gc::Root<OpenBuffer> buffer_root) {
         OpenBuffer& buffer = buffer_root.ptr().value();
@@ -175,9 +176,11 @@ SingleLine BuildHistoryLine(EditorState& editor, LazyString input) {
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
-    DeleteNotification::Value abort_value, SingleLine filter) {
+    const HistoryFile&, DeleteNotification::Value abort_value,
+    SingleLine filter) {
+  // TODO(trivial, 2024-09-27): Create a new BufferName type.
   BufferName name{LazyString{L"- history filter: "} +
-                  ToLazyString(history_buffer.ptr()->name()) +
+                  ToSingleLine(history_buffer.ptr()->name()).read() +
                   LazyString{L": "} + filter};
   gc::Root<OpenBuffer> filter_buffer_root =
       OpenBuffer::New({.editor = editor_state, .name = name});
@@ -433,8 +436,8 @@ futures::Value<EmptyValue> PromptState::OnModify() {
       NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
 
   return JoinValues(
-             FilterHistory(editor_state(), history(), abort_notification_value,
-                           line.contents())
+             FilterHistory(editor_state(), history(), options_.history_file,
+                           abort_notification_value, line.contents())
                  .Transform([status_value_viewer](
                                 gc::Root<OpenBuffer> filtered_history) {
                    LOG(INFO) << "Propagating history information to status.";
@@ -586,7 +589,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
     return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
-                          prompt_state_->history(), abort_value,
+                          prompt_state_->history(),
+                          prompt_state_->options().history_file, abort_value,
                           input.contents())
                 .Transform([](gc::Root<OpenBuffer> history_filtered) {
                   history_filtered.ptr()->set_current_position_line(
@@ -657,9 +661,11 @@ class LinePromptCommand : public Command {
 
 }  // namespace
 
-HistoryFile HistoryFileFiles() { return HistoryFile{LazyString{L"files"}}; }
+HistoryFile HistoryFileFiles() {
+  return HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")};
+}
 HistoryFile HistoryFileCommands() {
-  return HistoryFile{LazyString{L"commands"}};
+  return HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"commands")};
 }
 
 // input must not be escaped.
@@ -813,7 +819,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     prompt_state->editor_state().status().InsertError(Error{
                         LazyString{
                             L"Error: Predict: predictions buffer not found: "} +
-                        ToLazyString(PredictionsBufferName{})});
+                        ToSingleLine(PredictionsBufferName{}).read()});
                   }
                   return EmptyValue();
                 });

@@ -112,7 +112,8 @@ class RunCppFileCommand : public Command {
     Prompt(
         {.editor_state = editor_state_,
          .prompt = LineBuilder{SingleLine{LazyString{L"cmd "}}}.Build(),
-         .history_file = HistoryFile{LazyString{L"editor_commands"}},
+         .history_file =
+             HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"editor_commands")},
          .initial_value =
              Line{buffer->ptr()->Read(buffer_variables::editor_commands_path)},
          .handler =

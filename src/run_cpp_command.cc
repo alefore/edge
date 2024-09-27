@@ -522,11 +522,13 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
         std::function<futures::Value<EmptyValue>(SingleLine input)> handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         Predictor predictor = EmptyPredictor;
+        std::optional<HistoryFile> history_file;
         switch (mode) {
           case CppCommandMode::kLiteral:
             handler = std::bind_front(RunCppCommandLiteralHandler,
                                       std::ref(editor_state));
             prompt_builder.AppendString(SINGLE_LINE_CONSTANT(L"cpp"));
+            history_file = HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cpp")};
             colorize_options_provider = std::bind_front(
                 CppColorizeOptionsProvider, std::ref(editor_state));
             break;
@@ -534,6 +536,8 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
             handler = std::bind_front(RunCppCommandShellHandler,
                                       std::ref(editor_state));
             prompt_builder.AppendString(SingleLine::Char<L':'>());
+            history_file =
+                HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"colon")};
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
             // TODO(easy, 2023-09-16): Make it possible to disable the use of a
@@ -551,9 +555,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
         return PromptOptions{
             .editor_state = editor_state,
             .prompt = prompt,
-            .history_file = prompt.contents() == SingleLine{LazyString{L":"}}
-                                ? HistoryFile{LazyString{L"colon"}}
-                                : HistoryFile{prompt.contents().read()},
+            .history_file = history_file.value(),
             .colorize_options_provider = std::move(colorize_options_provider),
             .handler = std::move(handler),
             .cancel_handler = []() { /* Nothing. */ },

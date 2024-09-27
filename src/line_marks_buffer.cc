@@ -34,7 +34,8 @@ namespace {
 LineSequence ShowMarksForBuffer(const EditorState& editor,
                                 const LineMarks& marks, BufferName name) {
   MutableLineSequence output;
-  output.push_back(Line{LazyString{L"## Target: "} + ToLazyString(name)});
+  output.push_back(
+      Line{SINGLE_LINE_CONSTANT(L"## Target: ") + ToSingleLine(name).read()});
   struct MarkView {
     bool expired;
     LineColumn target;
@@ -63,8 +64,8 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
   for (std::pair<const BufferName, std::vector<MarkView>> data :
        std::move(marks_by_source)) {
     output.push_back(L"");
-    output.push_back(
-        Line{LazyString{L"### Source: "} + ToLazyString(data.first)});
+    output.push_back(Line{SINGLE_LINE_CONSTANT(L"### Source: ") +
+                          ToSingleLine(data.first).read()});
     output.append_back(std::move(data.second) |
                        std::views::transform([](MarkView mark) -> Line {
                          LineBuilder line_output{SingleLine{LazyString{L"* "}}};

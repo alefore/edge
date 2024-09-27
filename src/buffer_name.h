@@ -5,6 +5,7 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 
 namespace afc::editor {
 class OpenBuffer;
@@ -68,7 +69,7 @@ struct PredictionsBufferName {
 
 class HistoryFile
     : public language::GhostType<HistoryFile,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::NonEmptySingleLine> {
   using GhostType::GhostType;
 };
 
@@ -103,7 +104,7 @@ using BufferName =
                  ServerBufferName, CommandBufferName, AnonymousBufferName,
                  language::lazy_string::LazyString>;
 
-language::lazy_string::LazyString ToLazyString(const BufferName&);
+language::lazy_string::NonEmptySingleLine ToSingleLine(const BufferName&);
 
 std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor

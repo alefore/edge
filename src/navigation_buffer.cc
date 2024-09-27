@@ -70,8 +70,11 @@ void AppendLine(OpenBuffer& source, SingleLine padding, LineColumn position,
                 OpenBuffer& target) {
   LineBuilder options;
   options.set_contents(padding);
-  options.SetOutgoingLink(OutgoingLink{
-      .path = Path{ToLazyString(source.name())}, .line_column = position});
+  BufferName source_name = source.name();
+  if (BufferFileId* source_path = std::get_if<BufferFileId>(&source_name);
+      source_path != nullptr)
+    options.SetOutgoingLink(
+        OutgoingLink{.path = source_path->read(), .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(std::move(options).Build());
 }
@@ -97,9 +100,11 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
               tree.children()[i + 1].range().begin().line) {
         AddContents(source, *source.LineAt(child.range().end().line), &options);
       }
-      options.SetOutgoingLink(
-          OutgoingLink{.path = Path{ToLazyString(source.name())},
-                       .line_column = child.range().begin()});
+      BufferName source_name = source.name();
+      if (BufferFileId* source_path = std::get_if<BufferFileId>(&source_name);
+          source_path != nullptr)
+        options.SetOutgoingLink(OutgoingLink{
+            .path = source_path->read(), .line_column = child.range().begin()});
 
       target.AppendRawLine(std::move(options).Build());
       continue;
@@ -172,7 +177,7 @@ class NavigationBufferCommand : public Command {
 
     // TODO(trivial, 2024-08-28): Declare a new buffer name?
     BufferName name{LazyString{L"Navigation: "} +
-                    ToLazyString(source->ptr()->name())};
+                    ToSingleLine(source->ptr()->name()).read()};
     gc::Root<OpenBuffer> buffer_root =
         editor_state_.FindOrBuildBuffer(name, [&] {
           gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();

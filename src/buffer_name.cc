@@ -2,55 +2,91 @@
 
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
+#include "src/vm/escape.h"
 
+using afc::infrastructure::Path;
+using afc::language::Error;
 using afc::language::overload;
 using afc::language::to_wstring;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::LineSequence;
+using afc::vm::EscapedString;
 
 namespace afc::editor {
 
 using ::operator<<;
 
-LazyString ToLazyString(const BufferName& p) {
+namespace {
+NonEmptySingleLine VisualizePath(const Path& path) {
+  return std::visit(
+      overload{[](NonEmptySingleLine output) { return output; },
+               [](Error) { return NON_EMPTY_SINGLE_LINE_CONSTANT(L"-"); }},
+      NonEmptySingleLine::New(
+          EscapedString::FromString(path.read()).EscapedRepresentation()));
+}
+}  // namespace
+
+NonEmptySingleLine ToSingleLine(const BufferName& p) {
   return std::visit(
       overload{
-          [](const BufferFileId& i) { return LazyString{to_wstring(i)}; },
-          [](const BufferListId&) { return LazyString{L"- buffers"}; },
-          [](const FragmentsBuffer&) { return LazyString{L"- fragments"}; },
-          [](const PasteBuffer&) { return LazyString{L"- paste buffer"}; },
+          [](const BufferFileId& i) -> NonEmptySingleLine {
+            return VisualizePath(i.read());
+          },
+          [](const BufferListId&) {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- buffers");
+          },
+          [](const FragmentsBuffer&) {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- fragments");
+          },
+          [](const PasteBuffer&) {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- paste buffer");
+          },
           [](const FuturePasteBuffer&) {
-            return LazyString{L"- future paste buffer"};
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- future paste buffer");
           },
-          [](const TextInsertion&) { return LazyString{L"- text inserted"}; },
+          [](const TextInsertion&) {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- text inserted");
+          },
           [](const InitialCommands&) {
-            return LazyString{L"- initial commands"};
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- initial commands");
           },
-          [](const ConsoleBufferName&) { return LazyString{L"- console"}; },
+          [](const ConsoleBufferName&) {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- console");
+          },
           [](const PredictionsBufferName&) {
-            return LazyString{L"- predictions"};
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- predictions");
           },
-          [](const HistoryBufferName& input) {
-            return LazyString{L"- history: "} + LazyString{to_wstring(input)};
+          [](const HistoryBufferName& input) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- history: ") +
+                   input.read().read();
           },
-          [](const ServerBufferName& input) {
-            return LazyString{L"@ "} + LazyString{to_wstring(input)};
+          [](const ServerBufferName& input) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"@ ") +
+                   VisualizePath(input.read());
           },
-          [](const CommandBufferName& input) {
-            return LazyString{L"$ "} + LazyString{to_wstring(input)};
+          [](const CommandBufferName& input) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"$ ") +
+                   EscapedString::FromString(input.read())
+                       .EscapedRepresentation();
           },
-          [](const AnonymousBufferName& input) {
-            return LazyString{L"anonymous buffer "} +
-                   LazyString{to_wstring(input)};
+          [](const AnonymousBufferName& input) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"anonymous buffer ") +
+                   NonEmptySingleLine{input.read()}.read();
           },
-          [](const LazyString& str) {
-            return LazyString{L"["} + str + LazyString{L"]"};
+          [](const LazyString& str) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"[") +
+                   LineSequence::BreakLines(str).FoldLines() +
+                   NON_EMPTY_SINGLE_LINE_CONSTANT(L"]");
           },
       },
       p);
 }
 std::ostream& operator<<(std::ostream& os, const BufferName& p) {
-  os << ToLazyString(p);
+  os << ToSingleLine(p);
   return os;
 }
 

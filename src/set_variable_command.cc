@@ -77,7 +77,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
   Status& default_error_status = active_buffers.size() == 1
                                      ? active_buffers[0].ptr()->status()
                                      : editor_state.status();
-  static const HistoryFile history_file{LazyString{L"values"}};
+  static const HistoryFile history_file{
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"values")};
   Line prompt = LineBuilder{name + SingleLine{LazyString{L" := "}}}.Build();
   if (auto var = buffer_variables::StringStruct()->find_variable(name.read());
       var != nullptr) {
@@ -235,7 +236,8 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
         return PromptOptions{
             .editor_state = editor_state,
             .prompt = LineBuilder{SingleLine{LazyString{L"🔧 "}}}.Build(),
-            .history_file = HistoryFile{LazyString{L"variables"}},
+            .history_file =
+                HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"variables")},
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](
                     const SingleLine& line,

@@ -745,7 +745,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                             [&] { return futures::Past(EmptyValue()); });
                       }));
 
-  Set(buffer_variables::name, ToLazyString(options_.name));
+  Set(buffer_variables::name, ToSingleLine(options_.name).read().read());
   if (options_.path.has_value())
     Set(buffer_variables::path, options_.path.value().read());
   Set(buffer_variables::pts_path, LazyString{});
@@ -1622,7 +1622,7 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
 
     infrastructure::TerminalName name() override {
       return infrastructure::TerminalName{LazyString{L"Terminal:"} +
-                                          ToLazyString(buffer_.name())};
+                                          ToSingleLine(buffer_.name()).read()};
     }
 
     std::optional<infrastructure::FileDescriptor> fd() override {
@@ -1759,8 +1759,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     futures::Future<EmptyValue> output;
     reader =
         std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-            .name = FileDescriptorName{ToLazyString(name()) + LazyString{L":"} +
-                                       name_suffix},
+            .name = FileDescriptorName{ToSingleLine(name()).read() +
+                                       LazyString{L":"} + name_suffix},
             .fd = fd.value(),
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
@@ -2378,8 +2378,9 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                          editor().buffer_registry().Find(FuturePasteBuffer{});
                      paste_buffer.has_value()) {
             editor().buffer_registry().Remove(FuturePasteBuffer{});
-            paste_buffer->ptr()->Set(buffer_variables::name,
-                                     ToLazyString(BufferName{PasteBuffer{}}));
+            paste_buffer->ptr()->Set(
+                buffer_variables::name,
+                ToSingleLine(BufferName{PasteBuffer{}}).read().read());
             editor().buffer_registry().Add(PasteBuffer{},
                                            paste_buffer->ptr().ToWeakPtr());
           }
