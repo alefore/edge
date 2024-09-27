@@ -5,6 +5,7 @@
 #include "src/buffer_variables.h"
 #include "src/infrastructure/screen/visual_overlay.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/wstring.h"
 
 using afc::infrastructure::screen::LineModifier;
@@ -17,7 +18,9 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::StartsWith;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
@@ -37,19 +40,20 @@ std::vector<LineColumn> FindPositions(const SingleLine& query,
   std::optional<LineColumnDelta> view_size =
       buffer.display_data().view_size().Get();
   if (view_size == std::nullopt) return output;
+  const bool ignore_case = query == LowerCase(query);
+  const LazyString& adjusted_query = ignore_case ? LowerCase(query) : query;
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
-    Line line = buffer.contents().snapshot().at(view_start.line);
-    while (view_start.column +
-               std::max(kQueryLength + ColumnNumberDelta(1), query.size()) <=
-           line.EndColumn()) {
-      bool match = true;
-      for (ColumnNumberDelta i; i < query.size() && match; ++i) {
-        match = std::tolower(
-                    static_cast<wchar_t>(line.get(view_start.column + i))) ==
-                std::tolower(query.get(ColumnNumber{} + i));
-      }
-      if (match) output.push_back(view_start);
+    const SingleLine& line =
+        buffer.contents().snapshot().at(view_start.line).contents();
+    while ((view_start.column +
+            std::max(kQueryLength + ColumnNumberDelta(1), query.size()))
+               .ToDelta() <= line.size()) {
+      if (const SingleLine& contents =
+              line.SubstringWithRangeChecks(view_start.column, query.size());
+          StartsWith(ignore_case ? LowerCase(contents) : contents,
+                     adjusted_query))
+        output.push_back(view_start);
       ++view_start.column;
     }
     view_start = LineColumn(LineNumber(view_start.line + LineNumberDelta(1)));
