@@ -40,6 +40,9 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::tests::BenchmarkName;
 
 namespace afc::editor {
@@ -227,17 +230,20 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set<LazyString>(
               &CommandLineValues::benchmark,
               [](LazyString input) -> ValueOrError<LazyString> {
-                std::set<LazyString> benchmarks = container::MaterializeSet(
-                    tests::BenchmarkNames() |
-                    std::views::transform([](const BenchmarkName& b) {
-                      // TODO(trivial, 2024-09-05): Avoid this conversion.
-                      return LazyString{b.read()};
-                    }));
-                if (benchmarks.contains(input)) return input;
-                return Error{
-                    LazyString{L"Invalid value (valid values: "} +
-                    Concatenate(benchmarks | Intersperse(LazyString{L", "})) +
-                    LazyString{L")"}};
+                std::set<BenchmarkName> benchmarks =
+                    container::MaterializeSet(tests::BenchmarkNames());
+                DECLARE_OR_RETURN(BenchmarkName input_benchmark,
+                                  BenchmarkName::New(NonEmptySingleLine::New(
+                                      SingleLine::New(input))));
+                if (benchmarks.contains(input_benchmark)) return input;
+                return Error{LazyString{L"Invalid value (valid values: "} +
+                             Concatenate(benchmarks |
+                                         std::views::transform(
+                                             [](const BenchmarkName& name) {
+                                               return ToLazyString(name);
+                                             }) |
+                                         Intersperse(LazyString{L", "})) +
+                             LazyString{L")"}};
               }),
 
       Handler<CommandLineValues>({FlagName{L"view"}},

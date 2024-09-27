@@ -7,10 +7,13 @@
 #include <memory>
 
 #include "src/language/ghost_type_class.h"
-#include "src/language/wstring.h"
+#include "src/language/lazy_string/single_line.h"
 
 namespace afc::tests {
-class BenchmarkName : public language::GhostType<BenchmarkName, std::wstring> {
+struct BenchmarkName
+    : public language::GhostType<BenchmarkName,
+                                 language::lazy_string::NonEmptySingleLine> {
+  using GhostType::GhostType;
 };
 
 using BenchmarkSize = size_t;

@@ -259,8 +259,10 @@ int main(int argc, const char** argv) {
       std::make_unique<EditorState>(args, audio_player.value());
 
   if (!args.benchmark.empty()) {
-    // TODO(2024-09-05, trivial): Avoid this stupid conversion to std::wstring.
-    afc::tests::RunBenchmark(BenchmarkName{args.benchmark.ToString()});
+    // TODO(trivial, 2024-09-27): args.benchmarks should already be in the right
+    // type.
+    afc::tests::RunBenchmark(
+        BenchmarkName{NonEmptySingleLine{SingleLine{args.benchmark}}});
     exit(0);
   }
 

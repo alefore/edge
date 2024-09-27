@@ -5,25 +5,28 @@
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
 
+namespace container = afc::language::container;
+
 using afc::language::InsertOrDie;
 
 namespace afc::tests {
 namespace {
-std::unordered_map<BenchmarkName, BenchmarkFunction>* benchmarks_map() {
-  static std::unordered_map<BenchmarkName, BenchmarkFunction> output;
-  return &output;
+std::unordered_map<BenchmarkName, BenchmarkFunction>& benchmarks_map() {
+  static std::unordered_map<BenchmarkName, BenchmarkFunction>* const output =
+      new std::unordered_map<BenchmarkName, BenchmarkFunction>();
+  return *output;
 }
 }  // namespace
 
 bool RegisterBenchmark(BenchmarkName name, BenchmarkFunction benchmark) {
   CHECK(benchmark != nullptr);
-  InsertOrDie(*benchmarks_map(), {name, std::move(benchmark)});
+  InsertOrDie(benchmarks_map(), {name, std::move(benchmark)});
   return true;
 }
 
 void RunBenchmark(BenchmarkName name) {
-  auto benchmark = benchmarks_map()->find(name);
-  if (benchmark == benchmarks_map()->end()) {
+  auto benchmark = benchmarks_map().find(name);
+  if (benchmark == benchmarks_map().end()) {
     std::cerr << "Unknown Benchmark: " << name << std::endl;
     exit(1);
   }
@@ -42,10 +45,6 @@ void RunBenchmark(BenchmarkName name) {
 }
 
 std::vector<BenchmarkName> BenchmarkNames() {
-  std::vector<BenchmarkName> output;
-  for (const auto& [name, _] : *benchmarks_map()) {
-    output.push_back(name);
-  }
-  return output;
+  return container::MaterializeVector(benchmarks_map() | std::views::keys);
 }
 }  // namespace afc::tests
