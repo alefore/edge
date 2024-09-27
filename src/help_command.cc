@@ -30,6 +30,7 @@ using afc::language::overload;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
@@ -206,7 +207,8 @@ class HelpCommand : public Command {
     ShowCommands(commands, output);
     ShowEnvironment(buffer, output);
 
-    StartSection(SingleLine{LazyString{L"## Buffer Variables"}}, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"## Buffer Variables"),
+                 output);
     output.push_back(
         L"The following are all the buffer variables defined for your buffer.");
     output.push_back(L"");
@@ -246,15 +248,16 @@ class HelpCommand : public Command {
   }
 
  private:
-  static void StartSection(SingleLine section, MutableLineSequence& buffer) {
+  static void StartSection(NonEmptySingleLine section,
+                           MutableLineSequence& buffer) {
     VLOG(2) << "Section: " << section;
-    buffer.push_back(Line{std::move(section)});
+    buffer.push_back(Line{std::move(section).read()});
     buffer.push_back(Line{});
   }
 
   static void ShowCommands(const MapModeCommands& commands,
                            MutableLineSequence& output) {
-    StartSection(SingleLine{LazyString{L"## Commands"}}, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"## Commands"), output);
 
     output.push_back(
         L"The following is a list of all commands available in "
@@ -262,8 +265,9 @@ class HelpCommand : public Command {
     output.push_back(L"");
 
     for (const auto& category : commands.Coallesce()) {
-      StartSection(SINGLE_LINE_CONSTANT(L"### ") + category.first.read().read(),
-                   output);
+      StartSection(
+          NON_EMPTY_SINGLE_LINE_CONSTANT(L"### ") + category.first.read(),
+          output);
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
         line.AppendString(SINGLE_LINE_CONSTANT(L"* "), std::nullopt);
@@ -282,11 +286,12 @@ class HelpCommand : public Command {
   // This is public for testability.
   static void ShowEnvironment(const OpenBuffer& original_buffer,
                               MutableLineSequence& output) {
-    StartSection(SingleLine{LazyString{L"## Environment"}}, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"## Environment"), output);
 
     const gc::Ptr<vm::Environment> environment = original_buffer.environment();
 
-    StartSection(SingleLine{LazyString{L"### Types & methods"}}, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### Types & methods"),
+                 output);
 
     output.push_back(
         L"This section contains a list of all types available to Edge "
@@ -294,12 +299,13 @@ class HelpCommand : public Command {
         L"available methods is given.");
     output.push_back(L"");
 
-    environment->ForEachType([&](const vm::types::ObjectName& name,
-                                 vm::ObjectType& type) {
-      StartSection(SINGLE_LINE_CONSTANT(L"#### ") + name.read().read().read(),
-                   output);
-      type.ForEachField(
-          [&](const vm::Identifier& field_name, vm::Value& value) {
+    environment->ForEachType(
+        [&](const vm::types::ObjectName& name, vm::ObjectType& type) {
+          StartSection(
+              NON_EMPTY_SINGLE_LINE_CONSTANT(L"#### ") + name.read().read(),
+              output);
+          type.ForEachField([&](const vm::Identifier& field_name,
+                                vm::Value& value) {
             std::stringstream value_stream;
             value_stream << value;
             const static ColumnNumberDelta kPaddingSize{40};
@@ -317,11 +323,11 @@ class HelpCommand : public Command {
                     .read()}
                                  .Build());
           });
-      output.push_back(L"");
-    });
+          output.push_back(L"");
+        });
     output.push_back(L"");
 
-    StartSection(SingleLine{LazyString{L"### Variables"}}, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### Variables"), output);
 
     output.push_back(
         L"The following are all variables defined in the environment "
@@ -356,7 +362,7 @@ class HelpCommand : public Command {
       SingleLine type_name, const OpenBuffer& source,
       MutableLineSequence& output, EdgeStruct<T>* variables, C print,
       const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
-    StartSection(SingleLine{LazyString{L"### "}} + type_name, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### ") + type_name, output);
     for (const auto& variable : variables->variables()) {
       // TODO(trivial, 2024-09-17): Stop wrapping variable.second->name in
       // SingleLine here.
@@ -385,12 +391,13 @@ class HelpCommand : public Command {
   }
 
   static void CommandLineVariables(MutableLineSequence& output) {
-    StartSection(SingleLine{LazyString{L"## Command line arguments"}}, output);
+    StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"## Command line arguments"),
+                 output);
     using command_line_arguments::Handler;
     for (const Handler<CommandLineValues>& h : CommandLineArgs()) {
-      StartSection(
-          SingleLine{LazyString{L"### "}} + h.aliases()[0].GetSingleLine(),
-          output);
+      StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### ") +
+                       h.aliases()[0].GetSingleLine(),
+                   output);
       switch (h.argument_type()) {
         case Handler<CommandLineValues>::VariableType::kRequired:
           output.push_back(L"Required argument: " + h.argument() + L": " +
