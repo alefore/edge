@@ -8,6 +8,7 @@
 
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/dirname.h"
+#include "src/tests/benchmarks.h"
 
 namespace afc::editor {
 
@@ -44,9 +45,8 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   // start a prompt for opening a file.
   bool prompt_for_path = false;
 
-  // If non-empty, benchmark to run.
-  language::lazy_string::LazyString benchmark;
-  ;
+  // If present, benchmark to run.
+  std::optional<tests::BenchmarkName> benchmark;
 
   enum class ViewMode {
     // Automatically start editing all files opened (as soon as they have been

@@ -227,24 +227,24 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>({FlagName{L"benchmark"}},
                                  FlagShortHelp{L"Run a benchmark"})
           .Require(L"benchmark", L"The benchmark to run.")
-          .Set<LazyString>(
-              &CommandLineValues::benchmark,
-              [](LazyString input) -> ValueOrError<LazyString> {
-                std::set<BenchmarkName> benchmarks =
-                    container::MaterializeSet(tests::BenchmarkNames());
-                DECLARE_OR_RETURN(BenchmarkName input_benchmark,
-                                  BenchmarkName::New(NonEmptySingleLine::New(
-                                      SingleLine::New(input))));
-                if (benchmarks.contains(input_benchmark)) return input;
-                return Error{LazyString{L"Invalid value (valid values: "} +
-                             Concatenate(benchmarks |
-                                         std::views::transform(
-                                             [](const BenchmarkName& name) {
-                                               return ToLazyString(name);
-                                             }) |
-                                         Intersperse(LazyString{L", "})) +
-                             LazyString{L")"}};
-              }),
+          .Set(&CommandLineValues::benchmark,
+               [](LazyString input)
+                   -> ValueOrError<std::optional<BenchmarkName>> {
+                 std::set<BenchmarkName> benchmarks =
+                     container::MaterializeSet(tests::BenchmarkNames());
+                 DECLARE_OR_RETURN(BenchmarkName benchmark,
+                                   BenchmarkName::New(NonEmptySingleLine::New(
+                                       SingleLine::New(input))));
+                 if (benchmarks.contains(benchmark)) return benchmark;
+                 return Error{LazyString{L"Invalid value (valid values: "} +
+                              Concatenate(benchmarks |
+                                          std::views::transform(
+                                              [](const BenchmarkName& name) {
+                                                return ToLazyString(name);
+                                              }) |
+                                          Intersperse(LazyString{L", "})) +
+                              LazyString{L")"}};
+               }),
 
       Handler<CommandLineValues>({FlagName{L"view"}},
                                  FlagShortHelp{L"Widget mode"})

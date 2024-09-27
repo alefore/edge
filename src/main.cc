@@ -258,13 +258,12 @@ int main(int argc, const char** argv) {
   global_editor_state =
       std::make_unique<EditorState>(args, audio_player.value());
 
-  if (!args.benchmark.empty()) {
-    // TODO(trivial, 2024-09-27): args.benchmarks should already be in the right
-    // type.
-    afc::tests::RunBenchmark(
-        BenchmarkName{NonEmptySingleLine{SingleLine{args.benchmark}}});
-    exit(0);
-  }
+  VisitOptional(
+      [](BenchmarkName benchmark) {
+        afc::tests::RunBenchmark(benchmark);
+        exit(0);
+      },
+      [] {}, args.benchmark);
 
   bool connected_to_parent = false;
   const std::optional<FileDescriptor> remote_server_fd =
