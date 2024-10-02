@@ -142,6 +142,12 @@ LineBuilder::LineBuilder(SingleLine input_contents)
     : data_(Line::Data{.contents = std::move(input_contents), .metadata = {}}) {
 }
 
+LineBuilder::LineBuilder(language::lazy_string::SingleLine input_contents,
+                         afc::infrastructure::screen::LineModifierSet modifiers)
+    : data_(Line::Data{.contents = std::move(input_contents),
+                       .modifiers = {{ColumnNumber{}, std::move(modifiers)}},
+                       .metadata = {}}) {}
+
 LineBuilder::LineBuilder(NonEmptySingleLine input_contents)
     : LineBuilder(input_contents.read()) {}
 

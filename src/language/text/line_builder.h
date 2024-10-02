@@ -27,6 +27,8 @@ class LineBuilder {
 
   explicit LineBuilder(const Line&);
   explicit LineBuilder(language::lazy_string::SingleLine input_contents);
+  LineBuilder(language::lazy_string::SingleLine input_contents,
+              afc::infrastructure::screen::LineModifierSet modifiers);
   explicit LineBuilder(
       language::lazy_string::NonEmptySingleLine input_contents);
 
