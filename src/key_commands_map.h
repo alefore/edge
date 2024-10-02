@@ -150,7 +150,7 @@ class KeyCommandsMapSequence {
   std::map<infrastructure::ExtendedChar, KeyCommandsMap::Category> GetKeys()
       const;
 
-  language::text::Line SummaryLine() const;
+  language::text::LineBuilder SummaryLine() const;
   language::text::LineSequence Help() const;
 };
 }  // namespace afc::editor::operation

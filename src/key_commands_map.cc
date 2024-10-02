@@ -4,6 +4,7 @@
 
 #include "src/help_command.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
@@ -64,8 +65,7 @@ KeyCommandsMapSequence::GetKeys() const {
   return output;
 }
 
-Line KeyCommandsMapSequence::SummaryLine() const {
-  LineBuilder output;
+LineBuilder KeyCommandsMapSequence::SummaryLine() const {
   std::map<KeyCommandsMap::Category, SingleLine> entries_by_category;
   for (const std::pair<const ExtendedChar, KeyCommandsMap::Category>& entry :
        GetKeys())
@@ -73,11 +73,9 @@ Line KeyCommandsMapSequence::SummaryLine() const {
         regular_c != nullptr && isprint(*regular_c))
       entries_by_category[entry.second] +=
           SingleLine{LazyString{ColumnNumberDelta{1}, *regular_c}};
-  for (const std::pair<const KeyCommandsMap::Category, SingleLine>& category :
-       entries_by_category)
-    output.AppendString(SingleLine::Char<L' '>() + category.second,
-                        LineModifierSet{LineModifier::kDim});
-  return std::move(output).Build();
+  return LineBuilder{Concatenate(entries_by_category | std::views::values |
+                                 Intersperse(SingleLine::Char<L' '>())),
+                     LineModifierSet{LineModifier::kDim}};
 }
 
 LineSequence KeyCommandsMapSequence::Help() const {

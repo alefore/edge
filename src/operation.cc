@@ -1070,7 +1070,7 @@ class OperationMode : public EditorMode {
   void AppendStatusForCommandsAvailable(LineBuilder& output) {
     output.AppendString(SingleLine::Padding(ColumnNumberDelta{4}),
                         std::nullopt);
-    output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine()));
+    output.Append(GetGlobalKeyCommandsMap().SummaryLine());
   }
 
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {
