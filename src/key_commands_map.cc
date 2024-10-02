@@ -66,20 +66,17 @@ KeyCommandsMapSequence::GetKeys() const {
 
 Line KeyCommandsMapSequence::SummaryLine() const {
   LineBuilder output;
-  std::map<KeyCommandsMap::Category, std::wstring> entries_by_category;
+  std::map<KeyCommandsMap::Category, SingleLine> entries_by_category;
   for (const std::pair<const ExtendedChar, KeyCommandsMap::Category>& entry :
        GetKeys())
     if (const wchar_t* regular_c = std::get_if<wchar_t>(&entry.first);
         regular_c != nullptr && isprint(*regular_c))
-      entries_by_category[entry.second].push_back(*regular_c);
-  for (const std::pair<const KeyCommandsMap::Category, std::wstring>& category :
-       entries_by_category) {
-    // TODO(trivial, 2024-09-19): Change category.second to NonEmptySingleLine.
-    // Avoid wrapping it here.
-    output.AppendString(
-        SingleLine::Char<L' '>() + SingleLine{LazyString{category.second}},
-        LineModifierSet{LineModifier::kDim});
-  }
+      entries_by_category[entry.second] +=
+          SingleLine{LazyString{ColumnNumberDelta{1}, *regular_c}};
+  for (const std::pair<const KeyCommandsMap::Category, SingleLine>& category :
+       entries_by_category)
+    output.AppendString(SingleLine::Char<L' '>() + category.second,
+                        LineModifierSet{LineModifier::kDim});
   return std::move(output).Build();
 }
 
