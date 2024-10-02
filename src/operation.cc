@@ -327,8 +327,7 @@ transformation::Stack GetTransformation(
   transformation::Stack transformation;
   transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
-          // TODO(trivial, 2024-09-20): Avoid call to `read()`:
-          reach_query.query.read()));
+          std::move(reach_query.query)));
   return transformation;
 }
 

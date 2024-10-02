@@ -8,10 +8,10 @@
 
 namespace afc::editor::transformation {
 class ReachQueryTransformation : public CompositeTransformation {
-  const language::lazy_string::LazyString query_;
+  const language::lazy_string::SingleLine query_;
 
  public:
-  ReachQueryTransformation(language::lazy_string::LazyString query);
+  ReachQueryTransformation(language::lazy_string::SingleLine query);
   std::wstring Serialize() const override;
   futures::Value<Output> Apply(Input input) const override;
 };

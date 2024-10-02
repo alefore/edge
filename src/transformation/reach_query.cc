@@ -30,7 +30,7 @@ using ::operator<<;
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
-std::vector<LineColumn> FindPositions(const LazyString& query,
+std::vector<LineColumn> FindPositions(const SingleLine& query,
                                       const OpenBuffer& buffer) {
   std::vector<LineColumn> output;
   LineColumn view_start = buffer.Read(buffer_variables::view_start);
@@ -115,7 +115,7 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
 }
 }  // namespace
 
-ReachQueryTransformation::ReachQueryTransformation(LazyString query)
+ReachQueryTransformation::ReachQueryTransformation(SingleLine query)
     : query_(std::move(query)) {}
 
 std::wstring ReachQueryTransformation::Serialize() const {
