@@ -87,12 +87,11 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
       LineBuilder options;
       options.set_contents(SingleLine{padding});
       AddContents(source, *source.LineAt(child.range().begin().line), &options);
-      // TODO(trivial, 2024-09-10): Avoid the need to wrap SingleLine here.
-      options.set_contents(SingleLine{options.contents()}.Append(
-          child.range().begin().line + LineNumberDelta(1) <
-                  child.range().end().line
-              ? SingleLine{LazyString{L" ... "}}
-              : SingleLine{LazyString{L" "}}));
+      options.set_contents(options.contents() +
+                           (child.range().begin().line + LineNumberDelta(1) <
+                                    child.range().end().line
+                                ? SINGLE_LINE_CONSTANT(L" ... ")
+                                : SingleLine::Char<L' '>()));
       if (i + 1 >= tree.children().size() ||
           child.range().end().line !=
               tree.children()[i + 1].range().begin().line) {
