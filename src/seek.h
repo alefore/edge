@@ -48,6 +48,21 @@ class Seek {
       std::function<bool(const language::text::Line& line)> predicate) const;
 
  private:
+  template <typename Callable>
+  Result AdvanceWhile(Callable&& callable) const {
+    while (callable(read())) {
+      if (!Advance(position_)) {
+        return UNABLE_TO_ADVANCE;
+      }
+    }
+    return DONE;
+  }
+
+  template <typename Callable>
+  Result AdvanceUntil(Callable&& callable) const {
+    return AdvanceWhile(std::not_fn(std::forward<Callable>(callable)));
+  }
+
   bool Advance(language::text::LineColumn* position) const;
   bool AdvanceLine(language::text::LineColumn* position) const;
 

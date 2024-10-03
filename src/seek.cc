@@ -3,6 +3,9 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 
+#define ADVANCE_OR_RETURN(x) \
+  if (!Advance(x)) return UNABLE_TO_ADVANCE;
+
 namespace afc::editor {
 using language::lazy_string::ColumnNumber;
 using language::text::Line;
@@ -39,7 +42,8 @@ bool Seek::AtRangeEnd() const { return *position_ >= range_.end(); }
 wchar_t Seek::read() const { return contents_.character_at(*position_); }
 
 Seek::Result Seek::Once() const {
-  return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
+  ADVANCE_OR_RETURN(position_);
+  return DONE;
 }
 
 Seek::Result Seek::ToNextLine() const {
@@ -62,83 +66,49 @@ Seek::Result Seek::ToNextLine() const {
 }
 
 Seek::Result Seek::WhileCurrentCharIsUpper() const {
-  while (iswupper(read())) {
-    if (!Advance(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
-  }
-  return DONE;
+  return AdvanceWhile(iswupper);
 }
 
 Seek::Result Seek::WhileCurrentCharIsLower() const {
-  while (iswlower(read())) {
-    if (!Advance(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
-  }
-  return DONE;
+  return AdvanceWhile(iswlower);
 }
 
 Seek::Result Seek::UntilCurrentCharIsUpper() const {
-  while (!iswupper(read())) {
-    if (!Advance(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
-  }
-  return DONE;
+  return AdvanceUntil(&iswupper);
 }
 
 Seek::Result Seek::UntilCurrentCharNotIsUpper() const {
-  while (iswupper(read())) {
-    if (!Advance(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
-  }
-  return DONE;
+  return AdvanceUntil(std::not_fn(&iswupper));
 }
 
 Seek::Result Seek::UntilCurrentCharIsAlpha() const {
-  while (!iswalpha(read())) {
-    if (!Advance(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
-  }
-  return DONE;
+  return AdvanceUntil(iswalpha);
 }
 
 Seek::Result Seek::UntilCurrentCharNotIsAlpha() const {
-  while (iswalpha(read())) {
-    if (!Advance(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
-  }
-  return DONE;
+  return AdvanceUntil(std::not_fn(iswalpha));
 }
 
 Seek::Result Seek::UntilCurrentCharIn(
     const std::unordered_set<wchar_t>& word_char) const {
   CHECK_LE(position_->line, contents_.EndLine());
-  while (!word_char.contains(read()))
-    if (!Advance(position_)) return UNABLE_TO_ADVANCE;
-  return DONE;
+  return AdvanceUntil(
+      [&word_char](wchar_t c) { return word_char.contains(c); });
 }
 
 Seek::Result Seek::UntilCurrentCharNotIn(
     const std::unordered_set<wchar_t>& word_char) const {
-  while (word_char.contains(read()))
-    if (!Advance(position_)) return UNABLE_TO_ADVANCE;
-  return DONE;
+  return AdvanceUntil(
+      [&word_char](wchar_t c) { return !word_char.contains(c); });
 }
 
 Seek::Result Seek::UntilNextCharIn(
     const std::unordered_set<wchar_t>& word_char) const {
   auto next_char = *position_;
-  if (!Advance(&next_char)) {
-    return UNABLE_TO_ADVANCE;
-  }
+  ADVANCE_OR_RETURN(&next_char);
   while (!word_char.contains(contents_.character_at(next_char))) {
     *position_ = next_char;
-    if (!Advance(&next_char)) return UNABLE_TO_ADVANCE;
+    ADVANCE_OR_RETURN(&next_char);
   }
   return DONE;
 }
@@ -146,12 +116,10 @@ Seek::Result Seek::UntilNextCharIn(
 Seek::Result Seek::UntilNextCharNotIn(
     const std::unordered_set<wchar_t>& word_char) const {
   auto next_char = *position_;
-  if (!Advance(&next_char)) {
-    return UNABLE_TO_ADVANCE;
-  }
+  ADVANCE_OR_RETURN(&next_char);
   while (word_char.contains(contents_.character_at(next_char))) {
     *position_ = next_char;
-    if (!Advance(&next_char)) return UNABLE_TO_ADVANCE;
+    ADVANCE_OR_RETURN(&next_char);
   }
   return DONE;
 }
@@ -168,23 +136,15 @@ Seek::Result Seek::UntilLine(
     std::function<bool(const Line& line)> predicate) const {
   bool advance = direction_ == Direction::kBackwards;
   while (true) {
-    if (advance && !AdvanceLine(position_)) {
-      return UNABLE_TO_ADVANCE;
-    }
+    if (advance && !AdvanceLine(position_)) return UNABLE_TO_ADVANCE;
     advance = true;
 
     if (predicate(contents_.at(position_->line))) {
-      if (direction_ == Direction::kBackwards) {
+      if (direction_ == Direction::kBackwards)
         position_->column = contents_.at(position_->line).EndColumn();
-      }
       return DONE;
     }
   }
-}
-
-std::function<bool(const Line& line)> Negate(
-    std::function<bool(const Line& line)> predicate) {
-  return [predicate](const Line& line) { return !predicate(line); };
 }
 
 std::function<bool(const Line& line)> IsLineSubsetOf(
@@ -204,7 +164,7 @@ Seek::Result Seek::UntilNextLineIsSubsetOf(
 
 Seek::Result Seek::UntilNextLineIsNotSubsetOf(
     const std::unordered_set<wchar_t>& allowed_chars) const {
-  return UntilLine(Negate(IsLineSubsetOf(allowed_chars)));
+  return UntilLine(std::not_fn(IsLineSubsetOf(allowed_chars)));
 }
 
 bool Seek::AdvanceLine(LineColumn* position) const {
