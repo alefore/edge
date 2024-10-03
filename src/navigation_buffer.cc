@@ -48,16 +48,14 @@ const vm::Identifier kDepthSymbol{
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  LineBuilder* line_options) {
-  LazyString trim = TrimLeft(input.contents().read(),
+  SingleLine trim = TrimLeft(input.contents(),
                              container::MaterializeUnorderedSet(source.Read(
                                  buffer_variables::line_prefix_characters)));
   CHECK_LE(trim.size(), input.contents().size());
   auto characters_trimmed =
       ColumnNumberDelta(input.contents().size() - trim.size());
   auto initial_length = line_options->EndColumn().ToDelta();
-  // TODO(trivial, 2024-09-10): Avoid explicit SingleLine wrapping for trim:
-  line_options->set_contents(
-      SingleLine{line_options->contents()}.Append(SingleLine{trim}));
+  line_options->set_contents(line_options->contents() + trim);
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
       line_options->set_modifiers(m.first + initial_length - characters_trimmed,
