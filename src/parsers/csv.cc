@@ -66,8 +66,7 @@ class CsvParser : public LineOrientedTreeParser {
                       {ParseTreeProperty::TableCell(csv_column)});
         } else {
           ColumnNumber start = result->position().column;
-          while (seek.read() != L',' && seek.Once() == Seek::Result::kDone)
-            continue;
+          seek.UntilCurrentCharNotIn({L','});
           result->PushAndPop(result->position().column - start, modifiers,
                              {ParseTreeProperty::TableCell(csv_column),
                               ParseTreeProperty::NumberValue()});
