@@ -50,11 +50,8 @@ class Seek {
  private:
   template <typename Callable>
   Result AdvanceWhile(Callable&& callable) const {
-    while (callable(read())) {
-      if (!Advance(position_)) {
-        return Result::kUnableToAdvance;
-      }
-    }
+    while (callable(read()))
+      if (Once() == Result::kUnableToAdvance) return Result::kUnableToAdvance;
     return Result::kDone;
   }
 
