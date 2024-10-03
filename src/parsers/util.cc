@@ -7,6 +7,7 @@
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::NonNull;
+using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -22,7 +23,8 @@ namespace afc::editor::parsers {
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
-static const std::wstring digit_chars = L"1234567890.";
+static const std::unordered_set<wchar_t> digit_chars =
+    MaterializeUnorderedSet(std::wstring_view(L"1234567890."));
 
 namespace {
 size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {

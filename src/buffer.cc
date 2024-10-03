@@ -120,6 +120,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::WeakPtrLockingObserver;
+using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -673,12 +674,12 @@ void OpenBuffer::UpdateTreeParser() {
         buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
             .parser_name = OptionalFrom(ParserId::New(NonEmptySingleLine::New(
                 SingleLine::New(Read(buffer_variables::tree_parser))))),
-            .typos_set = language::container::MaterializeUnorderedSet(
+            .typos_set = MaterializeUnorderedSet(
                 TokenizeBySpaces(
                     LineSequence::BreakLines(Read(buffer_variables::typos))
                         .FoldLines()) |
                 std::views::transform(&Token::value)),
-            .language_keywords = language::container::MaterializeUnorderedSet(
+            .language_keywords = MaterializeUnorderedSet(
                 TokenizeBySpaces(LineSequence::BreakLines(
                                      Read(buffer_variables::language_keywords))
                                      .FoldLines()) |
@@ -1387,11 +1388,10 @@ SeekInput OpenBuffer::NewSeekInput(Structure structure, Direction direction,
       .contents = contents().snapshot(),
       .structure = structure,
       .direction = direction,
-      .line_prefix_characters =
-          // TODO(trivial, 2024-09-11): Avoid call to ToString.
-      Read(buffer_variables::line_prefix_characters).ToString(),
-      // TODO(trivial, 2024-09-11): Avoid call to ToString.
-      .symbol_characters = Read(buffer_variables::symbol_characters).ToString(),
+      .line_prefix_characters = MaterializeUnorderedSet(
+          Read(buffer_variables::line_prefix_characters)),
+      .symbol_characters =
+          MaterializeUnorderedSet(Read(buffer_variables::symbol_characters)),
       .parse_tree = parse_tree(),
       .cursors = FindCursors(L""),
       .position = position,
@@ -1898,11 +1898,11 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       }
 
   if (!initial_url.has_value()) {
-    LazyString line = GetCurrentToken(
-        {.contents = buffer.contents().snapshot(),
-         .line_column = adjusted_position,
-         .token_characters = language::container::MaterializeUnorderedSet(
-             buffer.Read(buffer_variables::path_characters))});
+    LazyString line =
+        GetCurrentToken({.contents = buffer.contents().snapshot(),
+                         .line_column = adjusted_position,
+                         .token_characters = MaterializeUnorderedSet(
+                             buffer.Read(buffer_variables::path_characters))});
 
     if (FindLastNotOf(line, {L'/', L'.', L':'}) == std::nullopt) {
       // If there are only slashes, colons or dots, it's probably not very

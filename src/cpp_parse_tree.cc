@@ -2,12 +2,17 @@
 
 #include <glog/logging.h>
 
+#include <ranges>
+
+#include "src/language/container.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
 #include "src/parsers/util.h"
 #include "src/seek.h"
+
+namespace container = afc::language::container;
 
 using afc::editor::parsers::ParseDoubleQuotedString;
 using afc::infrastructure::screen::LineModifier;
@@ -16,6 +21,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -45,9 +51,11 @@ enum State {
   PARENS_AFTER_SLASH,
 };
 
-static const std::wstring identifier_chars =
-    L"_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-static const std::wstring digit_chars = L"1234567890";
+static const std::unordered_set<wchar_t> identifier_chars =
+    MaterializeUnorderedSet(std::wstring_view{
+        L"_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"});
+static const std::unordered_set<wchar_t> digit_chars =
+    MaterializeUnorderedSet(std::wstring_view{L"1234567890"});
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
@@ -215,8 +223,11 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     CHECK_GE(original_position.column, ColumnNumber(1));
     original_position.column--;
 
-    static const std::wstring cont = identifier_chars + digit_chars;
-    result->seek().UntilCurrentCharNotIn(cont);
+    static const std::unordered_set<wchar_t> identifier_and_digit_chars =
+        container::MaterializeUnorderedSet(
+            std::array{identifier_chars, digit_chars} |
+            std::ranges::views::join);
+    result->seek().UntilCurrentCharNotIn(identifier_and_digit_chars);
 
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
@@ -261,7 +272,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
-    if (identifier_chars.find(tolower(c)) != identifier_chars.npos) {
+    if (identifier_chars.contains(tolower(c))) {
       Identifier(result);
       return;
     }

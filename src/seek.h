@@ -34,13 +34,16 @@ class Seek {
   Result UntilCurrentCharNotIsUpper() const;
   Result UntilCurrentCharIsAlpha() const;
   Result UntilCurrentCharNotIsAlpha() const;
-  Result UntilCurrentCharIn(const std::wstring& word_char) const;
-  Result UntilCurrentCharNotIn(const std::wstring& word_char) const;
-  Result UntilNextCharIn(const std::wstring& word_char) const;
-  Result UntilNextCharNotIn(const std::wstring& word_char) const;
+  Result UntilCurrentCharIn(const std::unordered_set<wchar_t>& word_char) const;
+  Result UntilCurrentCharNotIn(
+      const std::unordered_set<wchar_t>& word_char) const;
+  Result UntilNextCharIn(const std::unordered_set<wchar_t>& word_char) const;
+  Result UntilNextCharNotIn(const std::unordered_set<wchar_t>& word_char) const;
   Result ToEndOfLine() const;
-  Result UntilNextLineIsSubsetOf(const std::wstring& allowed_chars) const;
-  Result UntilNextLineIsNotSubsetOf(const std::wstring& allowed_chars) const;
+  Result UntilNextLineIsSubsetOf(
+      const std::unordered_set<wchar_t>& allowed_chars) const;
+  Result UntilNextLineIsNotSubsetOf(
+      const std::unordered_set<wchar_t>& allowed_chars) const;
   Result UntilLine(
       std::function<bool(const language::text::Line& line)> predicate) const;
 

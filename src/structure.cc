@@ -7,6 +7,8 @@
 #include "src/parse_tree.h"
 #include "src/seek.h"
 
+namespace container = afc::language::container;
+
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -180,8 +182,13 @@ StructureSearchRange GetStructureSearchRange(Structure structure) {
 }
 
 namespace {
-const std::wstring exclamation_signs = L".?!:";
-const std::wstring spaces = L" \n*#";
+const std::unordered_set<wchar_t> exclamation_signs =
+    container::MaterializeUnorderedSet(std::wstring_view{L".?!:"});
+const std::unordered_set<wchar_t> spaces =
+    container::MaterializeUnorderedSet(std::wstring_view{L" \n*#"});
+const std::unordered_set<wchar_t> kSpacesAndExclamationSigns =
+    container::MaterializeUnorderedSet(std::array{spaces, exclamation_signs} |
+                                       std::ranges::views::join);
 }  // namespace
 
 void SeekToNext(SeekInput input) {
@@ -340,9 +347,7 @@ bool SeekToLimit(SeekInput input) {
         }
       }
 
-      if (!has_boundary) {
-        return false;
-      }
+      if (!has_boundary) return false;
       if (input.direction == Direction::kBackwards) {
         Seek(input.contents, &boundary).WithDirection(input.direction).Once();
       }
@@ -356,7 +361,7 @@ bool SeekToLimit(SeekInput input) {
         Seek(input.contents, input.position)
             .Backwards()
             .WrappingLines()
-            .UntilCurrentCharNotIn(exclamation_signs + spaces);
+            .UntilCurrentCharNotIn(kSpacesAndExclamationSigns);
       }
 
       while (true) {
@@ -368,7 +373,7 @@ bool SeekToLimit(SeekInput input) {
           }
           return seek.WithDirection(Direction::kForwards)
                      .WrappingLines()
-                     .UntilNextCharNotIn(spaces + exclamation_signs) ==
+                     .UntilNextCharNotIn(kSpacesAndExclamationSigns) ==
                  Seek::DONE;
         }
         if (seek.ToNextLine() == Seek::UNABLE_TO_ADVANCE) {
@@ -381,7 +386,7 @@ bool SeekToLimit(SeekInput input) {
           }
           return seek.WithDirection(Direction::kForwards)
                      .WrappingLines()
-                     .UntilNextCharNotIn(spaces + exclamation_signs) ==
+                     .UntilNextCharNotIn(kSpacesAndExclamationSigns) ==
                  Seek::DONE;
         }
       }

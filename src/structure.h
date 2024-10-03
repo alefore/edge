@@ -75,8 +75,8 @@ struct SeekInput {
   language::text::LineSequence contents;
   Structure structure;
   Direction direction;
-  std::wstring line_prefix_characters;
-  std::wstring symbol_characters;
+  std::unordered_set<wchar_t> line_prefix_characters;
+  std::unordered_set<wchar_t> symbol_characters;
   language::NonNull<std::shared_ptr<const ParseTree>> parse_tree;
   const infrastructure::screen::CursorsSet* cursors;
   // Input-output parameter.
