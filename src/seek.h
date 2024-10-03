@@ -13,7 +13,7 @@ class Seek {
   Seek(const language::text::LineSequence& contents,
        language::text::LineColumn* position);
 
-  enum Result { DONE, UNABLE_TO_ADVANCE };
+  enum class Result { kDone, kUnableToAdvance };
 
   Seek& WrappingLines();
   Seek& WithDirection(Direction direction);
@@ -52,10 +52,10 @@ class Seek {
   Result AdvanceWhile(Callable&& callable) const {
     while (callable(read())) {
       if (!Advance(position_)) {
-        return UNABLE_TO_ADVANCE;
+        return Result::kUnableToAdvance;
       }
     }
-    return DONE;
+    return Result::kDone;
   }
 
   template <typename Callable>

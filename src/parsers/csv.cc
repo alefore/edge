@@ -39,7 +39,8 @@ class CsvParser : public LineOrientedTreeParser {
  private:
   void SkipSpaces(ParseData* result) {
     auto seek = result->seek();
-    while (std::iswspace(seek.read()) && seek.Once() == Seek::DONE) continue;
+    while (std::iswspace(seek.read()) && seek.Once() == Seek::Result::kDone)
+      continue;
   }
 
   void ParseRow(ParseData* result, size_t csv_column) {
@@ -65,7 +66,8 @@ class CsvParser : public LineOrientedTreeParser {
                       {ParseTreeProperty::TableCell(csv_column)});
         } else {
           ColumnNumber start = result->position().column;
-          while (seek.read() != L',' && seek.Once() == Seek::DONE) continue;
+          while (seek.read() != L',' && seek.Once() == Seek::Result::kDone)
+            continue;
           result->PushAndPop(result->position().column - start, modifiers,
                              {ParseTreeProperty::TableCell(csv_column),
                               ParseTreeProperty::NumberValue()});

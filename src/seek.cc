@@ -4,7 +4,7 @@
 #include "src/language/wstring.h"
 
 #define ADVANCE_OR_RETURN(x) \
-  if (!Advance(x)) return UNABLE_TO_ADVANCE;
+  if (!Advance(x)) return Result::kUnableToAdvance;
 
 namespace afc::editor {
 using language::lazy_string::ColumnNumber;
@@ -43,7 +43,7 @@ wchar_t Seek::read() const { return contents_.character_at(*position_); }
 
 Seek::Result Seek::Once() const {
   ADVANCE_OR_RETURN(position_);
-  return DONE;
+  return Result::kDone;
 }
 
 Seek::Result Seek::ToNextLine() const {
@@ -52,17 +52,17 @@ Seek::Result Seek::ToNextLine() const {
     next_position.line = position_->line.next();
   } else {
     if (position_->line == LineNumber(0)) {
-      return UNABLE_TO_ADVANCE;
+      return Result::kUnableToAdvance;
     }
     next_position.line = position_->line.previous();
     next_position.column = contents_.at(next_position.line).EndColumn();
   }
 
   if (!range_.Contains(next_position)) {
-    return UNABLE_TO_ADVANCE;
+    return Result::kUnableToAdvance;
   }
   *position_ = next_position;
-  return DONE;
+  return Result::kDone;
 }
 
 Seek::Result Seek::WhileCurrentCharIsUpper() const {
@@ -110,7 +110,7 @@ Seek::Result Seek::UntilNextCharIn(
     *position_ = next_char;
     ADVANCE_OR_RETURN(&next_char);
   }
-  return DONE;
+  return Result::kDone;
 }
 
 Seek::Result Seek::UntilNextCharNotIn(
@@ -121,7 +121,7 @@ Seek::Result Seek::UntilNextCharNotIn(
     *position_ = next_char;
     ADVANCE_OR_RETURN(&next_char);
   }
-  return DONE;
+  return Result::kDone;
 }
 
 Seek::Result Seek::ToEndOfLine() const {
@@ -129,20 +129,21 @@ Seek::Result Seek::ToEndOfLine() const {
   CHECK_LE(position_->line, contents_.EndLine());
   position_->column = contents_.at(position_->line).EndColumn();
   *position_ = std::min(range_.end(), *position_);
-  return *position_ > original_position ? DONE : UNABLE_TO_ADVANCE;
+  return *position_ > original_position ? Result::kDone
+                                        : Result::kUnableToAdvance;
 }
 
 Seek::Result Seek::UntilLine(
     std::function<bool(const Line& line)> predicate) const {
   bool advance = direction_ == Direction::kBackwards;
   while (true) {
-    if (advance && !AdvanceLine(position_)) return UNABLE_TO_ADVANCE;
+    if (advance && !AdvanceLine(position_)) return Result::kUnableToAdvance;
     advance = true;
 
     if (predicate(contents_.at(position_->line))) {
       if (direction_ == Direction::kBackwards)
         position_->column = contents_.at(position_->line).EndColumn();
-      return DONE;
+      return Result::kDone;
     }
   }
 }

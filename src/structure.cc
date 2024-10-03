@@ -262,21 +262,21 @@ bool SeekToLimit(SeekInput input) {
       return StartSeekToLimit(input)
                  .WrappingLines()
                  .WithDirection(input.direction)
-                 .Once() == Seek::DONE;
+                 .Once() == Seek::Result::kDone;
 
     case Structure::kWord: {
       StartSeekToLimit(input);
       Seek seek(input.contents, input.position);
       seek.WithDirection(input.direction).WrappingLines();
       if (input.direction == Direction::kForwards &&
-          seek.WhileCurrentCharIsUpper() != Seek::DONE) {
+          seek.WhileCurrentCharIsUpper() != Seek::Result::kDone) {
         return false;
       }
-      if (seek.WhileCurrentCharIsLower() != Seek::DONE) {
+      if (seek.WhileCurrentCharIsLower() != Seek::Result::kDone) {
         return false;
       }
       if (input.direction == Direction::kBackwards && iswupper(seek.read()) &&
-          seek.Once() != Seek::DONE) {
+          seek.Once() != Seek::Result::kDone) {
         return false;
       }
       return true;
@@ -287,7 +287,8 @@ bool SeekToLimit(SeekInput input) {
       return Seek(input.contents, input.position)
                  .WithDirection(input.direction)
                  .WrappingLines()
-                 .UntilCurrentCharNotIn(input.symbol_characters) == Seek::DONE;
+                 .UntilCurrentCharNotIn(input.symbol_characters) ==
+             Seek::Result::kDone;
 
     case Structure::kLine: {
       StartSeekToLimit(input);
@@ -301,7 +302,7 @@ bool SeekToLimit(SeekInput input) {
           return Seek(input.contents, input.position)
                      .WrappingLines()
                      .WithDirection(input.direction)
-                     .Once() == Seek::DONE;
+                     .Once() == Seek::Result::kDone;
       }
       LOG(FATAL) << "Invalid direction value.";
       return false;
@@ -367,16 +368,17 @@ bool SeekToLimit(SeekInput input) {
       while (true) {
         Seek seek(input.contents, input.position);
         seek.WithDirection(input.direction);
-        if (seek.UntilCurrentCharIn(exclamation_signs) == Seek::DONE) {
+        if (seek.UntilCurrentCharIn(exclamation_signs) == Seek::Result::kDone) {
           if (input.direction == Direction::kForwards) {
-            return seek.UntilCurrentCharNotIn(exclamation_signs) == Seek::DONE;
+            return seek.UntilCurrentCharNotIn(exclamation_signs) ==
+                   Seek::Result::kDone;
           }
           return seek.WithDirection(Direction::kForwards)
                      .WrappingLines()
                      .UntilNextCharNotIn(kSpacesAndExclamationSigns) ==
-                 Seek::DONE;
+                 Seek::Result::kDone;
         }
-        if (seek.ToNextLine() == Seek::UNABLE_TO_ADVANCE) {
+        if (seek.ToNextLine() == Seek::Result::kUnableToAdvance) {
           return false;
         }
         if (input.contents.at(input.position->line).EndColumn() ==
@@ -387,7 +389,7 @@ bool SeekToLimit(SeekInput input) {
           return seek.WithDirection(Direction::kForwards)
                      .WrappingLines()
                      .UntilNextCharNotIn(kSpacesAndExclamationSigns) ==
-                 Seek::DONE;
+                 Seek::Result::kDone;
         }
       }
     }
@@ -397,7 +399,7 @@ bool SeekToLimit(SeekInput input) {
                  .WithDirection(input.direction)
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(input.line_prefix_characters) ==
-             Seek::DONE;
+             Seek::Result::kDone;
 
     case Structure::kBuffer:
       StartSeekToLimit(input);

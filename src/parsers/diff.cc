@@ -90,19 +90,19 @@ class DiffParser : public LineOrientedTreeParser {
 
     wchar_t c = seek.read();
     for (int i = 0; i < 3; i++)
-      if (seek.read() != c || seek.Once() == Seek::UNABLE_TO_ADVANCE)
+      if (seek.read() != c || seek.Once() == Seek::Result::kUnableToAdvance)
         return false;
 
-    if (seek.read() != ' ' || seek.Once() == Seek::UNABLE_TO_ADVANCE)
+    if (seek.read() != ' ' || seek.Once() == Seek::Result::kUnableToAdvance)
       return false;
 
-    if (seek.read() == '/' && seek.Once() == Seek::UNABLE_TO_ADVANCE)
+    if (seek.read() == '/' && seek.Once() == Seek::Result::kUnableToAdvance)
       return false;
 
-    while (seek.read() != '/' && seek.Once() == Seek::DONE)
-      ; /* Nothing. */
+    while (seek.read() != '/' &&
+           seek.Once() == Seek::Result::kDone); /* Nothing. */
 
-    if (seek.Once() == Seek::UNABLE_TO_ADVANCE) return false;
+    if (seek.Once() == Seek::Result::kUnableToAdvance) return false;
 
     ColumnNumber path_start = result->position().column;
     VLOG(7) << "Found link starting at: " << path_start;
