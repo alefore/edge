@@ -122,10 +122,12 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
         return output.has_value() ? std::min(a, output.value()) : a;
       },
       Output(),
-      buffer_registry().buffers() | gc::view::Value | std::views::transform([
-      ](OpenBuffer & buffer) -> ValueOrError<struct timespec> {
-        return FromOptional(buffer.work_queue()->NextExecution());
-      }) | SkipErrors);
+      buffer_registry().buffers() | gc::view::Value |
+          std::views::transform(
+              [](OpenBuffer& buffer) -> ValueOrError<struct timespec> {
+                return FromOptional(buffer.work_queue()->NextExecution());
+              }) |
+          SkipErrors);
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
@@ -636,11 +638,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           const size_t max_buffers_to_show = 5;
           status().SetInformationText(
               LineBuilder(
-                  SingleLine{
-                      LazyString{L"Exit: Closing buffers: Remaining: "}} +
-                  SingleLine{LazyString{
-                      std::to_wstring(data->pending_buffers.size())}} +
-                  SingleLine{LazyString{L": "}} +
+                  SINGLE_LINE_CONSTANT(L"Exit: Closing buffers: Remaining: ") +
+                  NonEmptySingleLine{data->pending_buffers.size()} +
+                  SINGLE_LINE_CONSTANT(L": ") +
                   Concatenate(
                       data->pending_buffers |
                       std::views::take(max_buffers_to_show) |
@@ -651,8 +651,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                           }) |
                       Intersperse(SINGLE_LINE_CONSTANT(L", "))) +
                   (data->pending_buffers.size() > max_buffers_to_show
-                       ? SingleLine{LazyString{L"…"}}
-                       : SingleLine{LazyString{L""}}))
+                       ? SINGLE_LINE_CONSTANT(L"…")
+                       : SingleLine{}))
                   .Build());
           return futures::Past(EmptyValue());
         });
