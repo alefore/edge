@@ -22,6 +22,8 @@ using afc::language::OnceOnlyFunction;
 using afc::language::Pointer;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
@@ -35,7 +37,7 @@ using afc::language::text::MutableLineSequence;
 
 namespace afc::editor {
 namespace {
-std::wstring GetMetadata(std::wstring line) {
+LazyString GetMetadata(std::wstring line) {
   NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
   gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
   buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
@@ -58,66 +60,89 @@ std::wstring GetMetadata(std::wstring line) {
       metadata_it != line_in_buffer->metadata().end()) {
     LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
               << metadata_it->second.get_value() << L"]";
-    return ToLazyString(metadata_it->second.get_value()).ToString();
+    return ToLazyString(metadata_it->second.get_value());
   }
-  return L"";
+  return LazyString{};
 }
 
 const bool buffer_tests_registration = tests::Register(
     L"BufferTests",
     {
         {.name = L"MetadataSimpleInt",
-         .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
+         .callback = [] { CHECK_EQ(GetMetadata(L"5"), LazyString{L"5"}); }},
         {.name = L"MetadataStringNotEquals",
-         .callback = [] { CHECK(GetMetadata(L"\"x\" != \"x\"") == L"false"); }},
+         .callback =
+             [] {
+               CHECK_EQ(GetMetadata(L"\"x\" != \"x\""), LazyString{L"false"});
+             }},
         {.name = L"MetadataSimpleDouble",
-         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
+         .callback = [] { CHECK_EQ(GetMetadata(L"2.3"), LazyString{L"2.3"}); }},
         {.name = L"MetadataInexactDivision",
-         .callback = [] { CHECK(GetMetadata(L"1 / 3") == L"0.33333"); }},
+         .callback =
+             [] { CHECK_EQ(GetMetadata(L"1 / 3"), LazyString{L"0.33333"}); }},
         {.name = L"MetadataExactDivision",
-         .callback = [] { CHECK(GetMetadata(L"6 / 3") == L"2"); }},
+         .callback = [] { CHECK_EQ(GetMetadata(L"6 / 3"), LazyString{L"2"}); }},
         {.name = L"MetadataSimpleString",
-         .callback = [] { CHECK(GetMetadata(L"\"xyz\"") == L"\"xyz\""); }},
+         .callback =
+             [] { CHECK_EQ(GetMetadata(L"\"xyz\""), LazyString{L"\"xyz\""}); }},
         {.name = L"MetadataSimpleExpression",
-         .callback = [] { CHECK(GetMetadata(L"1 + 2 + 3") == L"6"); }},
+         .callback =
+             [] { CHECK_EQ(GetMetadata(L"1 + 2 + 3"), LazyString{L"6"}); }},
         {.name = L"MetadataFunctionPure",
          .callback =
              [] {
-               CHECK(GetMetadata(
-                         L"[](number x) -> number { return x * 2; }(4)") ==
-                     L"8");
+               CHECK_EQ(
+                   GetMetadata(L"[](number x) -> number { return x * 2; }(4)"),
+                   LazyString{L"8"});
              }},
         {.name = L"MetadataReader",
          .callback =
-             [] { CHECK(GetMetadata(L"buffer.name()") == L"\"tests\""); }},
+             [] {
+               CHECK_EQ(GetMetadata(L"buffer.name()"),
+                        LazyString{L"\"tests\""});
+             }},
         {.name = L"MetadataLocalVariables",
          .callback =
-             [] { CHECK(GetMetadata(L"number x = 2; x * 2") == L"4"); }},
+             [] {
+               CHECK_EQ(GetMetadata(L"number x = 2; x * 2"), LazyString{L"4"});
+             }},
         {.name = L"MetadataImpureDoesNotExecute",
          .callback =
              [] {
-               CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
-                     L"C++: «number»");
+               CHECK_EQ(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4"),
+                        LazyString{L"C++: «number»"});
              }},
         {.name = L"MetadataPurePow",
-         .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
+         .callback =
+             [] {
+               CHECK_EQ(GetMetadata(L"2 * pow(5, 3)"), LazyString{L"250"});
+             }},
         {.name = L"MetadataStringFind",
          .callback =
              [] {
-               CHECK(GetMetadata(L"\"foo\".find_first_of(\" \", 0)") == L"-1");
+               CHECK_EQ(GetMetadata(L"\"foo\".find_first_of(\" \", 0)"),
+                        LazyString{L"-1"});
              }},
         {.name = L"MetadataScientificNotation",
-         .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
+         .callback =
+             [] { CHECK_EQ(GetMetadata(L"1e3"), LazyString{L"1000"}); }},
         {.name = L"MetadataScientificNotationPlus",
-         .callback = [] { CHECK(GetMetadata(L"1e+3") == L"1000"); }},
+         .callback =
+             [] { CHECK_EQ(GetMetadata(L"1e+3"), LazyString{L"1000"}); }},
         {.name = L"MetadataScientificNotationMinus",
-         .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.001"); }},
+         .callback =
+             [] { CHECK_EQ(GetMetadata(L"1e-3"), LazyString{L"0.001"}); }},
         {.name = L"MetadataIntToStringNormal",
-         .callback = [] { CHECK(GetMetadata(L"(1).tostring()") == L"\"1\""); }},
+         .callback =
+             [] {
+               CHECK_EQ(GetMetadata(L"(1).tostring()"), LazyString{L"\"1\""});
+             }},
         {.name = L"MetadataIntToStringRuntimeError",
          .callback =
              [] {
-               CHECK(GetMetadata(L"(1/0).tostring()").substr(0, 3) == L"E: ");
+               CHECK_EQ(GetMetadata(L"(1/0).tostring()")
+                            .Substring(ColumnNumber{0}, ColumnNumberDelta{3}),
+                        LazyString{L"E: "});
              }},
         {.name = L"MetadataReturnIntToStringRuntimeError",
          .callback =
@@ -125,8 +150,9 @@ const bool buffer_tests_registration = tests::Register(
                // Needs the semicolon to be a valid statement (unlike the
                // similar MetadataIntToStringRuntimeError test, which is an
                // expression, rather than a statement).
-               CHECK(GetMetadata(L"return (1/0).tostring();").substr(0, 3) ==
-                     L"E: ");
+               CHECK_EQ(GetMetadata(L"return (1/0).tostring();")
+                            .Substring(ColumnNumber{0}, ColumnNumberDelta{3}),
+                        LazyString{L"E: "});
              }},
         {.name = L"HonorsExistingMetadata",
          .callback =
@@ -182,15 +208,15 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"LineMetadataString",
          .callback =
              [] {
-               CHECK(GetMetadata(L"buffer.LineMetadataString(0)") ==
-                     L"\"2.5\"");
+               CHECK_EQ(GetMetadata(L"buffer.LineMetadataString(0)"),
+                        LazyString{L"\"2.5\""});
              }},
         {.name = L"LineMetadataStringRuntimeError",
          .callback =
              [] {
-               CHECK(
-                   GetMetadata(L"buffer.LineMetadataString(1)").substr(0, 3) ==
-                   L"E: ");
+               CHECK_EQ(GetMetadata(L"buffer.LineMetadataString(1)")
+                            .Substring(ColumnNumber{0}, ColumnNumberDelta{3}),
+                        LazyString{L"E: "});
              }},
 
     });
