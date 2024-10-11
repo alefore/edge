@@ -83,7 +83,8 @@ PossibleError SendPathToServer(FileDescriptor server_fd,
   LOG(INFO) << "Sending path to server: " << input_path;
   LazyString command =
       LazyString{L"editor.ConnectTo("} +
-      EscapedString::FromString(input_path.read()).CppRepresentation() +
+      ToLazyString(
+          EscapedString::FromString(input_path.read()).CppRepresentation()) +
       LazyString{L");\n"};
   LOG(INFO) << "Sending connection command: " << command;
   std::string command_str = command.ToBytes();

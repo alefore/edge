@@ -239,7 +239,7 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
     return tests::Test(
         {.name = name, .callback = [=] {
            CHECK_EQ(EscapedString(LazyString{input}).CppRepresentation(),
-                    SingleLine{LazyString(expected_output)});
+                    LazyString(expected_output));
          }});
   };
   return std::vector<tests::Test>(

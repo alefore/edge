@@ -13,6 +13,7 @@ using afc::infrastructure::Path;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -23,23 +24,21 @@ using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
-// TODO(trivial, 2024-10-10): Return a NonEmptySingleLine in all the
-// SerializeValue functions.
-SingleLine SerializeValue(LazyString input) {
+NonEmptySingleLine SerializeValue(LazyString input) {
   return EscapedString::FromString(input).CppRepresentation();
 }
 
-SingleLine SerializeValue(int input) {
-  return SingleLine{LazyString{std::to_wstring(input)}};
+NonEmptySingleLine SerializeValue(int input) {
+  return NonEmptySingleLine(input);
 }
 
-SingleLine SerializeValue(bool input) {
-  return input ? SingleLine{LazyString{L"true"}}
-               : SingleLine{LazyString{L"false"}};
+NonEmptySingleLine SerializeValue(bool input) {
+  return input ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"true")
+               : NON_EMPTY_SINGLE_LINE_CONSTANT(L"false");
 }
 
-SingleLine SerializeValue(LineColumn input) {
-  return input.ToCppString().read();
+NonEmptySingleLine SerializeValue(LineColumn input) {
+  return input.ToCppString();
 }
 
 template <typename VariableType>

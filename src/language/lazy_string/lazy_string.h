@@ -79,18 +79,6 @@ class LazyString {
   bool operator<(const LazyString& x) const;
 };
 
-template <typename I>
-concept HasReadMethodAndComparable = requires(I i) {
-  { i.read() } -> std::same_as<decltype(i.read())>;
-  { i.read() == std::declval<LazyString>() };
-};
-
-template <typename I>
-  requires HasReadMethodAndComparable<I>
-bool operator==(const I& i, const LazyString& other) {
-  return i.read() == other;
-}
-
 bool operator==(const LazyString& a, const LazyString& b);
 const LazyString& operator+=(LazyString& a, const LazyString& b);
 LazyString operator+(const LazyString& a, const LazyString& b);
@@ -100,12 +88,35 @@ std::ostream& operator<<(std::ostream& os,
 
 std::wstring to_wstring(const LazyString&);
 
-// Identity function.
-LazyString ToLazyString(LazyString);
+template <typename T>
+  requires std::same_as<
+      typename std::remove_const<typename std::remove_reference<T>::type>::type,
+      LazyString>
+LazyString ToLazyString(T obj) {
+  return obj;
+}
 
-template <typename G>
-LazyString ToLazyString(const G& x) {
-  return ToLazyString(x.read());
+template <typename T>
+  requires(!std::same_as<typename std::remove_const<
+                             typename std::remove_reference<T>::type>::type,
+                         LazyString>)
+LazyString ToLazyString(T obj) {
+  return ToLazyString(obj.read());
+}
+
+template <typename I>
+concept ConvertibleToLazyString =
+    !std::same_as<I, LazyString> &&
+    // We exclude std::optional<LazyString> explicitly, to avoid ambiguity with
+    // the operator== declared for std::optional<> types.
+    !std::same_as<I, std::optional<LazyString>> && requires(I i) {
+      { ToLazyString(i) } -> std::same_as<LazyString>;
+    };
+
+template <typename I>
+  requires ConvertibleToLazyString<I>
+bool operator==(const I& i, const LazyString& other) {
+  return ToLazyString(i) == other;
 }
 
 class LazyStringIterator {

@@ -28,7 +28,7 @@ class EscapedString
       language::lazy_string::SingleLine input);
 
   language::lazy_string::SingleLine EscapedRepresentation() const;
-  language::lazy_string::SingleLine CppRepresentation() const;
+  language::lazy_string::NonEmptySingleLine CppRepresentation() const;
   language::lazy_string::SingleLine URLRepresentation() const;
 
   // Returns the original (unescaped) string.

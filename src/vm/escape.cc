@@ -16,6 +16,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::ForEachColumn;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -129,9 +130,9 @@ SingleLine EscapedString::EscapedRepresentation() const {
   return output;
 }
 
-SingleLine EscapedString::CppRepresentation() const {
-  return SingleLine{LazyString{L"\""}} + EscapedRepresentation() +
-         SingleLine{LazyString{L"\""}};
+NonEmptySingleLine EscapedString::CppRepresentation() const {
+  return NON_EMPTY_SINGLE_LINE_CONSTANT(L"\"") + EscapedRepresentation() +
+         NON_EMPTY_SINGLE_LINE_CONSTANT(L"\"");
 }
 
 SingleLine EscapedString::URLRepresentation() const {
@@ -241,9 +242,9 @@ SingleLine EscapedMap::Serialize() const {
       std::views::transform(
           [](std::pair<Identifier, EscapedString> data) -> SingleLine {
             return data.first.read().read() + SingleLine{LazyString{L":"}} +
-                   data.second.CppRepresentation();
+                   data.second.CppRepresentation().read();
           }) |
-      Intersperse(SingleLine{LazyString{L" "}}));
+      Intersperse(SingleLine::Char<L' '>()));
 }
 
 const EscapedMap::Map& EscapedMap::read() const { return input_; }
