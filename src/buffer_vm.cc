@@ -642,7 +642,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                 buffer->contents().at(LineNumber(line_number)).metadata();
             if (const auto metadata_it = metadata_map.find(LineMetadataKey{});
                 metadata_it != metadata_map.end())
-              return metadata_it->second.value.ToFuture();
+              return metadata_it->second.value.ToFuture().Transform(
+                  [](SingleLine a) { return a.read(); });
             return futures::Past(Error{LazyString{L"Line has no value."}});
           })
           .ptr());
@@ -655,39 +656,44 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           {buffer_object_type.ptr()->type(), vm::types::String{},
            vm::types::Function{.output = vm::Type{vm::types::String{}},
                                .inputs = {vm::types::String{}}}},
-          [&pool](std::vector<gc::Root<vm::Value>> args) {
+          [&pool](std::vector<gc::Root<vm::Value>> args,
+                  Trampoline&) -> futures::ValueOrError<gc::Root<vm::Value>> {
             CHECK_EQ(args.size(), 3u);
             gc::Ptr<OpenBuffer> buffer =
                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                     args[0].ptr().value());
-            buffer->AddLineProcessor(
-                LineProcessorKey{args[1].ptr()->get_string()},
-                [buffer,
-                 callback = std::move(args[2])](LineProcessorInput input) {
-                  return Success(LineProcessorOutputFuture{
-                      .initial_value = LineProcessorOutput(LazyString{L"…"}),
-                      .value =
-                          buffer
-                              ->EvaluateExpression(
-                                  NewFunctionCall(
-                                      NewConstantExpression(callback),
-                                      {NewConstantExpression(
-                                          vm::Value::NewString(
-                                              buffer->editor().gc_pool(),
-                                              input.read()))}),
-                                  buffer->environment().ToRoot())
-                              .Transform([](gc::Root<vm::Value> value) {
-                                std::ostringstream oss;
-                                oss << value.ptr().value();
-                                return Success(LineProcessorOutput(
-                                    LazyString{FromByteString(oss.str())}));
-                              })
-                              .ConsumeErrors([](Error error) {
-                                return futures::Past(LineProcessorOutput(
-                                    LazyString{L"E: "} + error.read()));
-                              })});
-                });
-            return vm::Value::NewVoid(pool);
+            FUTURES_ASSIGN_OR_RETURN(LineProcessorKey key,
+                                     LineProcessorKey::New(SingleLine::New(
+                                         args[1].ptr()->get_string())));
+            buffer->AddLineProcessor(key, [buffer,
+                                           callback = std::move(args[2])](
+                                              LineProcessorInput input) {
+              return Success(LineProcessorOutputFuture{
+                  .initial_value =
+                      LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
+                  .value =
+                      buffer
+                          ->EvaluateExpression(
+                              NewFunctionCall(
+                                  NewConstantExpression(callback),
+                                  {NewConstantExpression(vm::Value::NewString(
+                                      buffer->editor().gc_pool(),
+                                      input.read()))}),
+                              buffer->environment().ToRoot())
+                          .Transform([](gc::Root<vm::Value> value) {
+                            std::ostringstream oss;
+                            oss << value.ptr().value();
+                            return LineProcessorOutput::New(SingleLine::New(
+                                LazyString{FromByteString(oss.str())}));
+                          })
+                          .ConsumeErrors([](Error error) {
+                            return futures::Past(LineProcessorOutput(
+                                SINGLE_LINE_CONSTANT(L"E: ") +
+                                LineSequence::BreakLines(error.read())
+                                    .FoldLines()));
+                          })});
+            });
+            return futures::Past(vm::Value::NewVoid(pool));
           })
           .ptr());
 

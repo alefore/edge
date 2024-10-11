@@ -190,8 +190,8 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
     OpenBuffer& buffer, const LineProcessorInput& input) {
   TRACK_OPERATION(OpenBuffer_LineMetadataCompilation);
   static const LineProcessorOutputFuture kEmptyOutput{
-      .initial_value = LineProcessorOutput(LazyString{}),
-      .value = futures::Past(LineProcessorOutput(LazyString{}))};
+      .initial_value = LineProcessorOutput(SingleLine{}),
+      .value = futures::Past(LineProcessorOutput(SingleLine{}))};
   return std::visit(
       overload{
           [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
@@ -200,12 +200,15 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
               -> ValueOrError<LineProcessorOutputFuture> {
             LineProcessorOutputFuture output{
                 .initial_value = LineProcessorOutput(
-                    LazyString{L"C++: "} +
-                    vm::TypesToString(compilation_result.first->Types())),
+                    SINGLE_LINE_CONSTANT(L"C++: ") +
+                    // TODO(trivial, 2024-10-11): Change vm::TypesToString to
+                    // already return a SingleLine, avoid wrapping here.
+                    SingleLine(
+                        vm::TypesToString(compilation_result.first->Types()))),
                 .value = futures::Future<LineProcessorOutput>().value};
             if (!compilation_result.first->purity().writes_external_outputs) {
               output.initial_value = LineProcessorOutput(
-                  output.initial_value.read() + LazyString{L" ..."});
+                  output.initial_value.read() + SINGLE_LINE_CONSTANT(L" ..."));
               if (compilation_result.first->Types() ==
                   std::vector<vm::Type>({vm::types::Void{}}))
                 return kEmptyOutput;
@@ -219,12 +222,14 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
                         .Transform([](gc::Root<vm::Value> value) {
                           std::ostringstream oss;
                           oss << value.ptr().value();
-                          return Success(LineProcessorOutput(
+                          return LineProcessorOutput::New(SingleLine::New(
                               LazyString{FromByteString(oss.str())}));
                         })
                         .ConsumeErrors([](Error error) {
                           return futures::Past(LineProcessorOutput(
-                              LazyString{L"E: "} + error.read()));
+                              SINGLE_LINE_CONSTANT(L"E: ") +
+                              LineSequence::BreakLines(error.read())
+                                  .FoldLines()));
                         });
                   });
             }
@@ -384,7 +389,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       return Observers::State::kAlive;
     });
 
-  line_processor_map_.Add(LineProcessorKey{LazyString{}},
+  line_processor_map_.Add(LineProcessorKey{SingleLine{}},
                           [this](LineProcessorInput input) {
                             return LineMetadataCompilation(*this, input);
                           });

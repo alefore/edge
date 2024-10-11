@@ -433,22 +433,21 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     info_char_modifier = LineModifier::kDim;
   }
 
-  // TODO(trivial, 2024-09-17): Build `metadata` already as a SingleLine. Avoid
-  // the need to wrap it below.
-  if (LazyString metadata = Concatenate(
+  if (SingleLine metadata = Concatenate(
           std::views::transform(
               contents.metadata(),
               [](const std::pair<LineMetadataKey, LineMetadataValue>& item) {
                 TRACK_OPERATION(
                     BufferMetadataOutput_Prepare_VisitContentsMetadata);
                 return item.first.read() +
-                       (item.first.empty() ? LazyString{} : LazyString{L":"}) +
+                       (item.first.empty() ? SingleLine{}
+                                           : SingleLine::Char<L':'>()) +
                        item.second.get_value();
               }) |
-          std::views::filter(std::not_fn(&LazyString::empty)));
+          std::views::filter(std::not_fn(&SingleLine::empty)));
       !metadata.empty())
     output.push_back(MetadataLine{L'>', LineModifier::kGreen,
-                                  LineBuilder{SingleLine{metadata}}.Build(),
+                                  LineBuilder{metadata}.Build(),
                                   MetadataLine::Type::kLineContents});
 
   auto call_generic_marks_logic =

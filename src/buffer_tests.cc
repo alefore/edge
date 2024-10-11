@@ -57,8 +57,8 @@ std::wstring GetMetadata(std::wstring line) {
           line_in_buffer->metadata().find(LineMetadataKey{});
       metadata_it != line_in_buffer->metadata().end()) {
     LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
-              << metadata_it->second.get_value().ToString() << L"]";
-    return metadata_it->second.get_value().ToString();
+              << metadata_it->second.get_value() << L"]";
+    return ToLazyString(metadata_it->second.get_value()).ToString();
   }
   return L"";
 }
@@ -137,8 +137,9 @@ const bool buffer_tests_registration = tests::Register(
                options.SetMetadata(
                    {{LineMetadataKey{},
                      LineMetadataValue{
-                         .initial_value = LazyString{L"bar"},
-                         .value = futures::Past(LazyString{L"quux"})}}});
+                         .initial_value = SINGLE_LINE_CONSTANT(L"bar"),
+                         .value =
+                             futures::Past(SINGLE_LINE_CONSTANT(L"quux"))}}});
                buffer.ptr()->AppendRawLine(std::move(options).Build());
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
@@ -147,8 +148,7 @@ const bool buffer_tests_registration = tests::Register(
                          .back()
                          .metadata()
                          .at(LineMetadataKey{})
-                         .value.get_copy()
-                         ->ToString() == L"quux");
+                         .value.get_copy() == SINGLE_LINE_CONSTANT(L"quux"));
              }},
         {.name = L"PassingParametersPreservesThem",
          .callback =

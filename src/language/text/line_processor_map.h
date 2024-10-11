@@ -9,12 +9,13 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 
 namespace afc::language::text {
 
 class LineProcessorKey
     : public language::GhostType<LineProcessorKey,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::SingleLine> {
   using GhostType::GhostType;
 };
 class LineProcessorInput
@@ -24,7 +25,7 @@ class LineProcessorInput
 };
 class LineProcessorOutput
     : public language::GhostType<LineProcessorOutput,
-                                 language::lazy_string::LazyString> {
+                                 language::lazy_string::SingleLine> {
   using GhostType::GhostType;
 };
 

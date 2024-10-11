@@ -84,7 +84,7 @@ const std::map<LineMetadataKey, LineMetadataValue>& Line::metadata() const {
   return data_->metadata;
 }
 
-LazyString LineMetadataValue::get_value() const {
+SingleLine LineMetadataValue::get_value() const {
   return value.get_copy().value_or(initial_value);
 }
 
@@ -160,6 +160,6 @@ std::ostream& operator<<(std::ostream& os, const Line& line) {
 namespace std {
 std::size_t hash<afc::language::text::LineMetadataValue>::operator()(
     const afc::language::text::LineMetadataValue& m) const {
-  return std::hash<LazyString>{}(m.value.get_copy().value_or(m.initial_value));
+  return std::hash<SingleLine>{}(m.value.get_copy().value_or(m.initial_value));
 }
 }  // namespace std

@@ -24,15 +24,15 @@
 
 namespace afc::language::text {
 struct LineMetadataKey
-    : public GhostType<LineMetadataKey, lazy_string::LazyString> {
+    : public GhostType<LineMetadataKey, lazy_string::SingleLine> {
   using GhostType::GhostType;
 };
 
 struct LineMetadataValue {
-  lazy_string::LazyString get_value() const;
+  lazy_string::SingleLine get_value() const;
 
-  lazy_string::LazyString initial_value;
-  futures::ListenableValue<lazy_string::LazyString> value;
+  lazy_string::SingleLine initial_value;
+  futures::ListenableValue<lazy_string::SingleLine> value;
 };
 
 struct OutgoingLink {

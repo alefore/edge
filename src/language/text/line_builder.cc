@@ -59,29 +59,30 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(std::hash<Line>{}(
-                      LineBuilder{SingleLine{LazyString{L"alejo"}}}.Build()) !=
+                      LineBuilder{SINGLE_LINE_CONSTANT(L"alejo")}.Build()) !=
                   std::hash<Line>{}(
-                      LineBuilder{SingleLine{LazyString{L"Xlejo"}}}.Build()));
+                      LineBuilder{SINGLE_LINE_CONSTANT(L"Xlejo")}.Build()));
           }},
      {.name = L"ModifiersChangesHash",
       .callback =
           [] {
-            LineBuilder options{SingleLine{LazyString{L"alejo"}}};
+            LineBuilder options{SINGLE_LINE_CONSTANT(L"alejo")};
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.InsertModifier(ColumnNumber(2), LineModifier::kRed);
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
-        futures::Future<LazyString> future;
+        futures::Future<SingleLine> future;
         LineBuilder builder;
         const LineMetadataKey key;
         builder.SetMetadata(
-            {{key, LineMetadataValue{.initial_value = LazyString{L"Foo"},
-                                     .value = std::move(future.value)}}});
+            {{key,
+              LineMetadataValue{.initial_value = SINGLE_LINE_CONSTANT(L"Foo"),
+                                .value = std::move(future.value)}}});
         Line line = std::move(builder).Build();
         CHECK(line.metadata().at(key).get_value() == LazyString{L"Foo"});
-        std::move(future.consumer)(LazyString{L"Bar"});
+        std::move(future.consumer)(SINGLE_LINE_CONSTANT(L"Bar"));
         CHECK(line.metadata().at(key).get_value() == LazyString{L"Bar"});
       }}});
 
@@ -90,7 +91,7 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
     {{.name = L"EmptyModifiers",
       .callback =
           [] {
-            Line line = LineBuilder{SingleLine{LazyString{L"alejo"}}}.Build();
+            Line line = LineBuilder{SINGLE_LINE_CONSTANT(L"alejo")}.Build();
             CHECK(line.modifiers_at_position(ColumnNumber{}).empty());
             CHECK(line.modifiers_at_position(ColumnNumber{3}).empty());
             CHECK(line.modifiers_at_position(ColumnNumber{999}).empty());
@@ -98,7 +99,7 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
      {.name = L"ExactMatch",
       .callback =
           [] {
-            LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
+            LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
             builder.InsertModifier(ColumnNumber(2), LineModifier::kRed);
             builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
             Line line = std::move(builder).Build();
@@ -110,7 +111,7 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
      {.name = L"PositionBeforeModifiers",
       .callback =
           [] {
-            LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
+            LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
             builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
             CHECK(std::move(builder)
                       .Build()
@@ -120,14 +121,14 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
      {.name = L"InexactMatch",
       .callback =
           [] {
-            LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
+            LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
             builder.InsertModifier(ColumnNumber(2), LineModifier::kGreen);
             builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
             CHECK(std::move(builder).Build().modifiers_at_position(ColumnNumber{
                       4}) == LineModifierSet{LineModifier::kGreen});
           }},
      {.name = L"InexactMatchAfterLast", .callback = [] {
-        LineBuilder builder{SingleLine{LazyString{L"alejandro"}}};
+        LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
         builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
         CHECK(std::move(builder).Build().modifiers_at_position(
                   ColumnNumber{8}) == LineModifierSet{LineModifier::kBlue});
@@ -224,14 +225,13 @@ const bool line_set_character_tests_registration = tests::Register(
     L"LineTestsSetCharacter",
     {{.name = L"ConsecutiveSets", .callback = [] {
         LineBuilder options;
-        options.AppendString(SingleLine{LazyString{L"ALEJANDRO"}},
-                             std::nullopt);
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"ALEJANDRO"}});
+        options.AppendString(SINGLE_LINE_CONSTANT(L"ALEJANDRO"), std::nullopt);
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"ALEJANDRO"));
         CHECK(options.modifiers().empty());
 
         options.SetCharacter(ColumnNumber(1), L'l',
                              LineModifierSet{LineModifier::kBold});
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlEJANDRO"}});
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlEJANDRO"));
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -240,7 +240,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(2), L'e',
                              LineModifierSet{LineModifier::kBold});
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AleJANDRO"}});
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AleJANDRO"));
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -249,7 +249,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(3), L'j',
                              LineModifierSet{LineModifier::kUnderline});
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlejANDRO"}});
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejANDRO"));
         CHECK_EQ(options.modifiers().size(), 3ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -260,7 +260,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(5), L'n',
                              LineModifierSet{LineModifier::kBlue});
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlejAnDRO"}});
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejAnDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -275,7 +275,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(4), L'a',
                              LineModifierSet{LineModifier::kRed});
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"AlejanDRO"}});
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -290,7 +290,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(0), L'a',
                              LineModifierSet{LineModifier::kBold});
-        CHECK_EQ(options.contents(), SingleLine{LazyString{L"alejanDRO"}});
+        CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"alejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(0))->second,
                  LineModifierSet{LineModifier::kBold});
