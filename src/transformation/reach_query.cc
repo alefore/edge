@@ -41,7 +41,7 @@ std::vector<LineColumn> FindPositions(const SingleLine& query,
       buffer.display_data().view_size().Get();
   if (view_size == std::nullopt) return output;
   const bool ignore_case = query == LowerCase(query);
-  const LazyString& adjusted_query = ignore_case ? LowerCase(query) : query;
+  const SingleLine& adjusted_query = ignore_case ? LowerCase(query) : query;
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
     const SingleLine& line =
