@@ -9,6 +9,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/tests/fuzz.h"
 
@@ -95,7 +96,7 @@ struct LineColumn {
 
   LineColumn operator+(const LineColumnDelta& value) const;
 
-  std::wstring ToCppString() const;
+  language::lazy_string::NonEmptySingleLine ToCppString() const;
 
   LineNumber line;
   afc::language::lazy_string::ColumnNumber column;

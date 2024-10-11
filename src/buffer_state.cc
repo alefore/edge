@@ -23,6 +23,8 @@ using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
+// TODO(trivial, 2024-10-10): Return a NonEmptySingleLine in all the
+// SerializeValue functions.
 SingleLine SerializeValue(LazyString input) {
   return EscapedString::FromString(input).CppRepresentation();
 }
@@ -37,9 +39,7 @@ SingleLine SerializeValue(bool input) {
 }
 
 SingleLine SerializeValue(LineColumn input) {
-  // TODO(trivial, 2024-09-17): Change ToCppString to return a SingleLine
-  // directly, avoid wrapping it here.
-  return SingleLine{LazyString{input.ToCppString()}};
+  return input.ToCppString().read();
 }
 
 template <typename VariableType>
@@ -73,7 +73,9 @@ LineSequence SerializeState(Path path, LineColumn position,
   contents.push_back(L"");
 
   // TODO(2023-11-26, P1): Turn this into an entry in LineColumnStruct.
-  contents.push_back(L"buffer.set_position(" + position.ToCppString() + L");");
+  contents.push_back(Line{LazyString{L"buffer.set_position("} +
+                          ToLazyString(position.ToCppString()) +
+                          LazyString{L");"}});
   contents.push_back(L"");
 
   contents.insert(contents.EndLine(),

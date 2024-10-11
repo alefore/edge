@@ -7,16 +7,19 @@
 
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/wstring.h"
 #include "src/vm/environment.h"
 
+namespace gc = afc::language::gc;
+
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
+
 namespace afc::language::text {
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-
-namespace gc = language::gc;
-
 LineColumnDelta::LineColumnDelta(LineNumberDelta input_line,
                                  ColumnNumberDelta input_column)
     : line(input_line), column(input_column) {}
@@ -121,8 +124,10 @@ LineColumn LineColumn::operator+(const LineColumnDelta& value) const {
   return *this + value.line + value.column;
 }
 
-std::wstring LineColumn::ToCppString() const {
-  return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
+NonEmptySingleLine LineColumn::ToCppString() const {
+  return SINGLE_LINE_CONSTANT(L"LineColumn(") +
+         NonEmptySingleLine(line.read()) + SINGLE_LINE_CONSTANT(L", ") +
+         NonEmptySingleLine(column.read()) + SINGLE_LINE_CONSTANT(L")");
 }
 
 }  // namespace afc::language::text
