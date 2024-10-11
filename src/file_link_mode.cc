@@ -530,7 +530,7 @@ gc::Root<OpenBuffer> CreateBuffer(
     SearchOptions search_options = SearchOptions{
         .starting_position = buffer.ptr()->position(),
         // TODO(trivial, 2024-09-16): Drop the need to do SingleLine here.
-        // resouve_path_output->pattern should already be SingleLine.
+        // resolve_path_output->pattern should already be SingleLine.
         .search_query = SingleLine{resolve_path_output->pattern.value()}};
     std::visit(
         overload{[&](LineColumn position) {
