@@ -247,7 +247,7 @@ SingleLine ToSingleLine(const Type& type) {
           [](const types::String&) { return SINGLE_LINE_CONSTANT(L"string"); },
           [](const types::Symbol&) { return SINGLE_LINE_CONSTANT(L"symbol"); },
           [](const types::ObjectName& object) -> SingleLine {
-            return ToSingleLine(object);
+            return language::lazy_string::ToSingleLine(object);
           },
           [](const types::Function& function_type) {
             return std::invoke([&] {
