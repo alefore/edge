@@ -53,7 +53,8 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
-using afc::language::text::LineMetadataEntry;
+using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
@@ -637,9 +638,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           pool, kPurityTypeReader,
           [](gc::Ptr<OpenBuffer> buffer,
              int line_number) -> futures::ValueOrError<LazyString> {
-            std::map<LazyString, LineMetadataEntry> metadata_map =
+            std::map<LineMetadataKey, LineMetadataValue> metadata_map =
                 buffer->contents().at(LineNumber(line_number)).metadata();
-            if (const auto metadata_it = metadata_map.find(LazyString{});
+            if (const auto metadata_it = metadata_map.find(LineMetadataKey{});
                 metadata_it != metadata_map.end())
               return metadata_it->second.value.ToFuture();
             return futures::Past(Error{LazyString{L"Line has no value."}});

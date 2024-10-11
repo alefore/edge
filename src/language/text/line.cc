@@ -54,7 +54,7 @@ size_t Line::ComputeHash(const Line::Data& data) {
       MakeHashableIteratorRange(data.end_of_line_modifiers),
       MakeHashableIteratorRange(
           data.metadata.begin(), data.metadata.end(),
-          [](const std::pair<LazyString, LineMetadataEntry>& value) {
+          [](const std::pair<LineMetadataKey, LineMetadataValue>& value) {
             return compute_hash(value.first, value.second);
           }));
 }
@@ -80,11 +80,11 @@ SingleLine Line::Substring(ColumnNumber column) const {
   return contents().Substring(column);
 }
 
-const std::map<LazyString, LineMetadataEntry>& Line::metadata() const {
+const std::map<LineMetadataKey, LineMetadataValue>& Line::metadata() const {
   return data_->metadata;
 }
 
-LazyString LineMetadataEntry::get_value() const {
+LazyString LineMetadataValue::get_value() const {
   return value.get_copy().value_or(initial_value);
 }
 
@@ -158,8 +158,8 @@ std::ostream& operator<<(std::ostream& os, const Line& line) {
 
 }  // namespace afc::language::text
 namespace std {
-std::size_t hash<afc::language::text::LineMetadataEntry>::operator()(
-    const afc::language::text::LineMetadataEntry& m) const {
+std::size_t hash<afc::language::text::LineMetadataValue>::operator()(
+    const afc::language::text::LineMetadataValue& m) const {
   return std::hash<LazyString>{}(m.value.get_copy().value_or(m.initial_value));
 }
 }  // namespace std

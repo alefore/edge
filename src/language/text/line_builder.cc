@@ -75,16 +75,14 @@ const bool line_tests_registration = tests::Register(
      {.name = L"MetadataBecomesAvailable", .callback = [] {
         futures::Future<LazyString> future;
         LineBuilder builder;
+        const LineMetadataKey key;
         builder.SetMetadata(
-            {{LazyString{},
-              LineMetadataEntry{.initial_value = LazyString{L"Foo"},
-                                .value = std::move(future.value)}}});
+            {{key, LineMetadataValue{.initial_value = LazyString{L"Foo"},
+                                     .value = std::move(future.value)}}});
         Line line = std::move(builder).Build();
-        CHECK(line.metadata().at(LazyString{}).get_value() ==
-              LazyString{L"Foo"});
+        CHECK(line.metadata().at(key).get_value() == LazyString{L"Foo"});
         std::move(future.consumer)(LazyString{L"Bar"});
-        CHECK(line.metadata().at(LazyString{}).get_value() ==
-              LazyString{L"Bar"});
+        CHECK(line.metadata().at(key).get_value() == LazyString{L"Bar"});
       }}});
 
 const bool line_modifiers_at_position_tests_registration = tests::Register(
@@ -391,7 +389,7 @@ std::optional<OutgoingLink> LineBuilder::outgoing_link() const {
 }
 
 LineBuilder& LineBuilder::SetMetadata(
-    std::map<LazyString, LineMetadataEntry> metadata) {
+    std::map<LineMetadataKey, LineMetadataValue> metadata) {
   data_.metadata = std::move(metadata);
   return *this;
 }

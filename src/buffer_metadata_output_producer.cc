@@ -48,7 +48,8 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
-using afc::language::text::LineMetadataEntry;
+using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineRange;
@@ -437,10 +438,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (LazyString metadata = Concatenate(
           std::views::transform(
               contents.metadata(),
-              [](const std::pair<LazyString, LineMetadataEntry>& item) {
+              [](const std::pair<LineMetadataKey, LineMetadataValue>& item) {
                 TRACK_OPERATION(
                     BufferMetadataOutput_Prepare_VisitContentsMetadata);
-                return item.first +
+                return item.first.read() +
                        (item.first.empty() ? LazyString{} : LazyString{L":"}) +
                        item.second.get_value();
               }) |

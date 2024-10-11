@@ -15,6 +15,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/cached_supplier.h"
 #include "src/language/gc.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
@@ -22,7 +23,12 @@
 #include "src/vm/escape.h"
 
 namespace afc::language::text {
-struct LineMetadataEntry {
+struct LineMetadataKey
+    : public GhostType<LineMetadataKey, lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
+
+struct LineMetadataValue {
   lazy_string::LazyString get_value() const;
 
   lazy_string::LazyString initial_value;
@@ -62,7 +68,7 @@ class Line {
 
   std::wstring ToString() const { return contents().read().ToString(); }
 
-  const std::map<lazy_string::LazyString, LineMetadataEntry>& metadata() const;
+  const std::map<LineMetadataKey, LineMetadataValue>& metadata() const;
   const std::map<lazy_string::ColumnNumber,
                  afc::infrastructure::screen::LineModifierSet>&
   modifiers() const;
@@ -106,7 +112,7 @@ class Line {
     // second line.
     afc::infrastructure::screen::LineModifierSet end_of_line_modifiers = {};
 
-    std::map<lazy_string::LazyString, LineMetadataEntry> metadata;
+    std::map<LineMetadataKey, LineMetadataValue> metadata;
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
     CachedSupplier<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
@@ -138,8 +144,8 @@ struct hash<afc::language::text::Line> {
 };
 
 template <>
-struct hash<afc::language::text::LineMetadataEntry> {
-  std::size_t operator()(const afc::language::text::LineMetadataEntry& m) const;
+struct hash<afc::language::text::LineMetadataValue> {
+  std::size_t operator()(const afc::language::text::LineMetadataValue& m) const;
 };
 }  // namespace std
 #endif  // __AFC_LANGUAGE_TEXT_LINE_H__

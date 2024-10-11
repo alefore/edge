@@ -27,7 +27,8 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
-using afc::language::text::LineMetadataEntry;
+using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
@@ -52,7 +53,8 @@ std::wstring GetMetadata(std::wstring line) {
   buffer.ptr()->editor().work_queue()->Execute();
 
   auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
-  if (const auto metadata_it = line_in_buffer->metadata().find(LazyString{});
+  if (const auto metadata_it =
+          line_in_buffer->metadata().find(LineMetadataKey{});
       metadata_it != line_in_buffer->metadata().end()) {
     LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
               << metadata_it->second.get_value().ToString() << L"]";
@@ -133,8 +135,8 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
                LineBuilder options{SingleLine{LazyString{L"foo"}}};
                options.SetMetadata(
-                   {{LazyString{},
-                     language::text::LineMetadataEntry{
+                   {{LineMetadataKey{},
+                     LineMetadataValue{
                          .initial_value = LazyString{L"bar"},
                          .value = futures::Past(LazyString{L"quux"})}}});
                buffer.ptr()->AppendRawLine(std::move(options).Build());
@@ -144,7 +146,7 @@ const bool buffer_tests_registration = tests::Register(
                          ->contents()
                          .back()
                          .metadata()
-                         .at(LazyString{})
+                         .at(LineMetadataKey{})
                          .value.get_copy()
                          ->ToString() == L"quux");
              }},

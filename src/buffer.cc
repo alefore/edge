@@ -133,7 +133,8 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
-using afc::language::text::LineMetadataEntry;
+using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
@@ -166,12 +167,12 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                   LineProcessorInput(line.contents().read()));
           !output.empty()) {
         LineBuilder line_builder(std::move(line));
-        std::map<LazyString, LineMetadataEntry> line_metadata_map;
+        std::map<LineMetadataKey, LineMetadataValue> line_metadata_map;
         for (const auto& p : output)
           InsertOrDie(
               line_metadata_map,
-              {p.first.read(),
-               LineMetadataEntry{
+              {LineMetadataKey{p.first.read()},
+               LineMetadataValue{
                    .initial_value = p.second.initial_value.read(),
                    .value =
                        std::move(p.second.value)
