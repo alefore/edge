@@ -201,10 +201,7 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
             LineProcessorOutputFuture output{
                 .initial_value = LineProcessorOutput(
                     SINGLE_LINE_CONSTANT(L"C++: ") +
-                    // TODO(trivial, 2024-10-11): Change vm::TypesToString to
-                    // already return a SingleLine, avoid wrapping here.
-                    SingleLine(
-                        vm::TypesToString(compilation_result.first->Types()))),
+                    vm::TypesToString(compilation_result.first->Types())),
                 .value = futures::Future<LineProcessorOutput>().value};
             if (!compilation_result.first->purity().writes_external_outputs) {
               output.initial_value = LineProcessorOutput(
