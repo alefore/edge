@@ -193,6 +193,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
           [&](const types::String&) {
             os << EscapedString::FromString(LazyString{value.get_string()})
                       .CppRepresentation()
+                      .read()
                       .read();
           },
           [&](const types::Symbol&) { os << ToSingleLine(value.type); },
