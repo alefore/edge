@@ -97,8 +97,10 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
     auto type_ptr = compilation.environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
       compilation.AddError(
-          Error{LazyString{L"Unknown type: "} + QuoteExpr(ToLazyString(type)) +
-                LazyString{L" for symbol "} + QuoteExpr(ToLazyString(symbol)) +
+          Error{LazyString{L"Unknown type: "} +
+                QuoteExpr(language::lazy_string::ToSingleLine(type)) +
+                LazyString{L" for symbol "} +
+                QuoteExpr(language::lazy_string::ToSingleLine(symbol)) +
                 LazyString{L"."}});
       return std::nullopt;
     }
@@ -130,7 +132,7 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (!value->SupportsType(*vmtype)) {
     compilation.AddError(
         Error{LazyString{L"Unable to assign a value to a variable of type "} +
-              ToQuotedLazyString(*vmtype) + LazyString{L". Value types: "} +
+              ToQuotedSingleLine(*vmtype) + LazyString{L". Value types: "} +
               TypesToString(value->Types()) + LazyString{L"."}});
     return nullptr;
   }

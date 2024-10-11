@@ -120,12 +120,12 @@ struct Function {
 
 types::ObjectName NameForType(Type variant_type);
 
-language::lazy_string::LazyString ToLazyString(const Type&);
-language::lazy_string::LazyString ToQuotedLazyString(const Type&);
-language::lazy_string::LazyString QuoteExpr(
-    language::lazy_string::LazyString expr);
-language::lazy_string::LazyString TypesToString(const std::vector<Type>& types);
-language::lazy_string::LazyString TypesToString(
+language::lazy_string::SingleLine ToSingleLine(const Type&);
+language::lazy_string::SingleLine ToQuotedSingleLine(const Type&);
+language::lazy_string::SingleLine QuoteExpr(
+    language::lazy_string::SingleLine expr);
+language::lazy_string::SingleLine TypesToString(const std::vector<Type>& types);
+language::lazy_string::SingleLine TypesToString(
     const std::unordered_set<Type>& types);
 
 std::ostream& operator<<(std::ostream& os, const Type& value);
@@ -162,8 +162,8 @@ class ObjectType {
   std::multimap<Identifier, language::gc::Ptr<Value>> fields_;
 };
 
-language::lazy_string::LazyString ToLazyString(const ObjectType&);
-language::lazy_string::LazyString ToQuotedLazyString(const ObjectType&);
+language::lazy_string::SingleLine ToSingleLine(const ObjectType&);
+language::lazy_string::SingleLine ToQuotedSingleLine(const ObjectType&);
 }  // namespace afc::vm
 
 namespace std {

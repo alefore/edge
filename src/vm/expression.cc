@@ -71,8 +71,8 @@ ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
   if (b.empty()) return Success(a);
   if (a != b) {
     return Error{LazyString{L"Incompatible return types found: "} +
-                 ToQuotedLazyString(*a.cbegin()) + LazyString{L" and "} +
-                 ToQuotedLazyString(*b.cbegin()) + LazyString{L"."}};
+                 ToQuotedSingleLine(*a.cbegin()) + LazyString{L" and "} +
+                 ToQuotedSingleLine(*b.cbegin()) + LazyString{L"."}};
   }
   return Success(a);
 }

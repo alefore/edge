@@ -331,11 +331,11 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                         language::gc::Root<vm::Environment>>
                   compilation_result) {
             modifiers.insert(LineModifier::kCyan);
-            progress_channel->Push(
-                {.values = {
-                     {VersionPropertyKey{
-                          NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")},
-                      vm::TypesToString(compilation_result.first->Types())}}});
+            progress_channel->Push(ProgressInformation{
+                .values = {{VersionPropertyKey{
+                                NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")},
+                            vm::TypesToString(compilation_result.first->Types())
+                                .read()}}});
             ColorizePromptOptions output;
             MaybePushTokenAndModifiers(line, modifiers, output.tokens);
             if (compilation_result.first->Types() ==

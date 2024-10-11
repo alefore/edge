@@ -163,7 +163,7 @@ ValueOrError<double> Value::ToDouble() const {
           },
           [&](const types::ObjectName& object) -> ValueOrError<double> {
             return Error{LazyString{L"Unable to convert to double: "} +
-                         ToLazyString(object)};
+                         ToSingleLine(object)};
           },
           [](const types::Function&) -> ValueOrError<double> {
             return Error{LazyString{L"Unable to convert to double: function"}};
@@ -195,9 +195,9 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                       .CppRepresentation()
                       .read();
           },
-          [&](const types::Symbol&) { os << ToLazyString(value.type); },
-          [&](const types::ObjectName&) { os << ToLazyString(value.type); },
-          [&](const types::Function&) { os << ToLazyString(value.type); }},
+          [&](const types::Symbol&) { os << ToSingleLine(value.type); },
+          [&](const types::ObjectName&) { os << ToSingleLine(value.type); },
+          [&](const types::Function&) { os << ToSingleLine(value.type); }},
       value.type);
   return os;
 }

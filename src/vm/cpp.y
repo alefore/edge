@@ -329,7 +329,8 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
   if (type_def == nullptr) {
     compilation->AddError(Error{
         LazyString{L"Unknown type: "} +
-        QuoteExpr(ToLazyString(type->value().ptr()->get_symbol())) +
+        QuoteExpr(language::lazy_string::ToSingleLine(
+            type->value().ptr()->get_symbol())) +
         LazyString{L"."}});
     OUT = nullptr;
   } else {

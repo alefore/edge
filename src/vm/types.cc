@@ -223,61 +223,61 @@ bool operator==(const Function& a, const Function& b) {
 
 std::ostream& operator<<(std::ostream& os, const Type& type) {
   using ::operator<<;
-  os << ToLazyString(type);
+  os << ToSingleLine(type);
   return os;
 }
 
-LazyString TypesToString(const std::vector<Type>& types) {
+SingleLine TypesToString(const std::vector<Type>& types) {
   return Concatenate(types | std::views::transform([](const Type& t) {
-                       return ToQuotedLazyString(t);
+                       return ToQuotedSingleLine(t);
                      }) |
-                     Intersperse(LazyString{L", "}));
+                     Intersperse(SINGLE_LINE_CONSTANT(L", ")));
 }
 
-LazyString TypesToString(const std::unordered_set<Type>& types) {
+SingleLine TypesToString(const std::unordered_set<Type>& types) {
   return TypesToString(std::vector<Type>(types.cbegin(), types.cend()));
 }
 
-LazyString ToLazyString(const Type& type) {
+SingleLine ToSingleLine(const Type& type) {
   return std::visit(
       overload{
-          [](const types::Void&) { return LazyString{L"void"}; },
-          [](const types::Bool&) { return LazyString{L"bool"}; },
-          [](const types::Number&) { return LazyString{L"number"}; },
-          [](const types::String&) { return LazyString{L"string"}; },
-          [](const types::Symbol&) { return LazyString{L"symbol"}; },
-          [](const types::ObjectName& object) {
-            return language::lazy_string::ToLazyString(object.read());
+          [](const types::Void&) { return SINGLE_LINE_CONSTANT(L"void"); },
+          [](const types::Bool&) { return SINGLE_LINE_CONSTANT(L"bool"); },
+          [](const types::Number&) { return SINGLE_LINE_CONSTANT(L"number"); },
+          [](const types::String&) { return SINGLE_LINE_CONSTANT(L"string"); },
+          [](const types::Symbol&) { return SINGLE_LINE_CONSTANT(L"symbol"); },
+          [](const types::ObjectName& object) -> SingleLine {
+            return ToSingleLine(object);
           },
           [](const types::Function& function_type) {
             return std::invoke([&] {
                      if (function_type.function_purity.writes_external_outputs)
-                       return LazyString{L"FUNCTION"};
+                       return SINGLE_LINE_CONSTANT(L"FUNCTION");
                      if (function_type.function_purity.reads_external_inputs)
-                       return LazyString{L"FUNCtion"};
+                       return SINGLE_LINE_CONSTANT(L"FUNCtion");
                      if (function_type.function_purity.writes_local_variables)
-                       return LazyString{L"Function"};
-                     return LazyString{L"function"};
+                       return SINGLE_LINE_CONSTANT(L"Function");
+                     return SINGLE_LINE_CONSTANT(L"function");
                    }) +
-                   LazyString{L"<"} + ToLazyString(function_type.output.get()) +
-                   LazyString{L"("} +
+                   SINGLE_LINE_CONSTANT(L"<") +
+                   ToSingleLine(function_type.output.get()) +
+                   SINGLE_LINE_CONSTANT(L"(") +
                    Concatenate(function_type.inputs |
                                std::views::transform([](const Type& t) {
-                                 return ToLazyString(t);
+                                 return ToSingleLine(t);
                                }) |
-                               Intersperse(LazyString{L", "})) +
-                   LazyString{L")>"};
+                               Intersperse(SINGLE_LINE_CONSTANT(L", "))) +
+                   SINGLE_LINE_CONSTANT(L")>");
           }},
       type);
 }
 
-language::lazy_string::LazyString QuoteExpr(
-    language::lazy_string::LazyString expr) {
-  return LazyString{L"«"} + expr + LazyString{L"»"};
+SingleLine QuoteExpr(SingleLine expr) {
+  return SingleLine::Char<L'«'>() + expr + SingleLine::Char<L'»'>();
 }
 
-language::lazy_string::LazyString ToQuotedLazyString(const Type& type) {
-  return QuoteExpr(ToLazyString(type));
+SingleLine ToQuotedSingleLine(const Type& type) {
+  return QuoteExpr(ToSingleLine(type));
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
@@ -291,12 +291,12 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
       MakeNonNullUnique<ObjectType>(std::move(type), ConstructorAccessKey()));
 }
 
-language::lazy_string::LazyString ToLazyString(const ObjectType& object) {
-  return ToLazyString(object.type());
+SingleLine ToSingleLine(const ObjectType& object) {
+  return ToSingleLine(object.type());
 }
 
-language::lazy_string::LazyString ToQuotedLazyString(const ObjectType& object) {
-  return ToQuotedLazyString(object.type());
+SingleLine ToQuotedSingleLine(const ObjectType& object) {
+  return ToQuotedSingleLine(object.type());
 }
 
 ObjectType::ObjectType(const Type& type, ConstructorAccessKey) : type_(type) {}

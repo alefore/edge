@@ -46,7 +46,7 @@ PossibleError CheckFunctionArguments(
   const types::Function* function_type = std::get_if<types::Function>(&type);
   if (function_type == nullptr) {
     return Error{LazyString{L"Expected function but found: "} +
-                 ToQuotedLazyString(type) + LazyString{L"."}};
+                 ToQuotedSingleLine(type) + LazyString{L"."}};
   }
 
   if (function_type->inputs.size() != args.size()) {
@@ -236,7 +236,7 @@ std::unique_ptr<Expression> NewMethodLookup(
 
           if (object_type == nullptr) {
             errors.push_back(Error{LazyString{L"Unknown type: "} +
-                                   ToQuotedLazyString(type) +
+                                   ToQuotedSingleLine(type) +
                                    LazyString{L"."}});
             continue;
           }
@@ -258,15 +258,17 @@ std::unique_ptr<Expression> NewMethodLookup(
                 });
             std::vector<Identifier> close_alternatives =
                 FilterSimilarNames(method_name, std::move(alternatives));
-            errors.push_back(
-                Error{LazyString{L"Unknown method: "} +
-                      QuoteExpr(ToLazyString(*object_type) + LazyString{L"::"} +
-                                ToLazyString(method_name)) +
-                      (close_alternatives.empty()
-                           ? LazyString{}
-                           : (LazyString{L" (did you mean "} +
-                              QuoteExpr(ToLazyString(close_alternatives[0])) +
-                              LazyString{L"?)"}))});
+            errors.push_back(Error{
+                LazyString{L"Unknown method: "} +
+                QuoteExpr(ToSingleLine(*object_type) +
+                          SINGLE_LINE_CONSTANT(L"::") +
+                          language::lazy_string::ToSingleLine(method_name)) +
+                (close_alternatives.empty()
+                     ? LazyString{}
+                     : (LazyString{L" (did you mean "} +
+                        QuoteExpr(language::lazy_string::ToSingleLine(
+                            close_alternatives[0])) +
+                        LazyString{L"?)"}))});
             continue;
           }
 

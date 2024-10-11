@@ -78,8 +78,9 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                                       field_type),
             [](gc::Root<Value> value) { return Success(std::move(value)); },
             [&]() {
-              return Error{LazyString{L"Unexpected: variable value is null: "} +
-                           QuoteExpr(ToLazyString(field_name))};
+              return Error{
+                  LazyString{L"Unexpected: variable value is null: "} +
+                  QuoteExpr(language::lazy_string::ToSingleLine(field_name))};
             }));
       });
 }

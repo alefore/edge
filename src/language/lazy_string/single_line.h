@@ -60,6 +60,22 @@ class SingleLine
     return afc::language::lazy_string::SingleLine::FromConstant<kMessage>(); \
   })
 
+template <typename T>
+  requires std::same_as<
+      typename std::remove_const<typename std::remove_reference<T>::type>::type,
+      SingleLine>
+SingleLine ToSingleLine(T obj) {
+  return obj;
+}
+
+template <typename T>
+  requires(!std::same_as<typename std::remove_const<
+                             typename std::remove_reference<T>::type>::type,
+                         SingleLine>)
+SingleLine ToSingleLine(T obj) {
+  return ToSingleLine(obj.read());
+}
+
 struct NonEmptySingleLineValidator {
   static language::PossibleError Validate(const SingleLine& input);
 };

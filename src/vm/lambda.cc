@@ -43,9 +43,9 @@ class LambdaExpression : public Expression {
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
       return Error{LazyString{L"Expected a return type of "} +
-                   ToQuotedLazyString(expected_return_type) +
+                   ToQuotedSingleLine(expected_return_type) +
                    LazyString{L" but found "} +
-                   ToQuotedLazyString(*deduced_types.cbegin()) +
+                   ToQuotedSingleLine(*deduced_types.cbegin()) +
                    LazyString{L"."}};
     }
     return MakeNonNullUnique<LambdaExpression>(
