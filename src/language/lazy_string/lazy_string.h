@@ -119,6 +119,12 @@ bool operator==(const I& i, const LazyString& other) {
   return ToLazyString(i) == other;
 }
 
+template <typename I>
+  requires ConvertibleToLazyString<I>
+const LazyString& operator+=(LazyString& a, const I& b) {
+  return a += ToLazyString(b);
+}
+
 class LazyStringIterator {
  private:
   LazyString container_;
