@@ -522,7 +522,7 @@ class ForkEditorCommand : public Command {
                       }
                     },
                     [&](Error error) { editor_state_.status().Set(error); }},
-                EscapedString::Parse(current_line.contents().read()));
+                EscapedString::Parse(current_line.contents()));
           },
           [] {});
     } else {

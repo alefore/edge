@@ -22,8 +22,9 @@ class EscapedString
 
   static EscapedString FromString(language::lazy_string::LazyString input);
 
+  // Q: Why does it receive a ValueOrError? To support monadic composition.
   static language::ValueOrError<EscapedString> Parse(
-      language::lazy_string::LazyString input);
+      language::ValueOrError<language::lazy_string::SingleLine> input);
   static language::ValueOrError<EscapedString> ParseURL(
       language::lazy_string::SingleLine input);
 

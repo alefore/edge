@@ -28,7 +28,8 @@ namespace afc::vm {
 }
 
 /* static */ ValueOrError<EscapedString> EscapedString::Parse(
-    language::lazy_string::LazyString input) {
+    ValueOrError<SingleLine> input_or_error) {
+  DECLARE_OR_RETURN(SingleLine input, input_or_error);
   TRACK_OPERATION(EscapedString_Parse);
   LazyString original_string;
   ColumnNumber position;
@@ -170,25 +171,21 @@ bool cpp_unescape_string_tests_registration =
                   LazyString{input},
                   ValueOrDie(EscapedString::Parse(
                                  EscapedString::FromString(LazyString{input})
-                                     .EscapedRepresentation()
-                                     .read()))
+                                     .EscapedRepresentation()))
                       .OriginalString());
             }};
       };
       auto fail = [](std::wstring name, std::wstring input) {
-        return tests::Test{.name = name, .callback = [input] {
-                             LOG(INFO) << "Expecting failure from: " << input;
-                             CHECK(std::holds_alternative<Error>(
-                                 EscapedString::Parse(LazyString{input})));
-                           }};
+        return tests::Test{
+            .name = name, .callback = [input] {
+              LOG(INFO) << "Expecting failure from: " << input;
+              CHECK(std::holds_alternative<Error>(
+                  EscapedString::Parse(SingleLine{LazyString{input}})));
+            }};
       };
       return std::vector<tests::Test>({
           t(L"EmptyString", L""),
           t(L"Simple", L"Simple"),
-          t(L"SingleNewline", L"\n"),
-          t(L"EndNewLine", L"foo\n"),
-          t(L"StartNewLine", L"\nfoo"),
-          t(L"NewlinesInText", L"Foo\nbar\nquux."),
           t(L"SomeQuotes", L"Foo \"with bar\" is 'good'."),
           t(L"SingleBackslash", L"\\"),
           t(L"SomeTextWithBackslash", L"Tab (escaped) is: \\t"),
@@ -225,11 +222,9 @@ EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
         Identifier id,
         Identifier::New(NonEmptySingleLine::New(
             token.value.Substring(ColumnNumber{0}, colon->ToDelta()))));
-    DECLARE_OR_RETURN(
-        EscapedString parsed_value,
-        // TODO(trivial, 2024-09-19): Get rid of `read()`:
-        EscapedString::Parse(
-            input.Substring(value_start, value_end - value_start).read()));
+    DECLARE_OR_RETURN(EscapedString parsed_value,
+                      EscapedString::Parse(input.Substring(
+                          value_start, value_end - value_start)));
     output.insert({id, parsed_value});
   }
 

@@ -5,6 +5,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
+#include "src/language/error/view.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
@@ -377,14 +378,17 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
         math::naive_bayes::Feature{ToLazyString(name) + LazyString{L":"} +
                                    ToLazyString(value.CppRepresentation())});
 
+  // TODO(trivial, 2024-10-15): Remove explicit `for` loop.
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features))
-    if (ValueOrError<EscapedString> data = EscapedString::Parse(key.read());
+    if (ValueOrError<EscapedString> data =
+            EscapedString::Parse(SingleLine::New(key.read()));
         !IsError(data))
       output.matches.push_back(FilterSortBufferOutput::Match{
           .preview = ColorizeLine(
               key.read(), container::MaterializeVector(
-                              history_value_tokens[key] |
+                              GetValueOrDefault(history_value_tokens, key,
+                                                std::vector<Token>{}) |
                               std::views::transform([](const Token& token) {
                                 VLOG(6) << "Add token BOLD: " << token;
                                 return TokenAndModifiers{
