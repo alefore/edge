@@ -76,6 +76,24 @@ const vm::Identifier& HistoryIdentifierDirectory() {
 }
 
 namespace {
+template <typename K, typename V, typename R>
+void InsertRangeUnderKey(std::multimap<K, V>& output, const K& key,
+                         const R& range) {
+  std::ranges::copy(range | std::views::transform([&key](const V& value) {
+                      return std::make_pair(key, value);
+                    }),
+                    std::inserter(output, output.end()));
+}
+
+template <typename K, typename V, typename R>
+void InsertEscapedRangeUnderKey(std::multimap<K, V>& output, const K& key,
+                                const R& range) {
+  InsertRangeUnderKey(
+      output, key, range | std::views::transform([](const LazyString& value) {
+                     return EscapedString(value);
+                   }));
+}
+
 // Generates additional features that are derived from the features returned by
 // GetCurrentFeatures (and thus don't need to be saved).
 std::multimap<Identifier, EscapedString> GetSyntheticFeatures(
@@ -107,12 +125,12 @@ std::multimap<Identifier, EscapedString> GetSyntheticFeatures(
   }
 
   VLOG(5) << "Generating features from directories.";
-  for (auto& dir : directories)
-    output.insert({HistoryIdentifierDirectory(), EscapedString{dir.read()}});
+  InsertEscapedRangeUnderKey(
+      output, HistoryIdentifierDirectory(),
+      directories | std::views::transform(ToLazyString<Path>));
 
   VLOG(5) << "Generating features from extensions.";
-  for (const LazyString& extension : extensions)
-    output.insert({HistoryIdentifierExtension(), EscapedString{extension}});
+  InsertEscapedRangeUnderKey(output, HistoryIdentifierExtension(), extensions);
 
   VLOG(5) << "Done generating synthetic features.";
   return output;
@@ -378,25 +396,30 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
         math::naive_bayes::Feature{ToLazyString(name) + LazyString{L":"} +
                                    ToLazyString(value.CppRepresentation())});
 
-  // TODO(trivial, 2024-10-15): Remove explicit `for` loop.
-  for (math::naive_bayes::Event& key :
-       math::naive_bayes::Sort(history_data, current_features))
-    if (ValueOrError<EscapedString> data =
-            EscapedString::Parse(SingleLine::New(key.read()));
-        !IsError(data))
-      output.matches.push_back(FilterSortBufferOutput::Match{
-          .preview = ColorizeLine(
-              key.read(), container::MaterializeVector(
-                              GetValueOrDefault(history_value_tokens, key,
-                                                std::vector<Token>{}) |
-                              std::views::transform([](const Token& token) {
-                                VLOG(6) << "Add token BOLD: " << token;
-                                return TokenAndModifiers{
-                                    token,
-                                    LineModifierSet{LineModifier::kCyan}};
-                              }))),
-          .data = LineSequence::BreakLines(
-              ValueOrDie(std::move(data)).OriginalString())});
+  std::ranges::copy(
+      math::naive_bayes::Sort(history_data, current_features) |
+          std::views::transform(
+              [&](const math::naive_bayes::Event& key)
+                  -> ValueOrError<FilterSortBufferOutput::Match> {
+                DECLARE_OR_RETURN(
+                    EscapedString data,
+                    EscapedString::Parse(SingleLine::New(key.read())));
+                return FilterSortBufferOutput::Match{
+                    .preview = ColorizeLine(
+                        key.read(),
+                        container::MaterializeVector(
+                            GetValueOrDefault(history_value_tokens, key,
+                                              std::vector<Token>{}) |
+                            std::views::transform([](const Token& token) {
+                              VLOG(6) << "Add token BOLD: " << token;
+                              return TokenAndModifiers{
+                                  token, LineModifierSet{LineModifier::kCyan}};
+                            }))),
+                    .data = LineSequence::BreakLines(data.OriginalString())};
+              }) |
+          language::view::SkipErrors,
+      std::back_inserter(output.matches));
+
   return output;
 }
 
