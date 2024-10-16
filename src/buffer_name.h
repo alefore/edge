@@ -3,6 +3,7 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/ghost_type_class.h"
+#include "src/language/hash.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
@@ -97,12 +98,26 @@ class AnonymousBufferName
   using GhostType::GhostType;
 };
 
+struct FilterBufferName {
+  language::lazy_string::NonEmptySingleLine source_buffer;
+  language::lazy_string::SingleLine filter;
+
+  FilterBufferName& operator=(const FilterBufferName&) = default;
+  bool operator==(const FilterBufferName& other) const = default;
+  // TODO(trivial, 2024-10-16): Use operator<=>. Convert all dependencies to
+  // declare that.
+  bool operator<(const FilterBufferName& other) const {
+    return source_buffer < other.source_buffer ||
+           (source_buffer == other.source_buffer && filter < other.filter);
+  }
+};
+
 using BufferName =
     std::variant<BufferFileId, FragmentsBuffer, PasteBuffer, FuturePasteBuffer,
                  BufferListId, TextInsertion, InitialCommands,
                  ConsoleBufferName, PredictionsBufferName, HistoryBufferName,
                  ServerBufferName, CommandBufferName, AnonymousBufferName,
-                 language::lazy_string::LazyString>;
+                 FilterBufferName, language::lazy_string::LazyString>;
 
 language::lazy_string::NonEmptySingleLine ToSingleLine(const BufferName&);
 
@@ -149,6 +164,13 @@ template <>
 struct hash<afc::editor::PredictionsBufferName> {
   size_t operator()(const afc::editor::PredictionsBufferName&) const {
     return 0;
+  }
+};
+
+template <>
+struct hash<afc::editor::FilterBufferName> {
+  size_t operator()(const afc::editor::FilterBufferName& input) const {
+    return compute_hash(input.source_buffer, input.filter);
   }
 };
 }  // namespace std

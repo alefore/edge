@@ -77,6 +77,11 @@ NonEmptySingleLine ToSingleLine(const BufferName& p) {
             return NON_EMPTY_SINGLE_LINE_CONSTANT(L"anonymous buffer ") +
                    NonEmptySingleLine{input.read()}.read();
           },
+          [](const FilterBufferName& input) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- history filter") +
+                   input.source_buffer + NON_EMPTY_SINGLE_LINE_CONSTANT(L": ") +
+                   input.filter;
+          },
           [](const LazyString& str) -> NonEmptySingleLine {
             return NON_EMPTY_SINGLE_LINE_CONSTANT(L"[") +
                    LineSequence::BreakLines(str).FoldLines() +
