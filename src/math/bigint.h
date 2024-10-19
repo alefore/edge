@@ -35,7 +35,7 @@ class BigInt {
 
   template <typename NumberType>
   static BigInt FromNumber(NumberType value) {
-    CHECK_GE(value, 0);
+    CHECK_GE(value, NumberType{0ul});
     std::vector<Digit> digits;
     do {
       digits.push_back(value % 10);
