@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"

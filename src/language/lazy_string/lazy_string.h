@@ -4,11 +4,11 @@
 #include <memory>
 #include <string>
 
-#include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
+class ColumnNumber;
+class ColumnNumberDelta;
 
 // An immutable string. Implementations must ensure that identical calls to
 // methods in a given instance always output the same values.
@@ -40,9 +40,9 @@ class LazyString {
       language::NonNull<std::shared_ptr<const LazyStringImpl>> data)
       : data_(std::move(data)) {}
 
-  wchar_t get(ColumnNumber pos) const { return data_->get(pos); }
-  ColumnNumberDelta size() const { return data_->size(); }
-  bool empty() const { return data_->size().IsZero(); }
+  wchar_t get(ColumnNumber pos) const;
+  ColumnNumberDelta size() const;
+  bool empty() const;
 
   std::wstring ToString() const;
 
@@ -125,6 +125,11 @@ const LazyString& operator+=(LazyString& a, const I& b) {
   return a += ToLazyString(b);
 }
 
+}  // namespace afc::language::lazy_string
+#include "src/language/lazy_string/column_number.h"
+
+namespace afc::language::lazy_string {
+
 class LazyStringIterator {
  private:
   LazyString container_;
@@ -160,8 +165,5 @@ class LazyStringIterator {
 };
 
 }  // namespace afc::language::lazy_string
-
-GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumber)
-GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumberDelta)
 
 #endif  // __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__

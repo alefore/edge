@@ -218,7 +218,7 @@ LineWithCursor::Generator::Vector WidgetListVertical::CreateOutput(
 
   ColumnNumberDelta base_columns = options.size.column / children_.size();
   ColumnNumberDelta columns_left =
-      options.size.column - base_columns * children_.size();
+      options.size.column - base_columns * static_cast<int>(children_.size());
   CHECK_LT(columns_left, ColumnNumberDelta(children_.size()));
   for (auto& column : columns_vector.columns) {
     column.width = base_columns;

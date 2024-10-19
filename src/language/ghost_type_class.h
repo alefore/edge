@@ -9,6 +9,7 @@
 
 #include <glog/logging.h>
 
+#include <limits>
 #include <variant>
 
 #include "src/language/wstring.h"
@@ -167,7 +168,7 @@ inline std::wstring to_wstring(
 template <typename External, typename Internal,
           typename Validator = ghost_type_internal::AlwaysValid>
 class GhostType : public ghost_type_internal::ValueType<Internal> {
-  Internal value;
+  Internal value = Internal{};
 
  public:
   using InternalType = Internal;
@@ -201,6 +202,8 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires std::is_constructible_v<
         Internal, std::initializer_list<std::pair<const K, V>>>
       : GhostType(Internal(init_list)) {}
+
+  GhostType& operator=(const GhostType&) = default;
 
   static ValueOrError<External> New(ValueOrError<Internal> internal)
     requires(!ghost_type_internal::IsAlwaysValid<Validator>)
@@ -297,16 +300,49 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value < other.value;
   }
 
+  External& operator++() {
+    ++value;
+    return *static_cast<External*>(this);
+  }
+
+  External operator++(int) {
+    External copy = *static_cast<External*>(this);
+    ++value;
+    return copy;
+  }
+
   inline External& operator+=(
       const GhostType<External, Internal, Validator>& other) {
     value += other.value;
     return *static_cast<External*>(this);
   }
 
+  inline External& operator-=(
+      const GhostType<External, Internal, Validator>& other) {
+    value -= other.value;
+    return *static_cast<External*>(this);
+  }
+
+  External& operator--() {
+    --value;
+    return *static_cast<External*>(this);
+  }
+
+  External operator--(int) {
+    External copy = *static_cast<External*>(this);
+    --value;
+    return copy;
+  }
+
   template <typename T>
+    requires requires(Internal value, T other) { value / other; }
   auto operator/(const T& other) const {
     return External::New(value / other);
   }
+
+  auto operator/(const GhostType& other) const { return value / other.value; }
+
+  auto operator%(const GhostType& other) const { return value % other.value; }
 
   inline External& operator*=(double double_value) {
     value *= double_value;
@@ -344,6 +380,14 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   friend auto operator+ <External, Internal, Validator>(
       const Internal&, const GhostType<External, Internal, Validator>&);
 
+#if 0
+  friend auto operator- <External, Internal, Validator>(
+      const GhostType<External, Internal, Validator>&, const Internal&);
+
+  friend auto operator- <External, Internal, Validator>(
+      const Internal&, const GhostType<External, Internal, Validator>&);
+#endif
+
   friend auto operator* <External, Internal, Validator>(
       const GhostType<External, Internal, Validator>&,
       const GhostType<External, Internal, Validator>&);
@@ -362,6 +406,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   friend std::wstring to_wstring<External, Internal, Validator>(
       const GhostType<External, Internal, Validator>& obj);
 };
+}  // namespace afc::language
+#include "src/language/error/value_or_error.h"
+namespace afc::language {
 
 template <typename External, typename Internal, typename Validator>
 auto operator+(const GhostType<External, Internal, Validator>& lhs,
@@ -379,6 +426,49 @@ template <typename External, typename Internal, typename Validator>
 auto operator+(const GhostType<External, Internal, Validator>& lhs,
                const Internal& t) {
   return External::New(lhs.value + t);
+}
+
+template <typename External, typename Internal, typename Validator>
+auto operator-(const GhostType<External, Internal, Validator>& value) {
+  return External::New(-value.read());
+}
+
+template <typename T, typename... Args>
+concept HasSubtract = requires(Args... args) { T::Subtract(args...); } /*&&
+                      !std::is_same_v<T, Error>*/
+;
+
+template <typename T>
+concept HasMinusOperator = requires(T a, T b) {
+  { a - b };
+};
+
+template <typename External, typename Internal, typename Validator>
+  requires(HasSubtract<External, Internal, Internal>)
+decltype(External::Subtract(std::declval<Internal>(), std::declval<Internal>()))
+operator-(const GhostType<External, Internal, Validator>& lhs,
+          const GhostType<External, Internal, Validator>& rhs) {
+  return External::Subtract(lhs.read(), rhs.read());
+}
+
+template <typename External, typename Internal, typename Validator>
+  requires(!HasSubtract<External, Internal, Internal> &&
+           HasMinusOperator<Internal>)
+auto operator-(const GhostType<External, Internal, Validator>& lhs,
+               const GhostType<External, Internal, Validator>& rhs) {
+  return External{lhs.read() - rhs.read()};
+}
+
+template <typename External, typename Internal, typename Validator>
+auto operator-(const Internal& t,
+               const GhostType<External, Internal, Validator>& rhs) {
+  return External::New(t - rhs.read());
+}
+
+template <typename External, typename Internal, typename Validator>
+auto operator-(const GhostType<External, Internal, Validator>& lhs,
+               const Internal& t) {
+  return External::New(lhs.read() - t);
 }
 
 template <typename External, typename Internal, typename Validator>
@@ -434,6 +524,25 @@ struct hash<T> {
     using BaseType = ::afc::language::GhostType<T, typename T::InternalType,
                                                 typename T::ValidatorType>;
     return std::hash<BaseType>()(self);
+  }
+};
+
+template <typename T>
+  requires ::afc::language::IsGhostType<T>::value
+struct numeric_limits<T> {
+  static constexpr bool is_specialized =
+      numeric_limits<typename T::InternalType>::is_specialized;
+
+  static constexpr T max() {
+    static_assert(is_specialized,
+                  "std::numeric_limits is not specialized for this type.");
+    return T{numeric_limits<typename T::InternalType>::max()};
+  }
+
+  static constexpr T min() {
+    static_assert(is_specialized,
+                  "std::numeric_limits is not specialized for this type.");
+    return T{numeric_limits<typename T::InternalType>::min()};
   }
 };
 }  // namespace std

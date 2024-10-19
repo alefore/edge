@@ -9,6 +9,11 @@
 #include "src/tests/tests.h"
 
 namespace afc::language::lazy_string {
+ColumnNumberDelta ColumnNumber::ToDelta() const {
+  CHECK_LE(read(), std::numeric_limits<ColumnNumberDelta>::max());
+  return ColumnNumberDelta{static_cast<int>(read())};
+}
+
 namespace {
 using ::operator<<;
 
@@ -118,6 +123,12 @@ LazyString::LazyString(ColumnNumberDelta times, wchar_t c)
     : data_(MakeNonNullShared<RepeatedChar>(times, c)) {
   CHECK_EQ(size(), times);
 }
+
+wchar_t LazyString::get(ColumnNumber pos) const { return data_->get(pos); }
+
+ColumnNumberDelta LazyString::size() const { return data_->size(); }
+
+bool LazyString::empty() const { return data_->size().IsZero(); }
 
 std::wstring LazyString::ToString() const {
   TRACK_OPERATION(LazyString_ToString);

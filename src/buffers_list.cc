@@ -63,8 +63,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
   // We try to reserve at least one character for each path (except the last)
   // and for each separator. But we give the last character priority.
   ColumnNumberDelta reserved = std::min(
-      ColumnNumberDelta(components.size() - 1) +
-          ColumnNumberDelta(1) * (components.size() - 1),
+      2 * ColumnNumberDelta(components.size() - 1),
       columns - std::min(columns, ColumnNumberDelta(components.back().size())));
   columns -= reserved;
 
@@ -534,9 +533,11 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
 ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
     ColumnNumberDelta total_length, ColumnNumberDelta separator_padding,
     size_t columns) {
+  int columns_int = static_cast<int>(columns);
+  CHECK_GE(columns_int, 0);
   VLOG(5) << "DivideLine: " << total_length;
-  CHECK_GE(columns, 1ul);
-  ColumnNumberDelta total_padding = separator_padding * (columns - 1);
+  CHECK_GE(columns_int, 1);
+  ColumnNumberDelta total_padding = separator_padding * (columns_int - 1);
   if (total_length < total_padding)
     return Error{LazyString{L"DivideLine: total_length is too short."}};
 
@@ -544,9 +545,9 @@ ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
       columns, (total_length - total_padding) / columns);
   CHECK_GT(output.size(), 0ul);
   ColumnNumberDelta remaining_characters =
-      total_length - output[0] * columns - total_padding;
+      total_length - output[0] * columns_int - total_padding;
   CHECK_GE(remaining_characters, ColumnNumberDelta());
-  CHECK_LT(remaining_characters, ColumnNumberDelta(1) * columns);
+  CHECK_LT(remaining_characters, ColumnNumberDelta(1) * columns_int);
   for (size_t i = 0; remaining_characters > ColumnNumberDelta(); i++) {
     CHECK_LT(i, output.size());
     ++output[i];
@@ -558,7 +559,7 @@ ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
                  return a + b;
                },
                ColumnNumberDelta(0), output) +
-               separator_padding * (output.size() - 1),
+               separator_padding * (static_cast<int>(output.size()) - 1),
            total_length);
 
   return output;

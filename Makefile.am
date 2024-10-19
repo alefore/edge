@@ -175,6 +175,7 @@ src/language/hash.h \
 src/language/lazy_string/append.h \
 src/language/lazy_string/char_buffer.cc \
 src/language/lazy_string/char_buffer.h \
+src/language/lazy_string/column_number.h \
 src/language/lazy_string/functional.cc \
 src/language/lazy_string/functional.h \
 src/language/lazy_string/lazy_string.cc \
