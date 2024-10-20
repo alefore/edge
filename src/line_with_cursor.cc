@@ -190,11 +190,19 @@ LineWithCursor LineWithCursor::View(
       }
 
       default:
-        output_column += ColumnNumberDelta(wcwidth(c));
-        if (output_column.ToDelta() <= options.width)
-          line_output.set_contents(
-              line_output.contents() +
-              SingleLine{LazyString{ColumnNumberDelta{1}, c}});
+        if (const ColumnNumberDelta c_width{wcwidth(c)};
+            c_width != ColumnNumberDelta{-1}) {
+          // Sanity check.
+          CHECK_GE(c_width, 0);
+          CHECK_LT(c_width, 10);
+          output_column += c_width;
+          if (output_column.ToDelta() <= options.width)
+            line_output.set_contents(
+                line_output.contents() +
+                SingleLine{LazyString{ColumnNumberDelta{1}, c}});
+        } else {
+          VLOG(5) << "wcwidth returned -1: " << static_cast<int>(c);
+        }
     }
   }
 
