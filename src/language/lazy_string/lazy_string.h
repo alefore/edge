@@ -76,10 +76,10 @@ class LazyString {
 
   std::string ToBytes() const;
 
-  bool operator<(const LazyString& x) const;
+  std::strong_ordering operator<=>(const LazyString& x) const;
+  bool operator==(const LazyString& other) const;
 };
 
-bool operator==(const LazyString& a, const LazyString& b);
 const LazyString& operator+=(LazyString& a, const LazyString& b);
 LazyString operator+(const LazyString& a, const LazyString& b);
 

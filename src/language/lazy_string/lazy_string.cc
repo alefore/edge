@@ -165,20 +165,16 @@ LazyString LazyString::Append(LazyString suffix) const {
       AppendImpl::TreeFrom(*this), AppendImpl::TreeFrom(suffix))));
 }
 
-bool LazyString::operator<(const LazyString& x) const {
+std::strong_ordering LazyString::operator<=>(const LazyString& x) const {
   for (ColumnNumber current; current.ToDelta() < size(); ++current) {
-    if (current.ToDelta() == x.size()) return false;
-    if (get(current) < x.get(current)) return true;
-    if (get(current) > x.get(current)) return false;
+    if (current.ToDelta() == x.size()) return std::strong_ordering::greater;
+    if (auto cmp = get(current) <=> x.get(current); cmp != 0) return cmp;
   }
-  return size() < x.size();
+  return size() <=> x.size();
 }
 
-bool operator==(const LazyString& a, const LazyString& b) {
-  return a.size() == b.size() &&
-         !FindFirstColumnWithPredicate(a, [&](ColumnNumber column, wchar_t c) {
-            return b.get(column) != c;
-          }).has_value();
+bool LazyString::operator==(const LazyString& other) const {
+  return (*this <=> other) == std::strong_ordering::equal;
 }
 
 const LazyString& operator+=(LazyString& a, const LazyString& b) {

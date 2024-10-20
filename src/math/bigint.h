@@ -46,12 +46,8 @@ class BigInt {
 
   bool IsZero() const;
 
-  bool operator==(const BigInt& b) const;
-  bool operator!=(const BigInt& b) const;
-  bool operator>(const BigInt& b) const;
-  bool operator<(const BigInt& b) const;
-  bool operator>=(const BigInt& b) const;
-  bool operator<=(const BigInt& b) const;
+  std::strong_ordering operator<=>(const BigInt& b) const;
+  bool operator==(const BigInt&) const;
 
   BigInt operator+(BigInt b) &&;
   language::ValueOrError<BigInt> operator-(BigInt b) &&;

@@ -36,11 +36,9 @@ class Number {
   Number& operator*=(Number rhs);
   Number& operator/=(Number rhs);
 
-  bool operator==(const Number& other) const;
-  bool operator>(const Number& other) const;
-  bool operator<(const Number& other) const;
-  bool operator>=(const Number& other) const;
-  bool operator<=(const Number& other) const;
+  std::strong_ordering operator<=>(const Number& other) const;
+
+  bool operator==(const Number&) const;
 
   static Number FromBigInt(BigInt);
   static Number FromInt64(int64_t);

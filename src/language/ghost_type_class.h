@@ -295,10 +295,12 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value[key];
   }
 
-  template <typename T = External>
-  bool operator<(const T& other) const {
-    return value < other.value;
+  auto operator<=>(
+      const GhostType<External, Internal, Validator>& other) const {
+    return value <=> other.value;
   }
+
+  auto operator<=>(const InternalType& other) const { return value <=> other; }
 
   External& operator++() {
     ++value;

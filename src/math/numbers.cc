@@ -459,25 +459,18 @@ Number Number::Pow(BigInt exponent) && {
                 std::move(denominator_).Pow(BigInt(exponent)));
 }
 
-bool Number::operator==(const Number& other) const {
-  return positive_ == other.positive_ &&
-         numerator_ * other.denominator_ == denominator_ * other.numerator_;
-}
-
-bool Number::operator>(const Number& other) const {
+std::strong_ordering Number::operator<=>(const Number& other) const {
   if (!positive_ && !other.positive_)
-    return Number{*this}.Negate() < Number{other}.Negate();
-  if (!other.positive_) return true;
-  if (!positive_) return false;
-  return numerator_ * other.denominator_.read() >
+    return Number{other}.Negate() <=> Number{*this}.Negate();
+  if (!other.positive_) return std::strong_ordering::greater;
+  if (!positive_) return std::strong_ordering::less;
+  return numerator_ * other.denominator_.read() <=>
          other.numerator_ * denominator_.read();
 }
 
-bool Number::operator<(const Number& other) const { return other > *this; }
-
-bool Number::operator<=(const Number& other) const { return !(*this > other); }
-
-bool Number::operator>=(const Number& other) const { return !(*this < other); }
+bool Number::operator==(const Number& other) const {
+  return (*this <=> other) == std::strong_ordering::equal;
+}
 
 namespace {
 const bool comparison_tests_registration = tests::Register(

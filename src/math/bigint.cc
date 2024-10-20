@@ -68,11 +68,12 @@ const bool constructors_tests_registration =
   size_t i = input[0] == L'+' ? 1 : 0;
   std::vector<Digit> digits;
   while (i < input.size() && input[i] != L'.') {
-    if (input[i] < L'0' || input[i] > L'9') {
+    wchar_t c = input[i];
+    if (c < L'0' || c > L'9') {
       return Error{LazyString{L"Invalid character found: "} +
-                   LazyString{ColumnNumberDelta{1}, input[i]}};
+                   LazyString{ColumnNumberDelta{1}, c}};
     }
-    digits.insert(digits.begin(), input[i] - L'0');
+    digits.insert(digits.begin(), c - L'0');
     ++i;
   }
 
@@ -175,25 +176,18 @@ const bool is_zero_tests_registration = tests::Register(
     }));
 }  // namespace
 
-bool BigInt::operator==(const BigInt& b) const { return digits == b.digits; }
-
-bool BigInt::operator!=(const BigInt& b) const { return !(*this == b); }
-
-bool BigInt::operator>(const BigInt& b) const {
-  if (digits.size() != b.digits.size()) return digits.size() > b.digits.size();
+std::strong_ordering BigInt::operator<=>(const BigInt& b) const {
+  if (digits.size() != b.digits.size())
+    return digits.size() <=> b.digits.size();
   for (auto it = digits.rbegin(), it_b = b.digits.rbegin(); it != digits.rend();
-       ++it, ++it_b) {
-    CHECK(it_b != b.digits.rend());  // Silence -Wnull-dereference warning.
-    if (*it != *it_b) return *it > *it_b;
-  }
-  return false;
+       ++it, ++it_b)
+    if (auto cmp = *it <=> *it_b; cmp != 0) return cmp;
+  return std::strong_ordering::equal;
 }
 
-bool BigInt::operator<(const BigInt& b) const { return b > *this; }
-bool BigInt::operator>=(const BigInt& b) const {
-  return *this > b || *this == b;
+bool BigInt::operator==(const BigInt& other) const {
+  return (*this <=> other) == std::strong_ordering::equal;
 }
-bool BigInt::operator<=(const BigInt& b) const { return b >= *this; }
 
 namespace {
 const bool greater_than_tests_registration =

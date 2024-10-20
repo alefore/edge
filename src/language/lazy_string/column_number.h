@@ -9,19 +9,6 @@ struct ColumnNumberDelta : public GhostType<ColumnNumberDelta, int> {
   using GhostType::GhostType;
 
   bool IsZero() const { return read() == 0; }
-
-  std::strong_ordering operator<=>(const ColumnNumberDelta& other) const {
-    return read() <=> other.read();
-  }
-
-  std::strong_ordering operator<=>(const InternalType& other) const {
-    return read() <=> other;
-  }
-
-  std::strong_ordering operator<=>(const size_t& other) const {
-    if (read() < 0) return std::strong_ordering::less;
-    return static_cast<size_t>(read()) <=> other;
-  }
 };
 
 struct ColumnNumber : public GhostType<ColumnNumber, size_t> {
@@ -47,14 +34,6 @@ struct ColumnNumber : public GhostType<ColumnNumber, size_t> {
 
   static ColumnNumberDelta Subtract(size_t a, size_t b) {
     return ColumnNumberDelta{static_cast<int>(a) - static_cast<int>(b)};
-  }
-
-  std::strong_ordering operator<=>(const ColumnNumber& other) const {
-    return read() <=> other.read();
-  }
-
-  std::strong_ordering operator<=>(const InternalType& other) const {
-    return read() <=> other;
   }
 
   ColumnNumber MinusHandlingOverflow(ColumnNumberDelta delta) const {
