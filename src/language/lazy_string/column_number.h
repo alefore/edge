@@ -62,6 +62,8 @@ struct ColumnNumber : public GhostType<ColumnNumber, size_t> {
   }
 
   ColumnNumber& operator+=(ColumnNumberDelta delta) {
+    if (delta < ColumnNumberDelta{0})
+      CHECK_GE(read(), static_cast<size_t>(-delta.read()));
     *this = ColumnNumber{
         static_cast<size_t>(static_cast<int>(read()) + delta.read())};
     return *this;
