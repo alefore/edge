@@ -18,14 +18,14 @@ class BufferFileId
 
 struct FragmentsBuffer {
   bool operator==(const FragmentsBuffer&) const { return true; }
-  bool operator<(const FragmentsBuffer&) const { return false; }
+  std::strong_ordering operator<=>(const FragmentsBuffer&) const = default;
 };
 
 // Name of the buffer that holds the contents that the paste command should
 // paste, which corresponds to things that have been deleted recently.
 struct PasteBuffer {
   bool operator==(const PasteBuffer&) const { return true; }
-  bool operator<(const PasteBuffer&) const { return false; }
+  std::strong_ordering operator<=>(const PasteBuffer&) const = default;
 };
 
 // Name of the buffer that holds the contents that have been deleted recently
@@ -38,34 +38,35 @@ struct PasteBuffer {
 // last such transformation).
 struct FuturePasteBuffer {
   bool operator==(const FuturePasteBuffer&) const { return true; }
-  bool operator<(const FuturePasteBuffer&) const { return false; }
+  std::strong_ordering operator<=>(const FuturePasteBuffer&) const = default;
 };
 
 // Name of a special buffer that shows the list of buffers.
 struct BufferListId {
   bool operator==(const BufferListId&) const { return true; }
-  bool operator<(const BufferListId&) const { return false; }
+  std::strong_ordering operator<=>(const BufferListId&) const = default;
 };
 
 // Name of a special buffer that contains text being inserted.
 struct TextInsertion {
   bool operator==(const TextInsertion&) const { return true; }
-  bool operator<(const TextInsertion&) const { return false; }
+  std::strong_ordering operator<=>(const TextInsertion&) const = default;
 };
 
 struct InitialCommands {
   bool operator==(const InitialCommands&) const { return true; }
-  bool operator<(const InitialCommands&) const { return false; }
+  std::strong_ordering operator<=>(const InitialCommands&) const = default;
 };
 
 struct ConsoleBufferName {
   bool operator==(const ConsoleBufferName&) const { return true; }
-  bool operator<(const ConsoleBufferName&) const { return false; }
+  std::strong_ordering operator<=>(const ConsoleBufferName&) const = default;
 };
 
 struct PredictionsBufferName {
   bool operator==(const PredictionsBufferName&) const { return true; }
-  bool operator<(const PredictionsBufferName&) const { return false; }
+  std::strong_ordering operator<=>(const PredictionsBufferName&) const =
+      default;
 };
 
 class HistoryFile
@@ -103,13 +104,8 @@ struct FilterBufferName {
   language::lazy_string::SingleLine filter;
 
   FilterBufferName& operator=(const FilterBufferName&) = default;
-  bool operator==(const FilterBufferName& other) const = default;
-  // TODO(trivial, 2024-10-16): Use operator<=>. Convert all dependencies to
-  // declare that.
-  bool operator<(const FilterBufferName& other) const {
-    return source_buffer < other.source_buffer ||
-           (source_buffer == other.source_buffer && filter < other.filter);
-  }
+  bool operator==(const FilterBufferName&) const = default;
+  std::strong_ordering operator<=>(const FilterBufferName&) const = default;
 };
 
 using BufferName =
