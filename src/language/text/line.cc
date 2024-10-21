@@ -143,8 +143,8 @@ bool Line::operator==(const Line& a) const {
          data_->end_of_line_modifiers == a.data_->end_of_line_modifiers;
 }
 
-bool Line::operator<(const Line& other) const {
-  return contents() < other.contents();
+std::strong_ordering Line::operator<=>(const Line& other) const {
+  return contents() <=> other.contents();
 }
 
 lazy_string::LazyString ToLazyString(const Line& line) {

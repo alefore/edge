@@ -89,7 +89,7 @@ class Line {
 
   Line& operator=(const Line&) = default;
   bool operator==(const Line& a) const;
-  bool operator<(const Line& other) const;
+  std::strong_ordering operator<=>(const Line& other) const;
 
  private:
   struct Data {
