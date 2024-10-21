@@ -53,8 +53,7 @@ LineSequence AddVariables(std::wstring type_name,
   contents.append_back(language::container::MaterializeVector(
       variables.variables() | std::views::transform([&](const auto& variable) {
         return LineBuilder{
-            SingleLine{LazyString{L"buffer.set_"}} +
-            SingleLine{LazyString{variable.first}} +
+            SingleLine{LazyString{L"buffer.set_"}} + variable.first.read() +
             SingleLine{LazyString{L"("}} +
             SerializeValue(values.Get(&variable.second.value())) +
             SingleLine{LazyString{L");"}}}

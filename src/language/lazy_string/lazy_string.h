@@ -125,6 +125,18 @@ const LazyString& operator+=(LazyString& a, const I& b) {
   return a += ToLazyString(b);
 }
 
+template <typename I>
+  requires ConvertibleToLazyString<I>
+LazyString operator+(const LazyString& a, const I& b) {
+  return a + ToLazyString(b);
+}
+
+template <typename I>
+  requires ConvertibleToLazyString<I>
+LazyString operator+(const I& a, const LazyString& b) {
+  return ToLazyString(a) + b;
+}
+
 }  // namespace afc::language::lazy_string
 #include "src/language/lazy_string/column_number.h"
 

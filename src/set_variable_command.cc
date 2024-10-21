@@ -29,6 +29,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::NonNull;
+using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -55,21 +56,20 @@ Predictor VariablesPredictor() {
                           buffer_variables::IntStruct()->VariableNames()),
                       container::MaterializeVector(
                           buffer_variables::DoubleStruct()->VariableNames())} |
-          std::views::join | std::views::transform([](LazyString name) {
-            // TODO(easy, 2024-09-19): Change VariableNames to return NonEmpty
-            // already.
-            return NonEmptySingleLine::New(SingleLine::New(name));
-          }) |
-          language::view::SkipErrors),
+          std::views::join |
+          std::views::transform(
+              [](const vm::Identifier& name) { return name.read(); })),
       '_');
 }
 }  // namespace
 
 futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      SingleLine input_name) {
-  SingleLine name = Trim(input_name, {L' '});
+  ValueOrError<vm::Identifier> name_or_error =
+      vm::Identifier::New(NonEmptySingleLine::New(Trim(input_name, {L' '})));
+  if (IsError(name_or_error)) return futures::Past(EmptyValue());
+  vm::Identifier name = ValueOrDie(std::move(name_or_error));
   LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
-  if (name.empty()) return futures::Past(EmptyValue());
 
   std::vector<gc::Root<OpenBuffer>> active_buffers =
       editor_state.active_buffers();
@@ -79,8 +79,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                      : editor_state.status();
   static const HistoryFile history_file{
       NON_EMPTY_SINGLE_LINE_CONSTANT(L"values")};
-  Line prompt = LineBuilder{name + SingleLine{LazyString{L" := "}}}.Build();
-  if (auto var = buffer_variables::StringStruct()->find_variable(name.read());
+  Line prompt =
+      LineBuilder{name.read() + SingleLine{LazyString{L" := "}}}.Build();
+  if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
     Prompt({.editor_state = editor_state,
             .prompt = prompt,
@@ -93,7 +94,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                       [var, input](OpenBuffer& buffer) {
                         buffer.Set(var, input.read());
                         buffer.status().SetInformationText(
-                            LineBuilder{SingleLine{var->name()} +
+                            LineBuilder{var->name().read() +
                                         SingleLine{LazyString{L" := "}} + input}
                                 .Build());
                         return futures::Past(EmptyValue());
@@ -105,24 +106,24 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     return futures::Past(EmptyValue());
   }
 
-  if (auto var = editor_variables::BoolStruct()->find_variable(name.read());
+  if (auto var = editor_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
     editor_state.status().SetInformationText(
         LineBuilder{(editor_state.Read(var) ? SINGLE_LINE_CONSTANT(L"🗸 ")
                                             : SINGLE_LINE_CONSTANT(L"⛶ ")) +
-                    name}
+                    name.read()}
             .Build());
     return futures::Past(EmptyValue());
   }
-  if (auto var = editor_variables::DoubleStruct()->find_variable(name.read());
+  if (auto var = editor_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
     Prompt({.editor_state = editor_state,
             .prompt = prompt,
             .history_file = history_file,
-            .initial_value =
-                Line{LazyString{std::to_wstring(editor_state.Read(var))}},
+            .initial_value = Line{SingleLine{
+                LazyString{std::to_wstring(editor_state.Read(var))}}},
             .handler =
                 [&editor_state, var, &default_error_status](SingleLine input) {
                   // TODO(easy, 2022-06-05): Get rid of ToString.
@@ -142,7 +143,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
             .status = PromptOptions::Status::kEditor});
     return futures::Past(EmptyValue());
   }
-  if (auto var = buffer_variables::BoolStruct()->find_variable(name.read());
+  if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
     return editor_state
         .ForEachActiveBuffer([var, name](OpenBuffer& buffer) {
@@ -150,7 +151,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
           buffer.status().SetInformationText(
               LineBuilder{(buffer.Read(var) ? SINGLE_LINE_CONSTANT(L"🗸 ")
                                             : SINGLE_LINE_CONSTANT(L"⛶ ")) +
-                          name}
+                          name.read()}
                   .Build());
           return futures::Past(EmptyValue());
         })
@@ -159,7 +160,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
           return EmptyValue();
         });
   }
-  if (auto var = buffer_variables::IntStruct()->find_variable(name.read());
+  if (auto var = buffer_variables::IntStruct()->find_variable(name);
       var != nullptr) {
     Prompt(PromptOptions{
         .editor_state = editor_state,
@@ -192,7 +193,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
-  if (auto var = buffer_variables::DoubleStruct()->find_variable(name.read());
+  if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
     Prompt(PromptOptions{
         .editor_state = editor_state,
@@ -225,7 +226,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
   }
 
   default_error_status.InsertError(
-      Error{LazyString{L"Unknown variable: "} + name.read()});
+      Error{LazyString{L"Unknown variable: "} + name});
   return futures::Past(EmptyValue());
 }
 

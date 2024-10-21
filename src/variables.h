@@ -26,7 +26,7 @@ struct EdgeVariable {
   struct ConstructorAccessKey {};
 
  public:
-  language::lazy_string::LazyString name() const { return name_; }
+  vm::Identifier name() const { return name_; }
   std::wstring description() const { return description_; }
   std::wstring key() const { return key_; }
   const T& default_value() const { return default_value_; }
@@ -37,7 +37,9 @@ struct EdgeVariable {
   EdgeVariable(ConstructorAccessKey, std::wstring name,
                std::wstring description, std::wstring key, T default_value,
                size_t position, Predictor predictor)
-      : name_(language::lazy_string::LazyString{std::move(name)}),
+      : name_(vm::Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{
+                language::lazy_string::LazyString{std::move(name)}}}}),
         description_(std::move(description)),
         key_(std::move(key)),
         default_value_(std::move(default_value)),
@@ -45,7 +47,7 @@ struct EdgeVariable {
         predictor_(std::move(predictor)) {}
 
  private:
-  language::lazy_string::LazyString name_;
+  vm::Identifier name_;
   std::wstring description_;
   std::wstring key_;
   T default_value_;
@@ -61,7 +63,7 @@ struct EdgeVariable<std::unique_ptr<T>> {
   struct ConstructorAccessKey {};
 
  public:
-  language::lazy_string::LazyString name() const { return name_; }
+  vm::Identifier name() const { return name_; }
   std::wstring description() const { return description_; }
   const afc::vm::Type& type() const { return type_; }
   const T& default_value() const { return nullptr; }
@@ -72,14 +74,16 @@ struct EdgeVariable<std::unique_ptr<T>> {
   EdgeVariable(ConstructorAccessKey(), std::wstring name,
                std::wstring description, afc::vm::Type type, size_t position,
                Predictor predictor)
-      : name_(language::lazy_string::LazyString{std::move(name)}),
+      : name_(vm::Identifier{language::lazy_string::NonEmptySingleLine{
+            language::lazy_string::SingleLine{
+                language::lazy_string::LazyString{std::move(name)}}}}),
         description_(std::move(description)),
         type_(std::move(type)),
         position_(position),
         predictor_(std::move(predictor)) {}
 
  private:
-  language::lazy_string::LazyString name_;
+  vm::Identifier name_;
   std::wstring description_;
   afc::vm::Type type_;
   size_t position_;
@@ -167,6 +171,7 @@ class VariableBuilder {
   VariableBuilder(EdgeStruct<T>* parent) : parent_(parent) {}
 
   EdgeStruct<T>* const parent_;
+  // TODO(trivial, 2024-10-21): Change to vm::Identifier.
   std::wstring name_;
   std::wstring description_;
   std::wstring key_;
@@ -190,20 +195,14 @@ class EdgeStruct {
     return instance;
   }
 
-  // TODO(easy, 2024-08-28): Kill this method.
-  const EdgeVariable<T>* find_variable(const std::wstring& name) {
-    return find_variable(language::lazy_string::LazyString{name});
-  }
-
-  const EdgeVariable<T>* find_variable(
-      const language::lazy_string::LazyString& name) {
+  const EdgeVariable<T>* find_variable(const vm::Identifier& name) {
     auto it = variables_.find(name);
     return it == variables_.end() ? nullptr : it->second.get().get();
   }
 
   auto VariableNames() const { return variables_ | std::views::keys; }
 
-  const std::map<language::lazy_string::LazyString,
+  const std::map<vm::Identifier,
                  language::NonNull<std::unique_ptr<EdgeVariable<T>>>>&
   variables() const {
     return variables_;
@@ -216,8 +215,7 @@ class EdgeStruct {
                                std::wstring key, T default_value,
                                Predictor predictor);
 
-  std::map<language::lazy_string::LazyString,
-           language::NonNull<std::unique_ptr<EdgeVariable<T>>>>
+  std::map<vm::Identifier, language::NonNull<std::unique_ptr<EdgeVariable<T>>>>
       variables_;
 };
 
@@ -313,11 +311,14 @@ EdgeVariable<T>& EdgeStruct<T>::AddVariable(std::wstring name,
                                             std::wstring description,
                                             std::wstring key, T default_value,
                                             Predictor predictor) {
-  auto it = variables_.emplace(make_pair(
-      name, language::MakeNonNullUnique<EdgeVariable<T>>(
-                typename EdgeVariable<T>::ConstructorAccessKey(), name,
-                std::move(description), std::move(key),
-                std::move(default_value), variables_.size(), predictor)));
+  auto it = variables_.emplace(
+      make_pair(vm::Identifier{language::lazy_string::NonEmptySingleLine{
+                    language::lazy_string::SingleLine{
+                        language::lazy_string::LazyString{name}}}},
+                language::MakeNonNullUnique<EdgeVariable<T>>(
+                    typename EdgeVariable<T>::ConstructorAccessKey(), name,
+                    std::move(description), std::move(key),
+                    std::move(default_value), variables_.size(), predictor)));
   CHECK(it.second);
   return it.first->second.value();
 }

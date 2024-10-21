@@ -364,12 +364,9 @@ class HelpCommand : public Command {
       const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
     StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### ") + type_name, output);
     for (const auto& variable : variables->variables()) {
-      // TODO(trivial, 2024-09-17): Stop wrapping variable.second->name in
-      // SingleLine here.
-      output.push_back(
-          LineBuilder{SingleLine{LazyString{L"#### "}} +
-                      SingleLine{LazyString{variable.second->name()}}}
-              .Build());
+      output.push_back(LineBuilder{SINGLE_LINE_CONSTANT(L"#### ") +
+                                   variable.second->name().read()}
+                           .Build());
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");

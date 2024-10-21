@@ -490,7 +490,7 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<bool>* variable,
                     MapModeCommands& map_mode) {
-  LazyString name = variable->name();
+  vm::Identifier name = variable->name();
   LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
@@ -531,7 +531,7 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<LazyString>* variable,
                     MapModeCommands& map_mode) {
-  LazyString name = variable->name();
+  vm::Identifier name = variable->name();
   LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
@@ -557,7 +557,7 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<int>* variable,
                     MapModeCommands& map_mode) {
-  LazyString name = variable->name();
+  vm::Identifier name = variable->name();
   LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
@@ -592,7 +592,7 @@ template <typename T>
 void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
                           VariableLocation variable_location,
                           MapModeCommands& map_mode) {
-  for (const LazyString& name : edge_struct->VariableNames()) {
+  for (const vm::Identifier& name : edge_struct->VariableNames()) {
     const EdgeVariable<T>* variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     if (!variable->key().empty()) {
