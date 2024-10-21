@@ -19,6 +19,8 @@ using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::editor {
 namespace {
@@ -66,20 +68,15 @@ class FileLog : public Log {
  private:
   static void Write(NonNull<std::shared_ptr<FileLogData>> data, int id,
                     LazyString statement) {
-    ValueOrError<std::wstring> time = HumanReadableTime(Now());
     LazyString full_statement =
-        std::visit(overload{[](Error error) {
+        std::visit(overload{[](Error error) -> LazyString {
                               return LazyString{L"[error:"} + error.read() +
                                      LazyString{L"]"};
                             },
-                            [](std::wstring value) {
-                              // TODO(trivial, 2024-08-28):
-                              // Change the parameter to
-                              // already be a LazyString and
-                              // remove this conversion.
-                              return LazyString{value};
+                            [](NonEmptySingleLine value) {
+                              return ToLazyString(value);
                             }},
-                   time) +
+                   HumanReadableTime(Now())) +
         LazyString{L" "} + LazyString{std::to_wstring(id)} + LazyString{L": "} +
         statement + LazyString{L"\n"};
     LoggingThreadPool().RunIgnoringResult(
