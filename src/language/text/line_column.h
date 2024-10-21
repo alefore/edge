@@ -52,9 +52,12 @@ struct Reader<afc::language::lazy_string::ColumnNumber> {
 namespace afc::language::text {
 // A position in a text buffer.
 struct LineColumn {
+  LineNumber line;
+  afc::language::lazy_string::ColumnNumber column;
+
   LineColumn() = default;
   explicit LineColumn(LineNumber l)
-      : LineColumn(l, afc::language::lazy_string::ColumnNumber(0)) {}
+      : LineColumn(l, afc::language::lazy_string::ColumnNumber{}) {}
   LineColumn(LineNumber l, afc::language::lazy_string::ColumnNumber c)
       : line(l), column(c) {}
 
@@ -69,21 +72,8 @@ struct LineColumn {
   std::wstring ToString() const;
   std::wstring Serialize() const;
 
-  bool operator==(const LineColumn& rhs) const {
-    return line == rhs.line && column == rhs.column;
-  }
-
-  bool operator<(const LineColumn& rhs) const {
-    return line < rhs.line || (line == rhs.line && column < rhs.column);
-  }
-
-  bool operator<=(const LineColumn& rhs) const {
-    return *this < rhs || *this == rhs;
-  }
-
-  bool operator>(const LineColumn& rhs) const { return rhs < *this; }
-
-  bool operator>=(const LineColumn& rhs) const { return rhs <= *this; }
+  bool operator==(const LineColumn&) const = default;
+  std::strong_ordering operator<=>(const LineColumn&) const = default;
 
   LineColumn operator+(const LineNumberDelta& value) const;
   LineColumn operator-(const LineNumberDelta& value) const;
@@ -98,9 +88,6 @@ struct LineColumn {
   LineColumn operator+(const LineColumnDelta& value) const;
 
   language::lazy_string::NonEmptySingleLine ToCppString() const;
-
-  LineNumber line;
-  afc::language::lazy_string::ColumnNumber column;
 
   friend std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 };
