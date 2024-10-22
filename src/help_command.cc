@@ -213,30 +213,22 @@ class HelpCommand : public Command {
         L"The following are all the buffer variables defined for your buffer.");
     output.push_back(L"");
 
-    DescribeVariables(
-        SingleLine{LazyString{L"bool"}}, buffer, output,
-        buffer_variables::BoolStruct(),
-        [](const bool& value) {
-          return value ? SingleLine{LazyString{L"true"}}
-                       : SingleLine{LazyString{L"false"}};
-        },
-        &OpenBuffer::Read);
+    DescribeVariables(SingleLine{LazyString{L"bool"}}, buffer, output,
+                      buffer_variables::BoolStruct(), [](const bool& value) {
+                        return value ? SingleLine{LazyString{L"true"}}
+                                     : SingleLine{LazyString{L"false"}};
+                      });
     DescribeVariables(
         SingleLine{LazyString{L"string"}}, buffer, output,
-        buffer_variables::StringStruct(),
-        [](const LazyString& value) {
+        buffer_variables::StringStruct(), [](const LazyString& value) {
           return SingleLine{LazyString{L"`"}} +
                  vm::EscapedString(value).EscapedRepresentation() +
                  SingleLine{LazyString{L"`"}};
-        },
-        &OpenBuffer::Read);
-    DescribeVariables(
-        SingleLine{LazyString{L"int"}}, buffer, output,
-        buffer_variables::IntStruct(),
-        [](const int& value) {
-          return SingleLine{LazyString{std::to_wstring(value)}};
-        },
-        &OpenBuffer::Read);
+        });
+    DescribeVariables(SingleLine{LazyString{L"int"}}, buffer, output,
+                      buffer_variables::IntStruct(), [](const int& value) {
+                        return SingleLine{LazyString{std::to_wstring(value)}};
+                      });
 
     CommandLineVariables(output);
     return output.snapshot();
@@ -355,13 +347,10 @@ class HelpCommand : public Command {
     output.push_back(L"");
   }
 
-  // TODO(trivial, 2024-08-27): Once OpenBuffer::Read returns a LazyString,
-  // get rid of parameter reader.
   template <typename T, typename C>
-  static void DescribeVariables(
-      SingleLine type_name, const OpenBuffer& source,
-      MutableLineSequence& output, EdgeStruct<T>* variables, C print,
-      const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
+  static void DescribeVariables(SingleLine type_name, const OpenBuffer& source,
+                                MutableLineSequence& output,
+                                EdgeStruct<T>* variables, C print) {
     StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### ") + type_name, output);
     for (const auto& variable : variables->variables()) {
       output.push_back(LineBuilder{SINGLE_LINE_CONSTANT(L"#### ") +
@@ -370,10 +359,9 @@ class HelpCommand : public Command {
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
-      output.push_back(
-          LineBuilder{SingleLine{LazyString{L"* Value: "}} +
-                      print((source.*reader)(&variable.second.value()))}
-              .Build());
+      output.push_back(LineBuilder{SingleLine{LazyString{L"* Value: "}} +
+                                   print(source.Read(&variable.second.value()))}
+                           .Build());
       output.push_back(LineBuilder{SingleLine{LazyString{L"* Default: "}} +
                                    print(variable.second->default_value())}
                            .Build());
