@@ -103,7 +103,7 @@ struct ResolvePathOutput {
   std::optional<language::text::LineColumn> position;
 
   // The pattern to jump to (after jumping to `position`).
-  std::optional<language::lazy_string::LazyString> pattern;
+  language::lazy_string::SingleLine pattern;
 
   ValidatorOutput validator_output;
 };
@@ -122,6 +122,7 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
   using language::lazy_string::ColumnNumber;
   using language::lazy_string::ColumnNumberDelta;
   using language::lazy_string::LazyString;
+  using language::lazy_string::SingleLine;
 
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
@@ -174,7 +175,7 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                         return input.validator(path_with_prefix)
                             .Transform([input, output, state, path_with_prefix](
                                            ValidatorOutput validator_output) {
-                              language::lazy_string::LazyString output_pattern;
+                              SingleLine output_pattern;
                               std::optional<language::text::LineColumn>
                                   output_position;
                               for (size_t i = 0; i < 2; i++) {
@@ -195,7 +196,10 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                                 if (i == 0 &&
                                     StartsWith(arg, LazyString{L"/"})) {
                                   output_pattern =
-                                      arg.Substring(ColumnNumber{1});
+                                      language::OptionalFrom(
+                                          SingleLine::New(
+                                              arg.Substring(ColumnNumber{1})))
+                                          .value_or(SingleLine{});
                                   break;
                                 } else {
                                   size_t value;

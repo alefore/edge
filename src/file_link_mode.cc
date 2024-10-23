@@ -525,24 +525,20 @@ gc::Root<OpenBuffer> CreateBuffer(
   options.editor_state.AddBuffer(buffer, options.insertion_type);
 
   if (resolve_path_output.has_value() &&
-      resolve_path_output->pattern.has_value() &&
-      !resolve_path_output->pattern->empty()) {
-    SearchOptions search_options = SearchOptions{
-        .starting_position = buffer.ptr()->position(),
-        // TODO(trivial, 2024-09-16): Drop the need to do SingleLine here.
-        // resolve_path_output->pattern should already be SingleLine.
-        .search_query = SingleLine{resolve_path_output->pattern.value()}};
-    std::visit(
-        overload{[&](LineColumn position) {
-                   buffer.ptr()->set_position(position);
-                   editor_state.PushCurrentPosition();
-                 },
-                 [&buffer](Error error) {
-                   buffer.ptr()->status().SetInformationText(
-                       Line(error.read()));
-                 }},
-        GetNextMatch(options.editor_state.modifiers().direction, search_options,
-                     buffer.ptr()->contents().snapshot()));
+      !resolve_path_output->pattern.empty()) {
+    std::visit(overload{[&](LineColumn position) {
+                          buffer.ptr()->set_position(position);
+                          editor_state.PushCurrentPosition();
+                        },
+                        [&buffer](Error error) {
+                          buffer.ptr()->status().SetInformationText(
+                              Line(error.read()));
+                        }},
+               GetNextMatch(
+                   options.editor_state.modifiers().direction,
+                   SearchOptions{.starting_position = buffer.ptr()->position(),
+                                 .search_query = resolve_path_output->pattern},
+                   buffer.ptr()->contents().snapshot()));
   }
   return buffer;
 }
