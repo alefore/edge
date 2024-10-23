@@ -34,11 +34,13 @@ class RepeatMode : public EditorMode {
       consumer_(result_);
     } else {
       consumer_(result_);
-      // TODO(trivial, 2024-07-30): Allow the old redirect to be deleted; just
-      // make sure we use a copy of editor_state_ instead.
-      auto old_mode_to_keep_this_alive =
-          editor_state_.set_keyboard_redirect(std::nullopt);
-      editor_state_.ProcessInput({input});
+      // We may be deleted when calling set_keyboard_redirect, so we
+      // deliberately not retain `this` (and, instead, explicitly copy what
+      // we'll need).
+      std::invoke([&editor = editor_state_, input] {
+        editor.set_keyboard_redirect(std::nullopt);
+        editor.ProcessInput({input});
+      });
     }
   }
 
