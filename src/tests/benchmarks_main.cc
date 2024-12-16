@@ -1,9 +1,13 @@
 #include <glog/logging.h>
 
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/wstring.h"
 #include "src/tests/benchmarks.h"
 
 using afc::language::FromByteString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 
 int main(int argc, const char** argv) {
   using std::cerr;
@@ -14,7 +18,8 @@ int main(int argc, const char** argv) {
   srand(time(NULL));
 
   if (argc == 2) {
-    afc::tests::RunBenchmark(FromByteString(argv[1]));
+    afc::tests::RunBenchmark(afc::tests::BenchmarkName(
+        NonEmptySingleLine(SingleLine(LazyString{FromByteString(argv[1])}))));
     exit(0);
   }
 

@@ -414,8 +414,22 @@ src/vm/variable_lookup.cc \
 src/widget.h
 
 BENCHMARK_SOURCES = \
+src/concurrent/protected.cc \
+src/concurrent/protected.h \
+src/infrastructure/tracker.cc \
+src/infrastructure/tracker.h \
 src/language/const_tree.cc \
 src/language/const_tree.h \
+src/language/hash.cc \
+src/language/hash.h \
+src/language/lazy_string/functional.cc \
+src/language/lazy_string/functional.h \
+src/language/lazy_string/lazy_string.cc \
+src/language/lazy_string/lazy_string.h \
+src/language/lazy_string/single_line.cc \
+src/language/lazy_string/single_line.h \
+src/tests/concurrent_interfaces.cc \
+src/tests/concurrent_interfaces.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/language/wstring.cc \
