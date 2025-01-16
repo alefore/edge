@@ -13,16 +13,23 @@
 
 namespace afc::editor {
 class OpenBuffer;
+// This class is thread-safe.
 class BufferRegistry {
-  // Q: Why does this use WeakPtr (rather than Ptr)?
-  // A: Buffers must find other ways to remain alive. Typically that is managed
-  // through OpenBuffer::Options::SurvivalBehavior or explicit references
-  // elsewhere.
-  std::map<BufferName, language::gc::WeakPtr<OpenBuffer>> buffer_map_;
+  struct Data {
+    // Q: Why are the values in buffer_map WeakPtr (rather than Ptr)?
+    // A: Otherwise buffers would never be collected (unless they are explicitly
+    // removed from the registry). Instead, we want to force their customers to
+    // retain references explicitly. Typically that is managed through
+    // OpenBuffer::Options::SurvivalBehavior (causing buffers to keep a
+    // self-reference) or explicit references elsewhere.
+    std::map<BufferName, language::gc::WeakPtr<OpenBuffer>> buffer_map;
 
-  std::map<BufferName, language::gc::Ptr<OpenBuffer>> retained_buffers_;
+    std::map<BufferName, language::gc::Ptr<OpenBuffer>> retained_buffers;
 
-  size_t next_anonymous_buffer_name_ = 0;
+    size_t next_anonymous_buffer_name = 0;
+  };
+
+  concurrent::Protected<Data> data_;
 
  public:
   language::gc::Root<OpenBuffer> MaybeAdd(
@@ -47,6 +54,10 @@ class BufferRegistry {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
+
+ private:
+  static void Add(Data& data, const BufferName& name,
+                  language::gc::WeakPtr<OpenBuffer> buffer);
 };
 }  // namespace afc::editor
 

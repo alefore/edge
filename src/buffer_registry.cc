@@ -18,33 +18,33 @@ using afc::language::VisitOptional;
 namespace afc::editor {
 gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
     const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
-  // TODO(trivial, 2024-05-30): Only traverse the map once.
-  if (auto it = buffer_map_.find(id); it != buffer_map_.end())
-    if (std::optional<gc::Root<OpenBuffer>> previous_buffer = it->second.Lock();
-        previous_buffer.has_value())
-      return previous_buffer.value();
+  return data_.lock([id, &factory](Data& data) {
+    // TODO(trivial, 2024-05-30): Only traverse the map once.
+    if (auto it = data.buffer_map.find(id); it != data.buffer_map.end())
+      if (std::optional<gc::Root<OpenBuffer>> previous_buffer =
+              it->second.Lock();
+          previous_buffer.has_value())
+        return previous_buffer.value();
 
-  gc::Root<OpenBuffer> buffer = std::move(factory)();
-  Add(id, buffer.ptr().ToWeakPtr());
-  return buffer;
+    gc::Root<OpenBuffer> buffer = std::move(factory)();
+    Add(data, id, buffer.ptr().ToWeakPtr());
+    return buffer;
+  });
 }
 
 void BufferRegistry::Add(const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
-  // TODO(2024-05-30, trivial): Detect errors if a server already was there.
-  if (std::holds_alternative<FuturePasteBuffer>(name) ||
-      std::holds_alternative<HistoryBufferName>(name) ||
-      std::holds_alternative<PasteBuffer>(name) ||
-      std::holds_alternative<FragmentsBuffer>(name))
-    retained_buffers_.insert_or_assign(name, buffer.Lock()->ptr());
-  buffer_map_.insert_or_assign(name, std::move(buffer));
+  data_.lock([&name, &buffer](Data& data) { Add(data, name, buffer); });
 }
 
 std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
     const BufferName& name) const {
-  if (auto it = buffer_map_.find(name); it != buffer_map_.end())
-    return it->second.Lock();
-  return std::nullopt;
+  return data_.lock(
+      [&name](const Data& data) -> std::optional<gc::Root<OpenBuffer>> {
+        if (auto it = data.buffer_map.find(name); it != data.buffer_map.end())
+          return it->second.Lock();
+        return std::nullopt;
+      });
 }
 
 std::optional<gc::Root<OpenBuffer>> BufferRegistry::FindPath(
@@ -53,28 +53,48 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::FindPath(
 }
 
 AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
-  return AnonymousBufferName(next_anonymous_buffer_name_++);
+  return AnonymousBufferName(
+      data_.lock([](Data& data) { return data.next_anonymous_buffer_name++; }));
 }
 
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
-  std::vector<gc::Root<OpenBuffer>> output = container::MaterializeVector(
-      buffer_map_ | std::views::values | gc::view::Lock);
-  return output;
+  return data_.lock([](const Data& data) {
+    return container::MaterializeVector(data.buffer_map | std::views::values |
+                                        gc::view::Lock);
+  });
 }
 
 void BufferRegistry::Clear() {
-  buffer_map_ = {};
-  retained_buffers_ = {};
+  return data_.lock([](Data& data) {
+    data.buffer_map = {};
+    data.retained_buffers = {};
+  });
 }
 
 bool BufferRegistry::Remove(const BufferName& name) {
-  retained_buffers_.erase(name);
-  return buffer_map_.erase(name) > 0;
+  return data_.lock([&name](Data& data) {
+    data.retained_buffers.erase(name);
+    return data.buffer_map.erase(name) > 0;
+  });
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
-  return container::MaterializeVector(retained_buffers_ | std::views::values |
-                                      gc::view::ObjectMetadata);
+  return data_.lock([](const Data& data) {
+    return container::MaterializeVector(
+        data.retained_buffers | std::views::values | gc::view::ObjectMetadata);
+  });
+}
+
+/* static */
+void BufferRegistry::Add(Data& data, const BufferName& name,
+                         gc::WeakPtr<OpenBuffer> buffer) {
+  // TODO(2024-05-30, trivial): Detect errors if a server already was there.
+  if (std::holds_alternative<FuturePasteBuffer>(name) ||
+      std::holds_alternative<HistoryBufferName>(name) ||
+      std::holds_alternative<PasteBuffer>(name) ||
+      std::holds_alternative<FragmentsBuffer>(name))
+    data.retained_buffers.insert_or_assign(name, buffer.Lock()->ptr());
+  data.buffer_map.insert_or_assign(name, std::move(buffer));
 }
 }  // namespace afc::editor
