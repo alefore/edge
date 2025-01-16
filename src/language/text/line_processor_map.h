@@ -4,6 +4,7 @@
 #include <functional>
 #include <map>
 
+#include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
 #include "src/language/error/value_or_error.h"
@@ -34,14 +35,13 @@ struct LineProcessorOutputFuture {
   futures::ListenableValue<LineProcessorOutput> value;
 };
 
-// TODO(trivial, 2024-07-27): Make this class thread-safe.
 class LineProcessorMap {
  public:
   using Callback = std::function<ValueOrError<LineProcessorOutputFuture>(
       LineProcessorInput)>;
 
  private:
-  std::map<LineProcessorKey, Callback> callbacks_;
+  concurrent::Protected<std::map<LineProcessorKey, Callback>> callbacks_;
 
  public:
   void Add(LineProcessorKey key, Callback callback);
