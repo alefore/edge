@@ -165,9 +165,9 @@ bool CharConsumer(ExtendedChar c, Data& data) {
 }
 
 Line BuildStatus(const Data& data) {
-  static const SingleLine initial_value{LazyString{L"set-buffer"}};
-  LineBuilder output{initial_value};
-  // TODO(trivial, 2023-12-30): Avoid explicit for loop, Concatenate.
+  LineBuilder output{SINGLE_LINE_CONSTANT(L"set-buffer")};
+  // TODO(easy, 2023-12-30): Avoid explicit for loop, Concatenate. This is
+  // complicated by the fact that some parts depend on `i`.
   for (size_t i = 0; i < data.operations.size(); ++i) {
     const auto& operation = data.operations[i];
     output.AppendString(SingleLine::Char<L' '>());
