@@ -47,7 +47,8 @@ const bool tests_registration =
       auto T = [](std::wstring name, auto callback) {
         return tests::Test{
             .name = name, .callback = [callback] {
-              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+              NonNull<std::unique_ptr<EditorState>> editor =
+                  EditorForTests(std::nullopt);
               std::vector<gc::Root<OpenBuffer>> buffers;
               for (int i = 0; i < 5; i++)
                 buffers.push_back(NewBufferForTests(editor.value()));
@@ -85,5 +86,5 @@ const bool tests_registration =
           })};
     }());
 
-}
+}  // namespace
 }  // namespace afc::editor

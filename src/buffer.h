@@ -696,7 +696,8 @@ class OpenBuffer {
   std::optional<language::gc::Root<OpenBuffer>> root_this_;
 };
 
-language::NonNull<std::unique_ptr<EditorState>> EditorForTests();
+language::NonNull<std::unique_ptr<EditorState>> EditorForTests(
+    std::optional<infrastructure::Path> config_path);
 language::gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor);
 }  // namespace editor
 }  // namespace afc

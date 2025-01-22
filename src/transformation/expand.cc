@@ -185,7 +185,8 @@ bool predictor_transformation_tests_register = tests::Register(
     L"PredictorTransformation",
     {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
         futures::Future<PredictorOutput> inner_future;
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         auto final_value =
             NewBufferForTests(editor.value())
                 .ptr()
@@ -270,7 +271,8 @@ const bool read_and_insert_tests_registration = tests::Register(
         {.name = L"BadPathCorrectlyHandled",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
+                   Path{LazyString{L"/home/edge-test-user/.edge"}});
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                std::optional<Path> path_opened;
                futures::Value<CompositeTransformation::Output> output =
@@ -286,9 +288,9 @@ const bool read_and_insert_tests_registration = tests::Register(
                            .buffer = buffer.ptr().value()});
                CHECK(output.has_value());
                CHECK(path_opened.has_value());
-               CHECK(path_opened.value() ==
-                     ValueOrDie(Path::New(LazyString{
-                         L"/home/edge-test-user/.edge/expand/unexistent"})));
+               CHECK_EQ(path_opened.value(),
+                        ValueOrDie(Path::New(LazyString{
+                            L"/home/edge-test-user/.edge/expand/unexistent"})));
              }},
     });
 

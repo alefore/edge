@@ -8,13 +8,17 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
+#include "src/math/numbers.h"
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
+using afc::infrastructure::GetHomeDirectory;
+using afc::infrastructure::Path;
 using afc::infrastructure::screen::CursorsSet;
+using afc::language::EmptyValue;
 using afc::language::EraseOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -34,11 +38,12 @@ using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
+using afc::math::numbers::Number;
 
 namespace afc::editor {
 namespace {
 LazyString GetMetadata(std::wstring line) {
-  NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+  NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(std::nullopt);
   gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
   buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
 
@@ -157,7 +162,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"HonorsExistingMetadata",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               NonNull<std::unique_ptr<EditorState>> editor =
+                   EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
                LineBuilder options{SingleLine{LazyString{L"foo"}}};
                options.SetMetadata(
@@ -179,7 +185,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"PassingParametersPreservesThem",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               NonNull<std::unique_ptr<EditorState>> editor =
+                   EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
 
                gc::Root<vm::Value> result =
@@ -196,7 +203,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"NestedStatements",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               NonNull<std::unique_ptr<EditorState>> editor =
+                   EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
                    buffer.ptr()
@@ -225,7 +233,8 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
   auto callback = [](std::wstring code, std::wstring name = L"") {
     return tests::Test{
         .name = name.empty() ? (L"Code: " + code) : name, .callback = [code] {
-          NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+          NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
+              Path{LazyString{L"/home/edge-unexistent-user/.edge"}});
           auto Reclaim = [&editor] {
             // We call Reclaim more than once because the first call enables
             // additional symbols to be removed by the 2nd call (because the
@@ -338,7 +347,8 @@ const bool buffer_work_queue_tests_registration = tests::Register(
     {{.name = L"WorkQueueStaysAlive",
       .callback =
           [] {
-            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
 
             // Validates that the work queue in a buffer is correctly connected
             // to the work queue in the editor, including not being destroyed
@@ -371,7 +381,8 @@ const bool buffer_work_queue_tests_registration = tests::Register(
             CHECK_EQ(iterations, 12);
           }},
      {.name = L"DeleteEditor", .callback = [] {
-        std::unique_ptr<EditorState> editor = EditorForTests().get_unique();
+        std::unique_ptr<EditorState> editor =
+            EditorForTests(std::nullopt).get_unique();
         futures::Value<int> value = editor->thread_pool().Run([]() {
           LOG(INFO) << "Thread work starting";
           std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -389,7 +400,8 @@ const bool buffer_work_queue_tests_registration = tests::Register(
 const bool buffer_positions_tests_registration = tests::Register(
     L"BufferPositions",
     {{.name = L"DeleteCursorLeavingOtherPastRange", .callback = [] {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
         for (int i = 0; i < 10; i++) buffer.ptr()->AppendEmptyLine();
@@ -423,7 +435,8 @@ const bool buffer_registry_tests_registration = tests::Register(
     {{.name = L"BufferIsCollected",
       .callback =
           [] {
-            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
             std::optional<gc::Root<OpenBuffer>> buffer_root =
                 NewBufferForTests(editor.value());
             gc::WeakPtr<OpenBuffer> buffer_weak =
@@ -436,7 +449,8 @@ const bool buffer_registry_tests_registration = tests::Register(
             CHECK(!buffer_weak.Lock().has_value());
           }},
      {.name = L"FuturePasteBufferSurvives", .callback = [] {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         std::optional<gc::Root<OpenBuffer>> buffer_root =
             OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
                                                 .name = FuturePasteBuffer{}});
@@ -455,5 +469,42 @@ const bool buffer_registry_tests_registration = tests::Register(
         CHECK(!buffer_weak.Lock().has_value());
       }}});
 
+template <typename T>
+void AdvanceUntilValue(EditorState& editor,
+                       const futures::Value<T>& future_value) {
+  while (!future_value.has_value()) {
+    LOG(INFO) << "Advancing editor work queue.";
+    editor.work_queue()->Execute();
+  }
+}
+
+void ReloadAndWaitUntilEndOfFile(OpenBuffer& buffer) {
+  buffer.Reload();
+  AdvanceUntilValue(buffer.editor(), buffer.WaitForEndOfFile());
+}
+
+const bool buffer_reloads_tests_registration = tests::Register(
+    L"BufferReloads",
+    {{.name = L"Simple", .callback = [] {
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
+            Path::Join(GetHomeDirectory(),
+                       Path{LazyString{L".edge/tests/BufferReloads"}}));
+        gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor.value());
+        ReloadAndWaitUntilEndOfFile(buffer_root.ptr().value());
+        std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
+                  language::gc::Root<vm::Environment>>
+            compilation = ValueOrDie(buffer_root.ptr()->CompileString(
+                LazyString{L"sleep(0.1); x;"}));
+
+        // We deliberately don't wait for the reload to be done.
+        buffer_root.ptr()->Reload();
+
+        futures::ValueOrError<gc::Root<vm::Value>> result =
+            buffer_root.ptr()->EvaluateExpression(std::move(compilation.first),
+                                                  compilation.second);
+        AdvanceUntilValue(buffer_root.ptr()->editor(), result);
+        CHECK(ValueOrDie(std::move(result).Get().value()).ptr()->get_number() ==
+              Number::FromInt64(5678));
+      }}});
 }  // namespace
 }  // namespace afc::editor

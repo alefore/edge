@@ -182,7 +182,7 @@ futures::Value<std::optional<PredictResults>> Predict(
       .Transform([&editor = options.editor, abort_value = options.abort_value,
                   progress_channel = options.progress_channel](
                      PredictorOutput predictor_output) mutable
-                 -> ValueOrError<PredictResults> {
+                     -> ValueOrError<PredictResults> {
         DECLARE_OR_RETURN(auto results,
                           BuildResults(editor, predictor_output, abort_value));
         if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
@@ -487,7 +487,8 @@ const bool precomputed_predictor_tests_registration =
            NonEmptySingleLine{SingleLine{LazyString{L"alejo"}}}},
           L'_');
       auto predict = [&](std::wstring input) {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         PredictorOutput output =
             test_predictor(
                 PredictorInput{
@@ -506,7 +507,8 @@ const bool precomputed_predictor_tests_registration =
       };
       auto test_predict = [&](std::wstring input,
                               std::function<void(PredictResults)> callback) {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         bool executed = false;
         Predict(test_predictor,
                 PredictorInput{.editor = editor.value(),

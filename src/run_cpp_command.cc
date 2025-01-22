@@ -240,7 +240,8 @@ bool tests_parse_registration = tests::Register(
     {{.name = L"EmptyCommand",
       .callback =
           [] {
-            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
             gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
@@ -253,7 +254,8 @@ bool tests_parse_registration = tests::Register(
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
           [] {
-            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
             gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
@@ -272,7 +274,8 @@ bool tests_parse_registration = tests::Register(
                   LazyString{L"Unknown "});
           }},
      {.name = L"CommandMatch", .callback = [] {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         gc::Pool pool({});
         gc::Root<vm::Environment> environment = vm::Environment::New(pool);

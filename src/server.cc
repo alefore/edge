@@ -264,7 +264,7 @@ bool server_tests_registration = tests::Register(
     L"Server",
     {{.name = L"StartServer", .callback = [] {
         language::NonNull<std::unique_ptr<EditorState>> editor =
-            EditorForTests();
+            EditorForTests(std::nullopt);
         CHECK_EQ(editor->buffer_registry().buffers().size(), 0ul);
         infrastructure::Path server_address =
             ValueOrDie(StartServer(editor.value(), std::nullopt));

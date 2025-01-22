@@ -42,7 +42,7 @@ class LineMarksTest {
   BufferName target_name() const { return target_.ptr()->name(); }
 
  private:
-  NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests();
+  NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests(std::nullopt);
   gc::Root<OpenBuffer> source_ = NewBufferForTests(editor_.value());
   gc::Root<OpenBuffer> target_ = NewBufferForTests(editor_.value());
 };

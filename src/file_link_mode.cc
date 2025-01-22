@@ -611,7 +611,7 @@ using afc::infrastructure::execution::ExecutionEnvironment;
 using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 
 class TestDriver {
-  NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests();
+  NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests(std::nullopt);
 
   std::vector<LazyString> paths_to_unlink_ = {};
 

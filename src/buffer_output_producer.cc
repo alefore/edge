@@ -353,7 +353,8 @@ namespace {
 const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
   return std::vector<tests::Test>{
       {.name = L"ViewBiggerThanBuffer", .callback = [&] {
-         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+         NonNull<std::unique_ptr<EditorState>> editor =
+             EditorForTests(std::nullopt);
          auto buffer = NewBufferForTests(editor.value());
          std::vector<BufferContentsViewLayout::Line> screen_lines;
          screen_lines.push_back(

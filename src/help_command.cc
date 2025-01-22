@@ -19,6 +19,7 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::Path;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
@@ -328,6 +329,7 @@ class HelpCommand : public Command {
 
     environment->ForEach(
         [&output](const vm::Identifier& name, const gc::Ptr<vm::Value>& value) {
+          VLOG(9) << "Variable: " << name;
           std::stringstream value_stream;
           value_stream << value.value();
           const static ColumnNumberDelta kPaddingSize{40};
@@ -415,7 +417,20 @@ const bool buffer_registration = tests::Register(
         {.name = L"GenerateContents",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               // TODO(2025-01-22, bugs): Initialize with an empty path, so that
+               // it defaults to actually using the default configurations,
+               // which makes the test more stringent.
+               //
+               // As of this writing, that makes
+               // the test fail: it attempts to print the contents of variables
+               // that have been declared but not yet initialized. Which
+               // highlights a real bug: the race between code that is declaring
+               // new variables (but hasn't yet initialized them) and this help
+               // view. The real fix would require us to somewhat mark those
+               // variables as "declared but not yet initialized" so that this
+               // code can detect that.
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
+                   Path{LazyString{L"/home/edge-unexistant-user/.edge"}});
                auto buffer = NewBufferForTests(editor.value());
                gc::Root<MapModeCommands> commands =
                    MapModeCommands::New(buffer.ptr()->editor());

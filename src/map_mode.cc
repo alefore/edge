@@ -218,7 +218,8 @@ const bool map_mode_commands_tests_registration = tests::Register(
         {.name = L"AddNormal",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               NonNull<std::unique_ptr<EditorState>> editor =
+                   EditorForTests(std::nullopt);
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
                editor->default_commands().ptr()->Add(
@@ -234,7 +235,8 @@ const bool map_mode_commands_tests_registration = tests::Register(
         {.name = L"AddControl",
          .callback =
              [] {
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               NonNull<std::unique_ptr<EditorState>> editor =
+                   EditorForTests(std::nullopt);
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
                LOG(INFO) << "Adding handler.";

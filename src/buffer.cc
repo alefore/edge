@@ -842,6 +842,7 @@ void OpenBuffer::AppendLines(
 }
 
 futures::Value<PossibleError> OpenBuffer::Reload() {
+  LOG(INFO) << name() << ": Reload starts.";
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
 
   if (child_pid_.has_value()) {
@@ -2560,13 +2561,14 @@ void OpenBuffer::OnCursorMove() {
   }
 }
 
-NonNull<std::unique_ptr<EditorState>> EditorForTests() {
+NonNull<std::unique_ptr<EditorState>> EditorForTests(
+    std::optional<infrastructure::Path> config_path) {
   static audio::Player* player = audio::NewNullPlayer().get_unique().release();
   return MakeNonNullUnique<EditorState>(
-      std::invoke([] {
+      std::invoke([config_path] {
         CommandLineValues output;
-        output.config_paths = {
-            infrastructure::Path{LazyString{L"/home/edge-test-user/.edge/"}}};
+        if (config_path.has_value())
+          output.config_paths = {config_path.value()};
         return output;
       }),
       *player);

@@ -32,7 +32,8 @@ bool args_tests_registration = tests::Register(
         return tests::Test{
             .name = name, .callback = [name, args, stop] {
               language::NonNull<std::unique_ptr<EditorState>> editor =
-                  EditorForTests();
+                  EditorForTests(
+                      Path{LazyString{L"/home/xxx-unexistent/.edge"}});
               CHECK_EQ(editor->buffer_registry().buffers().size(), 0ul);
               infrastructure::Path server_address =
                   ValueOrDie(StartServer(editor.value(), std::nullopt));

@@ -170,7 +170,7 @@ class TestsHelper {
   }
 
  private:
-  NonNull<std::shared_ptr<EditorState>> editor_ = EditorForTests();
+  NonNull<std::shared_ptr<EditorState>> editor_ = EditorForTests(std::nullopt);
 
   gc::Root<OpenBuffer> buffer_ = [this] {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());

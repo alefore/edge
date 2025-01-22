@@ -23,7 +23,8 @@ const bool prompt_tests_registration = tests::Register(
     {{.name = L"InsertError",
       .callback =
           [] {
-            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
             Status status(editor->audio_player());
             gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
             status.set_prompt(Line{SingleLine{LazyString{L">"}}}, prompt);
@@ -33,7 +34,8 @@ const bool prompt_tests_registration = tests::Register(
                   &prompt.ptr().value());
           }},
      {.name = L"SetExpiringInformationText", .callback = [] {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
         Status status(editor->audio_player());
         gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
         status.set_prompt(Line{SingleLine{LazyString{L">"}}}, prompt);
