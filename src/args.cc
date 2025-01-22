@@ -1,18 +1,10 @@
 #include "src/args.h"
 
+#include <glog/logging.h>
+
 #include <fstream>
 #include <iostream>
 #include <string>
-
-extern "C" {
-#include <fcntl.h>
-#include <pwd.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <unistd.h>
-}
-
-#include <glog/logging.h>
 
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/dirname.h"
@@ -47,30 +39,6 @@ using afc::tests::BenchmarkName;
 
 namespace afc::editor {
 namespace {
-static Path GetHomeDirectory() {
-  if (char* env = getenv("HOME"); env != nullptr) {
-    return std::visit(overload{[&](Error error) {
-                                 LOG(FATAL) << "Invalid home directory (from "
-                                               "`HOME` environment variable): "
-                                            << error << ": " << env;
-                                 return Path::Root();
-                               },
-                               [](Path path) { return path; }},
-                      Path::New(LazyString{FromByteString(env)}));
-  }
-  if (struct passwd* entry = getpwuid(getuid()); entry != nullptr) {
-    return std::visit(
-        overload{[&](Error error) {
-                   LOG(FATAL)
-                       << "Invalid home directory (from `getpwuid`): " << error;
-                   return Path::Root();
-                 },
-                 [](Path path) { return path; }},
-        Path::New(LazyString{FromByteString(entry->pw_dir)}));
-  }
-  return Path::Root();  // What else?
-}
-
 static std::vector<Path> GetEdgeConfigPath(const Path& home) {
   std::vector<Path> output;
   std::unordered_set<Path> output_set;
@@ -95,7 +63,8 @@ static std::vector<Path> GetEdgeConfigPath(const Path& home) {
 
 using afc::command_line_arguments::Handler;
 
-CommandLineValues::CommandLineValues() : home_directory(GetHomeDirectory()) {
+CommandLineValues::CommandLineValues()
+    : home_directory(infrastructure::GetHomeDirectory()) {
   config_paths = GetEdgeConfigPath(home_directory);
 }
 

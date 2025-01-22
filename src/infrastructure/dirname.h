@@ -109,6 +109,8 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 language::ValueOrError<
     language::NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>>
 OpenDir(Path path);
+
+Path GetHomeDirectory();
 }  // namespace afc::infrastructure
 
 #endif  // __AFC_EDITOR_DIRNAME_H__

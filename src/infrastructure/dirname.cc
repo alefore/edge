@@ -3,7 +3,12 @@
 #include <cstring>
 
 extern "C" {
+#include <fcntl.h>
 #include <libgen.h>
+#include <pwd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
 }
 
 #include <glog/logging.h>
@@ -479,4 +484,27 @@ ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> OpenDir(
       std::move(output));
 }
 
+Path GetHomeDirectory() {
+  if (char* env = getenv("HOME"); env != nullptr) {
+    return std::visit(overload{[&](Error error) {
+                                 LOG(FATAL) << "Invalid home directory (from "
+                                               "`HOME` environment variable): "
+                                            << error << ": " << env;
+                                 return Path::Root();
+                               },
+                               [](Path path) { return path; }},
+                      Path::New(LazyString{FromByteString(env)}));
+  }
+  if (struct passwd* entry = getpwuid(getuid()); entry != nullptr) {
+    return std::visit(
+        overload{[&](Error error) {
+                   LOG(FATAL)
+                       << "Invalid home directory (from `getpwuid`): " << error;
+                   return Path::Root();
+                 },
+                 [](Path path) { return path; }},
+        Path::New(LazyString{FromByteString(entry->pw_dir)}));
+  }
+  return Path::Root();  // What else?
+}
 }  // namespace afc::infrastructure
