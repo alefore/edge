@@ -31,8 +31,6 @@ namespace afc::language::text {
 
 using ::operator<<;
 
-Line::Line(LazyString contents) : Line(SingleLine{std::move(contents)}) {}
-
 Line::Line(SingleLine contents)
     : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
 

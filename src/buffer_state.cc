@@ -67,13 +67,15 @@ LineSequence AddVariables(std::wstring type_name,
 LineSequence SerializeState(Path path, LineColumn position,
                             const BufferVariablesInstance& variables) {
   MutableLineSequence contents;
-  contents.push_back(Line{LazyString{L"// State of file: "} + path.read()});
+  contents.push_back(
+      Line{SINGLE_LINE_CONSTANT(L"// State of file: ") +
+           EscapedString::FromString(path.read()).EscapedRepresentation()});
   contents.push_back(L"");
 
   // TODO(2023-11-26, P1): Turn this into an entry in LineColumnStruct.
-  contents.push_back(Line{LazyString{L"buffer.set_position("} +
-                          ToLazyString(position.ToCppString()) +
-                          LazyString{L");"}});
+  contents.push_back(Line{SINGLE_LINE_CONSTANT(L"buffer.set_position(") +
+                          position.ToCppString() +
+                          SINGLE_LINE_CONSTANT(L");")});
   contents.push_back(L"");
 
   contents.insert(contents.EndLine(),

@@ -12,6 +12,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/line_prompt_mode.h"
+#include "src/vm/escape.h"
 
 namespace gc = afc::language::gc;
 
@@ -30,6 +31,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::OutgoingLink;
+using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
@@ -114,8 +116,10 @@ class RunCppFileCommand : public Command {
          .prompt = LineBuilder{SingleLine{LazyString{L"cmd "}}}.Build(),
          .history_file =
              HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"editor_commands")},
-         .initial_value =
-             Line{buffer->ptr()->Read(buffer_variables::editor_commands_path)},
+         .initial_value = Line{EscapedString::FromString(
+                                   buffer->ptr()->Read(
+                                       buffer_variables::editor_commands_path))
+                                   .EscapedRepresentation()},
          .handler =
              [&editor = editor_state_](SingleLine input) {
                return RunCppFileHandler(editor, input).ConsumeErrors([](Error) {

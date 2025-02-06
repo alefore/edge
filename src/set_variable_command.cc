@@ -20,6 +20,7 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
+#include "src/vm/escape.h"
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
@@ -86,7 +87,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     Prompt({.editor_state = editor_state,
             .prompt = prompt,
             .history_file = history_file,
-            .initial_value = Line{active_buffers[0].ptr()->Read(var)},
+            .initial_value = Line{vm::EscapedString::FromString(
+                                      active_buffers[0].ptr()->Read(var))
+                                      .EscapedRepresentation()},
             .handler =
                 [&editor_state, var](SingleLine input) {
                   editor_state.ResetRepetitions();
@@ -166,8 +169,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .editor_state = editor_state,
         .prompt = prompt,
         .history_file = history_file,
-        .initial_value = Line{LazyString{
-            std::to_wstring(active_buffers[0].ptr()->Read(var))}},
+        .initial_value =
+            Line{NonEmptySingleLine{active_buffers[0].ptr()->Read(var)}},
         .handler =
             [&editor_state, var, &default_error_status](SingleLine input) {
               int value;
@@ -199,8 +202,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .editor_state = editor_state,
         .prompt = prompt,
         .history_file = history_file,
-        .initial_value = Line{LazyString{
-            std::to_wstring(active_buffers[0].ptr()->Read(var))}},
+        .initial_value =
+            Line{NonEmptySingleLine{active_buffers[0].ptr()->Read(var)}},
         .handler =
             [&editor_state, var, &default_error_status](SingleLine input) {
               // TODO(easy, 2022-06-05): Get rid of ToString.

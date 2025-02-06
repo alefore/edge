@@ -526,19 +526,20 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   if (resolve_path_output.has_value() &&
       !resolve_path_output->pattern.empty()) {
-    std::visit(overload{[&](LineColumn position) {
-                          buffer.ptr()->set_position(position);
-                          editor_state.PushCurrentPosition();
-                        },
-                        [&buffer](Error error) {
-                          buffer.ptr()->status().SetInformationText(
-                              Line(error.read()));
-                        }},
-               GetNextMatch(
-                   options.editor_state.modifiers().direction,
-                   SearchOptions{.starting_position = buffer.ptr()->position(),
-                                 .search_query = resolve_path_output->pattern},
-                   buffer.ptr()->contents().snapshot()));
+    std::visit(
+        overload{[&](LineColumn position) {
+                   buffer.ptr()->set_position(position);
+                   editor_state.PushCurrentPosition();
+                 },
+                 [&buffer](Error error) {
+                   buffer.ptr()->status().SetInformationText(Line(
+                       LineSequence::BreakLines(error.read()).FoldLines()));
+                 }},
+        GetNextMatch(
+            options.editor_state.modifiers().direction,
+            SearchOptions{.starting_position = buffer.ptr()->position(),
+                          .search_query = resolve_path_output->pattern},
+            buffer.ptr()->contents().snapshot()));
   }
   return buffer;
 }

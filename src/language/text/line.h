@@ -47,8 +47,6 @@ class Line {
  public:
   Line() : Line(Line::Data{}) {}
 
-  // TODO(2024-01-24): Get rid of this function.
-  explicit Line(lazy_string::LazyString text);
   explicit Line(lazy_string::SingleLine text);
   explicit Line(lazy_string::NonEmptySingleLine text);
 

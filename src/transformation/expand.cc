@@ -309,7 +309,7 @@ class Execute : public CompositeTransformation {
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert =
-                    LineSequence::WithLine(Line(value.ptr()->get_string()))});
+                    LineSequence::BreakLines(value.ptr()->get_string())});
           }
           return futures::Past(Success(std::move(output)));
         })

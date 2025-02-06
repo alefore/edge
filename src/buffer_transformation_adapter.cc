@@ -44,7 +44,8 @@ language::text::LineColumn TransformationInputAdapterImpl::InsertInPosition(
 }
 
 void TransformationInputAdapterImpl::AddError(Error error) {
-  buffer_.status().SetInformationText(Line(error.read()));
+  buffer_.status().SetInformationText(
+      Line(LineSequence::BreakLines(error.read()).FoldLines()));
 }
 
 void TransformationInputAdapterImpl::AddFragment(LineSequence fragment) {

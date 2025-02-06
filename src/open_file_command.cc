@@ -18,6 +18,7 @@ extern "C" {
 #include "src/language/safe_types.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
+#include "src/vm/escape.h"
 
 namespace gc = afc::language::gc;
 
@@ -44,6 +45,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
@@ -199,7 +201,8 @@ Line GetInitialPromptValue(std::optional<unsigned int> repetitions,
                         }},
                path->DirectorySplit());
   }
-  return Line{path->read() + LazyString{L"/"}};
+  return Line{EscapedString::FromString(path->read()).EscapedRepresentation() +
+              SINGLE_LINE_CONSTANT(L"/")};
 }
 
 const bool get_initial_prompt_value_tests_registration = tests::Register(
@@ -300,7 +303,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
         .history_file = HistoryFileFiles(),
         .initial_value =
             source_buffers.empty()
-                ? Line{LazyString{}}
+                ? Line{}
                 : GetInitialPromptValue(
                       editor.modifiers().repetitions,
                       source_buffers[0].ptr()->Read(buffer_variables::path)),

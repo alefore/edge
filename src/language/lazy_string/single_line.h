@@ -93,6 +93,7 @@ class NonEmptySingleLine : public GhostType<NonEmptySingleLine, SingleLine,
 
   explicit NonEmptySingleLine(int);
   explicit NonEmptySingleLine(size_t);
+  explicit NonEmptySingleLine(double);
 
   wchar_t get(ColumnNumber) const;
   SingleLine Substring(ColumnNumber) const;
