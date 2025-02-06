@@ -31,6 +31,7 @@ extern "C" {
 #include "src/predictor.h"
 #include "src/structure.h"
 #include "src/tests/tests.h"
+#include "src/vm/escape.h"
 
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
@@ -76,6 +77,7 @@ using afc::language::text::MutableLineSequence;
 using afc::language::text::SortedLineSequence;
 using afc::language::text::SortedLineSequenceUniqueLines;
 using afc::language::view::SkipErrors;
+using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
@@ -281,12 +283,11 @@ void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
     longest_pattern_match = pattern.size();
     auto full_path = PathJoin(prefix, FromByteString(entry->d_name)) +
                      (entry->d_type == DT_DIR ? L"/" : L"");
-    if (std::regex_match(full_path, noise_regex)) {
-      continue;
-    }
-    // TODO(easy, 2024-09-17): Avoid the SingleLine here. Maybe escape it?
+    if (std::regex_match(full_path, noise_regex)) continue;
     output_lines.push_back(
-        LineBuilder{SingleLine{LazyString{std::move(full_path)}}}.Build(),
+        LineBuilder{EscapedString::FromString(LazyString{std::move(full_path)})
+                        .EscapedRepresentation()}
+            .Build(),
         MutableLineSequence::ObserverBehavior::kHide);
     ++*matches;
     if (*matches % 100 == 0)
