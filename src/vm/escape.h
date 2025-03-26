@@ -31,6 +31,7 @@ class EscapedString
   language::lazy_string::SingleLine EscapedRepresentation() const;
   language::lazy_string::NonEmptySingleLine CppRepresentation() const;
   language::lazy_string::SingleLine URLRepresentation() const;
+  language::lazy_string::LazyString ShellEscapedRepresentation() const;
 
   // Returns the original (unescaped) string.
   language::lazy_string::LazyString OriginalString() const;

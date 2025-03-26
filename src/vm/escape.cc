@@ -157,6 +157,17 @@ SingleLine EscapedString::URLRepresentation() const {
   return output;
 }
 
+LazyString EscapedString::ShellEscapedRepresentation() const {
+  LazyString unquoted_output;
+  // TODO(2025-02-27): This could be optimized based on
+  // FindFirstColumnWithPredicate, avoiding fragmentation.
+  ForEachColumn(read(), [&unquoted_output](ColumnNumber, wchar_t c) {
+    if (c == L'\'') unquoted_output += LazyString(L"\\");
+    unquoted_output += LazyString(ColumnNumberDelta(1), c);
+  });
+  return LazyString(L"'") + unquoted_output + LazyString(L"'");
+}
+
 // Returns the original (unescaped) string.
 LazyString EscapedString::OriginalString() const { return read(); }
 

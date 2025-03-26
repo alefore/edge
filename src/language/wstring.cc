@@ -44,18 +44,4 @@ std::wstring FromByteString(std::string input) {
   std::wstring output_string(&output[0], output.size());
   return output_string;
 }
-
-// TODO(easy, 2022-06-05): Deduplicate this against EscapedString.
-std::wstring ShellEscape(std::wstring input) {
-  std::wstring output;
-  output.push_back(L'\'');
-  for (auto c : input) {
-    if (c == L'\'') {
-      output.push_back('\\');
-    }
-    output.push_back(c);
-  }
-  output.push_back(L'\'');
-  return output;
-}
 }  // namespace afc::language

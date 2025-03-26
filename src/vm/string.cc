@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/lowercase.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
+#include "src/vm/escape.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
@@ -83,7 +84,11 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](LazyString str) { return UpperCase(str); }, string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"shell_escape"}}}},
-      pool, language::ShellEscape, string_type);
+      pool,
+      [](LazyString str) {
+        return vm::EscapedString(str).ShellEscapedRepresentation();
+      },
+      string_type);
   AddMethod(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"substr"}}}}, pool,
       [](const std::wstring& str, size_t pos,

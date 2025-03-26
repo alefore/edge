@@ -114,7 +114,6 @@ using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::Pointer;
 using afc::language::PossibleError;
-using afc::language::ShellEscape;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -128,6 +127,7 @@ using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::DelegatingMutableLineSequenceObserver;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -2020,16 +2020,13 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                    LineBuilder{SINGLE_LINE_CONSTANT(L"Open: ") +
                                                url.read()}
                                        .Build()));
-                           // TODO(easy, 2023-09-11): Extend ShellEscape to work
-                           // with LazyString and avoid conversion to
-                           // std::wstring from the URL's LazyString.
                            ForkCommand(
                                editor,
                                ForkCommandOptions{
-                                   .command = LazyString{L"xdg-open "} +
-                                              LazyString{ShellEscape(
-                                                  ToLazyString(url.read())
-                                                      .ToString())},
+                                   .command =
+                                       LazyString{L"xdg-open "} +
+                                       vm::EscapedString(ToLazyString(url))
+                                           .ShellEscapedRepresentation(),
                                    .insertion_type =
                                        BuffersList::AddBufferType::kIgnore,
                                });
