@@ -327,11 +327,10 @@ void DefineSortLinesByKey(
 
 futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
     Trampoline& trampoline, const LineSequence& contents,
-    gc::Root<vm::Value> callback, Range range) {
+    gc::Root<vm::Value> callback) {
   struct Data {
     Trampoline& trampoline;
-    LineColumn position;
-    Range range;
+    LineNumber line = LineNumber{};
     ValueOrError<language::gc::Root<vm::Value>> output;
     const gc::Root<vm::Value> callback;
     const LineSequence contents;
@@ -339,29 +338,20 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
   using ICC = futures::IterationControlCommand;
   auto data = MakeNonNullShared<Data>(
       Data{.trampoline = trampoline,
-           .position = range.begin(),
-           .range = range,
            .output = vm::Value::NewVoid(trampoline.pool()),
            .callback = callback,
            .contents = contents});
   return futures::While([data]() -> futures::Value<ICC> {
-           if (data->position >= data->range.end())
+           if (data->line > data->contents.EndLine())
              return futures::Past(ICC::kStop);
-           LazyString line_contents =
-               ToLazyString(data->contents.at(data->position.line));
-           if (data->position.column > 0)
-             line_contents = line_contents.Substring(data->position.column);
-           else if (data->position.line == data->range.end().line &&
-                    data->range.end().column.ToDelta() < line_contents.size())
-             line_contents = line_contents.Substring(
-                 ColumnNumber{}, data->range.end().column.ToDelta());
            std::vector<language::gc::Root<vm::Value>> args{
-               vm::Value::NewNumber(data->trampoline.pool(),
-                                    math::numbers::Number::FromSizeT(
-                                        data->position.line.read())),
-               vm::Value::NewString(data->trampoline.pool(), line_contents)};
-           data->position =
-               LineColumn{data->position.line + LineNumberDelta{1}};
+               vm::Value::NewNumber(
+                   data->trampoline.pool(),
+                   math::numbers::Number::FromSizeT(data->line.read())),
+               vm::Value::NewString(
+                   data->trampoline.pool(),
+                   ToLazyString(data->contents.at(data->line)))};
+           ++data->line;
            return data->callback.ptr()
                ->RunFunction(std::move(args), data->trampoline)
                .Transform([data](gc::Root<vm::Value>) {
@@ -494,12 +484,12 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                .inputs = {vm::types::Number{}, vm::types::String{}}}},
           [](std::vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);
-            LineSequence contents = vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
-                                        args[0].ptr().value())
-                                        ->contents()
-                                        .snapshot();
-            return BufferForEach(trampoline, contents, args[1],
-                                 contents.range());
+            return BufferForEach(trampoline,
+                                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
+                                     args[0].ptr().value())
+                                     ->contents()
+                                     .snapshot(),
+                                 args[1]);
           })
           .ptr());
 
@@ -517,13 +507,14 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                    }}},
           [](std::vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 3ul);
-            return BufferForEach(
-                trampoline,
-                vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
-                    args[0].ptr().value())
-                    ->contents()
-                    .snapshot(),
-                args[2], vm::VMTypeMapper<Range>::get(args[1].ptr().value()));
+            return BufferForEach(trampoline,
+                                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
+                                     args[0].ptr().value())
+                                     ->contents()
+                                     .snapshot()
+                                     .ViewRange(vm::VMTypeMapper<Range>::get(
+                                         args[1].ptr().value())),
+                                 args[2]);
           })
           .ptr());
 
