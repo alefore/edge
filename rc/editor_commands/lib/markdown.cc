@@ -18,6 +18,23 @@ LineColumn FindSectionEnd(Buffer buffer, number line, number depth) {
     line++;
   return LineColumn(line, 0);
 }
+
+void AddLinksFromLine(string line, VectorString output) {
+  while (true) {
+    number column = line.find_first_of("[", 0);
+    if (column == -1) return;
+    column = line.find_first_of("]", column);
+    if (column == -1) return;
+    line = line.substr(column, line.size());
+    if (!line.empty() && line.starts_with("(")) {
+      number target_end = line.find_first_of(")", 1);
+      if (target_end == -1) return;
+      output.push_back(line.substr(1, target_end - 1));
+      column = target_end + 1;
+    }
+  }
+}
+
 }  // namespace internal
 
 void Pandoc(string launch_browser) {
@@ -38,6 +55,9 @@ void Pandoc(string launch_browser) {
   });
 }
 
+// TODO(trivial, 2025-04-17): Convert this to OptionalRange. I /think/ (not
+// sure) we can't currently create OptionalRange values with a Range (from the
+// vm code).
 Range FindSection(Buffer buffer, string title, number depth) {
   for (number line = 0; line < buffer.line_count(); line++) {
     if (internal::IsLineTitle(title, depth, buffer.line(line)))
@@ -45,5 +65,12 @@ Range FindSection(Buffer buffer, string title, number depth) {
                    internal::FindSectionEnd(buffer, line + 1, depth));
   }
   return Range(LineColumn(0, 0), LineColumn(0, 0));
+}
+
+VectorString GetLinks(Buffer buffer) {
+  VectorString output = VectorString();
+  for (number line = 0; line < buffer.line_count(); line++)
+    AddLinksFromLine(buffer.line(line), output);
+  return output;
 }
 }  // namespace md
