@@ -40,7 +40,7 @@ string TransformCase(string input) {
 
 TransformationOutput CamelCaseTransformation(Buffer buffer,
                                              TransformationInput input) {
-  TransformationOutput output = TransformationOutput();
+  TransformationOutput output;
   auto begin = FindSymbolBegin(buffer, input.position());
   auto end = FindSymbolEnd(buffer, begin);
   output.push(SetPositionTransformation(begin));

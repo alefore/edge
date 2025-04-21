@@ -40,7 +40,7 @@ void AddLinksFromLine(string line, VectorString output) {
 void Pandoc(string launch_browser) {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.SetStatus("pandoc ...");
-    ForkCommandOptions options = ForkCommandOptions();
+    ForkCommandOptions options;
     string command = "pandoc " + buffer.path().shell_escape() +
                      " --shift-heading-level-by=-1"
                      " -f markdown -t html -s -o /tmp/output.html; edge "

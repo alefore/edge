@@ -7,7 +7,7 @@ string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
 ClangFormatOnSave();
 
 string git_push_path = Dirname(path) + "/.edge-git-push.txt";
-ForkCommandOptions git_push_options = ForkCommandOptions();
+ForkCommandOptions git_push_options;
 git_push_options.set_command("test ! -f " + git_push_path.shell_escape() +
                              " || ( git commit -a -m \"$( cat " +
                              git_push_path.shell_escape() +
@@ -24,7 +24,7 @@ if (Extension(path) == "py") {
   // We deliberately won't escape `mypy` so that the home directory gets
   // expanded.
   string mypy = "~/bin/mypy";
-  ForkCommandOptions mypy_options = ForkCommandOptions();
+  ForkCommandOptions mypy_options;
   mypy_options.set_command("test ! -x " + mypy + " || " + mypy + " " +
                            path.shell_escape());
   mypy_options.set_insertion_type("ignore");
@@ -40,7 +40,7 @@ if (Extension(path) == "py") {
 }
 
 // if (path.starts_with("/home/alejo/edge/src")) {
-//   ForkCommandOptions options = ForkCommandOptions();
+//   ForkCommandOptions options;
 //   options.set_command("make -j3");
 //   options.set_insertion_type("only_list");
 //   ForkCommand(options);

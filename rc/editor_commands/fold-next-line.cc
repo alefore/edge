@@ -21,7 +21,7 @@ string LeadingPrefix(Buffer buffer, string text) {
 }
 
 TransformationOutput FoldNextLine(Buffer buffer, TransformationInput input) {
-  TransformationOutput output = TransformationOutput();
+  TransformationOutput output;
   number column = buffer.line(input.position().line()).size();
   for (number i; i < editor.repetitions(); i++) {
     output.push(SetColumnTransformation(column));

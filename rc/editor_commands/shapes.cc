@@ -378,7 +378,7 @@ bool IsMovingDownBold(string c) {
 void DrawLineColumns(Buffer buffer, SetLineColumn line_column_right,
                      SetLineColumn line_column_down, string code) {
   buffer.PushTransformationStack();
-  SetLineColumn line_columns = SetLineColumn();
+  SetLineColumn line_columns;
   GetLineColumnsToDraw(line_column_right, line_column_down, line_columns);
   ShapesSetStatus("Positions to draw: " + line_columns.size().tostring());
   for (number i; i < line_columns.size(); i++) {
@@ -467,8 +467,8 @@ void FindBoundariesSquare(LineColumn start, LineColumn end,
 }
 
 void ShapesAddSquareInPositions(Buffer buffer, LineColumn a, LineColumn b) {
-  SetLineColumn output_right = SetLineColumn();
-  SetLineColumn output_down = SetLineColumn();
+  SetLineColumn output_right;
+  SetLineColumn output_down;
   FindBoundariesSquare(a, b, output_right, output_down);
   DrawLineColumns(buffer, output_right, output_down, "");
 }
@@ -490,7 +490,7 @@ SetLineColumn PositionsForSquare(Buffer buffer) {
         return LessThan(position, candidate);
       });
 
-  SetLineColumn output = SetLineColumn();
+  SetLineColumn output;
 
   if (!cursors_before.empty())
     output.insert(cursors_before.get(cursors_before.size() - 1));
@@ -605,8 +605,8 @@ void SquareCenter() {
 }
 
 void ShapesAddLineToPosition(Buffer buffer, LineColumn a, LineColumn b) {
-  SetLineColumn output_right = SetLineColumn();
-  SetLineColumn output_down = SetLineColumn();
+  SetLineColumn output_right;
+  SetLineColumn output_down;
   FindBoundariesLine(a, b, output_right, output_down);
   DrawLineColumns(buffer, output_right, output_down, "");
 }
@@ -617,8 +617,8 @@ void Line() {
     LineColumn position = buffer.position();
     VectorLineColumn cursors = buffer.active_cursors();
 
-    SetLineColumn output_right = SetLineColumn();
-    SetLineColumn output_down = SetLineColumn();
+    SetLineColumn output_right;
+    SetLineColumn output_down;
 
     for (number i; i < cursors.size(); i++)
       FindBoundariesLine(position, cursors.get(i), output_right, output_down);
@@ -630,9 +630,9 @@ void Line() {
 
 void ShapesAddBezier(Buffer buffer) {
   auto position = buffer.position();
-  SetLineColumn output_right = SetLineColumn();
-  SetLineColumn output_down = SetLineColumn();
-  VectorLineColumn points = VectorLineColumn();
+  SetLineColumn output_right;
+  SetLineColumn output_down;
+  VectorLineColumn points;
   for (number i; i < bezier_points.size(); i++) {
     points.push_back(bezier_points.get(i));
   }
@@ -760,8 +760,7 @@ number NounWidth(VectorString noun_lines) {
 }
 
 VectorLineColumn DiagramGetPositions(number nouns) {
-  VectorLineColumn output = VectorLineColumn();
-  return output;
+  return VectorLineColumn();
 }
 
 LineColumn DiagramPositionForNoun(number start, number i, number column_width,

@@ -109,7 +109,7 @@ void SortByColumn(Buffer buffer, number column) {
 
 TransformationOutput AlignColumnsTransformation(Buffer csv_file) {
   VectorInt column_sizes = GetColumnSizes(csv_file);
-  TransformationOutput output = TransformationOutput();
+  TransformationOutput output;
 
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     number columns = row.children().size();

@@ -123,7 +123,7 @@ editor.AddBinding("ad", "Buffers: Close the current buffer.", []() -> void {
 editor.AddBinding("ss", "Run a shell in the directory of the current buffer.",
                   []() -> void {
                     editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-                      auto options = ForkCommandOptions();
+                      ForkCommandOptions options;
                       options.set_command("sh -l");
                       string path = buffer.path();
                       if (!path.empty()) {
@@ -228,7 +228,7 @@ editor.AddBinding(
 
 void HandleKeyboardControlU(Buffer buffer) {
   buffer.PushTransformationStack();
-  Modifiers modifiers = Modifiers();
+  Modifiers modifiers;
   modifiers.set_backwards();
   modifiers.set_delete_behavior(true);
   if (buffer.contents_type() == "path") {

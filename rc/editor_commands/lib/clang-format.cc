@@ -11,7 +11,7 @@ void ClangFormatOnSave() {
   }
   buffer.SetStatus(reformat_command_in_place + " " + path.shell_escape() +
                    " ...");
-  ForkCommandOptions options = ForkCommandOptions();
+  ForkCommandOptions options;
   options.set_command(reformat_command_in_place + " " + path.shell_escape() +
                       "; edge --run 'Buffer original_buffer = " +
                       "editor.OpenFile(\"" + path.shell_escape() +
@@ -57,7 +57,7 @@ if (extension == "cc" || extension == "h" || extension == "cpp" ||
 }
 
 if (reformat_command != "") {
-  ForkCommandOptions options = ForkCommandOptions();
+  ForkCommandOptions options;
   options.set_command(
       "test ! -f " + path.shell_escape() + "||" + reformat_command + " " +
       path.shell_escape() + "| diff " + path.shell_escape() +

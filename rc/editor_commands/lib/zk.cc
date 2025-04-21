@@ -47,7 +47,7 @@ string ToMarkdownPath(string path) {
 // Returns the path (ID) of the next available (empty) file. Includes the `.md`
 // extension.
 string NextEmpty() {
-  ForkCommandOptions options = ForkCommandOptions();
+  ForkCommandOptions options;
   options.set_command(
       "find -size 0b -name '???.md' -printf '%f\n' | sort | head -1");
   options.set_insertion_type("ignore");
@@ -57,7 +57,7 @@ string NextEmpty() {
 }
 
 Buffer RunCommand(string name, string command, string insertion_type) {
-  ForkCommandOptions options = ForkCommandOptions();
+  ForkCommandOptions options;
   options.set_command(command);
   options.set_insertion_type(insertion_type);
   options.set_name("zk: " + name);
@@ -144,7 +144,7 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
 }
 
 TransformationOutput Refresh(Buffer buffer, TransformationInput input) {
-  auto output = TransformationOutput();
+  TransformationOutput output;
   auto line = buffer.line(input.position().line());
 
   // Find the indices of the text to update:
@@ -547,7 +547,7 @@ void Journal(number days_to_generate, Time start, string template_path) {
     auto template_contents = ExtractContentsFromTemplate(template_path);
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {
-          auto output = TransformationOutput();
+          TransformationOutput output;
           string previous_child_path;
           string previous_child_title;
           auto next_child_path = NextEmpty();
@@ -599,7 +599,7 @@ void AddNextDayLink() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {
-          TransformationOutput output = TransformationOutput();
+          TransformationOutput output;
           output.push(SetPositionTransformation(
               LineColumn(buffer.line_count() - 1, 0)));
           output.push(InsertTransformationBuilder()
