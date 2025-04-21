@@ -69,9 +69,8 @@ Range FindSection(Buffer buffer, string title, number depth) {
 
 VectorString GetLinks(Buffer buffer) {
   VectorString output;
-  // TODO(trivial, 2025-04-22): Use Buffer.ForEach?
-  for (number line; line < buffer.line_count(); line++)
-    AddLinksFromLine(buffer.line(line), output);
+  buffer.ForEach(
+      [](number, string line) -> void { AddLinksFromLine(line, output); });
   return output;
 }
 }  // namespace md
