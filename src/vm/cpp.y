@@ -266,13 +266,14 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
       NewVariableLookup(*compilation, {type_identifier});
 
   if (constructor == nullptr) {
-    // TODO(easy, 2025-04-21): Make this fail compilation.
-    auto result = NewDefineTypeExpression(
-        *compilation, type->value().ptr()->get_symbol(),
-       name->value().ptr()->get_symbol(), {});
-    OUT = result == std::nullopt
-          ? nullptr
-          : NewVoidExpression(compilation->pool).get_unique().release();
+    compilation->AddError(Error{
+        LazyString{L"Need to explicitly initialize variable "} +
+        QuoteExpr(language::lazy_string::ToSingleLine(
+            name->value().ptr()->get_symbol())) +
+        LazyString{L" of type "} +
+        QuoteExpr(language::lazy_string::ToSingleLine(
+            type_identifier))});
+    OUT = nullptr;
   } else {
     std::unique_ptr<Expression> value = NewFunctionCall(
         *compilation,
