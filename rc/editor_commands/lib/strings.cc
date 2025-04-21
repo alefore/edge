@@ -14,7 +14,7 @@ string SkipSpaces(string text) {
 
 VectorString BreakWords(string text) {
   VectorString output;
-  number start = 0;
+  number start;
   while (start < text.size()) {
     start = text.find_first_not_of(" ", start);
     if (start != -1) {

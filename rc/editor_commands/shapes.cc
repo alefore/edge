@@ -330,13 +330,13 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
 
 void GetLineColumnsToDraw(SetLineColumn right, SetLineColumn down,
                           SetLineColumn output) {
-  for (number i = 0; i < right.size(); i++) {
+  for (number i; i < right.size(); i++) {
     LineColumn position = right.get(i);
     output.insert(position);
     output.insert(LineColumn(position.line(), position.column() + 1));
   }
 
-  for (number i = 0; i < down.size(); i++) {
+  for (number i; i < down.size(); i++) {
     LineColumn position = down.get(i);
     output.insert(position);
     output.insert(LineColumn(position.line() + 1, position.column()));
@@ -381,7 +381,7 @@ void DrawLineColumns(Buffer buffer, SetLineColumn line_column_right,
   SetLineColumn line_columns = SetLineColumn();
   GetLineColumnsToDraw(line_column_right, line_column_down, line_columns);
   ShapesSetStatus("Positions to draw: " + line_columns.size().tostring());
-  for (number i = 0; i < line_columns.size(); i++) {
+  for (number i; i < line_columns.size(); i++) {
     LineColumn position = line_columns.get(i);
     string current_code = code;
     if (current_code.empty()) {
@@ -521,7 +521,7 @@ bool IsActualContent(Buffer buffer, string c) {
 }
 
 string TrimLine(Buffer buffer, string line) {
-  number start = 0;
+  number start;
   while (start < line.size() &&
          !IsActualContent(buffer, line.substr(start, 1))) {
     start++;
@@ -537,7 +537,7 @@ string TrimLine(Buffer buffer, string line) {
 }
 
 string GetSquareContents(Buffer buffer, LineColumn start, LineColumn end) {
-  string output = "";
+  string output;
   while (start.line() <= end.line() && start.line() < buffer.line_count()) {
     string line = buffer.line(start.line());
     if (line.size() > start.column()) {
@@ -553,16 +553,16 @@ string GetSquareContents(Buffer buffer, LineColumn start, LineColumn end) {
 }
 
 string JoinLines(VectorString v) {
-  string output = "";
-  for (number i = 0; i < v.size(); i++) {
+  string output;
+  for (number i; i < v.size(); i++) {
     output = output + "[" + v.get(i) + "]";
   }
   return output;
 }
 
 string BuildPadding(number size, string c) {
-  string output = "";
-  for (number i = 0; i < size; i++) {
+  string output;
+  for (number i; i < size; i++) {
     output = output + c;
   }
   return output;
@@ -588,8 +588,8 @@ void SquareCenter() {
         ShapesReflow(BreakWords(GetSquareContents(buffer, start, end)), width);
     number start_contents =
         (end.line() - start.line() + 1 - contents.size()) / 2;
-    for (number i = 0; start.line() + i <= end.line(); i++) {
-      string input = "";
+    for (number i; start.line() + i <= end.line(); i++) {
+      string input;
       if (i >= start_contents && i - start_contents < contents.size()) {
         input = contents.get(i - start_contents);
         number padding = (width - input.size()) / 2;
@@ -620,7 +620,7 @@ void Line() {
     SetLineColumn output_right = SetLineColumn();
     SetLineColumn output_down = SetLineColumn();
 
-    for (number i = 0; i < cursors.size(); i++)
+    for (number i; i < cursors.size(); i++)
       FindBoundariesLine(position, cursors.get(i), output_right, output_down);
     DrawLineColumns(buffer, output_right, output_down, "");
 
@@ -633,7 +633,7 @@ void ShapesAddBezier(Buffer buffer) {
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
   VectorLineColumn points = VectorLineColumn();
-  for (number i = 0; i < bezier_points.size(); i++) {
+  for (number i; i < bezier_points.size(); i++) {
     points.push_back(bezier_points.get(i));
   }
   points.push_back(position);
@@ -659,7 +659,7 @@ void ShapesPushBezierPoint(Buffer buffer) {
 }
 
 number GetDiagramInputLinesCount(Buffer buffer) {
-  for (number i = 0; i < buffer.line_count(); i++) {
+  for (number i; i < buffer.line_count(); i++) {
     if (SkipSpaces(buffer.line(i + 1)) == "") {
       return i;
     }
@@ -670,7 +670,7 @@ number GetDiagramInputLinesCount(Buffer buffer) {
 VectorString GetDiagramNouns(Buffer buffer, number lines) {
   // Use a set to eliminate repetitions.
   SetString nouns;
-  for (number i = 0; i < lines; i++) {
+  for (number i; i < lines; i++) {
     string line = buffer.line(i);
     if (line.substr(0, 1) != " ") {
       nouns.insert(line);
@@ -687,7 +687,7 @@ VectorString GetDiagramNouns(Buffer buffer, number lines) {
   }
 
   VectorString output;
-  for (number i = 0; i < nouns.size(); i++) {
+  for (number i; i < nouns.size(); i++) {
     output.push_back(nouns.get(i));
   }
 
@@ -696,9 +696,9 @@ VectorString GetDiagramNouns(Buffer buffer, number lines) {
 
 VectorInt DiagramGetEdges(Buffer buffer, number lines, string a,
                           VectorString nouns) {
-  string source = "";
+  string source;
   SetString edges;
-  for (number i = 0; i < lines; i++) {
+  for (number i; i < lines; i++) {
     string line = buffer.line(i);
     if (line.substr(0, 1) != " ") {
       source = line;
@@ -713,7 +713,7 @@ VectorInt DiagramGetEdges(Buffer buffer, number lines, string a,
   }
 
   VectorInt output;
-  for (number i = 0; i < nouns.size(); i++) {
+  for (number i; i < nouns.size(); i++) {
     if (edges.contains(nouns.get(i))) {
       output.push_back(i);
     }
@@ -722,16 +722,16 @@ VectorInt DiagramGetEdges(Buffer buffer, number lines, string a,
 }
 
 number GetMaxNounWidth(VectorString nouns) {
-  number output = 0;
-  for (number i = 0; i < nouns.size(); i++) {
+  number output;
+  for (number i; i < nouns.size(); i++) {
     output = max(output, nouns.get(i).size());
   }
   return output;
 }
 
 number GetMaxNounSize(VectorString nouns) {
-  number output = 0;
-  for (number i = 0; i < nouns.size(); i++) {
+  number output;
+  for (number i; i < nouns.size(); i++) {
     output = max(output, nouns.size());
   }
   return output;
@@ -739,7 +739,7 @@ number GetMaxNounSize(VectorString nouns) {
 
 VectorString NounLines(string noun) {
   VectorString output;
-  number start = 0;
+  number start;
   while (start < noun.size()) {
     number next = noun.find(" ", start);
     if (next == -1) {
@@ -803,9 +803,9 @@ void DiagramDrawEdge(Buffer buffer, number start, VectorString nouns, number i,
 void DiagramDrawEdges(Buffer buffer, number lines, number start,
                       VectorString nouns, number column_width,
                       number lines_per_noun) {
-  for (number i = 0; i < nouns.size(); i++) {
+  for (number i; i < nouns.size(); i++) {
     VectorInt edges = DiagramGetEdges(buffer, lines, nouns.get(i), nouns);
-    for (number j = 0; j < edges.size(); j++) {
+    for (number j; j < edges.size(); j++) {
       editor.SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
       DiagramDrawEdge(buffer, start, nouns, i, edges.get(j), column_width,
                       lines_per_noun);
@@ -817,16 +817,16 @@ void DrawNouns(Buffer buffer, number start, VectorString nouns,
                number column_width, number lines_per_noun) {
   number columns = 3;
 
-  number row = 0;
-  number column = 0;
+  number row;
+  number column;
 
   editor.SetStatus("Writing nouns");
-  for (number noun = 0; noun < nouns.size(); noun++) {
+  for (number noun; noun < nouns.size(); noun++) {
     VectorString noun_lines = NounLines(nouns.get(noun));
     LineColumn base_position =
         LineColumn(start + (row * lines_per_noun), column_width * column);
 
-    for (number line = 0; line < noun_lines.size(); line++) {
+    for (number line; line < noun_lines.size(); line++) {
       LineColumn position = LineColumn(base_position.line() + line + 1,
                                        base_position.column() + 1);
       PadToLineColumn(buffer, position);
@@ -841,7 +841,7 @@ void DrawNouns(Buffer buffer, number start, VectorString nouns,
 
     column++;
     if (column >= columns) {
-      column = 0;
+      column;
       row++;
     }
   }

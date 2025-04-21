@@ -306,10 +306,10 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"number Foo(number x) { return x * 5 + 1; }; Foo(Foo(10));"),
       callback(L"// Some comment.\n"
                L"editor.SetVariablePrompt(\"blah\");"),
-      callback(L"number y = 0;\n"
+      callback(L"number y;\n"
                L"void Foo(number x) { if (x > y) Foo(x - 1); }\n"
                L"Foo(10);"),
-      callback(L"number y = 0;\n"
+      callback(L"number y;\n"
                L"void Foo(number x) { while (x > y) x--; }\n"
                L"Foo(10);"),
       callback(L"-5;"),
@@ -320,7 +320,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"string Foo() { string x = \"foo\"; return x; }"),
       callback(L"string x = \"foo\"; x = x + \"bar\" * 2;"),
       callback(L"number x = 10; while (x > 10) x--;"),
-      callback(L"for (number i = 0; i < 5; i++) i;"),
+      callback(L"for (number i; i < 5; i++) i;"),
       callback(L"VectorLineColumn x = buffer.active_cursors();\n"
                L"x.push_back(LineColumn(0, 10));"
                L"buffer.set_active_cursors(x);"),
@@ -336,8 +336,8 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                L"foo(3) * 2;"
                L"\"text\" * 2;"
                L"foo((\"xyz\").size() + 1) - 5;"
-               L"number y = 0;"
-               L"for (number i = 0; i < 5; i++) { y += foo(i); }"
+               L"number y;"
+               L"for (number i; i < 5; i++) { y += foo(i); }"
                L"}"),
   });
 }());

@@ -31,7 +31,7 @@ bool IsHiatus(string word) {
 
 VectorString Syllables(string word) {
   VectorString output;
-  number position = 0;
+  number position;
   while (position < word.size()) {
     number next_vowel = SkipConsonants(word, position);
     number end = SkipVowels(word, next_vowel);
@@ -83,9 +83,9 @@ VectorString Syllables(string word) {
 }
 
 string ShowSyllables(VectorString input) {
-  string output = "";
-  string separator = "";
-  for (number i = 0; i < input.size(); i++) {
+  string output;
+  string separator;
+  for (number i; i < input.size(); i++) {
     output += separator + input.get(i);
     separator = "-";
   }
@@ -162,7 +162,7 @@ string Validate() {
 
 VectorString BreakWords(string line) {
   VectorString output;
-  number position = 0;
+  number position;
   while (position < line.size()) {
     if (!IsVowel(line.substr(position, 1)) &&
         !IsConsonant(line.substr(position, 1))) {
@@ -194,9 +194,9 @@ bool CanJoinPreviousWordSynalepha(string word) {
 // contains (after applying synalepha to join syllables of different words).
 void CountSyllables(Buffer buffer) {
   buffer.AddLineProcessor("s", [](string line) -> string {
-    number count = 0;
+    number count;
     VectorString words = BreakWords(line.tolower());
-    for (number i = 0; i < words.size(); i++) {
+    for (number i; i < words.size(); i++) {
       string word = words.get(i);
       count += Syllables(word).size();
       if (i > 0 && CanJoinNextWordSynalepha(words.get(i - 1)) &&

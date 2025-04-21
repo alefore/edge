@@ -59,7 +59,7 @@ void Pandoc(string launch_browser) {
 // sure) we can't currently create OptionalRange values with a Range (from the
 // vm code).
 Range FindSection(Buffer buffer, string title, number depth) {
-  for (number line = 0; line < buffer.line_count(); line++) {
+  for (number line; line < buffer.line_count(); line++) {
     if (internal::IsLineTitle(title, depth, buffer.line(line)))
       return Range(LineColumn(line, 0),
                    internal::FindSectionEnd(buffer, line + 1, depth));
@@ -69,7 +69,8 @@ Range FindSection(Buffer buffer, string title, number depth) {
 
 VectorString GetLinks(Buffer buffer) {
   VectorString output;
-  for (number line = 0; line < buffer.line_count(); line++)
+  // TODO(trivial, 2025-04-22): Use Buffer.ForEach?
+  for (number line; line < buffer.line_count(); line++)
     AddLinksFromLine(buffer.line(line), output);
   return output;
 }

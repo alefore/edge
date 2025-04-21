@@ -160,6 +160,10 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type);
   environment.DefineType(string_type.ptr());
 
+  environment.Define(
+      Identifier(NON_EMPTY_SINGLE_LINE_CONSTANT(L"string")),
+      NewCallback(pool, PurityType{}, [] { return LazyString{}; }));
+
   container::Export<std::vector<LazyString>>(pool, environment);
   container::Export<std::set<LazyString>>(pool, environment);
 }

@@ -36,7 +36,7 @@ string ReadCellContent(Buffer buffer, ParseTree cell) {
 }
 
 number CountColumns(Buffer csv_file) {
-  number output = 0;
+  number output;
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     output = max(output, row.children().size());
   });
@@ -48,7 +48,7 @@ VectorInt GetColumnSizes(Buffer csv_file) {
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     if (row.children().size() == 0) return;
     number columns = row.children().size();
-    for (number column = 0; column < columns; column++) {
+    for (number column; column < columns; column++) {
       if (column_sizes.size() == column) column_sizes.push_back(0);
       number width = RangeWidth(TreeForCell(row, column).range());
       column_sizes.set(column, max(column_sizes.get(column), width));
@@ -67,7 +67,7 @@ string GetCell(Buffer buffer, number row, number column) {
 
 number FindRowIndex(Buffer buffer, string row_name) {
   ParseTree header = buffer.tree().children().get(0);
-  for (number column = 0; column < header.children().size(); column++) {
+  for (number column; column < header.children().size(); column++) {
     if (ReadCellContent(buffer, TreeForCell(header, column)) == row_name)
       return column;
   }
@@ -113,7 +113,7 @@ TransformationOutput AlignColumnsTransformation(Buffer csv_file) {
 
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     number columns = row.children().size();
-    for (number index = 0; index < columns; index++) {
+    for (number index; index < columns; index++) {
       // We work backwards (starting at the last column):
       number column = columns - index - 1;
 

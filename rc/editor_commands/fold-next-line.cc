@@ -23,7 +23,7 @@ string LeadingPrefix(Buffer buffer, string text) {
 TransformationOutput FoldNextLine(Buffer buffer, TransformationInput input) {
   TransformationOutput output = TransformationOutput();
   number column = buffer.line(input.position().line()).size();
-  for (number i = 0; i < editor.repetitions(); i++) {
+  for (number i; i < editor.repetitions(); i++) {
     output.push(SetColumnTransformation(column));
     number next_line = input.position().line() + i + 1;
     if (next_line < buffer.line_count()) {

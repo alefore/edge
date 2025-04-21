@@ -10,11 +10,9 @@ string IntegerAsString(Buffer buffer, LineColumn position) {
   string line = buffer.line(position.line());
   line = line.substr(position.column(), line.size() - position.column());
   string numbers = "-0123456789";
-  number i = 0;
-  while (i < line.size() && numbers.find(line.substr(i, 1), 0) != -1) {
+  for (number i; i < line.size() && numbers.find(line.substr(i, 1), 0) != -1;
+       i++)
     numbers = "0123456789";  // Disallow "-".
-    i++;
-  }
   return line.substr(0, i);
 }
 

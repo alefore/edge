@@ -195,7 +195,7 @@ Buffer InitializeNewNote(string path, string title, string parent_title,
 }
 
 number FindStartOfRelatedSection(Buffer buffer) {
-  for (number line = 0; line < buffer.line_count(); line++) {
+  for (number line; line < buffer.line_count(); line++) {
     if (IsStartOfRelatedSection(buffer.line(line))) return line;
   }
   return buffer.line_count();
@@ -245,7 +245,7 @@ TransformationOutput NewLink(Buffer buffer, TransformationInput input,
     start++;
   }
   number end = line.find_first_of("]", start);
-  number title_length = 0;
+  number title_length;
   if (end == -1) {
     end = line.size();
     title_length = end - start;
@@ -308,7 +308,7 @@ void NewLinkAllBuffers(string back_link_type) {
 }
 
 void RegisterLinks(string line, VectorString output) {
-  number column = 0;
+  number colu 0;
   string extension = ".md";
   while (column < line.size()) {
     column = line.find_first_of("(", column);
@@ -328,7 +328,7 @@ void RegisterLinks(string line, VectorString output) {
 }
 
 void RegisterLinks(Buffer buffer, VectorString output) {
-  number line = 0;
+  number line;
   while (line < buffer.line_count()) {
     RegisterLinks(buffer.line(line), output);
     line++;
@@ -404,16 +404,16 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
   visited.insert(path);
   Buffer sub_buffer = editor.OpenFile(path, false);
   sub_buffer.WaitForEndOfFile();
-  number line = 0;
-  string text = "";
+  number line;
+  string text;
   if (include_titles) {
-    for (number i = 0; i < min(6, depth); i++) {
+    for (number i; i < min(6, depth); i++) {
       text += "#";
     }
   }
   bool copy_contents = true;
   bool first_line = true;
-  string title = "";
+  string title;
   while (line < sub_buffer.line_count()) {
     string line_contents = sub_buffer.line(line);
     if (IsStartOfRelatedSection(line_contents) ||
@@ -426,7 +426,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
       title = line_contents;
       if (include_titles) {
         number candidate_index = -1;
-        for (number i = 0; i < titles.size(); i++) {
+        for (number i; i < titles.size(); i++) {
           string candidate = titles.get(i);
           if (line_contents.size() > candidate.size() &&
               line_contents.substr(0, candidate.size()) == candidate) {
@@ -443,7 +443,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
           }
         }
       } else if (buffer.line_count() == 1) {
-        line_contents = separator = "";
+        line_contents = separator;
       } else {
         line_contents = "☙";
       }
@@ -459,7 +459,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
 
   VectorString pending;
   RegisterLinks(sub_buffer, pending);
-  number links = 0;
+  number link0;
   if (!title.empty()) {
     titles.insert(title);
   }
@@ -475,7 +475,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
 
 SetString ParseBlacklist(string blacklist) {
   SetString output;
-  number start = 0;
+  number star0;
   while (true) {
     if (start == blacklist.size()) {
       return output;
@@ -523,9 +523,9 @@ void AppendLink(Buffer buffer, string title, string path) {
 string ExtractContentsFromTemplate(string path) {
   Buffer template = editor.OpenFile(path + ".md", false);
   template.WaitForEndOfFile();
-  string output = "";
+  string output;
   bool found_start_marker = false;
-  for (number line = 0; line < template.line_count(); line++) {
+  for (number line; line < template.line_count(); line++) {
     string contents = template.line(line);
     if (!found_start_marker) {
       if (contents.starts_with("## ")) {
@@ -548,10 +548,10 @@ void Journal(number days_to_generate, Time start, string template_path) {
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {
           auto output = TransformationOutput();
-          string previous_child_path = "";
-          string previous_child_title = "";
+          string previous_child_path;
+          string previous_child_title;
           auto next_child_path = NextEmpty();
-          for (number i = 0; i < days_to_generate; i++) {
+          for (number i; i < days_to_generate; i++) {
             auto child_title = start.format("%Y-%m-%d (%a)");
             auto child_buffer = InitializeNewNote(
                 next_child_path, child_title, parent_title, parent_path, "Up");
@@ -648,19 +648,19 @@ void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
   Range range = md::FindSection(input_buffer, "Tags", 2);
   number line = range.begin().line() + 1;
 
-  string input_date = "";
-  string input_reminder_frequency = "";
-  string input_reminder_advance = "";
+  string input_date;
+  string input_reminder_frequency;
+  string input_reminder_advance;
 
-  string input_language_typo = "";
-  string input_language_synonyms = "";
+  string input_language_typo;
+  string input_language_synonyms;
 
   while (line < range.end().line()) {
     string contents = input_buffer.line(line);
     line++;
     if (contents != "") {
-      string tag = "";
-      string value = "";
+      string tag;
+      string value;
       number colon = contents.find_first_of(":", 0);
       if (colon > -1) {
         tag = contents.substr(0, colon).tolower();
