@@ -259,12 +259,31 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   std::unique_ptr<std::optional<gc::Root<Value>>> type(TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
-  auto result = NewDefineTypeExpression(
-      *compilation, type->value().ptr()->get_symbol(),
-      name->value().ptr()->get_symbol(), {});
-  OUT = result == std::nullopt
-        ? nullptr
-        : NewVoidExpression(compilation->pool).get_unique().release();
+  // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
+  Identifier type_identifier(type->value().ptr()->get_symbol());
+
+  std::unique_ptr<Expression> constructor =
+      NewVariableLookup(*compilation, {type_identifier});
+
+  if (constructor == nullptr) {
+    // TODO(easy, 2025-04-21): Make this fail compilation.
+    auto result = NewDefineTypeExpression(
+        *compilation, type->value().ptr()->get_symbol(),
+       name->value().ptr()->get_symbol(), {});
+    OUT = result == std::nullopt
+          ? nullptr
+          : NewVoidExpression(compilation->pool).get_unique().release();
+  } else {
+    std::unique_ptr<Expression> value = NewFunctionCall(
+        *compilation,
+        language::NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::move(constructor)),
+        {});
+   OUT = NewDefineExpression(*compilation, type->value().ptr()->get_symbol(),
+                             name->value().ptr()->get_symbol(),
+                             std::move(value))
+             .release();
+  }
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
