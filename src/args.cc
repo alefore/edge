@@ -281,8 +281,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 LazyString CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
   LazyString commands_to_run =
-      args.commands_to_run +
-      LazyString{L"VectorBuffer buffers_to_watch = VectorBuffer();\n"};
+      args.commands_to_run + LazyString{L"VectorBuffer buffers_to_watch;\n"};
   bool start_shell = args.commands_to_run.empty();
   for (LazyString path : args.naked_arguments) {
     LazyString full_path;

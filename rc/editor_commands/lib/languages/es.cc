@@ -30,7 +30,7 @@ bool IsHiatus(string word) {
 }
 
 VectorString Syllables(string word) {
-  VectorString output = VectorString();
+  VectorString output;
   number position = 0;
   while (position < word.size()) {
     number next_vowel = SkipConsonants(word, position);
@@ -161,7 +161,7 @@ string Validate() {
 }
 
 VectorString BreakWords(string line) {
-  VectorString output = VectorString();
+  VectorString output;
   number position = 0;
   while (position < line.size()) {
     if (!IsVowel(line.substr(position, 1)) &&

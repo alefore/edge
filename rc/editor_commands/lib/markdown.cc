@@ -68,7 +68,7 @@ Range FindSection(Buffer buffer, string title, number depth) {
 }
 
 VectorString GetLinks(Buffer buffer) {
-  VectorString output = VectorString();
+  VectorString output;
   for (number line = 0; line < buffer.line_count(); line++)
     AddLinksFromLine(buffer.line(line), output);
   return output;

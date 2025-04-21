@@ -26,7 +26,7 @@ void FindCellContentInTree(ParseTree tree, VectorParseTree output) {
 }
 
 ParseTree FindCellContentInTree(ParseTree cell) {
-  VectorParseTree content_cells = VectorParseTree();
+  VectorParseTree content_cells;
   FindCellContentInTree(cell, content_cells);
   return content_cells.empty() ? cell : content_cells.get(0);
 }
@@ -44,7 +44,7 @@ number CountColumns(Buffer csv_file) {
 }
 
 VectorInt GetColumnSizes(Buffer csv_file) {
-  VectorInt column_sizes = VectorInt();
+  VectorInt column_sizes;
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     if (row.children().size() == 0) return;
     number columns = row.children().size();
@@ -75,7 +75,7 @@ number FindRowIndex(Buffer buffer, string row_name) {
 }
 
 VectorInt ColumnToVectorInt(Buffer buffer, number column, bool skip_first) {
-  VectorInt output = VectorInt();
+  VectorInt output;
   bool at_first = true;
   buffer.tree().children().ForEach([](ParseTree row) -> void {
     // TODO(errors): Warn that some values were ignored?

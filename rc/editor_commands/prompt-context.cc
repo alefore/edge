@@ -1,18 +1,18 @@
 #include "lib/strings.cc"
 
 // Set of commands that should just be run directly.
-SetString shell_prompt_preview_execution = SetString();
+SetString shell_prompt_preview_execution;
 shell_prompt_preview_execution.insert("grep-code");
 shell_prompt_preview_execution.insert("ls");
 
 // Set of commands for which `man` should be run. If they have at least one
 // argument, we should just run them.
-SetString shell_prompt_man_preview_execution = SetString();
+SetString shell_prompt_man_preview_execution;
 shell_prompt_man_preview_execution.insert("look");
 shell_prompt_man_preview_execution.insert("grep");
 
 // Set of commands for which `$command --help` should be run.
-SetString shell_prompt_help_programs = SetString();
+SetString shell_prompt_help_programs;
 shell_prompt_help_programs.insert("apt-get");
 shell_prompt_help_programs.insert("blaze");
 shell_prompt_help_programs.insert("cat");
@@ -34,11 +34,11 @@ shell_prompt_help_programs.insert("python3");
 shell_prompt_help_programs.insert("rm");
 shell_prompt_help_programs.insert("sleep");
 
-SetString blaze_sub_commands = SetString();
+SetString blaze_sub_commands;
 blaze_sub_commands.insert("test");
 blaze_sub_commands.insert("build");
 
-SetString git_sub_commands = SetString();
+SetString git_sub_commands;
 git_sub_commands.insert("add");
 git_sub_commands.insert("bisect");
 git_sub_commands.insert("branch");
@@ -60,14 +60,14 @@ git_sub_commands.insert("show");
 git_sub_commands.insert("switch");
 git_sub_commands.insert("tag");
 
-SetString git_sub_commands_status = SetString();
+SetString git_sub_commands_status;
 git_sub_commands_status.insert("status");
 git_sub_commands_status.insert("commit");
 
-SetString git_sub_commands_diff = SetString();
+SetString git_sub_commands_diff;
 git_sub_commands_diff.insert("diff");
 
-SetString hg_sub_commands = SetString();
+SetString hg_sub_commands;
 hg_sub_commands.insert("amend");
 hg_sub_commands.insert("checkout");
 hg_sub_commands.insert("co");

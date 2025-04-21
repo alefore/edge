@@ -22,7 +22,7 @@ bool simple_characters = false;
 bool delete_mode = false;
 bool bold_mode = false;
 
-VectorLineColumn bezier_points = VectorLineColumn();
+VectorLineColumn bezier_points;
 
 void ShapesSetStatus(string description) {
   editor.SetStatus("Shapes: " + description);
@@ -669,7 +669,7 @@ number GetDiagramInputLinesCount(Buffer buffer) {
 
 VectorString GetDiagramNouns(Buffer buffer, number lines) {
   // Use a set to eliminate repetitions.
-  SetString nouns = SetString();
+  SetString nouns;
   for (number i = 0; i < lines; i++) {
     string line = buffer.line(i);
     if (line.substr(0, 1) != " ") {
@@ -686,7 +686,7 @@ VectorString GetDiagramNouns(Buffer buffer, number lines) {
     }
   }
 
-  VectorString output = VectorString();
+  VectorString output;
   for (number i = 0; i < nouns.size(); i++) {
     output.push_back(nouns.get(i));
   }
@@ -697,7 +697,7 @@ VectorString GetDiagramNouns(Buffer buffer, number lines) {
 VectorInt DiagramGetEdges(Buffer buffer, number lines, string a,
                           VectorString nouns) {
   string source = "";
-  SetString edges = SetString();
+  SetString edges;
   for (number i = 0; i < lines; i++) {
     string line = buffer.line(i);
     if (line.substr(0, 1) != " ") {
@@ -712,7 +712,7 @@ VectorInt DiagramGetEdges(Buffer buffer, number lines, string a,
     }
   }
 
-  VectorInt output = VectorInt();
+  VectorInt output;
   for (number i = 0; i < nouns.size(); i++) {
     if (edges.contains(nouns.get(i))) {
       output.push_back(i);
@@ -738,7 +738,7 @@ number GetMaxNounSize(VectorString nouns) {
 }
 
 VectorString NounLines(string noun) {
-  VectorString output = VectorString();
+  VectorString output;
   number start = 0;
   while (start < noun.size()) {
     number next = noun.find(" ", start);

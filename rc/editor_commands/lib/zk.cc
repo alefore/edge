@@ -457,7 +457,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
   buffer.ApplyTransformation(
       InsertTransformationBuilder().set_text(text).build());
 
-  VectorString pending = VectorString();
+  VectorString pending;
   RegisterLinks(sub_buffer, pending);
   number links = 0;
   if (!title.empty()) {
@@ -474,7 +474,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
 }
 
 SetString ParseBlacklist(string blacklist) {
-  SetString output = SetString();
+  SetString output;
   number start = 0;
   while (true) {
     if (start == blacklist.size()) {
@@ -797,7 +797,7 @@ void ExtractTags(string directory) {
   Buffer log_buffer = editor.OpenFile("/tmp/tags/log", true);
   log_buffer.WaitForEndOfFile();
   internal::PrepareOutputBuffer(log_buffer);
-  VectorBuffer input_buffers = VectorBuffer();
+  VectorBuffer input_buffers;
   string glob_pattern = directory + "/???.md";
   internal::Log(log_buffer, "Glob: " + glob_pattern);
   VectorString paths = Glob(glob_pattern);
