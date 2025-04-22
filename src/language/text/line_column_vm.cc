@@ -183,7 +183,7 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
   environment.Define(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Range"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumn begin, LineColumn end) {
-        return Range(begin, end);
+        return Range::New(begin, end);
       }));
 
   range_type.ptr()->AddField(
