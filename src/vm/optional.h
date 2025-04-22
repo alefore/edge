@@ -40,6 +40,11 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   const vm::Type vmtype = GetVMType<FullType>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
+  environment.Define(object_type_name.read(),
+                     vm::NewCallback(pool, kPurityTypePure, [](T t) {
+                       return language::MakeNonNullShared<std::optional<T>>(t);
+                     }));
+
   environment.Define(
       object_type_name.read(),
       Value::NewFunction(pool, kPurityTypePure, vmtype, {},
