@@ -308,7 +308,7 @@ void NewLinkAllBuffers(string back_link_type) {
 }
 
 void RegisterLinks(string line, VectorString output) {
-  number colu 0;
+  number column;
   string extension = ".md";
   while (column < line.size()) {
     column = line.find_first_of("(", column);
@@ -459,7 +459,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
 
   VectorString pending;
   RegisterLinks(sub_buffer, pending);
-  number link0;
+  number links;
   if (!title.empty()) {
     titles.insert(title);
   }
@@ -475,7 +475,7 @@ void Expand(Buffer buffer, string path, SetString titles, number depth,
 
 SetString ParseBlacklist(string blacklist) {
   SetString output;
-  number star0;
+  number start;
   while (true) {
     if (start == blacklist.size()) {
       return output;
@@ -645,8 +645,9 @@ void ReceiveLanguageTags(Buffer output, string input_typo,
 void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
                  Buffer input_buffer) {
   Log(log, "Processing:" + input_buffer.name());
-  Range range = md::FindSection(input_buffer, "Tags", 2);
-  number line = range.begin().line() + 1;
+  OptionalRange optional_range = md::FindSection(input_buffer, "Tags", 2);
+  if (!optional_range.has_value()) return;
+  number line = optional_range.value().begin().line() + 1;
 
   string input_date;
   string input_reminder_frequency;
@@ -655,7 +656,7 @@ void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
   string input_language_typo;
   string input_language_synonyms;
 
-  while (line < range.end().line()) {
+  while (line < optional_range.value().end().line()) {
     string contents = input_buffer.line(line);
     line++;
     if (contents != "") {
@@ -811,10 +812,7 @@ void ExtractTags(string directory) {
       [](Buffer buffer) -> void { buffer.WaitForEndOfFile(); });
   internal::Log(log_buffer, "Buffers loaded, filtering.");
   input_buffers = input_buffers.filter([](Buffer input) -> bool {
-    Range range = md::FindSection(input, "Tags", 2);
-    // TODO(easy, 2024-05-15): Define equality operator and avoid the conversion
-    // to string.
-    if (range.begin().line() != range.end().line()) return true;
+    if (md::FindSection(input, "Tags", 2).has_value()) return true;
     input.Close();
     return false;
   });

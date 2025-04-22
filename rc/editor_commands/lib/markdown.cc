@@ -55,22 +55,20 @@ void Pandoc(string launch_browser) {
   });
 }
 
-// TODO(trivial, 2025-04-17): Convert this to OptionalRange. I /think/ (not
-// sure) we can't currently create OptionalRange values with a Range (from the
-// vm code).
-Range FindSection(Buffer buffer, string title, number depth) {
-  for (number line; line < buffer.line_count(); line++) {
+OptionalRange FindSection(Buffer buffer, string title, number depth) {
+  for (number line; line < buffer.line_count(); line++)
     if (internal::IsLineTitle(title, depth, buffer.line(line)))
-      return Range(LineColumn(line, 0),
-                   internal::FindSectionEnd(buffer, line + 1, depth));
-  }
-  return Range(LineColumn(0, 0), LineColumn(0, 0));
+      return OptionalRange(
+          Range(LineColumn(line, 0),
+                internal::FindSectionEnd(buffer, line + 1, depth)));
+  return OptionalRange();
 }
 
 VectorString GetLinks(Buffer buffer) {
   VectorString output;
-  buffer.ForEach(
-      [](number, string line) -> void { AddLinksFromLine(line, output); });
+  buffer.ForEach([](number i, string line) -> void {
+    internal::AddLinksFromLine(line, output);
+  });
   return output;
 }
 }  // namespace md
