@@ -13,6 +13,13 @@ Range::Range(LineColumn input_begin, LineColumn input_end)
   CHECK_LE(begin_, end_);
 }
 
+/* static */
+ValueOrError<Range> Range::New(LineColumn input_begin, LineColumn input_end) {
+  if (input_begin >= input_end)
+    return Error{LazyString{L"Range begin must not happen after end."}};
+  return Range(input_begin, input_end);
+}
+
 bool Range::Contains(const Range& subset) const {
   return begin() <= subset.begin() && subset.end() <= end();
 }

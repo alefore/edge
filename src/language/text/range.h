@@ -18,6 +18,8 @@ struct Range {
   Range() = default;
   Range(LineColumn input_begin, LineColumn input_end);
 
+  static ValueOrError<Range> New(LineColumn input_begin, LineColumn input_end);
+
   template <typename Callback>
   void ForEachLine(Callback callback) {
     for (LineNumber line = begin_.line; line <= end_.line; ++line)
