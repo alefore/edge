@@ -25,7 +25,7 @@ void AddLinksFromLine(string line, VectorString output) {
     if (column == -1) return;
     column = line.find_first_of("]", column);
     if (column == -1) return;
-    line = line.substr(column, line.size());
+    line = SkipSpaces(line.substr(column + 1, line.size() - (column + 1)));
     if (!line.empty() && line.starts_with("(")) {
       number target_end = line.find_first_of(")", 1);
       if (target_end == -1) return;
