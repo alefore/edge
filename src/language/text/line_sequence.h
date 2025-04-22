@@ -73,15 +73,10 @@ class LineSequence {
   const Line& back() const;
   const Line& front() const;
 
-  // Iterates: runs the callback on every line in the buffer intersecting the
-  // range, passing as the first argument the line count (starts counting at 0).
-  // Stops the iteration if the callback returns false. Returns true iff the
-  // callback always returned true.
-  bool ForEachLine(
-      LineNumber start, LineNumberDelta length,
-      const std::function<bool(LineNumber, const Line&)>& callback) const;
-
-  // Convenience wrappers of the above.
+  // Iterates: runs the callback on every line in the buffer intersecting,
+  // passing as the first argument the line count (starts counting at 0). Stops
+  // the iteration if the callback returns false. Returns true iff the callback
+  // always returned true.
   bool EveryLine(
       const std::function<bool(LineNumber, const Line&)>& callback) const;
 

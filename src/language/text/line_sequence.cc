@@ -266,20 +266,13 @@ const Line& LineSequence::back() const { return at(EndLine()); }
 
 const Line& LineSequence::front() const { return at(LineNumber(0)); }
 
-bool LineSequence::ForEachLine(
-    LineNumber start, LineNumberDelta length,
-    const std::function<bool(LineNumber, const Line&)>& callback) const {
-  CHECK_GE(length, LineNumberDelta());
-  CHECK_LE((start + length).ToDelta(), size());
-  return Lines::Every(
-      Lines::Suffix(Lines::Prefix(lines_.get_shared(), (start + length).read()),
-                    start.read()),
-      [&](const Line& line) { return callback(start++, line); });
-}
-
 bool LineSequence::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
-  return ForEachLine(LineNumber(), size(), callback);
+  LineNumber start;
+  return Lines::Every(lines_.get_shared(),
+                      [&callback, &start](const Line& line) {
+                        return callback(start++, line);
+                      });
 }
 
 void LineSequence::ForEach(

@@ -259,9 +259,9 @@ void DefineSortLinesByKey(
                       << boundaries.second;
             // We build `inputs` simply to be able to use futures::ForEach.
             NonNull<std::shared_ptr<std::vector<LineNumber>>> inputs;
-            data->buffer->contents().snapshot().ForEachLine(
-                boundaries.first, boundaries.second,
-                [&inputs](LineNumber number, const Line&) {
+            Range{LineColumn{boundaries.first},
+                  LineColumn{boundaries.first + boundaries.second}}
+                .ForEachLine([&inputs](LineNumber number) {
                   inputs->push_back(number);
                   return true;
                 });
