@@ -145,9 +145,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"MetadataIntToStringRuntimeError",
          .callback =
              [] {
-               CHECK_EQ(GetMetadata(L"(1/0).tostring()")
-                            .Substring(ColumnNumber{0}, ColumnNumberDelta{3}),
-                        LazyString{L"E: "});
+               CHECK(StartsWith(GetMetadata(L"(1/0).tostring()"),
+                                LazyString{L"E: "}));
              }},
         {.name = L"MetadataReturnIntToStringRuntimeError",
          .callback =
@@ -155,9 +154,15 @@ const bool buffer_tests_registration = tests::Register(
                // Needs the semicolon to be a valid statement (unlike the
                // similar MetadataIntToStringRuntimeError test, which is an
                // expression, rather than a statement).
-               CHECK_EQ(GetMetadata(L"return (1/0).tostring();")
-                            .Substring(ColumnNumber{0}, ColumnNumberDelta{3}),
-                        LazyString{L"E: "});
+               CHECK(StartsWith(GetMetadata(L"return (1/0).tostring();"),
+                                LazyString{L"E: "}));
+             }},
+        {.name = L"InvalidRangeDoesNotCrash",
+         .callback =
+             [] {
+               CHECK(StartsWith(
+                   GetMetadata(L"Range(LineColumn(4, 0), LineColumn(3, 0))"),
+                   LazyString{L"E: "}));
              }},
         {.name = L"HonorsExistingMetadata",
          .callback =
@@ -222,9 +227,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"LineMetadataStringRuntimeError",
          .callback =
              [] {
-               CHECK_EQ(GetMetadata(L"buffer.LineMetadataString(1)")
-                            .Substring(ColumnNumber{0}, ColumnNumberDelta{3}),
-                        LazyString{L"E: "});
+               CHECK(StartsWith(GetMetadata(L"buffer.LineMetadataString(1)"),
+                                LazyString{L"E: "}));
              }},
 
     });
