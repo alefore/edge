@@ -159,12 +159,20 @@ SingleLine EscapedString::URLRepresentation() const {
 
 LazyString EscapedString::ShellEscapedRepresentation() const {
   LazyString unquoted_output;
-  // TODO(2025-02-27): This could be optimized based on
-  // FindFirstColumnWithPredicate, avoiding fragmentation.
-  ForEachColumn(read(), [&unquoted_output](ColumnNumber, wchar_t c) {
-    if (c == L'\'') unquoted_output += LazyString(L"\\");
-    unquoted_output += LazyString(ColumnNumberDelta(1), c);
-  });
+  std::optional<ColumnNumber> start = ColumnNumber{};
+  while (start.has_value())
+    start = VisitOptional(
+        [&](ColumnNumber split) -> std::optional<ColumnNumber> {
+          unquoted_output +=
+              read().Substring(start.value(), split - start.value()) +
+              LazyString(L"'\\''");
+          return split + ColumnNumberDelta{1};
+        },
+        [&] -> std::optional<ColumnNumber> {
+          unquoted_output += read().Substring(start.value());
+          return std::nullopt;
+        },
+        FindFirstOf(read(), {L'\''}, start.value()));
   return LazyString(L"'") + unquoted_output + LazyString(L"'");
 }
 
@@ -172,6 +180,28 @@ LazyString EscapedString::ShellEscapedRepresentation() const {
 LazyString EscapedString::OriginalString() const { return read(); }
 
 namespace {
+bool cpp_shell_escaped_tests_registration =
+    tests::Register(L"ShellEscapedRepresentation", [] {
+      using ::operator<<;
+      auto t = [](std::wstring name, std::wstring input, std::wstring expect) {
+        return tests::Test{.name = name, .callback = [input, expect] {
+                             CHECK_EQ(
+                                 LazyString{expect},
+                                 EscapedString::FromString(LazyString{input})
+                                     .ShellEscapedRepresentation());
+                           }};
+      };
+      return std::vector<tests::Test>({
+          t(L"EmptyString", L"", L"''"),
+          t(L"Simple", L"Simple", L"'Simple'"),
+          t(L"SomeQuotes", L"Foo \"with bar\" is 'good'.",
+            L"'Foo \"with bar\" is '\\''good'\\''.'"),
+          t(L"SingleBackslash", L"\\", L"'\\'"),
+          t(L"SomeTextWithBackslash", L"Tab (escaped) is: \\t",
+            L"'Tab (escaped) is: \\t'"),
+      });
+    }());
+
 bool cpp_unescape_string_tests_registration =
     tests::Register(L"EscapedString", [] {
       using ::operator<<;
