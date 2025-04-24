@@ -119,6 +119,8 @@ bool StartsWith(const StringType& input, const StringTypePrefix& prefix) {
   return ToLazyString(input.SubstringWithRangeChecks(
              ColumnNumber{}, prefix.size())) == ToLazyString(prefix);
 }
+
+std::vector<LazyString> SplitAt(LazyString input, wchar_t separator);
 }  // namespace afc::language::lazy_string
 namespace std {
 template <>

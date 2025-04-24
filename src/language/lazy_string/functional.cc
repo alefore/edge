@@ -27,6 +27,24 @@ const bool starts_with_tests_registration = tests::Register(
              }},
     });
 }  // namespace
+std::vector<LazyString> SplitAt(LazyString input, wchar_t separator) {
+  std::vector<LazyString> output;
+  std::optional<ColumnNumber> start = ColumnNumber{};
+  while (start.has_value()) {
+    start = VisitOptional(
+        [&](ColumnNumber next) -> std::optional<ColumnNumber> {
+          output.push_back(
+              input.Substring(start.value(), next - start.value()));
+          return next + ColumnNumberDelta{1};
+        },
+        [&] -> std::optional<ColumnNumber> {
+          output.push_back(input.Substring(start.value()));
+          return std::nullopt;
+        },
+        FindFirstOf(input, {separator}, start.value()));
+  }
+  return output;
+}
 }  // namespace afc::language::lazy_string
 
 namespace std {

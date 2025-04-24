@@ -158,22 +158,12 @@ SingleLine EscapedString::URLRepresentation() const {
 }
 
 LazyString EscapedString::ShellEscapedRepresentation() const {
-  LazyString unquoted_output;
-  std::optional<ColumnNumber> start = ColumnNumber{};
-  while (start.has_value())
-    start = VisitOptional(
-        [&](ColumnNumber split) -> std::optional<ColumnNumber> {
-          unquoted_output +=
-              read().Substring(start.value(), split - start.value()) +
-              LazyString(L"'\\''");
-          return split + ColumnNumberDelta{1};
-        },
-        [&] -> std::optional<ColumnNumber> {
-          unquoted_output += read().Substring(start.value());
-          return std::nullopt;
-        },
-        FindFirstOf(read(), {L'\''}, start.value()));
-  return LazyString(L"'") + unquoted_output + LazyString(L"'");
+  return Concatenate(std::views::transform(SplitAt(read(), L'\''),
+                                           [](LazyString s) {
+                                             return LazyString{L"\'"} + s +
+                                                    LazyString{L"\'"};
+                                           }) |
+                     Intersperse(LazyString{L"\\'"}));
 }
 
 // Returns the original (unescaped) string.
