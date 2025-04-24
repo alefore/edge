@@ -26,6 +26,8 @@ class BufferRegistry {
 
     std::map<BufferName, language::gc::Ptr<OpenBuffer>> retained_buffers;
 
+    std::vector<language::gc::WeakPtr<OpenBuffer>> buffers_with_screen;
+
     size_t next_anonymous_buffer_name = 0;
   };
 
@@ -47,6 +49,10 @@ class BufferRegistry {
 
   // Return a vector containing all buffers.
   std::vector<language::gc::Root<OpenBuffer>> buffers() const;
+
+  // Return a vector containing all buffers that have registered a screen.
+  std::vector<language::gc::Root<OpenBuffer>> BuffersWithScreen() const;
+  void AddBufferWithScreen(language::gc::WeakPtr<OpenBuffer> buffer);
 
   void Clear();
 

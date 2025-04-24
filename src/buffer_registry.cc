@@ -64,6 +64,20 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
   });
 }
 
+std::vector<language::gc::Root<OpenBuffer>> BufferRegistry::BuffersWithScreen()
+    const {
+  return data_.lock([](const Data& data) {
+    return container::MaterializeVector(data.buffers_with_screen |
+                                        gc::view::Lock);
+  });
+}
+
+void BufferRegistry::AddBufferWithScreen(
+    language::gc::WeakPtr<OpenBuffer> buffer) {
+  data_.lock(
+      [&buffer](Data& data) { data.buffers_with_screen.push_back(buffer); });
+}
+
 void BufferRegistry::Clear() {
   return data_.lock([](Data& data) {
     data.buffer_map = {};
