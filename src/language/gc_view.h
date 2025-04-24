@@ -13,7 +13,7 @@ concept Subtractable = requires(Iterator a, Iterator b) {
   {
     a - b
   } -> std::convertible_to<
-        typename std::iterator_traits<Iterator>::difference_type>;
+      typename std::iterator_traits<Iterator>::difference_type>;
 };
 
 // Concept to check if an iterator type supports operator+
@@ -142,6 +142,8 @@ class RootValueIterator {
 namespace view {
 template <typename Adapter>
 class RootValueViewAdapter;
+template <typename Adapter>
+class RootValueFilterViewAdapter;
 
 template <typename Adapter, typename Range>
 class RootValueRange
@@ -150,6 +152,7 @@ class RootValueRange
   Range range_;
 
   friend class RootValueViewAdapter<Adapter>;
+  friend class RootValueFilterViewAdapter<Adapter>;
 
   template <typename R>
   explicit RootValueRange(R&& range) : range_(std::forward<R>(range)) {}
@@ -180,14 +183,26 @@ class RootValueViewAdapter {
   }
 };
 
-struct LockAdaptorClosure {
-  template <std::ranges::viewable_range R>
-  constexpr auto operator()(R&& r) const {
-    return std::forward<R>(r) |
-           gc::view::RootValueViewAdapter<gc::LockWeakPtr>{} |
+template <typename Adapter>
+class RootValueFilterViewAdapter {
+ public:
+  // Call operator to take a range and return a RootValueRange
+  template <typename Range>
+  auto operator()(Range&& range) const {
+    return RootValueRange<Adapter, std::remove_cvref_t<Range>>(
+               std::forward<Range>(range)) |
            std::views::filter(
                [](const auto& root) { return root.has_value(); }) |
            std::views::transform([](const auto& root) { return root.value(); });
+  }
+};
+
+struct LockAdaptorClosure
+    : std::ranges::range_adaptor_closure<LockAdaptorClosure> {
+  template <std::ranges::viewable_range R>
+  constexpr auto operator()(R&& r) const {
+    return gc::view::RootValueFilterViewAdapter<gc::LockWeakPtr>{}(
+        std::forward<R>(r));
   }
 };
 
