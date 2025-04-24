@@ -69,6 +69,7 @@ class MarkdownParser : public LineOrientedTreeParser {
 
  protected:
   void ParseLine(ParseData* result) override {
+    TRACK_OPERATION(MarkdownParser_ParseLine);
     auto seek = result->seek();
     size_t spaces = 0;
     while (seek.read() == L' ') {
@@ -93,6 +94,7 @@ class MarkdownParser : public LineOrientedTreeParser {
 
  private:
   void HandleNormalLine(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleNormalLine);
     auto seek = result->seek();
     while (seek.read() != L'\n') {
       switch (seek.read()) {
@@ -138,12 +140,14 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   void HandleOpenLink(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleOpenLink);
     result->Push(LINK, ColumnNumberDelta(), {}, {ParseTreeProperty::Link()});
     result->seek().Once();
     result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::kCyan}, {});
   }
 
   void HandleCloseLink(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleCloseLink);
     auto seek = result->seek();
     if (result->state() != LINK_TEXT) {
       seek.Once();
@@ -159,6 +163,7 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   void HandleCloseLinkUrl(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleCloseLinkUrl);
     auto seek = result->seek();
     if (result->state() != LINK_URL) {
       seek.Once();
@@ -173,6 +178,7 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   void HandleList(size_t spaces_prefix, ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleList);
     auto original_position = result->position();
     auto seek = result->seek();
     seek.Once();
@@ -207,6 +213,7 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   void HandleBackTick(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleBackTick);
     auto seek = result->seek();
     seek.Once();
     if (result->state() == CODE) {
@@ -217,6 +224,7 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   void HandleStar(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleStar);
     auto seek = result->seek();
     seek.Once();
     if (seek.read() == L'*') {
@@ -234,6 +242,7 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   void HandleHeader(ParseData* result) {
+    TRACK_OPERATION(MarkdownParser_HandleHeader);
     const auto position = result->position();
     auto seek = result->seek();
 
