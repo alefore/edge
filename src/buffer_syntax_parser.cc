@@ -177,7 +177,7 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
             LOG(INFO) << "Parse tree changed in the meantime, discarding.";
             return;
           }
-          LOG(INFO) << "Installing tree.";
+          LOG(INFO) << "Installing tree: " << view_size;
           data_nested.zoomed_out_trees.insert_or_assign(view_size,
                                                         std::move(output));
         });
