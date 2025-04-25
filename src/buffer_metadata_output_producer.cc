@@ -372,10 +372,9 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
     }
     if (!options.zoomed_out_tree.children().empty()) {
       line_options.AppendString(
-          // TODO(easy, 2024-09-19): Avoid wrapping here.
-          SingleLine{DrawTree(line - initial_line(options).ToDelta(),
-                              LineNumberDelta(options.screen_lines.size()),
-                              options.zoomed_out_tree)},
+          DrawTree(line - initial_line(options).ToDelta(),
+                   LineNumberDelta(options.screen_lines.size()),
+                   options.zoomed_out_tree),
           std::nullopt);
     }
   }
