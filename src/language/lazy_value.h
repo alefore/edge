@@ -41,6 +41,12 @@ class LazyValue {
       return std::get<Value>(data);
     });
   }
+
+  bool has_value() const {
+    return data_->lock([](const std::variant<Value, Factory>& data) {
+      return std::holds_alternative<Value>(data);
+    });
+  }
 };
 
 template <typename Callable>
