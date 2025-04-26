@@ -378,6 +378,52 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       file_adapter_(
           MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
               .thread_pool = editor().thread_pool(), .insert_lines = nullptr})),
+      load_visual_state_(LazyValue<bool>{[this] {
+        LOG(INFO) << "Loading visual state: " << Read(buffer_variables::name);
+        std::visit(
+            overload{
+                IgnoreErrors{},
+                [&](Path buffer_path) {
+                  for (const auto& dir : options_.editor.edge_path()) {
+                    Path state_path = Path::Join(
+                        Path::Join(dir, EditorState::StatePathComponent()),
+                        Path::Join(buffer_path,
+                                   PathComponent::FromString(L".edge_state")));
+                    file_system_driver_.Stat(state_path)
+                        .Transform(
+                            [state_path,
+                             weak_this = ptr_this_->ToWeakPtr()](struct stat) {
+                              return VisitPointer(
+                                  weak_this.Lock(),
+                                  [&](gc::Root<OpenBuffer> root_this) {
+                                    return root_this.ptr()->EvaluateFile(
+                                        state_path);
+                                  },
+                                  [] {
+                                    return futures::Past(
+                                        ValueOrError<gc::Root<Value>>(
+                                            Error{LazyString{
+                                                L"Buffer has been deleted."}}));
+                                  });
+                            });
+                  }
+                }},
+            Path::New(Read(buffer_variables::path)));
+        auto paths = editor().edge_path();
+        futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
+          return EvaluateFile(
+                     Path::Join(dir, ValueOrDie(Path::New(LazyString{
+                                         L"hooks/buffer-first-enter.cc"}))))
+              .Transform([](gc::Root<Value>)
+                             -> futures::ValueOrError<IterationControlCommand> {
+                return Past(IterationControlCommand::kContinue);
+              })
+              .ConsumeErrors([](Error) {
+                return Past(IterationControlCommand::kContinue);
+              });
+        });
+        return true;
+      }}),
       file_system_driver_(editor().thread_pool()) {
   work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
@@ -516,6 +562,7 @@ void OpenBuffer::Enter() {
     Reload();
     CheckPosition();
   }
+  CHECK(load_visual_state_.get());
 }
 
 void OpenBuffer::Visit() {
@@ -532,7 +579,8 @@ struct timespec OpenBuffer::last_action() const { return last_action_; }
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
   auto trace = log_->NewChild(LazyString{L"Persist State"});
-  if (!Read(buffer_variables::persist_state)) {
+  if (!Read(buffer_variables::persist_state) ||
+      !load_visual_state_.has_value()) {
     return futures::Past(Success());
   }
 
@@ -768,31 +816,6 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   }
   ClearContents();
 
-  std::visit(
-      overload{
-          IgnoreErrors{},
-          [&](Path buffer_path) {
-            for (const auto& dir : options_.editor.edge_path()) {
-              Path state_path = Path::Join(
-                  Path::Join(dir, EditorState::StatePathComponent()),
-                  Path::Join(buffer_path,
-                             PathComponent::FromString(L".edge_state")));
-              file_system_driver_.Stat(state_path)
-                  .Transform([state_path, weak_this](struct stat) {
-                    return VisitPointer(
-                        weak_this.Lock(),
-                        [&](gc::Root<OpenBuffer> root_this) {
-                          return root_this.ptr()->EvaluateFile(state_path);
-                        },
-                        [] {
-                          return futures::Past(ValueOrError<gc::Root<Value>>(
-                              Error{LazyString{L"Buffer has been deleted."}}));
-                        });
-                  });
-            }
-          }},
-      Path::New(Read(buffer_variables::path)));
-
   contents_observer_->SetOpenBuffer(weak_this);
 }
 
@@ -883,8 +906,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                    .Transform(
                        [](gc::Root<Value>)
                            -> futures::ValueOrError<IterationControlCommand> {
-                         return futures::Past(
-                             IterationControlCommand::kContinue);
+                         return Past(IterationControlCommand::kContinue);
                        })
                    .ConsumeErrors([](Error) {
                      return Past(IterationControlCommand::kContinue);

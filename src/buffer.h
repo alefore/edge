@@ -680,6 +680,10 @@ class OpenBuffer {
 
   language::NonNull<std::unique_ptr<infrastructure::FileAdapter>> file_adapter_;
 
+  // The value is actually ignored; this is used on `Enter` to trigger on-demand
+  // initialization of state (only on the first call to `Enter`).
+  language::LazyValue<bool> load_visual_state_;
+
   mutable infrastructure::FileSystemDriver file_system_driver_;
 
   language::text::LineProcessorMap line_processor_map_;
