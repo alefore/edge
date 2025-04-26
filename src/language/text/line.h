@@ -49,7 +49,7 @@ class LineBuilder;
 // This class is thread-safe.
 class Line {
  public:
-  Line() : Line(Line::Data{}) {}
+  Line();
 
   explicit Line(lazy_string::SingleLine text);
   explicit Line(lazy_string::NonEmptySingleLine text);
@@ -70,7 +70,7 @@ class Line {
 
   std::wstring ToString() const { return contents().read().ToString(); }
 
-  const LineMetadataMap& metadata() const;
+  const language::LazyValue<LineMetadataMap>& metadata() const;
   const std::map<lazy_string::ColumnNumber,
                  afc::infrastructure::screen::LineModifierSet>&
   modifiers() const;
@@ -85,7 +85,7 @@ class Line {
 
   std::optional<OutgoingLink> outgoing_link() const;
 
-  size_t hash() const { return hash_; }
+  LazyValue<size_t> hash() const { return hash_; }
 
   const ValueOrError<vm::EscapedMap>& escaped_map() const;
 
@@ -128,11 +128,11 @@ class Line {
 
   friend class LineBuilder;
 
-  explicit Line(Data data);
+  explicit Line(language::NonNull<std::shared_ptr<const Data>> data);
   static std::size_t ComputeHash(const Line::Data& data);
 
   language::NonNull<std::shared_ptr<const Data>> data_;
-  size_t hash_;
+  LazyValue<size_t> hash_;
 };
 
 lazy_string::LazyString ToLazyString(const Line& line);
@@ -143,7 +143,7 @@ namespace std {
 template <>
 struct hash<afc::language::text::Line> {
   std::size_t operator()(const afc::language::text::Line& line) const {
-    return line.hash();
+    return line.hash().get();
   }
 };
 

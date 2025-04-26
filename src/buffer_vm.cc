@@ -723,7 +723,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           [](gc::Ptr<OpenBuffer> buffer,
              int line_number) -> futures::ValueOrError<LazyString> {
             std::map<LineMetadataKey, LineMetadataValue> metadata_map =
-                buffer->contents().at(LineNumber(line_number)).metadata();
+                buffer->contents().at(LineNumber(line_number)).metadata().get();
             if (const auto metadata_it = metadata_map.find(LineMetadataKey{});
                 metadata_it != metadata_map.end())
               return metadata_it->second.value.ToFuture().Transform(

@@ -17,6 +17,7 @@
 
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -72,6 +73,16 @@ const bool line_tests_registration = tests::Register(
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
+     {.name = L"MetadataIsNotEvaluatedOnConstruction",
+      .callback =
+          [] {
+            LineBuilder builder;
+            builder.SetMetadata(LazyValue<LineMetadataMap>([] {
+              LOG(FATAL) << "Evaluated metadata!";
+              return LineMetadataMap{};
+            }));
+            CHECK(!std::move(builder).Build().metadata().has_value());
+          }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
         futures::Future<SingleLine> future;
         LineBuilder builder;
@@ -81,9 +92,9 @@ const bool line_tests_registration = tests::Register(
              LineMetadataValue{.initial_value = SINGLE_LINE_CONSTANT(L"Foo"),
                                .value = std::move(future.value)}}}));
         Line line = std::move(builder).Build();
-        CHECK(line.metadata().at(key).get_value() == LazyString{L"Foo"});
+        CHECK(line.metadata().get().at(key).get_value() == LazyString{L"Foo"});
         std::move(future.consumer)(SINGLE_LINE_CONSTANT(L"Bar"));
-        CHECK(line.metadata().at(key).get_value() == LazyString{L"Bar"});
+        CHECK(line.metadata().get().at(key).get_value() == LazyString{L"Bar"});
       }}});
 
 const bool line_modifiers_at_position_tests_registration = tests::Register(
@@ -156,7 +167,7 @@ LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 Line LineBuilder::Build() && {
   data_.escaped_map_supplier = MakeCachedSupplier(
       std::bind_front(vm::EscapedMap::Parse, data_.contents));
-  return Line(std::move(data_));
+  return Line(MakeNonNullShared<const Line::Data>(std::move(data_)));
 }
 
 ColumnNumber LineBuilder::EndColumn() const {

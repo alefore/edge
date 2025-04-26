@@ -31,12 +31,15 @@ namespace afc::language::text {
 
 using ::operator<<;
 
-Line::Line(SingleLine contents) : Line(Data{.contents = std::move(contents)}) {}
+Line::Line() : Line(MakeNonNullShared<const Data>(Line::Data{})) {}
+
+Line::Line(SingleLine contents)
+    : Line(MakeNonNullShared<const Data>(
+          Data{.contents = std::move(contents)})) {}
 
 Line::Line(NonEmptySingleLine text) : Line(text.read()) {}
 
-Line::Line(const Line& line)
-    : data_(line.data_), hash_(ComputeHash(data_.value())) {}
+Line::Line(const Line& line) : Line(line.data_) {}
 
 /* static */
 size_t Line::ComputeHash(const Line::Data& data) {
@@ -77,7 +80,9 @@ SingleLine Line::Substring(ColumnNumber column) const {
   return contents().Substring(column);
 }
 
-const LineMetadataMap& Line::metadata() const { return data_->metadata.get(); }
+const LazyValue<LineMetadataMap>& Line::metadata() const {
+  return data_->metadata;
+}
 
 SingleLine LineMetadataValue::get_value() const {
   return value.get_copy().value_or(initial_value);
@@ -115,9 +120,9 @@ const ValueOrError<vm::EscapedMap>& Line::escaped_map() const {
   return data_->escaped_map_supplier();
 }
 
-Line::Line(Line::Data data)
-    : data_(MakeNonNullShared<Line::Data>(std::move(data))),
-      hash_(ComputeHash(data_.value())) {
+Line::Line(NonNull<std::shared_ptr<const Line::Data>> data)
+    : data_(std::move(data)),
+      hash_(LazyValue<size_t>{[this] { return ComputeHash(data_.value()); }}) {
   for (auto& m : data_->modifiers) {
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
     CHECK(!m.second.contains(LineModifier::kReset));

@@ -434,7 +434,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   if (SingleLine metadata = Concatenate(
           std::views::transform(
-              contents.metadata(),
+              contents.metadata().get(),
               [](const std::pair<LineMetadataKey, LineMetadataValue>& item) {
                 TRACK_OPERATION(
                     BufferMetadataOutput_Prepare_VisitContentsMetadata);

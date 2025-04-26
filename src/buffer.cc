@@ -104,6 +104,7 @@ using afc::language::FromByteString;
 using afc::language::GetSetWithKeys;
 using afc::language::IgnoreErrors;
 using afc::language::InsertOrDie;
+using afc::language::LazyValue;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -157,34 +158,37 @@ static const wchar_t* kOldCursors = L"old-cursors";
 std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                                      const LineProcessorMap& line_processor_map,
                                      std::vector<Line> lines) {
-  if (buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
+  if (!buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
 
   VLOG(8) << "UpdateLineMetadata: " << buffer.name()
           << " lines: " << lines.size();
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
   for (Line& line : lines)
-    if (line.metadata().empty() && !line.empty())
-      if (std::map<LineProcessorKey, LineProcessorOutputFuture> output =
-              line_processor_map.Process(
-                  LineProcessorInput(line.contents().read()));
-          !output.empty()) {
-        LineBuilder line_builder(std::move(line));
-        LineMetadataMap line_metadata_map;
-        for (const auto& p : output)
-          InsertOrDie(
-              line_metadata_map,
-              {LineMetadataKey{p.first.read()},
-               LineMetadataValue{
-                   .initial_value = p.second.initial_value.read(),
-                   .value =
-                       std::move(p.second.value)
-                           .ToFuture()
-                           .Transform([](LineProcessorOutput output_value) {
-                             return output_value.read();
-                           })}});
-        line_builder.SetMetadata(WrapAsLazyValue(std::move(line_metadata_map)));
-        line = std::move(line_builder).Build();
-      }
+    if (!line.empty() &&
+        (!line.metadata().has_value() || line.metadata().get().empty())) {
+      LineBuilder line_builder(std::move(line));
+      line_builder.SetMetadata(LazyValue<LineMetadataMap>(
+          [&line_processor_map, contents = line_builder.contents()] {
+            TRACK_OPERATION(OpenBuffer_UpdateLineMetadata_Run);
+            std::map<LineProcessorKey, LineProcessorOutputFuture> output =
+                line_processor_map.Process(LineProcessorInput(contents.read()));
+            LineMetadataMap line_metadata_map;
+            for (const auto& p : output)
+              InsertOrDie(
+                  line_metadata_map,
+                  {LineMetadataKey{p.first.read()},
+                   LineMetadataValue{
+                       .initial_value = p.second.initial_value.read(),
+                       .value =
+                           std::move(p.second.value)
+                               .ToFuture()
+                               .Transform([](LineProcessorOutput output_value) {
+                                 return output_value.read();
+                               })}});
+            return line_metadata_map;
+          }));
+      line = std::move(line_builder).Build();
+    }
   return lines;
 }
 

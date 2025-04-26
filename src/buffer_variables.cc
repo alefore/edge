@@ -357,6 +357,7 @@ EdgeVariable<bool>* const vm_lines_evaluation =
              L"compile successfully, their type will be shown as metadata. If "
              L"they are pure expressions, they will be evaluated and the "
              L"results of the evaluation will be shown.")
+         .DefaultValue(true)
          .Build();
 
 EdgeVariable<bool>* const view_center_lines =

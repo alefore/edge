@@ -57,13 +57,18 @@ LazyString GetMetadata(std::wstring line) {
 
   buffer.ptr()->AppendToLastLine(SingleLine{LazyString{line}});
 
+  auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
+
+  // Triggers computation of metadata:
+  buffer.ptr()->contents().snapshot().ForEach(
+      [](const Line& l) { l.metadata().get(); });
+
   // Gives it a chance to execute:
   buffer.ptr()->editor().work_queue()->Execute();
 
-  auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
   if (const auto metadata_it =
-          line_in_buffer->metadata().find(LineMetadataKey{});
-      metadata_it != line_in_buffer->metadata().end()) {
+          line_in_buffer->metadata().get().find(LineMetadataKey{});
+      metadata_it != line_in_buffer->metadata().get().end()) {
     LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
               << metadata_it->second.get_value() << L"]";
     return ToLazyString(metadata_it->second.get_value());
@@ -178,13 +183,18 @@ const bool buffer_tests_registration = tests::Register(
                          .initial_value = SINGLE_LINE_CONSTANT(L"bar"),
                          .value =
                              futures::Past(SINGLE_LINE_CONSTANT(L"quux"))}}}}));
-               buffer.ptr()->AppendRawLine(std::move(options).Build());
+               Line line = std::move(options).Build();
+               // This is important: otherwise OpenBuffer will assume that it is
+               // safe to override them (recompute them).
+               line.metadata().get();
+               buffer.ptr()->AppendRawLine(std::move(line));
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
                CHECK(buffer.ptr()
                          ->contents()
                          .back()
                          .metadata()
+                         .get()
                          .at(LineMetadataKey{})
                          .value.get_copy() == SINGLE_LINE_CONSTANT(L"quux"));
              }},
