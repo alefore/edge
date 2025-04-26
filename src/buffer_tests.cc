@@ -460,9 +460,13 @@ const bool buffer_registry_tests_registration = tests::Register(
             editor->CloseBuffer(buffer_root->ptr().value());
             buffer_root = std::nullopt;
             CHECK(buffer_weak.Lock().has_value());
-            editor->gc_pool().FullCollect();
-            editor->gc_pool().BlockUntilDone();
-            CHECK(!buffer_weak.Lock().has_value());
+            for (size_t step = 0; buffer_weak.Lock().has_value(); step++) {
+              LOG(INFO) << "Start of step: " << step;
+              CHECK_LT(step, 100ul);
+              editor->work_queue()->Execute();
+              editor->gc_pool().FullCollect();
+              editor->gc_pool().BlockUntilDone();
+            }
           }},
      {.name = L"FuturePasteBufferSurvives", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor =
