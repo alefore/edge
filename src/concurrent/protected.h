@@ -101,13 +101,13 @@ class Protected {
   }
 
   template <typename Callable>
-  auto lock(Callable callable) {
-    return callable(*lock());
+  decltype(auto) lock(Callable&& callable) {
+    return std::forward<Callable>(callable)(*lock());
   }
 
   template <typename Callable>
-  auto lock(Callable callable) const {
-    return callable(*lock());
+  decltype(auto) lock(Callable&& callable) const {
+    return std::forward<Callable>(callable)(*lock());
   }
 
  protected:
