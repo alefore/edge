@@ -18,6 +18,7 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/language/lazy_value.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/vm/escape.h"
@@ -34,6 +35,9 @@ struct LineMetadataValue {
   lazy_string::SingleLine initial_value;
   futures::ListenableValue<lazy_string::SingleLine> value;
 };
+
+// TODO(trivial, 2025-04-26): Use a GhostType?
+using LineMetadataMap = std::map<LineMetadataKey, LineMetadataValue>;
 
 struct OutgoingLink {
   infrastructure::Path path;
@@ -66,7 +70,7 @@ class Line {
 
   std::wstring ToString() const { return contents().read().ToString(); }
 
-  const std::map<LineMetadataKey, LineMetadataValue>& metadata() const;
+  const LineMetadataMap& metadata() const;
   const std::map<lazy_string::ColumnNumber,
                  afc::infrastructure::screen::LineModifierSet>&
   modifiers() const;
@@ -110,7 +114,9 @@ class Line {
     // second line.
     afc::infrastructure::screen::LineModifierSet end_of_line_modifiers = {};
 
-    std::map<LineMetadataKey, LineMetadataValue> metadata;
+    language::LazyValue<LineMetadataMap> metadata =
+        language::WrapAsLazyValue(LineMetadataMap{});
+
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
     CachedSupplier<ValueOrError<vm::EscapedMap>> escaped_map_supplier =

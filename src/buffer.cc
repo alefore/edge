@@ -119,6 +119,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::WeakPtrLockingObserver;
+using afc::language::WrapAsLazyValue;
 using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -134,6 +135,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataMap;
 using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -167,7 +169,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                   LineProcessorInput(line.contents().read()));
           !output.empty()) {
         LineBuilder line_builder(std::move(line));
-        std::map<LineMetadataKey, LineMetadataValue> line_metadata_map;
+        LineMetadataMap line_metadata_map;
         for (const auto& p : output)
           InsertOrDie(
               line_metadata_map,
@@ -180,7 +182,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                            .Transform([](LineProcessorOutput output_value) {
                              return output_value.read();
                            })}});
-        line_builder.SetMetadata(std::move(line_metadata_map));
+        line_builder.SetMetadata(WrapAsLazyValue(std::move(line_metadata_map)));
         line = std::move(line_builder).Build();
       }
   return lines;

@@ -189,6 +189,8 @@ src/language/lazy_string/tokenize.h \
 src/language/lazy_string/tokenize_test.cc \
 src/language/lazy_string/trim.cc \
 src/language/lazy_string/trim.h \
+src/language/lazy_value.cc \
+src/language/lazy_value.h \
 src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \

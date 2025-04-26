@@ -34,6 +34,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataMap;
 using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -171,12 +172,12 @@ const bool buffer_tests_registration = tests::Register(
                    EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
                LineBuilder options{SingleLine{LazyString{L"foo"}}};
-               options.SetMetadata(
+               options.SetMetadata(WrapAsLazyValue(LineMetadataMap{
                    {{LineMetadataKey{},
                      LineMetadataValue{
                          .initial_value = SINGLE_LINE_CONSTANT(L"bar"),
                          .value =
-                             futures::Past(SINGLE_LINE_CONSTANT(L"quux"))}}});
+                             futures::Past(SINGLE_LINE_CONSTANT(L"quux"))}}}}));
                buffer.ptr()->AppendRawLine(std::move(options).Build());
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();

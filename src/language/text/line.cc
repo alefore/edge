@@ -31,8 +31,7 @@ namespace afc::language::text {
 
 using ::operator<<;
 
-Line::Line(SingleLine contents)
-    : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
+Line::Line(SingleLine contents) : Line(Data{.contents = std::move(contents)}) {}
 
 Line::Line(NonEmptySingleLine text) : Line(text.read()) {}
 
@@ -51,7 +50,7 @@ size_t Line::ComputeHash(const Line::Data& data) {
           }),
       MakeHashableIteratorRange(data.end_of_line_modifiers),
       MakeHashableIteratorRange(
-          data.metadata.begin(), data.metadata.end(),
+          data.metadata.get().begin(), data.metadata.get().end(),
           [](const std::pair<LineMetadataKey, LineMetadataValue>& value) {
             return compute_hash(value.first, value.second);
           }));
@@ -78,9 +77,7 @@ SingleLine Line::Substring(ColumnNumber column) const {
   return contents().Substring(column);
 }
 
-const std::map<LineMetadataKey, LineMetadataValue>& Line::metadata() const {
-  return data_->metadata;
-}
+const LineMetadataMap& Line::metadata() const { return data_->metadata.get(); }
 
 SingleLine LineMetadataValue::get_value() const {
   return value.get_copy().value_or(initial_value);
