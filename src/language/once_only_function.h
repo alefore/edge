@@ -1,6 +1,8 @@
 #ifndef __AFC_LANGUAGE_ONCE_ONLY_FUNCTION_H__
 #define __AFC_LANGUAGE_ONCE_ONLY_FUNCTION_H__
 
+#include <glog/logging.h>
+
 #include <functional>  // For std::move_only_function
 #include <stdexcept>
 #include <utility>
