@@ -251,13 +251,13 @@ void Export(language::gc::Pool& pool, Environment& environment) {
              Trampoline& trampoline)
               -> futures::ValueOrError<language::gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
-            Container output_container;
+            language::NonNull<std::shared_ptr<Container>> output_container;
             auto ptr = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             const gc::Root<vm::Value> callback = std::move(args[1]);
             CHECK(callback.ptr()->IsFunction());
             futures::ValueOrError<afc::language::EmptyValue> output =
                 futures::Past(afc::language::EmptyValue());
-            ptr->lock([&output, &output_container, &trampoline,
+            ptr->lock([&output, output_container, &trampoline,
                        &callback](Container& input) {
               for (const auto& current_value : input) {
                 output =
@@ -271,14 +271,14 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                           return callback.ptr()->RunFunction(
                               std::move(call_args), trampoline);
                         })
-                        .Transform([&output_container, current_value](
+                        .Transform([output_container, current_value](
                                        gc::Root<Value> callback_output) {
                           if constexpr (T::has_push_back) {
                             if (callback_output.ptr()->get_bool())
-                              output_container.push_back(current_value);
+                              output_container->push_back(current_value);
                           } else {
                             if (callback_output.ptr()->get_bool())
-                              output_container.insert(current_value);
+                              output_container->insert(current_value);
                           }
                           return afc::language::Success();
                         });
@@ -286,13 +286,12 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             });
             return std::move(output).Transform(
                 [&pool = trampoline.pool(),
-                 output_container =
-                     std::move(output_container)](afc::language::EmptyValue) {
+                 output_container](afc::language::EmptyValue) {
                   return futures::Past(
                       afc::language::Success(VMTypeMapper<ContainerPtr>::New(
                           pool, language::MakeNonNullShared<
                                     concurrent::Protected<Container>>(
-                                    std::move(output_container)))));
+                                    std::move(output_container.value())))));
                 });
           })
           .ptr());
