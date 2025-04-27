@@ -259,7 +259,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                 futures::Past(afc::language::EmptyValue());
             ptr->lock([&output, output_container, &trampoline,
                        &callback](Container& input) {
-              for (const auto& current_value : input) {
+              for (const auto& current_value : input)
                 output =
                     std::move(output)
                         .Transform([&trampoline, callback,
@@ -273,16 +273,14 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                         })
                         .Transform([output_container, current_value](
                                        gc::Root<Value> callback_output) {
-                          if constexpr (T::has_push_back) {
-                            if (callback_output.ptr()->get_bool())
+                          if (callback_output.ptr()->get_bool()) {
+                            if constexpr (T::has_push_back)
                               output_container->push_back(current_value);
-                          } else {
-                            if (callback_output.ptr()->get_bool())
+                            else
                               output_container->insert(current_value);
                           }
                           return afc::language::Success();
                         });
-              }
             });
             return std::move(output).Transform(
                 [&pool = trampoline.pool(),
