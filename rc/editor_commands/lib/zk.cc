@@ -630,11 +630,12 @@ void Log(Buffer log, string text) {
           .build());
 }
 
-void ReceiveDateTags(Buffer output, string input_date,
+void ReceiveDateTags(Buffer output, Buffer input_buffer, string input_date,
                      string input_reminder_frequency,
                      string input_reminder_advance) {
-  Log(output, input_date + ", " + input_reminder_frequency + ", " +
-                  input_reminder_advance);
+  Log(output, input_buffer.path() + ": " + input_date + ", " +
+                  input_reminder_frequency + ", " + input_reminder_advance +
+                  " // " + input_buffer.line(0));
 }
 
 void ReceiveLanguageTags(Buffer output, string input_typo,
@@ -686,8 +687,8 @@ void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
   }
 
   if (input_date != "")
-    ReceiveDateTags(output_dates, input_date, input_reminder_frequency,
-                    input_reminder_advance);
+    ReceiveDateTags(output_dates, input_buffer, input_date,
+                    input_reminder_frequency, input_reminder_advance);
   if (input_language_typo != "" || input_language_synonyms != "")
     ReceiveLanguageTags(output_languages, input_language_typo,
                         input_language_synonyms);
