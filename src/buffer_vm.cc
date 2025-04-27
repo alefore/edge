@@ -92,8 +92,8 @@ gc::Ptr<editor::OpenBuffer> vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::get(
       pool, object_type_name,
       MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value}),
       [object_metadata = value.object_metadata()] {
-        return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
-            {object_metadata});
+        return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
+            {object_metadata}};
       });
 }
 
