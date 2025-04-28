@@ -212,10 +212,10 @@ void RedrawScreens(const CommandLineValues& args,
        editor_state().buffer_registry().BuffersWithScreen() | gc::view::Value) {
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
-        buffer.environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,
-                                     vm::Identifier{NonEmptySingleLine{
-                                         SingleLine{LazyString{L"screen"}}}},
-                                     GetScreenVmType());
+        buffer.environment()->Lookup(
+            editor_state().gc_pool(), kEmptyNamespace,
+            vm::Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"screen")},
+            GetScreenVmType());
     if (!value.has_value() ||
         value.value().ptr()->type != afc::vm::Type{GetScreenVmType()}) {
       continue;
