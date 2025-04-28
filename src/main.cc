@@ -208,10 +208,6 @@ void RedrawScreens(const CommandLineValues& args,
 
   TRACK_OPERATION(Main_RedrawScreens_RemoteScreens);
   VLOG(5) << "Updating remote screens.";
-  // TODO(trivial, 2025-04-24): This becomes very slow as the number of buffers
-  // grows (we want to support thousands of buffers). Instead, we should just
-  // force the buffers to register (perhaps buffer_registry can keep track of
-  // buffers that have a screen).
   for (OpenBuffer& buffer :
        editor_state().buffer_registry().BuffersWithScreen() | gc::view::Value) {
     static const afc::vm::Namespace kEmptyNamespace;
