@@ -83,6 +83,11 @@ concept HasFind = requires(Internal i, Key key) {
   { i.find(key) } -> std::same_as<typename Internal::iterator>;
 };
 
+template <typename Internal, typename Key>
+concept HasAt = requires(Internal i, Key key) {
+  { i.at(key) };
+};
+
 template <typename Internal, typename ElementValue>
 concept HasInsert = requires(Internal container, ElementValue element) {
   {
@@ -247,6 +252,13 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires ghost_type_internal::HasToBytes<Internal>
   {
     return value.ToBytes();
+  }
+
+  template <typename Key>
+  decltype(auto) at(const Key& key) const
+    requires ghost_type_internal::HasAt<Internal, Key>
+  {
+    return value.at(key);
   }
 
   template <typename Key>
