@@ -155,10 +155,14 @@ class MarkdownParser : public LineOrientedTreeParser {
     }
     result->PopBack();
     seek.Once();
+    while (seek.read() == L' ') seek.Once();
     if (seek.read() == L'(') {
       seek.Once();
       result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::kUnderline},
                    {ParseTreeProperty::LinkTarget()});
+    } else {
+      while (result->state() == LINK_TEXT || result->state() == LINK)
+        result->PopBack();
     }
   }
 
