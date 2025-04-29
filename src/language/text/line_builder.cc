@@ -88,9 +88,9 @@ const bool line_tests_registration = tests::Register(
         LineBuilder builder;
         const LineMetadataKey key;
         builder.SetMetadata(WrapAsLazyValue(LineMetadataMap{
-            {key,
-             LineMetadataValue{.initial_value = SINGLE_LINE_CONSTANT(L"Foo"),
-                               .value = std::move(future.value)}}}));
+            {{key,
+              LineMetadataValue{.initial_value = SINGLE_LINE_CONSTANT(L"Foo"),
+                                .value = std::move(future.value)}}}}));
         Line line = std::move(builder).Build();
         CHECK(line.metadata().get().at(key).get_value() == LazyString{L"Foo"});
         std::move(future.consumer)(SINGLE_LINE_CONSTANT(L"Bar"));

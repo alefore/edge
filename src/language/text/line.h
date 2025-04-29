@@ -36,8 +36,11 @@ struct LineMetadataValue {
   futures::ListenableValue<lazy_string::SingleLine> value;
 };
 
-// TODO(trivial, 2025-04-26): Use a GhostType?
-using LineMetadataMap = std::map<LineMetadataKey, LineMetadataValue>;
+struct LineMetadataMap
+    : public GhostType<LineMetadataMap,
+                       std::map<LineMetadataKey, LineMetadataValue>> {
+  using GhostType::GhostType;
+};
 
 struct OutgoingLink {
   infrastructure::Path path;
