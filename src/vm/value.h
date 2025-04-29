@@ -45,8 +45,7 @@ class Value {
   ExpandCallback expand_callback_;
 
  public:
-  explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
-      : pool_(pool), type_(t) {}
+  explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t);
 
   static language::gc::Root<Value> New(language::gc::Pool& pool, const Type&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);

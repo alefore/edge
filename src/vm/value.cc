@@ -22,6 +22,9 @@ size_t constexpr kDefaultPrecision = 5ul;
 
 namespace afc::vm {
 
+Value::Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
+    : pool_(pool), type_(t) {}
+
 /* static */ language::gc::Root<Value> Value::New(language::gc::Pool& pool,
                                                   const Type& type) {
   return pool.NewRoot(
