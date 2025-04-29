@@ -334,8 +334,10 @@ class HelpCommand : public Command {
               [](const gc::Ptr<vm::Value>& value) {
                 std::stringstream value_stream;
                 value_stream << value.value();
-                return SingleLine{
-                    LazyString{FromByteString(value_stream.str())}};
+                return SINGLE_LINE_CONSTANT(L"`") +
+                       SingleLine{
+                           LazyString{FromByteString(value_stream.str())}} +
+                       SINGLE_LINE_CONSTANT(L"`");
               },
               [] { return SINGLE_LINE_CONSTANT(L"<uninitialized>"); },
               value_optional);
@@ -346,10 +348,8 @@ class HelpCommand : public Command {
                                         L' '}};
           output.push_back(LineBuilder{
               SingleLine{LazyString{L"* `"}} + name.read() +
-              SingleLine{LazyString{L"`"}} + std::move(padding) +
-              SingleLine{LazyString{L"`"}} + value_str +
-              SingleLine{LazyString{
-                  L"`"}}}.Build());
+              SingleLine{LazyString{L"`"}} + std::move(padding) + value_str}
+                               .Build());
         });
     output.push_back(L"");
   }
