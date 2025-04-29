@@ -155,9 +155,9 @@ ValueOrError<ParsedCommand> Parse(
     if (!candidate.ptr()->IsFunction()) {
       continue;
     }
-    all_types_found.push_back(candidate.ptr()->type);
+    all_types_found.push_back(candidate.ptr()->type());
     const vm::types::Function* function_type =
-        std::get_if<vm::types::Function>(&candidate.ptr()->type);
+        std::get_if<vm::types::Function>(&candidate.ptr()->type());
     if (function_type == nullptr ||
         accepted_return_types.find(function_type->output.get()) ==
             accepted_return_types.end()) {
@@ -196,7 +196,7 @@ ValueOrError<ParsedCommand> Parse(
     // TODO: Choose the most suitable one given our arguments.
     output_function = type_match_functions[0];
     const vm::types::Function& function_type =
-        std::get<vm::types::Function>(output_function.value().ptr()->type);
+        std::get<vm::types::Function>(output_function.value().ptr()->type());
     size_t expected_arguments = function_type.inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
       return Error{
@@ -432,7 +432,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           [buffer, output](gc::Root<vm::Value> value) mutable {
                             VLOG(3) << "Successfully executed Preview command: "
                                     << value.ptr().value();
-                            if (value.ptr()->type ==
+                            if (value.ptr()->type() ==
                                 vm::GetVMType<
                                     gc::Ptr<editor::OpenBuffer>>::vmtype()) {
                               output->context =

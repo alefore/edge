@@ -163,7 +163,7 @@ std::optional<gc::Root<Value>> Environment::Lookup(
   std::vector<LookupResult> values = PolyLookup(symbol_namespace, symbol);
   for (Value& value :
        values | std::views::transform(&LookupResult::value) | gc::view::Value)
-    if (auto callback = GetImplicitPromotion(value.type, expected_type);
+    if (auto callback = GetImplicitPromotion(value.type(), expected_type);
         callback != nullptr)
       return callback(pool, pool.NewRoot(MakeNonNullUnique<Value>(value)));
   return std::nullopt;
@@ -225,7 +225,7 @@ void Environment::CaseInsensitiveLookup(
 }
 
 void Environment::Define(const Identifier& symbol, gc::Root<Value> value) {
-  Type type = value.ptr()->type;
+  Type type = value.ptr()->type();
   data_.lock([&](Data& data) {
     data.table[symbol].insert_or_assign(type, value.ptr());
   });
@@ -234,7 +234,7 @@ void Environment::Define(const Identifier& symbol, gc::Root<Value> value) {
 void Environment::Assign(const Identifier& symbol, gc::Root<Value> value) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end()) {
-      it->second.insert_or_assign(value.ptr()->type, value.ptr());
+      it->second.insert_or_assign(value.ptr()->type(), value.ptr());
     } else {
       // TODO: Show the symbol.
       CHECK(parent_environment_.has_value())

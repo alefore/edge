@@ -245,9 +245,10 @@ std::unique_ptr<Expression> NewMethodLookup(
               object_type->LookupField(method_name);
           for (auto& field : fields) {
             CHECK(field.ptr()->IsFunction());
-            CHECK_GE(std::get<types::Function>(field.ptr()->type).inputs.size(),
-                     1ul);
-            CHECK(std::get<types::Function>(field.ptr()->type).inputs[0] ==
+            CHECK_GE(
+                std::get<types::Function>(field.ptr()->type()).inputs.size(),
+                1ul);
+            CHECK(std::get<types::Function>(field.ptr()->type()).inputs[0] ==
                   type);
           }
           if (fields.empty()) {
@@ -286,7 +287,7 @@ std::unique_ptr<Expression> NewMethodLookup(
                           delegates_ | std::views::transform(
                                            [](const gc::Root<Value>& delegate) {
                                              return RemoveObjectFirstArgument(
-                                                 delegate.ptr()->type);
+                                                 delegate.ptr()->type());
                                            })))),
                   obj_expr_(std::move(obj_expr)) {}
 
@@ -321,7 +322,7 @@ std::unique_ptr<Expression> NewMethodLookup(
                       case EvaluationOutput::OutputType::kContinue:
                         for (auto& delegate : delegates)
                           if (GetImplicitPromotion(RemoveObjectFirstArgument(
-                                                       delegate.ptr()->type),
+                                                       delegate.ptr()->type()),
                                                    type) != nullptr) {
                             const types::Function& function_type =
                                 std::get<types::Function>(type);
@@ -383,8 +384,8 @@ std::unique_ptr<Expression> NewMethodLookup(
 futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
-  CHECK(std::holds_alternative<types::Function>(func.type));
-  CHECK_EQ(std::get<types::Function>(func.type).inputs.size(), args.size());
+  CHECK(std::holds_alternative<types::Function>(func.type()));
+  CHECK_EQ(std::get<types::Function>(func.type()).inputs.size(), args.size());
   return Evaluate(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),

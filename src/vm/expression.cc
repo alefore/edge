@@ -140,7 +140,7 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
           purity = desired_function->function_purity](gc::Pool& pool,
                                                       gc::Root<Value> value) {
     const types::Function& value_function_type =
-        std::get<types::Function>(value.ptr()->type);
+        std::get<types::Function>(value.ptr()->type());
     return Value::NewFunction(
         pool, purity, value_function_type.output.get(),
         value_function_type.inputs,

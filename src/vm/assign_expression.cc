@@ -185,7 +185,7 @@ std::unique_ptr<Expression> NewAssignExpression(
       },
       container::FindFirstIf(
           variables, [&value](Environment::LookupResult lookup_result) {
-            return value->SupportsType(lookup_result.value.ptr()->type);
+            return value->SupportsType(lookup_result.value.ptr()->type());
           }));
 }
 

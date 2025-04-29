@@ -69,7 +69,7 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
               DECLARE_OR_RETURN(gc::Root<Value> result,
                                 op(trampoline.pool(), a_value.ptr().value(),
                                    b_value.value.ptr().value()));
-              CHECK(result.ptr()->type == type);
+              CHECK(result.ptr()->type() == type);
               return Success(EvaluationOutput::New(std::move(result)));
             });
       });

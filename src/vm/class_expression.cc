@@ -45,22 +45,18 @@ void StartClassDeclaration(Compilation& compilation,
 namespace {
 gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
                             Identifier field_name) {
-  gc::Root<Value> output = Value::NewFunction(
+  return Value::NewFunction(
       pool, kPurityTypeUnknown, class_type, {class_type, field_type},
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
                                            Trampoline&) {
         CHECK_EQ(args.size(), 2u);
-        CHECK(args[1].ptr()->type == field_type);
+        CHECK(args[1].ptr()->type() == field_type);
         Instance::Read(class_type, args[0])
             .ptr()
             ->Assign(field_name, std::move(args[1]));
 
         return futures::Past(Success(std::move(args[0])));
       });
-
-  std::get<types::Function>(output.ptr()->type).function_purity =
-      kPurityTypeUnknown;
-  return output;
 }
 
 gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
@@ -108,10 +104,10 @@ PossibleError FinishClassDeclaration(
       [&class_object_type, class_type, &pool](Identifier name,
                                               const gc::Ptr<Value>& value) {
         class_object_type.ptr()->AddField(
-            name, BuildGetter(pool, class_type, value->type, name).ptr());
+            name, BuildGetter(pool, class_type, value->type(), name).ptr());
         class_object_type.ptr()->AddField(
             Identifier(SingleLine{LazyString{L"set_"}} + name.read()),
-            BuildSetter(pool, class_type, value->type, name).ptr());
+            BuildSetter(pool, class_type, value->type(), name).ptr());
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   compilation.environment.ptr()->Define(

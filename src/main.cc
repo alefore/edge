@@ -217,18 +217,16 @@ void RedrawScreens(const CommandLineValues& args,
             vm::Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"screen")},
             GetScreenVmType());
     if (!value.has_value() ||
-        value.value().ptr()->type != afc::vm::Type{GetScreenVmType()}) {
+        value.value().ptr()->type() != afc::vm::Type{GetScreenVmType()})
       continue;
+    if (auto buffer_screen =
+            afc::vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::get(
+                value.value().ptr().value());
+        &buffer_screen.value() != screen_curses) {
+      LOG(INFO) << "Remote screen for buffer: " << buffer.name();
+      terminal->Display(editor_state(), buffer_screen.value(),
+                        screen_state.value());
     }
-    auto buffer_screen =
-        afc::vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::get(
-            value.value().ptr().value());
-    if (&buffer_screen.value() == screen_curses) {
-      continue;
-    }
-    LOG(INFO) << "Remote screen for buffer: " << buffer.name();
-    terminal->Display(editor_state(), buffer_screen.value(),
-                      screen_state.value());
   }
 }
 }  // namespace

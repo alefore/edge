@@ -18,21 +18,35 @@ namespace afc::vm {
 class Trampoline;
 
 class Value {
- private:
+  using Callback =
+      std::function<futures::ValueOrError<language::gc::Root<Value>>(
+          std::vector<language::gc::Root<Value>>, Trampoline&)>;
+
+  using ExpandCallback = std::function<std::vector<
+      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
+
   class ConstructorAccessTag {
     ConstructorAccessTag() {};
     friend Value;
   };
 
+  language::gc::Pool& pool_;
+
+  Type type_;
+
+  struct ObjectInstance {
+    language::NonNull<std::shared_ptr<void>> value;
+  };
+
+  std::variant<bool, math::numbers::Number, language::lazy_string::LazyString,
+               Identifier, ObjectInstance, Callback>
+      value_;
+
+  ExpandCallback expand_callback_;
+
  public:
   explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
-      : type(t), pool_(pool) {}
-
-  using Callback =
-      std::function<futures::ValueOrError<language::gc::Root<Value>>(
-          std::vector<language::gc::Root<Value>>, Trampoline&)>;
-  using ExpandCallback = std::function<std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
+      : pool_(pool), type_(t) {}
 
   static language::gc::Root<Value> New(language::gc::Pool& pool, const Type&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
@@ -67,6 +81,8 @@ class Value {
           language::gc::Root<Value>(std::vector<language::gc::Root<Value>>)>
           callback);
 
+  const Type& type() const;
+
   bool IsVoid() const;
   bool IsBool() const;
   bool IsNumber() const;
@@ -74,8 +90,6 @@ class Value {
   bool IsSymbol() const;
   bool IsFunction() const;
   bool IsObject() const;
-
-  Type type;
 
   bool get_bool() const;
   language::ValueOrError<int32_t> get_int32() const;
@@ -87,7 +101,7 @@ class Value {
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
       const types::ObjectName& expected_type) const {
-    CHECK_EQ(std::get<types::ObjectName>(type), expected_type);
+    CHECK_EQ(std::get<types::ObjectName>(type_), expected_type);
     return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
         std::get<ObjectInstance>(value_).value);
   }
@@ -98,7 +112,7 @@ class Value {
     CHECK(std::holds_alternative<ObjectInstance>(value_))
         << "Invalid call to get_user_value, expected type: " << expected_type
         << ", index was: " << value_.index();
-    return get_user_value<T>(std::get<types::ObjectName>(type));
+    return get_user_value<T>(std::get<types::ObjectName>(type_));
   }
 
   futures::ValueOrError<language::gc::Root<Value>> RunFunction(
@@ -110,18 +124,6 @@ class Value {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
-
- private:
-  language::gc::Pool& pool_;
-
-  struct ObjectInstance {
-    language::NonNull<std::shared_ptr<void>> value;
-  };
-  std::variant<bool, math::numbers::Number, language::lazy_string::LazyString,
-               Identifier, ObjectInstance, Callback>
-      value_;
-
-  ExpandCallback expand_callback;
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& value);

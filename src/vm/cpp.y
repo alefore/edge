@@ -975,7 +975,7 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 
 expr(OUT) ::= BOOL(B). {
   // TODO(easy, 2022-05-13): Add a Value::IsBool check.
-  CHECK(B->value().ptr()->type == Type(types::Bool{}));
+  CHECK(B->value().ptr()->type() == Type(types::Bool{}));
   OUT = NewConstantExpression(std::move(B->value())).get_unique().release();
   delete B;
 }
@@ -1002,8 +1002,8 @@ string(OUT) ::= STRING(S). {
 }
 
 string(OUT) ::= string(A) STRING(B). {
-  CHECK(std::holds_alternative<types::String>(A->ptr()->type));
-  CHECK(std::holds_alternative<types::String>(B->value().ptr()->type));
+  CHECK(std::holds_alternative<types::String>(A->ptr()->type()));
+  CHECK(std::holds_alternative<types::String>(B->value().ptr()->type()));
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
       LazyString{std::move(A->ptr()->get_string())}
       + LazyString{std::move(B->value().ptr()->get_string())})).release();
@@ -1020,8 +1020,7 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
 %destructor non_empty_symbols_list { delete $$; }
 
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
-  CHECK(
-      std::holds_alternative<types::Symbol>(S->value().ptr()->type));
+  CHECK(std::holds_alternative<types::Symbol>(S->value().ptr()->type()));
   OUT = new std::list<Identifier>(
       {std::move(S->value().ptr()->get_symbol())});
   delete S;
@@ -1030,8 +1029,7 @@ non_empty_symbols_list(OUT) ::= SYMBOL(S). {
 non_empty_symbols_list(OUT) ::=
     SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
   CHECK_NE(L, nullptr);
-  CHECK(
-      std::holds_alternative<types::Symbol>(S->value().ptr()->type));
+  CHECK(std::holds_alternative<types::Symbol>(S->value().ptr()->type()));
   L->push_front(std::move(S->value().ptr()->get_symbol()));
   OUT = L;
   delete S;

@@ -178,7 +178,7 @@ class ParseState {
   }
 
   void PushValue(gc::Root<Value> value_root, std::vector<Tree>& output) const {
-    vm::Type type = value_root.ptr()->type;
+    vm::Type type = value_root.ptr()->type();
     VLOG(8) << "Receive value type: " << type;
     NonNull<std::shared_ptr<Expression>> value =
         NewConstantExpression(std::move(value_root));

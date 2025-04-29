@@ -63,7 +63,7 @@ namespace afc::vm {
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
   gc::Root<Value> output = New(pool, std::move(name));
   output.ptr()->value_ = ObjectInstance{.value = std::move(value)};
-  output.ptr()->expand_callback = std::move(expand_callback);
+  output.ptr()->expand_callback_ = std::move(expand_callback);
   return output;
 }
 
@@ -77,7 +77,7 @@ namespace afc::vm {
                                 .inputs = std::move(type_inputs),
                                 .function_purity = purity_type});
   output.ptr()->value_ = std::move(callback);
-  output.ptr()->expand_callback = std::move(expand_callback);
+  output.ptr()->expand_callback_ = std::move(expand_callback);
   return output;
 }
 
@@ -92,22 +92,28 @@ namespace afc::vm {
       });
 }
 
-bool Value::IsVoid() const { return std::holds_alternative<types::Void>(type); }
-bool Value::IsBool() const { return std::holds_alternative<types::Bool>(type); }
+const Type& Value::type() const { return type_; }
+
+bool Value::IsVoid() const {
+  return std::holds_alternative<types::Void>(type_);
+}
+bool Value::IsBool() const {
+  return std::holds_alternative<types::Bool>(type_);
+}
 bool Value::IsNumber() const {
-  return std::holds_alternative<types::Number>(type);
+  return std::holds_alternative<types::Number>(type_);
 }
 bool Value::IsString() const {
-  return std::holds_alternative<types::String>(type);
+  return std::holds_alternative<types::String>(type_);
 }
 bool Value::IsSymbol() const {
-  return std::holds_alternative<types::Symbol>(type);
+  return std::holds_alternative<types::Symbol>(type_);
 }
 bool Value::IsFunction() const {
-  return std::holds_alternative<types::Function>(type);
+  return std::holds_alternative<types::Function>(type_);
 }
 bool Value::IsObject() const {
-  return std::holds_alternative<types::ObjectName>(type);
+  return std::holds_alternative<types::ObjectName>(type_);
 }
 
 bool Value::get_bool() const {
@@ -168,15 +174,15 @@ ValueOrError<double> Value::ToDouble() const {
           [](const types::Function&) -> ValueOrError<double> {
             return Error{LazyString{L"Unable to convert to double: function"}};
           }},
-      type);
+      type_);
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 Value::Expand() const {
-  return expand_callback == nullptr
+  return expand_callback_ == nullptr
              ? std::vector<language::NonNull<
                    std::shared_ptr<language::gc::ObjectMetadata>>>()
-             : expand_callback();
+             : expand_callback_();
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
@@ -196,10 +202,10 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                       .read()
                       .read();
           },
-          [&](const types::Symbol&) { os << ToSingleLine(value.type); },
-          [&](const types::ObjectName&) { os << ToSingleLine(value.type); },
-          [&](const types::Function&) { os << ToSingleLine(value.type); }},
-      value.type);
+          [&](const types::Symbol&) { os << ToSingleLine(value.type()); },
+          [&](const types::ObjectName&) { os << ToSingleLine(value.type()); },
+          [&](const types::Function&) { os << ToSingleLine(value.type()); }},
+      value.type());
   return os;
 }
 

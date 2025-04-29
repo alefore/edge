@@ -123,7 +123,7 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
 void MapModeCommands::Add(std::vector<ExtendedChar> name,
                           LazyString description, gc::Root<Value> value,
                           gc::Ptr<vm::Environment> environment) {
-  const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
+  const auto& value_type = std::get<vm::types::Function>(value.ptr()->type());
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
   CHECK(value_type.inputs.empty()) << "Definition has multiple inputs.";
   Add(name,
