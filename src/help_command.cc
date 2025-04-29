@@ -297,25 +297,24 @@ class HelpCommand : public Command {
           StartSection(
               NON_EMPTY_SINGLE_LINE_CONSTANT(L"#### ") + name.read().read(),
               output);
-          type.ForEachField([&](const vm::Identifier& field_name,
-                                vm::Value& value) {
-            std::stringstream value_stream;
-            value_stream << value;
-            const static ColumnNumberDelta kPaddingSize{40};
-            SingleLine padding{
-                LazyString{field_name.read().size() > kPaddingSize
-                               ? ColumnNumberDelta{}
-                               : kPaddingSize - field_name.read().size(),
-                           L' '}};
-            output.push_back(LineBuilder{
-                (SingleLine{LazyString{L"* `"}} + field_name.read() +
-                 SingleLine{LazyString{L"`"}} + std::move(padding) +
-                 SingleLine{LazyString{L"`"}} +
-                 SingleLine{LazyString{FromByteString(value_stream.str())}} +
-                 SingleLine{LazyString{L"`"}})
-                    .read()}
-                                 .Build());
-          });
+          type.ForEachField(
+              [&](const vm::Identifier& field_name, vm::Value& value) {
+                std::stringstream value_stream;
+                value_stream << value;
+                const static ColumnNumberDelta kPaddingSize{40};
+                SingleLine padding{
+                    LazyString{field_name.read().size() > kPaddingSize
+                                   ? ColumnNumberDelta{}
+                                   : kPaddingSize - field_name.read().size(),
+                               L' '}};
+                output.push_back(LineBuilder{
+                    SingleLine{LazyString{L"* `"}} + field_name.read() +
+                    SingleLine{LazyString{L"`"}} + std::move(padding) +
+                    SingleLine{LazyString{L"`"}} +
+                    SingleLine{LazyString{FromByteString(value_stream.str())}} +
+                    SingleLine{LazyString{
+                        L"`"}}}.Build());
+              });
           output.push_back(L"");
         });
     output.push_back(L"");
@@ -328,23 +327,29 @@ class HelpCommand : public Command {
     output.push_back(L"");
 
     environment->ForEach(
-        [&output](const vm::Identifier& name, const gc::Ptr<vm::Value>& value) {
+        [&output](const vm::Identifier& name,
+                  const std::optional<gc::Ptr<vm::Value>>& value_optional) {
           VLOG(9) << "Variable: " << name;
-          std::stringstream value_stream;
-          value_stream << value.value();
+          const SingleLine value_str = VisitOptional(
+              [](const gc::Ptr<vm::Value>& value) {
+                std::stringstream value_stream;
+                value_stream << value.value();
+                return SingleLine{
+                    LazyString{FromByteString(value_stream.str())}};
+              },
+              [] { return SINGLE_LINE_CONSTANT(L"<uninitialized>"); },
+              value_optional);
           const static ColumnNumberDelta kPaddingSize{40};
           SingleLine padding{LazyString{name.read().size() > kPaddingSize
                                             ? ColumnNumberDelta{}
                                             : kPaddingSize - name.read().size(),
                                         L' '}};
           output.push_back(LineBuilder{
-              (SingleLine{LazyString{L"* `"}} + name.read() +
-               SingleLine{LazyString{L"`"}} + std::move(padding) +
-               SingleLine{LazyString{L"`"}} +
-               SingleLine{LazyString{FromByteString(value_stream.str())}} +
-               SingleLine{LazyString{L"`"}})
-                  .read()}
-                               .Build());
+              SingleLine{LazyString{L"* `"}} + name.read() +
+              SingleLine{LazyString{L"`"}} + std::move(padding) +
+              SingleLine{LazyString{L"`"}} + value_str +
+              SingleLine{LazyString{
+                  L"`"}}}.Build());
         });
     output.push_back(L"");
   }
@@ -417,25 +422,11 @@ const bool buffer_registration = tests::Register(
         {.name = L"GenerateContents",
          .callback =
              [] {
-               // TODO(2025-01-22, bugs): Initialize with an empty path, so that
-               // it defaults to actually using the default configurations,
-               // which makes the test more stringent.
-               //
-               // As of this writing, that makes
-               // the test fail: it attempts to print the contents of variables
-               // that have been declared but not yet initialized. Which
-               // highlights a real bug: the race between code that is declaring
-               // new variables (but hasn't yet initialized them) and this help
-               // view. The real fix would require us to somewhat mark those
-               // variables as "declared but not yet initialized" so that this
-               // code can detect that.
-               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
-                   Path{LazyString{L"/home/edge-unexistant-user/.edge"}});
-               auto buffer = NewBufferForTests(editor.value());
-               gc::Root<MapModeCommands> commands =
-                   MapModeCommands::New(buffer.ptr()->editor());
-               HelpCommand::GenerateLines(commands.ptr().value(),
-                                          buffer.ptr().value());
+               NonNull<std::unique_ptr<EditorState>> editor =
+                   EditorForTests(std::nullopt);
+               HelpCommand::GenerateLines(
+                   MapModeCommands::New(editor.value()).ptr().value(),
+                   NewBufferForTests(editor.value()).ptr().value());
              }},
     });
 }  // namespace

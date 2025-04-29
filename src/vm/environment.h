@@ -32,7 +32,8 @@ class Environment {
   struct ConstructorAccessTag {};
 
   struct Data {
-    std::map<Identifier, std::unordered_map<Type, language::gc::Ptr<Value>>>
+    std::map<Identifier,
+             std::unordered_map<Type, std::optional<language::gc::Ptr<Value>>>>
         table;
 
     std::map<Identifier, language::gc::Ptr<Environment>> namespaces;
@@ -80,7 +81,8 @@ class Environment {
   struct LookupResult {
     enum class VariableScope { kLocal, kGlobal };
     VariableScope scope;
-    language::gc::Root<Value> value;
+    Type type;
+    std::optional<language::gc::Root<Value>> value;
   };
 
   std::vector<LookupResult> PolyLookup(const Namespace& symbol_namespace,
@@ -91,6 +93,7 @@ class Environment {
   void CaseInsensitiveLookup(
       const Namespace& symbol_namespace, const Identifier& symbol,
       std::vector<language::gc::Root<Value>>* output) const;
+  void DefineUninitialized(const Identifier& symbol, const Type& type);
   void Define(const Identifier& symbol, language::gc::Root<Value> value);
   void Assign(const Identifier& symbol, language::gc::Root<Value> value);
   void Remove(const Identifier& symbol, Type type);
@@ -98,10 +101,12 @@ class Environment {
   void ForEachType(
       std::function<void(const types::ObjectName&, ObjectType&)> callback);
   void ForEach(
-      std::function<void(const Identifier&, const language::gc::Ptr<Value>&)>
+      std::function<void(const Identifier&,
+                         const std::optional<language::gc::Ptr<Value>>&)>
           callback) const;
   void ForEachNonRecursive(
-      std::function<void(const Identifier&, const language::gc::Ptr<Value>&)>
+      std::function<void(const Identifier&,
+                         const std::optional<language::gc::Ptr<Value>>&)>
           callback) const;
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>

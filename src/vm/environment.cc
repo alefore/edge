@@ -161,10 +161,17 @@ std::optional<gc::Root<Value>> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
   std::vector<LookupResult> values = PolyLookup(symbol_namespace, symbol);
-  for (Value& value :
-       values | std::views::transform(&LookupResult::value) | gc::view::Value)
+  for (const Value& value :
+       values | std::views::transform(&LookupResult::value) |
+           std::views::filter(&std::optional<gc::Root<Value>>::has_value) |
+           std::views::transform(
+               [](const std::optional<gc::Root<Value>>& value) {
+                 return value.value().ptr().value();
+               }))
     if (auto callback = GetImplicitPromotion(value.type(), expected_type);
         callback != nullptr)
+      // TODO(2025-04-29, easy): Ugh, are we copying `value` here? Why can't we
+      // just reuse the old ptr?
       return callback(pool, pool.NewRoot(MakeNonNullUnique<Value>(value)));
   return std::nullopt;
 }
@@ -183,18 +190,21 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
                              std::vector<LookupResult>& output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
-    environment->data_.lock(
-        [&output, &symbol, variable_scope](const Data& data) {
-          if (auto it = data.table.find(symbol); it != data.table.end()) {
-            auto view = it->second | std::views::values |
-                        std::views::transform(
-                            [variable_scope](const gc::Ptr<Value>& entry) {
-                              return LookupResult{.scope = variable_scope,
-                                                  .value = entry.ToRoot()};
-                            });
-            output.insert(output.end(), view.begin(), view.end());
-          }
-        });
+    environment->data_.lock([&output, &symbol,
+                             variable_scope](const Data& data) {
+      if (auto it = data.table.find(symbol); it != data.table.end()) {
+        auto view = it->second |
+                    std::views::transform([variable_scope](const auto& entry) {
+                      return LookupResult{
+                          .scope = variable_scope,
+                          .type = entry.first,
+                          .value = entry.second.has_value()
+                                       ? entry.second.value().ToRoot()
+                                       : std::optional<gc::Root<Value>>{}};
+                    });
+        output.insert(output.end(), view.begin(), view.end());
+      }
+    });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
@@ -213,7 +223,13 @@ void Environment::CaseInsensitiveLookup(
       SingleLine lower_case_symbol = LowerCase(symbol.read().read());
       for (auto& item : data.table)
         if (LowerCase(item.first.read().read()) == lower_case_symbol)
-          std::ranges::copy(item.second | std::views::values | gc::view::Root,
+          std::ranges::copy(item.second | std::views::values |
+                                std::views::filter(
+                                    &std::optional<gc::Ptr<Value>>::has_value) |
+                                std::views::transform(
+                                    [](std::optional<gc::Ptr<Value>> value) {
+                                      return value.value().ToRoot();
+                                    }),
                             std::back_inserter(*output));
     });
   }
@@ -222,6 +238,13 @@ void Environment::CaseInsensitiveLookup(
     (*parent_environment_)
         ->CaseInsensitiveLookup(symbol_namespace, symbol, output);
   }
+}
+
+void Environment::DefineUninitialized(const Identifier& symbol,
+                                      const Type& type) {
+  data_.lock([&symbol, &type](Data& data) {
+    data.table[symbol].insert_or_assign(type, std::nullopt);
+  });
 }
 
 void Environment::Define(const Identifier& symbol, gc::Root<Value> value) {
@@ -266,26 +289,24 @@ void Environment::ForEachType(
 }
 
 void Environment::ForEach(
-    std::function<void(const Identifier&, const gc::Ptr<Value>&)> callback)
-    const {
-  if (parent_environment_.has_value()) {
+    std::function<void(const Identifier&, const std::optional<gc::Ptr<Value>>&)>
+        callback) const {
+  if (parent_environment_.has_value())
     (*parent_environment_)->ForEach(callback);
-  }
   ForEachNonRecursive(callback);
 }
 
 void Environment::ForEachNonRecursive(
-    std::function<void(const Identifier&, const gc::Ptr<Value>&)> callback)
-    const {
+    std::function<void(const Identifier&, const std::optional<gc::Ptr<Value>>&)>
+        callback) const {
   data_.lock([&](const Data& data) {
-    for (const auto& symbol_entry : data.table) {
-      for (const gc::Ptr<Value>& value :
+    for (const auto& symbol_entry : data.table)
+      for (const std::optional<gc::Ptr<Value>>& value :
            symbol_entry.second | std::views::values) {
         VLOG(5) << "ForEachNonRecursive: Running callback on: "
                 << symbol_entry.first;
         callback(symbol_entry.first, value);
       }
-    }
   });
 }
 
@@ -296,8 +317,13 @@ Environment::Expand() const {
     output.push_back(parent_environment()->object_metadata());
   }
   ForEachNonRecursive(
-      [&output](const Identifier&, const gc::Ptr<Value>& value) {
-        output.push_back(value.object_metadata());
+      [&output](const Identifier&,
+                const std::optional<gc::Ptr<Value>>& value_optional) {
+        VisitOptional(
+            [&output](const gc::Ptr<Value>& value) {
+              output.push_back(value.object_metadata());
+            },
+            [] {}, value_optional);
       });
   data_.lock([&output](const Data& data) {
     std::ranges::copy(

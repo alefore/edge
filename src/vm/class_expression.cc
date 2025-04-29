@@ -101,13 +101,19 @@ PossibleError FinishClassDeclaration(
       class_environment.ptr()->parent_environment()->ToRoot();
 
   class_environment.ptr()->ForEachNonRecursive(
-      [&class_object_type, class_type, &pool](Identifier name,
-                                              const gc::Ptr<Value>& value) {
-        class_object_type.ptr()->AddField(
-            name, BuildGetter(pool, class_type, value->type(), name).ptr());
-        class_object_type.ptr()->AddField(
-            Identifier(SingleLine{LazyString{L"set_"}} + name.read()),
-            BuildSetter(pool, class_type, value->type(), name).ptr());
+      [&class_object_type, class_type, &pool](
+          Identifier name,
+          const std::optional<gc::Ptr<Value>>& value_optional) {
+        VisitOptional(
+            [&](const gc::Ptr<Value>& value) {
+              class_object_type.ptr()->AddField(
+                  name,
+                  BuildGetter(pool, class_type, value->type(), name).ptr());
+              class_object_type.ptr()->AddField(
+                  Identifier(SingleLine{LazyString{L"set_"}} + name.read()),
+                  BuildSetter(pool, class_type, value->type(), name).ptr());
+            },
+            [] {}, value_optional);
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   compilation.environment.ptr()->Define(

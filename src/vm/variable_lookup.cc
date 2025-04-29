@@ -90,8 +90,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
   // is done in an order-preserving way.
   for (const Type& type :
        std::move(result) |
-           std::views::transform(&Environment::LookupResult::value) |
-           gc::view::Value | std::views::transform(&Value::type))
+           std::views::transform(&Environment::LookupResult::type))
     if (already_seen.insert(type).second) types.push_back(type);
   return std::make_unique<VariableLookup>(std::move(symbol_namespace),
                                           std::move(symbol), types);

@@ -106,8 +106,7 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
     }
     type_def = *type_ptr;
   }
-  compilation.environment.ptr()->Define(symbol,
-                                        Value::New(compilation.pool, type_def));
+  compilation.environment.ptr()->DefineUninitialized(symbol, type_def);
   return type_def;
 }
 
@@ -178,14 +177,13 @@ std::unique_ptr<Expression> NewAssignExpression(
             TypesToString(value->Types()) + LazyString{L"\". Value types: "} +
             TypesToString(container::MaterializeVector(
                 std::move(variables) |
-                std::views::transform(&Environment::LookupResult::value) |
-                gc::view::Value | std::views::transform(&Value::type)))});
+                std::views::transform(&Environment::LookupResult::type)))});
 
         return nullptr;
       },
       container::FindFirstIf(
-          variables, [&value](Environment::LookupResult lookup_result) {
-            return value->SupportsType(lookup_result.value.ptr()->type());
+          variables, [&value](const Environment::LookupResult& lookup_result) {
+            return value->SupportsType(lookup_result.type);
           }));
 }
 

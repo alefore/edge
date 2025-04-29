@@ -44,6 +44,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -465,12 +466,18 @@ std::vector<NonEmptySingleLine> GetCppTokens(
   std::set<Identifier> output_set;  // Avoid duplicates.
   if (buffer.has_value())
     buffer->ptr()->environment()->ForEach(
-        [&output, &output_set](Identifier name,
-                               const gc::Ptr<vm::Value>& value) {
-          // TODO(easy, 2023-09-16): Would be good to filter more stringently.
-          VLOG(10) << "Checking symbol: " << name;
-          if (value->IsFunction() && output_set.insert(name).second)
-            output.push_back(LowerCase(name.read()));
+        [&output, &output_set](
+            Identifier name,
+            const std::optional<gc::Ptr<vm::Value>>& value_optional) {
+          VisitOptional(
+              [&output, &output_set, &name](const gc::Ptr<vm::Value>& value) {
+                // TODO(easy, 2023-09-16): Would be good to filter more
+                // stringently.
+                VLOG(10) << "Checking symbol: " << name;
+                if (value->IsFunction() && output_set.insert(name).second)
+                  output.push_back(LowerCase(name.read()));
+              },
+              [] {}, value_optional);
         });
   VLOG(4) << "Found tokens: " << output.size();
   return output;
