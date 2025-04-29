@@ -161,18 +161,13 @@ std::optional<gc::Root<Value>> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
   std::vector<LookupResult> values = PolyLookup(symbol_namespace, symbol);
-  for (const Value& value :
-       values | std::views::transform(&LookupResult::value) |
-           std::views::filter(&std::optional<gc::Root<Value>>::has_value) |
-           std::views::transform(
-               [](const std::optional<gc::Root<Value>>& value) {
-                 return value.value().ptr().value();
-               }))
-    if (auto callback = GetImplicitPromotion(value.type(), expected_type);
+  for (std::optional<gc::Root<Value>> value :
+       std::move(values) | std::views::transform(&LookupResult::value) |
+           std::views::filter(&std::optional<gc::Root<Value>>::has_value))
+    if (auto callback =
+            GetImplicitPromotion(value->ptr()->type(), expected_type);
         callback != nullptr)
-      // TODO(2025-04-29, easy): Ugh, are we copying `value` here? Why can't we
-      // just reuse the old ptr?
-      return callback(pool, pool.NewRoot(MakeNonNullUnique<Value>(value)));
+      return callback(pool, std::move(value).value());
   return std::nullopt;
 }
 
