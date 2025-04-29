@@ -1,11 +1,12 @@
 #include "src/vm/expression.h"
 
+#include "src/language/container.h"
 #include "src/language/once_only_function.h"
 #include "src/language/wstring.h"
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
-
+namespace container = afc::language::container;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -58,11 +59,13 @@ bool Expression::SupportsType(const Type& type) {
   if (std::find(types.begin(), types.end(), type) != types.end()) {
     return true;
   }
-  for (auto& source : types) {
-    CHECK(!(source == type));
-    if (GetImplicitPromotion(source, type) != nullptr) return true;
-  }
-  return false;
+  return container::FindFirstIf(types,
+                                [&type](const Type& source) {
+                                  CHECK(!(source == type));
+                                  return GetImplicitPromotion(source, type) !=
+                                         nullptr;
+                                })
+      .has_value();
 }
 
 ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
