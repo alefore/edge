@@ -160,9 +160,9 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 std::optional<gc::Root<Value>> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
-  std::vector<LookupResult> values = PolyLookup(symbol_namespace, symbol);
   for (std::optional<gc::Root<Value>> value :
-       std::move(values) | std::views::transform(&LookupResult::value) |
+       PolyLookup(symbol_namespace, symbol) |
+           std::views::transform(&LookupResult::value) |
            std::views::filter(&std::optional<gc::Root<Value>>::has_value))
     if (auto callback =
             GetImplicitPromotion(value->ptr()->type(), expected_type);
