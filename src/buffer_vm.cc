@@ -698,6 +698,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                          data.longest_seconds)}})
                       .Build();
                 })));
+            buffer->AppendLine(SingleLine{});
           })
           .ptr());
 
