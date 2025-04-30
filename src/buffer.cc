@@ -557,16 +557,13 @@ futures::Value<EmptyValue> OpenBuffer::NewCloseFuture() {
   return close_observers_.NewFuture();
 }
 
-void OpenBuffer::Enter() {
+void OpenBuffer::HandleDisplay() const { CHECK(load_visual_state_.get()); }
+
+void OpenBuffer::Visit() {
   if (Read(buffer_variables::reload_on_enter)) {
     Reload();
     CheckPosition();
   }
-  CHECK(load_visual_state_.get());
-}
-
-void OpenBuffer::Visit() {
-  Enter();
   UpdateLastAction();
   last_visit_ = last_action_;
   if (options_.handle_visit != nullptr) {

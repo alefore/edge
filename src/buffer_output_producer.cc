@@ -227,7 +227,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     const std::vector<BufferContentsViewLayout::Line>& lines,
     const Widget::OutputProducerOptions& output_producer_options) {
   TRACK_OPERATION(ProduceBufferView);
-
+  buffer.HandleDisplay();
   CHECK_GE(output_producer_options.size.line, LineNumberDelta());
 
   const NonNull<std::shared_ptr<const ParseTree>> root = buffer.parse_tree();

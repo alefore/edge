@@ -400,8 +400,6 @@ void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
                                      CommandArgumentModeApplyMode apply_mode) {
   if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
     buffer.ptr()->Visit();
-  } else {
-    buffer.ptr()->Enter();
   }
   buffer_tree_.GetActiveLeaf().SetBuffer(buffer.ptr().ToWeakPtr());
   AdjustWidgets();

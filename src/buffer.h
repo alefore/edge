@@ -163,8 +163,9 @@ class OpenBuffer {
 
   futures::Value<language::EmptyValue> NewCloseFuture();
 
-  // Enter signals that the buffer went from being hidden to being displayed.
-  void Enter();
+  // HandleDisplay signals that the buffer is being shown; the first time this
+  // is called, it triggers various computations.
+  void HandleDisplay() const;
   // Visit implies Enter but also signals that the buffer was actively selected
   // (rather than just temporarily shown).
   void Visit();
