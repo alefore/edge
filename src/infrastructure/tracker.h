@@ -23,6 +23,7 @@
 #include <string>
 
 #include "src/concurrent/protected.h"
+#include "src/language/safe_types.h"
 
 namespace afc::infrastructure {
 // When an operation starts, just call tracker. Capture the returned value and
@@ -49,6 +50,8 @@ class Tracker {
 
   static std::list<Data> GetData();
 
+  static void ResetAll();
+
   Tracker(std::wstring name);
   // Deleting a Tracker crashes the program. We deliberately prefer to force our
   // customers to retain (leak) Tracker instances; otherwise, we may have issues
@@ -57,9 +60,10 @@ class Tracker {
   ~Tracker();
 
   std::unique_ptr<bool, std::function<void(bool*)>> Call();
+  void Reset();
 
  private:
-  const std::list<Tracker*>::iterator trackers_it_;
+  const std::list<language::NonNull<Tracker*>>::iterator trackers_it_;
 
   concurrent::Protected<Data> data_;
 };
