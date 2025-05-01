@@ -210,7 +210,7 @@ void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
-  TRACK_OPERATION(ExecuteTransformation);
+  TRACK_OPERATION(Operation_ExecuteTransformation);
 
   auto buffers_transformed =
       std::make_shared<std::vector<gc::Root<OpenBuffer>>>();
@@ -397,7 +397,7 @@ class State {
   void Update() { Update(ApplicationType::kPreview); }
 
   void Commit() {
-    TRACK_OPERATION(State_Commit);
+    TRACK_OPERATION(Operation_State_Commit);
     // We make a copy because Update may delete us.
     EditorState& editor_state = editor_state_;
     Update(ApplicationType::kCommit);
@@ -448,7 +448,7 @@ class State {
 
  private:
   futures::Value<EmptyValue> Update(ApplicationType application_type) {
-    TRACK_OPERATION(State_Update);
+    TRACK_OPERATION(Operation_State_Update);
     CHECK(!commands_.empty());
     RunUndoCallback();
     std::shared_ptr<UndoCallback> original_undo_callback = undo_callback_;
@@ -493,6 +493,7 @@ class State {
   futures::Value<UndoCallback> StartTransformationExecution(
       ApplicationType application_type,
       transformation::Variant transformation) {
+    TRACK_OPERATION(Operation_State_StartTransformationExecution);
     futures::Future<UndoCallback> output;
     serializer_.Push([&editor_state = editor_state_, application_type,
                       consumer = std::move(output.consumer),
