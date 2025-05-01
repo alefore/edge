@@ -2316,6 +2316,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     transformation::Variant transformation,
     Modifiers::CursorsAffected cursors_affected,
     transformation::Input::Mode mode) {
+  TRACK_OPERATION(OpenBuffer_ApplyToCursors);
   auto trace = log_->NewChild(LazyString{L"ApplyToCursors transformation."});
   trace->Append(LazyString{L"Transformation: "} +
                 LazyString{transformation::ToString(transformation)});
@@ -2373,6 +2374,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 futures::Value<typename transformation::Result> OpenBuffer::Apply(
     transformation::Variant transformation, LineColumn position,
     transformation::Input::Mode mode) {
+  TRACK_OPERATION(OpenBuffer_Apply);
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
       undo_state_.Current().get_shared();
 
