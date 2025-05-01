@@ -140,7 +140,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
   gc::Root<ObjectType> screen_type = ObjectType::New(
       pool, VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::object_type_name);
 
-  // Constructors.
+  // Constructor.
   environment.Define(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"RemoteScreen"}}}},
       vm::NewCallback(
