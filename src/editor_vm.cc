@@ -6,6 +6,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/extended_char_vm.h"
+#include "src/infrastructure/tracker.h"
 #include "src/insert_history_buffer.h"
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
@@ -16,6 +17,7 @@
 #include "src/open_file_command.h"
 #include "src/parse_tree.h"
 #include "src/run_command_handler.h"
+#include "src/search_handler_vm.h"
 #include "src/server.h"
 #include "src/set_buffer_mode.h"
 #include "src/set_variable_command.h"
@@ -33,6 +35,7 @@ using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
+using afc::infrastructure::Tracker;
 using afc::infrastructure::VectorExtendedChar;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -197,6 +200,12 @@ gc::Root<Environment> BuildEditorEnvironment(
   RegisterVariableFields<EdgeStruct<int>, int, Number>(
       pool, editor_variables::IntStruct(), editor_type.ptr().value(),
       &EditorState::Read, &EditorState::Set);
+
+  editor_type.ptr()->AddField(
+      Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"ResetAllTrackers")},
+      vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState&) {
+        Tracker::ResetAll();
+      }).ptr());
 
   editor_type.ptr()->AddField(
       Identifier{
@@ -566,6 +575,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   Modifiers::Register(pool, value);
   ForkCommandOptions::Register(pool, value);
   RegisterParseTreeFunctions(pool, value);
+  RegisterSearchOptionsVm(pool, value);
   language::text::LineColumnRegister(pool, value);
   language::text::LineColumnDeltaRegister(pool, value);
   language::text::RangeRegister(pool, value);
