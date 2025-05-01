@@ -56,12 +56,13 @@ void Pandoc(string launch_browser) {
 }
 
 OptionalRange FindSection(Buffer buffer, string title, number depth) {
-  for (number line; line < buffer.line_count(); line++)
-    if (internal::IsLineTitle(title, depth, buffer.line(line)))
-      return OptionalRange(
-          Range(LineColumn(line, 0),
-                internal::FindSectionEnd(buffer, line + 1, depth)));
-  return OptionalRange();
+  VectorLineColumn matches = SearchOptions()
+                                 .set_query("^" + "#" * depth + " *" + title)
+                                 .search(buffer);
+  if (matches.size() == 0) return OptionalRange();
+  LineColumn start = matches.get(0);
+  return OptionalRange(
+      Range(start, internal::FindSectionEnd(buffer, start.line() + 1, depth)));
 }
 
 VectorString GetLinks(Buffer buffer) {
