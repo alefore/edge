@@ -867,6 +867,29 @@ void OpenBuffer::AppendLines(
   }
 }
 
+namespace {
+std::unique_ptr<vm::Expression> GetOnReloadCallExpression(
+    gc::Pool& pool, Environment& environment, gc::Ptr<OpenBuffer> buffer) {
+  return VisitOptional(
+      [&](language::gc::Root<Value> procedure) {
+        return vm::NewFunctionCall(
+                   vm::NewConstantExpression(std::move(procedure)),
+                   {vm::NewConstantExpression(
+                       vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::New(pool,
+                                                                  buffer))})
+            .get_unique();
+      },
+      [] -> std::unique_ptr<vm::Expression> { return nullptr; },
+      environment.Lookup(
+          pool, Namespace{},
+          Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"OnReload")},
+          vm::types::Function{
+              .output = vm::Type{vm::types::Void{}},
+              .inputs = {
+                  vm::GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()}}));
+}
+}  // namespace
+
 futures::Value<PossibleError> OpenBuffer::Reload() {
   LOG(INFO) << name() << ": Reload starts.";
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
@@ -892,26 +915,25 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
           LazyString{L"Reload is already in progress and new one scheduled."}});
   }
 
-  auto paths = editor().edge_path();
-
-  return futures::ForEach(
-             paths.begin(), paths.end(),
-             [this](Path dir) {
-               return EvaluateFile(
-                          Path::Join(dir, ValueOrDie(Path::New(LazyString{
-                                              L"hooks/buffer-reload.cc"}))))
-                   .Transform(
-                       [](gc::Root<Value>)
-                           -> futures::ValueOrError<IterationControlCommand> {
-                         return Past(IterationControlCommand::kContinue);
-                       })
-                   .ConsumeErrors([](Error) {
-                     return Past(IterationControlCommand::kContinue);
-                   });
+  return VisitPointer(
+             GetOnReloadCallExpression(editor().gc_pool(), environment_.value(),
+                                       ptr_this_.value()),
+             [this](NonNull<std::unique_ptr<Expression>> expression) {
+               if (editor().exit_value().has_value())
+                 return futures::Past(Success());
+               LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+               return futures::IgnoreErrors(
+                   EvaluateExpression(std::move(expression),
+                                      editor().environment())
+                       .Transform([](gc::Root<vm::Value>) -> PossibleError {
+                         return Success();
+                       }));
+             },
+             [] {
+               LOG(INFO) << "No OnReload handler found.";
+               return futures::Past(EmptyValue{});
              })
-      .Transform([this](IterationControlCommand) {
-        if (editor().exit_value().has_value()) return futures::Past(Success());
-        LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+      .Transform([this](EmptyValue) {
         if (Read(buffer_variables::clear_on_reload)) {
           ClearContents();
           SetDiskState(DiskState::kCurrent);

@@ -10,9 +10,27 @@
 #include "../editor_commands/lib/markdown.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
+#include "../editor_commands/lib/strings.cc"
 #include "../editor_commands/lib/zk.cc"
 #include "../editor_commands/reflow.cc"
 #include "../editor_commands/shapes.cc"
+
+////////////////////////////////////////////////////////////////////////////////
+// Handlers
+////////////////////////////////////////////////////////////////////////////////
+
+void OnReload(Buffer buffer) {
+  if (buffer.path() == "") {
+    string command = BaseCommand(SkipInitialSpaces(buffer.command()));
+    // Interactive commands that get a full pts. This must happen here (rather
+    // than in buffer-first-enter.cc) so that the pts information is set before
+    // the command is actually spawned.
+    if (command == "bash" || command == "python" || command == "python3" ||
+        command == "watch" || command == "sh" || command == "gdb" ||
+        command == "fish")
+      buffer.set_pts(true);
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Cursors

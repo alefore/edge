@@ -513,8 +513,8 @@ const bool buffer_reloads_tests_registration = tests::Register(
         ReloadAndWaitUntilEndOfFile(buffer_root.ptr().value());
         std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
                   language::gc::Root<vm::Environment>>
-            compilation = ValueOrDie(buffer_root.ptr()->CompileString(
-                LazyString{L"sleep(0.1); x;"}));
+            compilation =
+                ValueOrDie(buffer_root.ptr()->CompileString(LazyString{L"x"}));
 
         // We deliberately don't wait for the reload to be done.
         buffer_root.ptr()->Reload();
