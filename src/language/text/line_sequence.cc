@@ -266,15 +266,6 @@ const Line& LineSequence::back() const { return at(EndLine()); }
 
 const Line& LineSequence::front() const { return at(LineNumber(0)); }
 
-bool LineSequence::EveryLine(
-    const std::function<bool(LineNumber, const Line&)>& callback) const {
-  LineNumber start;
-  return Lines::Every(lines_.get_shared(),
-                      [&callback, &start](const Line& line) {
-                        return callback(start++, line);
-                      });
-}
-
 void LineSequence::ForEach(
     const std::function<void(const Line&)>& callback) const {
   EveryLine([callback](LineNumber, const Line& line) {

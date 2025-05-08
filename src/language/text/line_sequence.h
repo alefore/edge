@@ -77,8 +77,14 @@ class LineSequence {
   // passing as the first argument the line count (starts counting at 0). Stops
   // the iteration if the callback returns false. Returns true iff the callback
   // always returned true.
-  bool EveryLine(
-      const std::function<bool(LineNumber, const Line&)>& callback) const;
+  template <typename Callback>
+  bool EveryLine(const Callback& callback) const {
+    LineNumber start;
+    return Lines::Every(lines_.get_shared(),
+                        [&callback, &start](const Line& line) {
+                          return callback(start++, line);
+                        });
+  }
 
   void ForEach(const std::function<void(const Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
