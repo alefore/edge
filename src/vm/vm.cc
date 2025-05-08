@@ -413,7 +413,6 @@ void CompileLine(Compilation& compilation, void* parser,
           }
           if (str.get(pos) != '\\') {
             output_string.push_back(str.get(pos));
-            ;
             continue;
           }
           pos++;
