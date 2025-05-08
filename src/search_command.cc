@@ -180,9 +180,9 @@ class ProgressAggregator {
           if (data->children_created > 1) {
             data->aggregates.values[VersionPropertyKey{
                 NON_EMPTY_SINGLE_LINE_CONSTANT(L"buffers")}] =
-                LazyString{std::to_wstring(data->buffers_with_matches)} +
-                LazyString{L"/"} +
-                LazyString{std::to_wstring(data->children_created)};
+                NonEmptySingleLine(data->buffers_with_matches) +
+                SingleLine::Char<L'/'>() +
+                NonEmptySingleLine((data->children_created));
           }
 
           data->parent_channel->Push(data->aggregates);
@@ -306,7 +306,7 @@ class SearchCommand : public Command {
                                        {VersionPropertyKey{
                                             NON_EMPTY_SINGLE_LINE_CONSTANT(
                                                 L"case")},
-                                        LazyString{L"on"}}}});
+                                        SINGLE_LINE_CONSTANT(L"on")}}});
                             }
                             if (line.size().IsZero()) {
                               return futures::Past(Control::kContinue);

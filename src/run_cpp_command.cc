@@ -336,10 +336,10 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                   compilation_result) {
             modifiers.insert(LineModifier::kCyan);
             progress_channel->Push(ProgressInformation{
-                .values = {{VersionPropertyKey{
-                                NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")},
-                            vm::TypesToString(compilation_result.first->Types())
-                                .read()}}});
+                .values = {
+                    {VersionPropertyKey{
+                         NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")},
+                     vm::TypesToString(compilation_result.first->Types())}}});
             ColorizePromptOptions output;
             MaybePushTokenAndModifiers(line, modifiers, output.tokens);
             if (compilation_result.first->Types() ==
@@ -358,7 +358,9 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                       {.values = {
                            {VersionPropertyKey{
                                 NON_EMPTY_SINGLE_LINE_CONSTANT(L"value")},
-                            LazyString{FromByteString(oss.str())}}}});
+                            LineSequence::BreakLines(
+                                LazyString{FromByteString(oss.str())})
+                                .FoldLines()}}});
                   return futures::Past(Success());
                 })
                 .ConsumeErrors([progress_channel](Error error) {
@@ -366,16 +368,18 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                       {.values = {
                            {VersionPropertyKey{
                                 NON_EMPTY_SINGLE_LINE_CONSTANT(L"runtime")},
-                            error.read()}}});
+                            LineSequence::BreakLines(error.read())
+                                .FoldLines()}}});
                   return futures::Past(EmptyValue());
                 })
                 .Transform([output](EmptyValue) { return output; });
           },
           [&](Error error) {
             progress_channel->Push(
-                {.values = {{VersionPropertyKey{
-                                 NON_EMPTY_SINGLE_LINE_CONSTANT(L"error")},
-                             error.read()}}});
+                {.values = {
+                     {VersionPropertyKey{
+                          NON_EMPTY_SINGLE_LINE_CONSTANT(L"error")},
+                      LineSequence::BreakLines(error.read()).FoldLines()}}});
             return futures::Past(ColorizePromptOptions());
           }},
       buffer->ptr()->CompileString(line.read()));

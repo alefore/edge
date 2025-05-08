@@ -294,12 +294,12 @@ void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
       progress_channel.Push(ProgressInformation{
           .values = {
               {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-               LazyString{std::to_wstring(*matches)}}}});
+               NonEmptySingleLine(*matches).read()}}});
   }
 
   progress_channel.Push(ProgressInformation{
       .values = {{VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-                  LazyString{std::to_wstring(*matches)}}}});
+                  NonEmptySingleLine(*matches).read()}}});
 
   predictor_output.longest_prefix =
       std::max(predictor_output.longest_prefix,
@@ -470,7 +470,7 @@ Predictor PrecomputedPredictor(
     input.progress_channel->Push(ProgressInformation{
         .values = {
             {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"values")},
-             LazyString{std::to_wstring(output_contents.size().read() - 1)}}}});
+             NonEmptySingleLine(output_contents.size().read() - 1).read()}}});
     return futures::Past(
         PredictorOutput({.contents = SortedLineSequenceUniqueLines(
                              SortedLineSequence(output_contents.snapshot()))}));

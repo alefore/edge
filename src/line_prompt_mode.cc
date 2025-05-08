@@ -736,7 +736,7 @@ InsertModeOptions PromptState::insert_mode_options() {
             progress_channel->Push(ProgressInformation{
                 .values = {
                     {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
-                     LazyString{L"…"}}}});
+                     SINGLE_LINE_CONSTANT(L"…")}}});
             Predict(
                 prompt_state->options().predictor,
                 PredictorInput{
@@ -753,7 +753,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     status_version_value->SetStatusValue(
                         VersionPropertyKey{
                             NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
-                        LazyString{L"empty"});
+                        SINGLE_LINE_CONSTANT(L"empty"));
                     return EmptyValue();
                   }
                   // TODO(easy, 2024-08-28): Convert `common_prefix` to
@@ -767,7 +767,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     status_version_value->SetStatusValue(
                         VersionPropertyKey{
                             NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
-                        LazyString{L"advanced"});
+                        SINGLE_LINE_CONSTANT(L"advanced"));
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Delete{
@@ -795,7 +795,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                   LOG(INFO) << "Prediction didn't advance.";
                   status_version_value->SetStatusValue(
                       VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")},
-                      LazyString{L"stuck"});
+                      SINGLE_LINE_CONSTANT(L"stuck"));
                   auto buffers =
                       prompt_state->editor_state().buffer_registry().buffers();
                   if (std::optional<gc::Root<OpenBuffer>> predictions_buffer =

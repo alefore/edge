@@ -90,7 +90,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
                 LazyString{FromByteString(e.what())}};
     options.progress_channel->Push(
         {.values = {{VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"!")},
-                     error.read()}}});
+                     LineSequence::BreakLines(error.read()).FoldLines()}}});
     return error;
   }
 
@@ -116,7 +116,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     options.progress_channel->Push(ProgressInformation{
         .values = {
             {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"partial")},
-             LazyString{}}}});
+             SingleLine{}}}});
     return false;
   });
   VLOG(5) << "Perform search found matches: " << positions.size();

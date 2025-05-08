@@ -162,7 +162,7 @@ Line Status::prompt_extra_information_line() const {
   const VersionPropertyReceiver::PropertyValues values = receiver->GetValues();
   LineBuilder options;
   if (!values.property_values.empty()) {
-    options.AppendString(SingleLine{LazyString{L"    🛈  "}}, dim);
+    options.AppendString(SINGLE_LINE_CONSTANT(L"    🛈  "), dim);
     bool need_separator = false;
     for (const auto& [key, value] : values.property_values) {
       if (need_separator) {
@@ -176,14 +176,10 @@ Line Status::prompt_extra_information_line() const {
                                   ? dim
                                   : empty;
       options.AppendString(key.read().read(), modifiers);
-      if (!std::holds_alternative<LazyString>(value.value) ||
-          !std::get<LazyString>(value.value).empty()) {
+      if (!std::holds_alternative<SingleLine>(value.value) ||
+          !std::get<SingleLine>(value.value).empty()) {
         options.AppendString(SingleLine::Char<L':'>(), dim);
-        options.AppendString(std::visit(overload{[](LazyString v) {
-                                                   // TODO(easy, 2024-09-19):
-                                                   // Avoid having to wrap here.
-                                                   return SingleLine{v};
-                                                 },
+        options.AppendString(std::visit(overload{[](SingleLine v) { return v; },
                                                  [](int v) {
                                                    return SingleLine{LazyString{
                                                        std::to_wstring(v)}};
