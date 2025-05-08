@@ -77,7 +77,7 @@ extern "C" {
 #include "src/vm/cpp.h"
 }
 
-void CompileLine(Compilation& compilation, void* parser, const LazyString& str);
+void CompileLine(Compilation& compilation, void* parser, const SingleLine& str);
 
 void CompileFile(Path path, Compilation& compilation, void* parser) {
   VLOG(3) << "Compiling file: [" << path << "]";
@@ -92,7 +92,7 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
     std::wstring line;
     while (compilation.errors().empty() && std::getline(infile, line)) {
       VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
-      CompileLine(compilation, parser, LazyString{std::move(line)});
+      CompileLine(compilation, parser, SingleLine{LazyString{std::move(line)}});
       compilation.IncrementLine();
     }
   }
@@ -102,7 +102,7 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
 
 // It is the responsibility of the caller to register errors to compilation.
 PossibleError HandleInclude(Compilation& compilation, void* parser,
-                            const LazyString& str, ColumnNumber* pos_output) {
+                            const SingleLine& str, ColumnNumber* pos_output) {
   CHECK(compilation.errors().empty());
 
   VLOG(6) << "Processing #include directive.";
@@ -132,7 +132,7 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
       AugmentError(
           LazyString{L"#include was unable to extract path; in line: "} + str +
               LazyString{L"; error: "},
-          Path::New(str.Substring(start, pos - start))));
+          Path::New(ToLazyString(str.Substring(start, pos - start)))));
 
   if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
       compilation.current_source_path().has_value()) {
@@ -152,7 +152,7 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
   return Success();
 }
 
-numbers::BigInt ConsumeDecimal(const LazyString& str, ColumnNumber* pos) {
+numbers::BigInt ConsumeDecimal(const SingleLine& str, ColumnNumber* pos) {
   BigInt output = numbers::BigInt::FromNumber(0);
   while (pos->ToDelta() < str.size() && isdigit(str.get(*pos))) {
     output = output * BigInt::FromNumber(10) +
@@ -163,7 +163,7 @@ numbers::BigInt ConsumeDecimal(const LazyString& str, ColumnNumber* pos) {
 }
 
 void CompileLine(Compilation& compilation, void* parser,
-                 const LazyString& str) {
+                 const SingleLine& str) {
   CHECK(compilation.errors().empty());
   ColumnNumber pos;
   int token;
@@ -281,7 +281,7 @@ void CompileLine(Compilation& compilation, void* parser,
           while (pos.ToDelta() < str.size() &&
                  (iswalnum(str.get(pos)) || str.get(pos) == '_'))
             ++pos;
-          LazyString symbol_contents = str.Substring(start, pos - start);
+          SingleLine symbol_contents = str.Substring(start, pos - start);
           if (symbol_contents == ToLazyString(IdentifierInclude()))
             HandleInclude(compilation, parser, str, &pos);
           else
@@ -445,7 +445,6 @@ void CompileLine(Compilation& compilation, void* parser,
 
       case 0:
       case ' ':
-      case '\n':
       case '\t':
         pos++;
         continue;
@@ -640,8 +639,7 @@ CompileString(const LazyString& str, language::gc::Pool& pool,
       [&compilation, parser = GetParser(compilation)](LineNumber,
                                                       const Line& line) {
         VLOG(4) << "Compiling line: [" << line << "]";
-        // TODO(2025-05-09): Get rid of `read()`: Pass a SingleLine!
-        CompileLine(compilation, parser.get(), line.contents().read());
+        CompileLine(compilation, parser.get(), line.contents());
         compilation.IncrementLine();
         return compilation.errors().empty();
       });
