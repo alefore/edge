@@ -133,7 +133,7 @@ class VectorBlock {
 
   template <typename Predicate>
   static bool Every(const std::shared_ptr<const VectorBlock>& v,
-                    Predicate& predicate) {
+                    const Predicate& predicate) {
     return std::ranges::all_of(v->values_, predicate);
   }
 
