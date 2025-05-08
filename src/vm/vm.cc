@@ -17,6 +17,8 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/vm/append_expression.h"
 #include "src/vm/assign_expression.h"
@@ -57,6 +59,9 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
+using afc::language::text::LineNumber;
+using afc ::language::text::LineSequence;
 using numbers::BigInt;
 
 namespace afc::vm {
@@ -74,16 +79,6 @@ extern "C" {
 
 void CompileLine(Compilation& compilation, void* parser, const LazyString& str);
 
-void CompileStream(std::wistream& stream, Compilation& compilation,
-                   void* parser) {
-  std::wstring line;
-  while (compilation.errors().empty() && std::getline(stream, line)) {
-    VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
-    CompileLine(compilation, parser, LazyString{std::move(line)});
-    compilation.IncrementLine();
-  }
-}
-
 void CompileFile(Path path, Compilation& compilation, void* parser) {
   VLOG(3) << "Compiling file: [" << path << "]";
 
@@ -94,7 +89,12 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
   if (infile.fail()) {
     compilation.AddError(Error{path.read() + LazyString{L": open failed"}});
   } else {
-    CompileStream(infile, compilation, parser);
+    std::wstring line;
+    while (compilation.errors().empty() && std::getline(infile, line)) {
+      VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
+      CompileLine(compilation, parser, LazyString{std::move(line)});
+      compilation.IncrementLine();
+    }
   }
 
   compilation.PopSource();
@@ -635,12 +635,17 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileString(const LazyString& str, language::gc::Pool& pool,
               language::gc::Root<Environment> environment) {
-  // TODO(easy, 2024-08-23): Find a better way, calling `CompileLine` directly,
-  // similar to what `CompileStream` does.
-  std::wstringstream instr(str.ToString(), std::ios_base::in);
   Compilation compilation(pool, std::move(environment));
   compilation.PushSource(std::nullopt);
-  CompileStream(instr, compilation, GetParser(compilation).get());
+  LineSequence::BreakLines(str).EveryLine(
+      [&compilation, parser = GetParser(compilation)](LineNumber,
+                                                      const Line& line) {
+        VLOG(4) << "Compiling line: [" << line << "]";
+        // TODO(2025-05-09): Get rid of `read()`: Pass a SingleLine!
+        CompileLine(compilation, parser.get(), line.contents().read());
+        compilation.IncrementLine();
+        return compilation.errors().empty();
+      });
   compilation.PopSource();
   return ResultsFromCompilation(std::move(compilation));
 }
