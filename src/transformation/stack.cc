@@ -21,6 +21,7 @@ namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -78,9 +79,16 @@ futures::Value<PossibleError> PreviewCppExpression(
                      return Success();
                    })
                    .ConsumeErrors([&buffer](Error error) {
-                     buffer.status().SetInformationText(LineBuilder{
-                         SingleLine{LazyString{L"E: "}} +
-                         SingleLine{error.read()}}.Build());
+                     LineBuilder builder;
+                     builder.AppendString(
+                         SINGLE_LINE_CONSTANT(L"💣 E:"),
+                         LineModifierSet{LineModifier::kBgRed});
+                     builder.AppendString(SINGLE_LINE_CONSTANT(L" "));
+                     builder.AppendString(
+                         LineSequence::BreakLines(error.read()).FoldLines(),
+                         LineModifierSet{LineModifier::kRed});
+                     buffer.status().SetInformationText(
+                         std::move(builder).Build());
                      return futures::Past(EmptyValue());
                    })
                    .Transform(
@@ -125,7 +133,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
         input.buffer.status().Set(error);
         if (input.delete_buffer.has_value()) {
           input.delete_buffer->ptr()->AppendToLastLine(
-              LineBuilder{SingleLine{error.read()}}.Build());
+              LineBuilder{LineSequence::BreakLines(error.read()).FoldLines()}
+                  .Build());
           input.delete_buffer->ptr()->AppendRawLine(Line{});
           output.added_to_paste_buffer = true;
         }
@@ -442,10 +451,10 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             if (input.mode == Input::Mode::kPreview) {
               return futures::Past(std::move(output.value()));
             }
-            struct Cursors cursors {
-              .cursors = {},
-              .active = LineColumn(delete_transformation.range->begin().line)
-            };
+            struct Cursors cursors{
+                .cursors = {},
+                .active =
+                    LineColumn(delete_transformation.range->begin().line)};
             delete_transformation.range->ForEachLine(
                 [&cursors](LineNumber line) {
                   cursors.cursors.insert(LineColumn(line));
