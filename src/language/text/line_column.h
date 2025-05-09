@@ -61,6 +61,8 @@ struct LineColumn {
   LineColumn(LineNumber l, afc::language::lazy_string::ColumnNumber c)
       : line(l), column(c) {}
 
+  LineColumn NextLine() const;
+
   static LineColumn Max() {
     return LineColumn(
         std::numeric_limits<LineNumber>::max(),

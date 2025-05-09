@@ -13,6 +13,7 @@ namespace afc::language::lazy_string {
 // Returns a copy with all left space characters removed.
 template <typename StringType>
 StringType TrimLeft(StringType source,
+                    // TODO(2025-05-09): Why is this not const-ref?
                     std::unordered_set<wchar_t> space_characters) {
   TRACK_OPERATION(LazyString_StringTrimLeft);
   return source.Substring(FindFirstNotOf(source, space_characters)
@@ -21,7 +22,9 @@ StringType TrimLeft(StringType source,
 
 // StringType is expected to be either LazyString or SingleLine.
 template <typename StringType>
-StringType Trim(StringType in, std::unordered_set<wchar_t> space_characters) {
+StringType Trim(StringType in,
+                // TODO(2025-05-09): Why is this not const-ref?
+                std::unordered_set<wchar_t> space_characters) {
   if (std::optional<ColumnNumber> begin = FindFirstNotOf(in, space_characters);
       begin.has_value()) {
     if (std::optional<ColumnNumber> end = FindLastNotOf(in, space_characters);

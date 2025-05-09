@@ -68,6 +68,10 @@ std::optional<ColumnNumber> Reader<ColumnNumber>::Read(Stream& input_stream) {
 };
 }  // namespace afc::tests::fuzz
 namespace afc::language::text {
+LineColumn LineColumn::NextLine() const {
+  return LineColumn{line + LineNumberDelta{1}};
+}
+
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
   os << "["
      << (lc.line == std::numeric_limits<LineNumber>::max()

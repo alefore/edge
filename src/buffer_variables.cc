@@ -27,6 +27,17 @@ EdgeVariable<bool>* const vm_exec =
              L"If set, all input read into this buffer will be executed.")
          .Build();
 
+EdgeVariable<bool>* const buffers_list_preview_follows_cursor =
+    &BoolStruct()
+         ->Add()
+         .Name(L"buffers_list_preview_follows_cursor")
+         .Description(
+             L"Controls how the content shown in the buffers list is selected: "
+             L"If true, uses the line with the active cursor; otherwise, the "
+             L"first non-empty.")
+         .DefaultValue(true)
+         .Build();
+
 EdgeVariable<bool>* const close_after_clean_exit =
     &BoolStruct()
          ->Add()

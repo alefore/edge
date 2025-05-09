@@ -89,6 +89,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_tree_parser("md");
     buffer.set_paragraph_line_prefix_characters("*-# ");
     buffer.set_line_prefix_characters("> ");
+    buffer.set_buffers_list_preview_follows_cursor(false);
     buffer.SetStatus("🔡 Markdown file (" + extension + ")");
   }
 }

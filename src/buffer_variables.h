@@ -13,6 +13,7 @@ namespace buffer_variables {
 EdgeStruct<bool>* BoolStruct();
 extern EdgeVariable<bool>* const pts;
 extern EdgeVariable<bool>* const vm_exec;
+extern EdgeVariable<bool>* const buffers_list_preview_follows_cursor;
 extern EdgeVariable<bool>* const close_after_clean_exit;
 extern EdgeVariable<bool>* const allow_dirty_delete;
 extern EdgeVariable<bool>* const reload_after_exit;

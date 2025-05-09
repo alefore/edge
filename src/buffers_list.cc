@@ -43,8 +43,10 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::Trim;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -443,8 +445,13 @@ const bool remove_common_prefixes_tests_registration =
 enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
 
 LineBuilder GetBufferContents(const LineSequence& contents,
-                              ColumnNumberDelta columns) {
-  Line line = contents.at(LineNumber(0));
+                              ColumnNumberDelta columns, LineColumn position) {
+  static const std::unordered_set<wchar_t> space_characters = {L' ', L'\t'};
+  while (position.line < contents.EndLine() &&
+         Trim(contents.at(position.line).contents(), space_characters).empty())
+    position = position.NextLine();
+  Line line = contents.at(position.line > contents.EndLine() ? LineNumber{}
+                                                             : position.line);
   LineBuilder output;
   if ((line.EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
     ColumnNumberDelta padding = (columns - line.EndColumn().ToDelta()) / 2;
@@ -462,6 +469,7 @@ LineBuilder GetBufferContents(const LineSequence& contents,
 LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
                                    SingleLine buffer_name,
                                    const LineSequence& contents,
+                                   LineColumn position,
                                    LineModifierSet modifiers,
                                    SelectionState selection_state,
                                    const std::list<PathComponent>& components) {
@@ -510,8 +518,8 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
              GetOutputComponents(components, columns, modifiers, bold, dim));
 
   if (columns > output.EndColumn().ToDelta())
-    output.Append(
-        GetBufferContents(contents, columns - output.EndColumn().ToDelta()));
+    output.Append(GetBufferContents(
+        contents, columns - output.EndColumn().ToDelta(), position));
 
   CHECK_LE(output.size(), columns);
   return output;
@@ -523,7 +531,8 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
         {.name = L"LongExtension", .callback = [] {
            GetBufferVisibleString(
                ColumnNumberDelta(48), SINGLE_LINE_CONSTANT(L"name_irrelevant"),
-               LineSequence(), LineModifierSet{}, SelectionState::kIdle,
+               LineSequence(), LineColumn{}, LineModifierSet{},
+               SelectionState::kIdle,
                ValueOrDie(
                    ValueOrDie(Path::New(LazyString{
                                   L"edge-clang/edge/src/args.cc/.edge_state"}))
@@ -737,6 +746,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                   LineSequence::BreakLines(buffer.Read(buffer_variables::name))
                       .FoldLines(),
                   buffer.contents().snapshot(),
+                  buffer.Read(
+                      buffer_variables::buffers_list_preview_follows_cursor)
+                      ? buffer.position()
+                      : LineColumn{},
                   buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                  : LineModifierSet{},
                   selection_state, path_components[index + j]);
