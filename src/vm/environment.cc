@@ -12,6 +12,7 @@
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
+#include "src/tests/tests.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
@@ -348,4 +349,55 @@ const Environment* Environment::FindNamespace(
   }
   return environment;
 }
+
+namespace {
+const bool environment_tests_registration = tests::Register(
+    L"Environment",
+    {
+        {.name = L"ParentSurvivesCollection",
+         .callback =
+             [] {
+               gc::Pool pool{gc::Pool::Options{}};
+               CHECK_EQ(pool.count_objects(), 0ul);
+               std::optional<gc::Root<Environment>> parent =
+                   Environment::New(pool);
+               CHECK_EQ(pool.count_objects(), 1ul);
+
+               static const Identifier id{
+                   NON_EMPTY_SINGLE_LINE_CONSTANT(L"foo")};
+
+               parent->ptr()->DefineUninitialized(id, types::String{});
+               parent->ptr()->Assign(
+                   id, Value::NewString(pool, LazyString{L"bar"}));
+               CHECK_EQ(pool.count_objects(), 2ul);
+
+               std::optional<gc::Root<Environment>> child =
+                   Environment::New(parent->ptr());
+               CHECK_EQ(pool.count_objects(), 3ul);
+
+               parent = std::nullopt;
+               pool.FullCollect();
+               pool.BlockUntilDone();
+               CHECK_EQ(pool.count_objects(), 3ul);
+
+               std::vector<Environment::LookupResult> output =
+                   child->ptr()->PolyLookup(Namespace{}, id);
+               CHECK_EQ(output.size(), 1ul);
+               CHECK_EQ(output.at(0).value->ptr()->get_string(),
+                        LazyString{L"bar"});
+
+               child = std::nullopt;
+               pool.FullCollect();
+               pool.BlockUntilDone();
+               CHECK_EQ(pool.count_objects(), 1ul);
+               CHECK_EQ(output.at(0).value->ptr()->get_string(),
+                        LazyString{L"bar"});
+
+               output.clear();
+               pool.FullCollect();
+               pool.BlockUntilDone();
+               CHECK_EQ(pool.count_objects(), 0ul);
+             }},
+    });
+}  // namespace
 }  // namespace afc::vm
