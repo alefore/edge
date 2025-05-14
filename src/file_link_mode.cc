@@ -28,6 +28,7 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/error/view.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
@@ -355,38 +356,9 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
       });
 }
 
-template <typename T>
-bool EndsIn(std::list<T> suffix, std::list<T> candidate) {
-  if (candidate.size() < suffix.size()) return false;
-  auto candidate_it = candidate.begin();
-  std::advance(candidate_it, candidate.size() - suffix.size());
-  for (const auto& t : suffix) {
-    if (*candidate_it != t) return false;
-    ++candidate_it;
-  }
-  return true;
-}
-const bool ends_in_registration = tests::Register(
-    L"EndsIn",
-    {
-        {.name = L"EmptyBoth", .callback = [] { CHECK(EndsIn<int>({}, {})); }},
-        {.name = L"EmptySuffix",
-         .callback = [] { CHECK(EndsIn<int>({}, {1, 2, 3})); }},
-        {.name = L"EmptyCandidate",
-         .callback = [] { CHECK(!EndsIn<int>({1, 2, 3}, {})); }},
-        {.name = L"ShortNonEmptyCandidate",
-         .callback = [] { CHECK(!EndsIn<int>({1, 2, 3}, {1, 2})); }},
-        {.name = L"IdenticalNonEmpty",
-         .callback = [] { CHECK(EndsIn<int>({1, 2, 3}, {1, 2, 3})); }},
-        {.name = L"EndsInLongerCandidate",
-         .callback = [] { CHECK(EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 5, 6})); }},
-        {.name = L"NotEndsInLongerCandidate",
-         .callback =
-             [] { CHECK(!EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 0, 6})); }},
-    });
-
 futures::ValueOrError<ResolvePathOutput<gc::Root<OpenBuffer>>>
 FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
+  TRACK_OPERATION(FindAlreadyOpenBuffer);
   ResolvePathOptions<gc::Root<OpenBuffer>> resolve_path_options{
       .home_directory = editor_state.home_directory(),
       .validator = [&editor_state](const Path& path_to_validate)
@@ -394,18 +366,12 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
         return futures::Past(path_to_validate.DirectorySplit())
             .Transform([&](std::list<PathComponent> path_components)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-              for (gc::Root<OpenBuffer> buffer :
-                   editor_state.buffer_registry().buffers()) {
-                auto buffer_path =
-                    Path::New(buffer.ptr()->Read(buffer_variables::path));
-                if (IsError(buffer_path)) continue;
-                ValueOrError<std::list<PathComponent>> buffer_components =
-                    std::get<Path>(buffer_path).DirectorySplit();
-                if (IsError(buffer_components)) continue;
-                if (EndsIn(path_components, std::get<0>(buffer_components))) {
-                  return futures::Past(buffer);
-                }
-              }
+              TRACK_OPERATION(FindAlreadyOpenBuffer_InnerLoop);
+              if (std::vector<gc::Root<OpenBuffer>> buffers =
+                      editor_state.buffer_registry().FindBuffersPathEndingIn(
+                          path_components);
+                  !buffers.empty())
+                return futures::Past(buffers.at(0));
               return futures::Past(Error{LazyString{L"Unable to find buffer"}});
             });
       }};

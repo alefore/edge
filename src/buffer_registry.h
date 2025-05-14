@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_BUFFER_REGISTRY_H__
 #define __AFC_EDITOR_BUFFER_REGISTRY_H__
 
+#include <list>
 #include <map>
 #include <optional>
 #include <vector>
@@ -42,6 +43,10 @@ class BufferRegistry {
 
   std::optional<language::gc::Root<OpenBuffer>> Find(
       const BufferName& name) const;
+
+  std::vector<language::gc::Root<OpenBuffer>> FindBuffersPathEndingIn(
+      std::list<infrastructure::PathComponent> path_components) const;
+
   std::optional<language::gc::Root<OpenBuffer>> FindPath(
       const infrastructure::Path& path) const;
 
