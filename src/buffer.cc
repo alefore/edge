@@ -286,9 +286,12 @@ using namespace afc::vm;
       options.editor.default_commands().ptr()->NewChild();
   gc::Root<MapMode> mode =
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
-  gc::Root<OpenBuffer> output = options.editor.gc_pool().NewRoot(
-      MakeNonNullUnique<OpenBuffer>(ConstructorAccessTag(), std::move(options),
-                                    default_commands.ptr(), mode.ptr()));
+  gc::Root<Environment> environment =
+      Environment::New(options.editor.environment().ptr());
+  gc::Root<OpenBuffer> output =
+      options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
+          ConstructorAccessTag(), std::move(options), default_commands.ptr(),
+          mode.ptr(), environment.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
 }
@@ -363,7 +366,8 @@ class OpenBufferMutableLineSequenceObserver
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
-                       gc::Ptr<InputReceiver> mode)
+                       gc::Ptr<InputReceiver> mode,
+                       gc::Ptr<Environment> environment)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -371,7 +375,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
           std::vector<NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
               {contents_observer_,
                cursors_tracker_.NewMutableLineSequenceObserver()}))),
-      environment_(Environment::New(options_.editor.environment().ptr()).ptr()),
+      environment_(std::move(environment)),
       default_commands_(std::move(default_commands)),
       mode_(std::move(mode)),
       status_(options_.editor.audio_player()),

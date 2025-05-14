@@ -136,7 +136,8 @@ class OpenBuffer {
   static language::gc::Root<OpenBuffer> New(Options options);
   OpenBuffer(ConstructorAccessTag, Options options,
              language::gc::Ptr<MapModeCommands> default_commands,
-             language::gc::Ptr<InputReceiver> mode);
+             language::gc::Ptr<InputReceiver> mode,
+             language::gc::Ptr<vm::Environment> environment);
   ~OpenBuffer();
 
   EditorState& editor() const;
