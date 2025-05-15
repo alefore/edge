@@ -125,6 +125,8 @@ src/infrastructure/file_descriptor_reader.cc \
 src/infrastructure/file_descriptor_reader.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
+src/infrastructure/path_suffix_map.cc \
+src/infrastructure/path_suffix_map.h \
 src/infrastructure/regular_file_adapter.h \
 src/infrastructure/regular_file_adapter.cc \
 src/infrastructure/terminal_adapter.cc \

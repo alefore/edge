@@ -56,66 +56,25 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
       });
 }
 
-namespace {
-template <typename T>
-bool EndsIn(std::list<T> suffix, std::list<T> candidate) {
-  if (candidate.size() < suffix.size()) return false;
-  auto candidate_it = candidate.begin();
-  std::advance(candidate_it, candidate.size() - suffix.size());
-  for (const auto& t : suffix) {
-    if (*candidate_it != t) return false;
-    ++candidate_it;
-  }
-  return true;
-}
-const bool ends_in_registration = tests::Register(
-    L"EndsIn",
-    {
-        {.name = L"EmptyBoth", .callback = [] { CHECK(EndsIn<int>({}, {})); }},
-        {.name = L"EmptySuffix",
-         .callback = [] { CHECK(EndsIn<int>({}, {1, 2, 3})); }},
-        {.name = L"EmptyCandidate",
-         .callback = [] { CHECK(!EndsIn<int>({1, 2, 3}, {})); }},
-        {.name = L"ShortNonEmptyCandidate",
-         .callback = [] { CHECK(!EndsIn<int>({1, 2, 3}, {1, 2})); }},
-        {.name = L"IdenticalNonEmpty",
-         .callback = [] { CHECK(EndsIn<int>({1, 2, 3}, {1, 2, 3})); }},
-        {.name = L"EndsInLongerCandidate",
-         .callback = [] { CHECK(EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 5, 6})); }},
-        {.name = L"NotEndsInLongerCandidate",
-         .callback =
-             [] { CHECK(!EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 0, 6})); }},
-    });
-}  // namespace
-
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::FindBuffersPathEndingIn(
-    std::list<PathComponent> path_components) const {
+    const Path& path) const {
   return data_.lock([&](const Data& data) {
+    std::vector<gc::WeakPtr<OpenBuffer>> weak_ptr_output =
+        container::MaterializeVector(
+            data.path_suffix_map.FindPathWithSuffix(path) |
+            std::views::transform(
+                [&data](const Path& buffer_path) -> gc::WeakPtr<OpenBuffer> {
+                  if (auto it = data.buffer_map.find(BufferFileId{buffer_path});
+                      it != data.buffer_map.end())
+                    return it->second;
+                  return gc::WeakPtr<OpenBuffer>();
+                }));
+    // TODO(2025-05-15): Figure out why we can't just include gc::view::Lock in
+    // the expression above and just return that. It gives a typing error in the
+    // call to MaterializeVector.
     std::vector<gc::Root<OpenBuffer>> output;
-    // TODO(2025-05-15, easy): Optimize this to not have N^2 complexity (where
-    // N is the number of buffers). The best way to achieve that is probably to
-    // keep a separate index:
-    //
-    //     std::multimap<std::list<PathComponent>, gc::WeakPtr<OpenBuffer>>.
-    //
-    // The keys are suffixes. "/home/alejo/foo" would have entries like {"foo"},
-    // {"alejo", "foo"}, {"home", "alejo", "foo"}.
-    for (const std::pair<const BufferName, gc::WeakPtr<OpenBuffer>>& item :
-         data.buffer_map) {
-      TRACK_OPERATION(FindAlreadyOpenBuffer_InnerLoop_Iteration);
-      std::optional<gc::Root<OpenBuffer>> buffer = item.second.Lock();
-      if (!buffer.has_value()) continue;
-      if (const BufferFileId* buffer_path =
-              std::get_if<BufferFileId>(&item.first);
-          buffer_path != nullptr)
-        std::visit(overload{IgnoreErrors{},
-                            [&path_components, &output, &buffer](
-                                std::list<PathComponent> buffer_components) {
-                              if (EndsIn(path_components, buffer_components))
-                                output.push_back(buffer.value());
-                            }},
-                   buffer_path->read().DirectorySplit());
-    }
+    for (gc::Root<OpenBuffer> o : weak_ptr_output | gc::view::Lock)
+      output.push_back(std::move(o));
     return output;
   });
 }
@@ -161,6 +120,8 @@ void BufferRegistry::Clear() {
 bool BufferRegistry::Remove(const BufferName& name) {
   return data_.lock([&name](Data& data) {
     data.retained_buffers.erase(name);
+    if (const auto* id = std::get_if<BufferFileId>(&name); id != nullptr)
+      data.path_suffix_map.Erase(id->read());
     return data.buffer_map.erase(name) > 0;
   });
 }
@@ -182,6 +143,8 @@ void BufferRegistry::Add(Data& data, const BufferName& name,
       std::holds_alternative<PasteBuffer>(name) ||
       std::holds_alternative<FragmentsBuffer>(name))
     data.retained_buffers.insert_or_assign(name, buffer.Lock()->ptr());
+  if (const auto* id = std::get_if<BufferFileId>(&name); id != nullptr)
+    data.path_suffix_map.Insert(id->read());
   data.buffer_map.insert_or_assign(name, std::move(buffer));
 }
 }  // namespace afc::editor

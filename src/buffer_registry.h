@@ -8,6 +8,7 @@
 
 #include "src/buffer_name.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/path_suffix_map.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/once_only_function.h"
@@ -29,6 +30,8 @@ class BufferRegistry {
 
     std::vector<language::gc::WeakPtr<OpenBuffer>> buffers_with_screen;
 
+    infrastructure::PathSuffixMap path_suffix_map;
+
     size_t next_anonymous_buffer_name = 0;
   };
 
@@ -45,7 +48,7 @@ class BufferRegistry {
       const BufferName& name) const;
 
   std::vector<language::gc::Root<OpenBuffer>> FindBuffersPathEndingIn(
-      std::list<infrastructure::PathComponent> path_components) const;
+      const infrastructure::Path& path) const;
 
   std::optional<language::gc::Root<OpenBuffer>> FindPath(
       const infrastructure::Path& path) const;

@@ -363,17 +363,13 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
       .home_directory = editor_state.home_directory(),
       .validator = [&editor_state](const Path& path_to_validate)
           -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-        return futures::Past(path_to_validate.DirectorySplit())
-            .Transform([&](std::list<PathComponent> path_components)
-                           -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-              TRACK_OPERATION(FindAlreadyOpenBuffer_InnerLoop);
-              if (std::vector<gc::Root<OpenBuffer>> buffers =
-                      editor_state.buffer_registry().FindBuffersPathEndingIn(
-                          path_components);
-                  !buffers.empty())
-                return futures::Past(buffers.at(0));
-              return futures::Past(Error{LazyString{L"Unable to find buffer"}});
-            });
+        TRACK_OPERATION(FindAlreadyOpenBuffer_InnerLoop);
+        if (std::vector<gc::Root<OpenBuffer>> buffers =
+                editor_state.buffer_registry().FindBuffersPathEndingIn(
+                    path_to_validate);
+            !buffers.empty())
+          return futures::Past(buffers.at(0));
+        return futures::Past(Error{LazyString{L"Unable to find buffer"}});
       }};
   if (path.has_value())
     resolve_path_options.path = editor_state.expand_path(path.value()).read();
