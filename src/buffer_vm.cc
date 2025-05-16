@@ -527,6 +527,14 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
         return buffer->parse_tree();
       }).ptr());
 
+  // This isn't kPurityTypeReader because it has the side-effect of potentially
+  // creating the directory.
+  buffer_object_type.ptr()->AddField(
+      IDENTIFIER_CONSTANT(L"state_directory"),
+      vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
+        return buffer->GetEdgeStateDirectory();
+      }).ptr());
+
   buffer_object_type.ptr()->AddField(
       IDENTIFIER_CONSTANT(L"ApplyTransformation"),
       vm::NewCallback(

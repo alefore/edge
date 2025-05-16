@@ -162,6 +162,32 @@ editor.AddBinding("sh", "Buffers: Navigate to the header / implementation.",
 // Editing commands
 ////////////////////////////////////////////////////////////////////////////////
 
+void BackupDiff() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    ForkCommandOptions options;
+    options.set_command("diff -Naur " + buffer.path().shell_escape() + " " +
+                        buffer.state_directory().shell_escape() + "/backup");
+    options.set_insertion_type("visit");
+    editor.ForkCommand(options);
+  });
+}
+
+void BackupShow() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    editor.OpenFile(buffer.state_directory() + "/backup", true);
+  });
+}
+
+editor.AddBinding("abd", "Buffers: Backup: Diff buffer against backup.",
+                  BackupDiff);
+
+editor.AddBinding("abs", "Buffers: Backup: Show backup of current buffer.",
+                  BackupShow);
+
+////////////////////////////////////////////////////////////////////////////////
+// Editing commands
+////////////////////////////////////////////////////////////////////////////////
+
 editor.AddBinding(".", "Edit: Repeats the last command.",
                   editor.RepeatLastTransformation);
 
