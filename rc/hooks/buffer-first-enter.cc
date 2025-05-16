@@ -28,10 +28,10 @@ void AddContextExtension(string ext) {
   }
 }
 
-void HandleFileTypes(string basename, string extension) {
+void HandleFileTypes(Buffer buffer, string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
-    CppMode();
+    CppMode(buffer);
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
     buffer.set_completion_model_paths("format/cpp iso-639/en");
     return;
@@ -44,7 +44,7 @@ void HandleFileTypes(string basename, string extension) {
   }
 
   if (extension == "java") {
-    JavaMode();
+    JavaMode(buffer);
     buffer.SetStatus("🔡 Java file (" + extension + ")");
     return;
   }
@@ -154,7 +154,7 @@ if (path == "") {
 
   buffer.set_typos("overriden optoins");
 
-  HandleFileTypes(basename, extension);
+  HandleFileTypes(buffer, basename, extension);
 
   if (path.find("/zettelkasten", 0) != -1 &&
       buffer.cpp_prompt_namespaces().find("zettelkasten", 0) == -1) {

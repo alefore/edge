@@ -34,7 +34,7 @@ TransformationOutput StdMoveTransformation(TransformationInput input,
                                     text_to_insert.size() - delta_from_end));
 }
 
-void RegisterSimpleCppBinding(string keys, string text_to_insert,
+void RegisterSimpleCppBinding(Buffer buffer, string keys, string text_to_insert,
                               number delta_from_end) {
   buffer.AddBinding(keys, "C++: Insert `" + text_to_insert + "`", []() -> void {
     buffer.ApplyTransformation(FunctionTransformation(
@@ -44,7 +44,7 @@ void RegisterSimpleCppBinding(string keys, string text_to_insert,
   });
 }
 
-void CppMode() {
+void CppMode(Buffer buffer) {
   buffer.set_paragraph_line_prefix_characters(" /*");
   buffer.set_line_prefix_characters(" /*");
   buffer.set_language_keywords(
@@ -71,9 +71,9 @@ void CppMode() {
       "true false nullptr NULL");
   buffer.set_tree_parser("cpp");
 
-  RegisterSimpleCppBinding("Sm", "std::move()", 1);
-  RegisterSimpleCppBinding("So", "std::optional<>", 1);
-  RegisterSimpleCppBinding("Su", "std::unique_ptr<>", 1);
-  RegisterSimpleCppBinding("Ss", "std::shared_ptr<>", 1);
-  RegisterSimpleCppBinding("Sf", "std::function<()>", 2);
+  RegisterSimpleCppBinding(buffer, "Sm", "std::move()", 1);
+  RegisterSimpleCppBinding(buffer, "So", "std::optional<>", 1);
+  RegisterSimpleCppBinding(buffer, "Su", "std::unique_ptr<>", 1);
+  RegisterSimpleCppBinding(buffer, "Ss", "std::shared_ptr<>", 1);
+  RegisterSimpleCppBinding(buffer, "Sf", "std::function<()>", 2);
 }

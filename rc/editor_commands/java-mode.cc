@@ -1,4 +1,4 @@
-void JavaMode() {
+void JavaMode(Buffer buffer) {
   buffer.set_paragraph_line_prefix_characters(" /*");
   buffer.set_line_prefix_characters(" /*");
   buffer.set_line_width(100);
