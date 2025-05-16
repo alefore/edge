@@ -24,7 +24,7 @@ class ObjectName;
 }
 // Represents a namespace in the VM environment, where symbols can be defined.
 // For example, a reference `lib::zk::Today` is actually the symbol "Today" in
-// the namespace `{"lib", "zk"}`.
+// the namespace `Namespace{"lib", "zk"}`.
 class Namespace
     : public language::GhostType<Namespace, std::vector<Identifier>> {};
 
@@ -43,14 +43,17 @@ class Environment {
 
   concurrent::Protected<Data> data_;
 
-  // `parent_environment_` can't be const: `Assign` may want to recursively call
-  // `Assign` on the parent (if the symbol we're assigning to is defined in the
-  // parent).
+  // The Environment instance pointed to by `parent_environment_` can't be
+  // const: `Assign` may want to recursively call `Assign` on the parent
+  // instance (if the symbol we're assigning to is defined in the parent).
   const std::optional<language::gc::Ptr<Environment>> parent_environment_ =
       std::nullopt;
 
  public:
   static language::gc::Root<Environment> New(language::gc::Pool& pool);
+  // Creates a new environment that is a child of `parent_environment`. The new
+  // gc::Root is created in the same gc::Pool as the `parent_environment`
+  // pointer.
   static language::gc::Root<Environment> New(
       language::gc::Ptr<Environment> parent_environment);
 
