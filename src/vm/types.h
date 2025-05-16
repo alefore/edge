@@ -38,6 +38,9 @@ const Identifier& IdentifierAuto();
 // Return the identifier for "include".
 const Identifier& IdentifierInclude();
 
+#define IDENTIFIER_CONSTANT(x) \
+  Identifier { NON_EMPTY_SINGLE_LINE_CONSTANT(x) }
+
 class ObjectType;
 
 struct PurityType {
