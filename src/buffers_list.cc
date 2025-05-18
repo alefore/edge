@@ -4,6 +4,7 @@
 #include <ctgmath>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
 #include "src/infrastructure/dirname.h"
@@ -38,6 +39,7 @@ using afc::language::NonNull;
 using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -768,13 +770,16 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 }
 }  // namespace
 
-BuffersList::BuffersList(NonNull<std::unique_ptr<CustomerAdapter>> customer)
-    : BuffersList(std::move(customer),
+BuffersList::BuffersList(BufferRegistry& buffer_registry,
+                         NonNull<std::unique_ptr<CustomerAdapter>> customer)
+    : BuffersList(buffer_registry, std::move(customer),
                   MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})) {}
 
-BuffersList::BuffersList(NonNull<std::unique_ptr<CustomerAdapter>> customer,
+BuffersList::BuffersList(BufferRegistry& buffer_registry,
+                         NonNull<std::unique_ptr<CustomerAdapter>> customer,
                          NonNull<std::unique_ptr<BufferWidget>> widget)
-    : customer_(std::move(customer)),
+    : buffer_registry_(buffer_registry),
+      customer_(std::move(customer)),
       active_buffer_widget_(widget.get()),
       widget_(std::move(widget)) {}
 
@@ -1022,14 +1027,6 @@ void BuffersList::SetBufferSortOrder(BufferSortOrder buffer_sort_order) {
   buffer_sort_order_ = buffer_sort_order;
 }
 
-void BuffersList::SetBuffersToRetain(std::optional<size_t> buffers_to_retain) {
-  buffers_to_retain_ = buffers_to_retain;
-}
-
-void BuffersList::SetBuffersToShow(std::optional<size_t> buffers_to_show) {
-  buffers_to_show_ = buffers_to_show;
-}
-
 void BuffersList::Update() {
   TRACK_OPERATION(BuffersList__Update);
 
@@ -1050,20 +1047,24 @@ void BuffersList::Update() {
                                 b.ptr()->Read(buffer_variables::pin));
             });
 
-  if (buffers_to_retain_.has_value() &&
-      buffers_.size() > buffers_to_retain_.value()) {
-    std::vector<gc::Root<OpenBuffer>> retained_buffers;
-    retained_buffers.reserve(buffers_.size());
-    for (size_t index = 0; index < buffers_.size(); ++index) {
-      if (index < buffers_to_retain_.value() ||
-          buffers_[index].ptr()->dirty()) {
-        retained_buffers.push_back(std::move(buffers_[index]));
-      } else {
-        buffers_[index].ptr()->Close();
-      }
-    }
-    buffers_ = std::move(retained_buffers);
-  }
+  VisitOptional(
+      [&](size_t limit) {
+        if (buffers_.size() > limit) {
+          std::vector<gc::Root<OpenBuffer>> retained_buffers;
+          retained_buffers.reserve(buffers_.size());
+          for (size_t index = 0; index < buffers_.size(); ++index) {
+            if (index < limit || buffers_[index].ptr()->dirty()) {
+              retained_buffers.push_back(std::move(buffers_[index]));
+            } else {
+              buffers_[index].ptr()->Close();
+            }
+          }
+          buffers_ = std::move(retained_buffers);
+        }
+      },
+      [] { /* Nothing. */
+      },
+      buffer_registry_.listed_count());
 
   // This is a copy of buffers_ but filtering down some buffers that shouldn't
   // be shown.
@@ -1080,16 +1081,18 @@ void BuffersList::Update() {
     buffers.push_back(std::move(buffer));
   }
 
-  if (!buffers_to_show_.has_value()) {
-    // Pass.
-  } else if (buffers_to_show_.value() <= index_active) {
-    gc::Root<OpenBuffer> buffer = std::move(buffers[index_active]);
-    buffers.clear();
-    buffers.push_back(std::move(buffer));
-    index_active = 0;
-  } else if (*buffers_to_show_ < buffers.size()) {
-    buffers.erase(buffers.begin() + *buffers_to_show_, buffers.end());
-  }
+  VisitOptional(
+      [&index_active, &buffers](size_t count) {
+        if (count <= index_active) {
+          gc::Root<OpenBuffer> buffer = std::move(buffers[index_active]);
+          buffers.clear();
+          buffers.push_back(std::move(buffer));
+          index_active = 0;
+        } else if (count < buffers.size()) {
+          buffers.erase(buffers.begin() + count, buffers.end());
+        }
+      },
+      []() { /* Nothing. */ }, buffer_registry_.shown_count());
 
   if (buffers.empty()) {
     NonNull<std::unique_ptr<BufferWidget>> buffer_widget =

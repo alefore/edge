@@ -296,9 +296,9 @@ class EditorState {
 
   InsertHistory insert_history_;
 
-  BuffersList buffer_tree_;
-
   const language::gc::Root<BufferRegistry> buffer_registry_;
+
+  BuffersList buffer_tree_;
 };
 
 }  // namespace afc::editor

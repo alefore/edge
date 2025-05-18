@@ -134,6 +134,22 @@ BufferRegistry::Expand() const {
   });
 }
 
+void BufferRegistry::SetListedCount(std::optional<size_t> value) {
+  data_.lock([value](Data& data) { data.listed_count = value; });
+}
+
+std::optional<size_t> BufferRegistry::listed_count() const {
+  return data_.lock([](const Data& data) { return data.listed_count; });
+}
+
+void BufferRegistry::SetShownCount(std::optional<size_t> value) {
+  data_.lock([value](Data& data) { data.shown_count = value; });
+}
+
+std::optional<size_t> BufferRegistry::shown_count() const {
+  return data_.lock([](const Data& data) { return data.shown_count; });
+}
+
 /* static */
 void BufferRegistry::Add(Data& data, const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {

@@ -226,8 +226,9 @@ EditorState::EditorState(CommandLineValues args,
       }()),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
-      buffer_tree_(MakeNonNullUnique<BuffersListAdapter>(*this)),
-      buffer_registry_(gc_pool_.NewRoot(MakeNonNullUnique<BufferRegistry>())) {
+      buffer_registry_(gc_pool_.NewRoot(MakeNonNullUnique<BufferRegistry>())),
+      buffer_tree_(buffer_registry_.ptr().value(),
+                   MakeNonNullUnique<BuffersListAdapter>(*this)) {
   work_queue_->OnSchedule().Add([shared_data = shared_data_] {
     NotifyInternalEvent(shared_data.value());
     return Observers::State::kAlive;
@@ -430,12 +431,12 @@ void EditorState::AdjustWidgets() {
           ? BuffersList::BufferSortOrder::kLastVisit
           : BuffersList::BufferSortOrder::kAlphabetic);
   auto buffers_to_retain = Read(editor_variables::buffers_to_retain);
-  buffer_tree_.SetBuffersToRetain(buffers_to_retain >= 0
-                                      ? size_t(buffers_to_retain)
-                                      : std::optional<size_t>());
+  buffer_registry_.ptr()->SetListedCount(buffers_to_retain >= 0
+                                             ? size_t(buffers_to_retain)
+                                             : std::optional<size_t>());
   auto buffers_to_show = Read(editor_variables::buffers_to_show);
-  buffer_tree_.SetBuffersToShow(buffers_to_show >= 1 ? size_t(buffers_to_show)
-                                                     : std::optional<size_t>());
+  buffer_registry_.ptr()->SetShownCount(
+      buffers_to_show >= 1 ? size_t(buffers_to_show) : std::optional<size_t>());
   buffer_tree_.Update();
 }
 

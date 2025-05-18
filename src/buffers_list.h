@@ -11,10 +11,13 @@
 #include "src/widget.h"
 
 namespace afc::editor {
+class BufferRegistry;
 
 // Divides the screen vertically into two sections: at the top, displays a
 // numbered list of buffers; at the bottom, displays a given widget.
 class BuffersList {
+  BufferRegistry& buffer_registry_;
+
  public:
   class CustomerAdapter {
    public:
@@ -25,7 +28,8 @@ class BuffersList {
     virtual bool multiple_buffers_mode() = 0;
   };
 
-  BuffersList(language::NonNull<std::unique_ptr<CustomerAdapter>> customer);
+  BuffersList(BufferRegistry& buffer_registry,
+              language::NonNull<std::unique_ptr<CustomerAdapter>> customer);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(language::gc::Root<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
@@ -51,13 +55,12 @@ class BuffersList {
 
   enum class BufferSortOrder { kAlphabetic, kLastVisit };
   void SetBufferSortOrder(BufferSortOrder buffer_sort_order);
-  void SetBuffersToRetain(std::optional<size_t> buffers_to_retain);
-  void SetBuffersToShow(std::optional<size_t> buffers_to_show);
 
   void Update();
 
  private:
-  BuffersList(language::NonNull<std::unique_ptr<CustomerAdapter>> customer,
+  BuffersList(BufferRegistry& buffer_registry,
+              language::NonNull<std::unique_ptr<CustomerAdapter>> customer,
               language::NonNull<std::unique_ptr<BufferWidget>> buffer_widget);
 
   const language ::NonNull<std::unique_ptr<CustomerAdapter>> customer_;
@@ -73,9 +76,6 @@ class BuffersList {
   std::optional<std::vector<language::gc::WeakPtr<OpenBuffer>>> filter_;
 
   BufferSortOrder buffer_sort_order_ = BufferSortOrder::kLastVisit;
-  std::optional<size_t> buffers_to_retain_ = {};
-  // Must be always >0.
-  std::optional<size_t> buffers_to_show_ = {};
 };
 
 }  // namespace afc::editor

@@ -33,6 +33,11 @@ class BufferRegistry {
     infrastructure::PathSuffixMap path_suffix_map;
 
     size_t next_anonymous_buffer_name = 0;
+
+    // Previously known as buffers_to_retain_.
+    std::optional<size_t> listed_count = std::nullopt;
+    // Must always be >0. Previously known as buffers_to_show_.
+    std::optional<size_t> shown_count = std::nullopt;
   };
 
   concurrent::Protected<Data> data_;
@@ -68,6 +73,12 @@ class BufferRegistry {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
+
+  void SetListedCount(std::optional<size_t> value);
+  std::optional<size_t> listed_count() const;
+  // Must always be >0.
+  void SetShownCount(std::optional<size_t> value);
+  std::optional<size_t> shown_count() const;
 
  private:
   static void Add(Data& data, const BufferName& name,
