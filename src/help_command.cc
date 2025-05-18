@@ -168,8 +168,9 @@ class HelpCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     VisitOptional(
         [&](gc::Root<OpenBuffer> original_buffer) {
-          const BufferName name(LazyString{L"- help: "} +
-                                LazyString{mode_description_});
+          const BufferName name(
+              LazyString{L"- help: "} + LazyString{mode_description_} +
+              LazyString{L": "} + ToSingleLine(original_buffer.ptr()->name()));
           gc::Root<OpenBuffer> buffer_root =
               OpenBuffer::New(OpenBuffer::Options{
                   .editor = editor_state_,
@@ -202,7 +203,8 @@ class HelpCommand : public Command {
     LOG(INFO) << "Generating help contents.";
     MutableLineSequence output;
     output.AppendToLine(LineNumber(),
-                        Line{SingleLine{LazyString{L"# Edge - Help"}}});
+                        Line{SINGLE_LINE_CONSTANT(L"# Edge - Help: ") +
+                             ToSingleLine(buffer.name())});
     output.push_back(L"");
 
     ShowCommands(commands, output);
