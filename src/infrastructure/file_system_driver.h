@@ -14,8 +14,10 @@ extern "C" {
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/gc.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 
 namespace afc::infrastructure {
 
@@ -76,6 +78,10 @@ class FileSystemDriver {
   // have been read.
   futures::ValueOrError<std::map<ProcessId, std::vector<ProcessId>>>
   GetAncestors(ProcessId pid, std::optional<size_t> ancestors_limit);
+
+  // Allow a FileSystemDriver to be managed by a gc::Pool.
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const;
 };
 
 }  // namespace afc::infrastructure

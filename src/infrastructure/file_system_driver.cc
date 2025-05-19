@@ -110,18 +110,18 @@ futures::Value<PossibleError> FileSystemDriver::Unlink(Path path) const {
 }
 
 futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
-  return thread_pool_.Run([path = std::move(
-                               path)]() -> language::ValueOrError<struct stat> {
-    struct stat output;
-    if (stat(path.ToBytes().c_str(), &output) == -1) {
-      Error error{LazyString{L"Stat failed: `"} + path.read() +
-                  LazyString{L"`: "} +
-                  LazyString{FromByteString(strerror(errno))}};
-      LOG(INFO) << error;
-      return error;
-    }
-    return Success(output);
-  });
+  return thread_pool_.Run(
+      [path = std::move(path)]() -> language::ValueOrError<struct stat> {
+        struct stat output;
+        if (stat(path.ToBytes().c_str(), &output) == -1) {
+          Error error{LazyString{L"Stat failed: `"} + path.read() +
+                      LazyString{L"`: "} +
+                      LazyString{FromByteString(strerror(errno))}};
+          LOG(INFO) << error;
+          return error;
+        }
+        return Success(output);
+      });
 }
 
 futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
@@ -205,4 +205,8 @@ FileSystemDriver::GetAncestors(ProcessId pid,
       });
 }
 
+std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+FileSystemDriver::Expand() const {
+  return {};
+}
 }  // namespace afc::infrastructure
