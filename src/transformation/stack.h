@@ -8,7 +8,7 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
-#include "src/transformation/type.h"
+#include "src/transformation/variant.h"
 
 namespace afc::editor {
 namespace transformation {

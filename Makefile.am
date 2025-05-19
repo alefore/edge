@@ -361,6 +361,7 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation/type.cc \
 src/transformation/type.h \
+src/transformation/variant.h \
 src/transformation/visual_overlay.cc \
 src/transformation/visual_overlay.h \
 src/transformation/vm.cc \

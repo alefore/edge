@@ -58,7 +58,7 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
           .mode = transformation_input.mode})
       .Transform([transformation_input, trace = std::move(trace)](
                      CompositeTransformation::Output output) {
-        return Apply(std::move(*output.stack), transformation_input);
+        return Apply(std::move(output.stack), transformation_input);
       });
 }
 }  // namespace
@@ -105,20 +105,16 @@ CompositeTransformation::Output CompositeTransformation::Output::SetColumn(
   return Output(transformation::SetPosition(column));
 }
 
-CompositeTransformation::Output::Output()
-    : stack(std::make_unique<transformation::Stack>()) {}
-
-CompositeTransformation::Output::Output(Output&& other)
-    : stack(std::move(other.stack)) {}
+CompositeTransformation::Output::Output(Output&& other) : stack(other.stack) {}
 
 CompositeTransformation::Output::Output(transformation::Variant transformation)
     : Output() {
-  stack->push_back(std::move(transformation));
+  stack.push_back(std::move(transformation));
 }
 
 void CompositeTransformation::Output::Push(
     transformation::Variant transformation) {
-  stack->push_back(std::move(transformation));
+  stack.push_back(std::move(transformation));
 }
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,

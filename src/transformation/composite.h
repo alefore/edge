@@ -3,10 +3,11 @@
 
 #include <memory>
 
-#include "src/language/text/line_sequence.h"
 #include "src/futures/futures.h"
+#include "src/language/text/line_sequence.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
+#include "src/transformation/variant.h"
 #include "src/vm/environment.h"
 
 namespace afc::language::gc {
@@ -44,13 +45,12 @@ class CompositeTransformation {
    public:
     static Output SetPosition(language::text::LineColumn position);
     static Output SetColumn(language::lazy_string::ColumnNumber column);
-    Output();
+    Output() = default;
     Output(Output&&);
     Output(transformation::Variant transformation);
     void Push(transformation::Variant transformation);
 
-    // TODO(easy, 2022-10-13): Why is this a unique_ptr? Inline.
-    std::unique_ptr<transformation::Stack> stack;
+    transformation::Stack stack;
   };
   virtual futures::Value<Output> Apply(Input input) const = 0;
 };
