@@ -39,6 +39,9 @@ class Status {
   Status(Status&&) = default;
   void CopyFrom(const Status& status);
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const;
+
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
 
