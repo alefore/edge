@@ -134,10 +134,13 @@ class OpenBuffer {
   // call `Reload` explicitly on the returned buffer (perhaps after setting some
   // variables).
   static language::gc::Root<OpenBuffer> New(Options options);
-  OpenBuffer(ConstructorAccessTag, Options options,
-             language::gc::Ptr<MapModeCommands> default_commands,
-             language::gc::Ptr<InputReceiver> mode,
-             language::gc::Ptr<vm::Environment> environment);
+  OpenBuffer(
+      ConstructorAccessTag, Options options,
+      language::gc::Ptr<MapModeCommands> default_commands,
+      language::gc::Ptr<InputReceiver> mode,
+      language::gc::Ptr<vm::Environment> environment,
+      language::gc::Ptr<Status> status,
+      language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -676,7 +679,7 @@ class OpenBuffer {
   // TODO: Add a Time type to the VM and expose this?
   struct timespec last_progress_update_ = {0, 0};
 
-  mutable Status status_;
+  const language::gc::Ptr<Status> status_;
 
   BufferSyntaxParser buffer_syntax_parser_;
 
@@ -686,7 +689,7 @@ class OpenBuffer {
   // initialization of state (only on the first call to `Enter`).
   language::LazyValue<bool> load_visual_state_;
 
-  mutable infrastructure::FileSystemDriver file_system_driver_;
+  const language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver_;
 
   language::text::LineProcessorMap line_processor_map_;
 

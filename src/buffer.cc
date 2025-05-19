@@ -288,10 +288,16 @@ using namespace afc::vm;
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<Environment> environment =
       Environment::New(options.editor.environment().ptr());
+  gc::Root<Status> status = options.editor.gc_pool().NewRoot(
+      MakeNonNullUnique<Status>(options.editor.audio_player()));
+  gc::Root<FileSystemDriver> file_system_driver =
+      options.editor.gc_pool().NewRoot(
+          MakeNonNullUnique<FileSystemDriver>(options.editor.thread_pool()));
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
-          mode.ptr(), environment.ptr()));
+          mode.ptr(), environment.ptr(), status.ptr(),
+          file_system_driver.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
 }
@@ -367,7 +373,8 @@ class OpenBufferMutableLineSequenceObserver
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<InputReceiver> mode,
-                       gc::Ptr<Environment> environment)
+                       gc::Ptr<Environment> environment, gc::Ptr<Status> status,
+                       gc::Ptr<FileSystemDriver> file_system_driver)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -378,7 +385,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       environment_(std::move(environment)),
       default_commands_(std::move(default_commands)),
       mode_(std::move(mode)),
-      status_(options_.editor.audio_player()),
+      status_(std::move(status)),
       file_adapter_(
           MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
               .thread_pool = editor().thread_pool(), .insert_lines = nullptr})),
@@ -393,7 +400,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                         Path::Join(dir, EditorState::StatePathComponent()),
                         Path::Join(buffer_path,
                                    PathComponent::FromString(L".edge_state")));
-                    file_system_driver_.Stat(state_path)
+                    file_system_driver_->Stat(state_path)
                         .Transform(
                             [state_path,
                              weak_this = ptr_this_->ToWeakPtr()](struct stat) {
@@ -428,7 +435,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
         });
         return true;
       }}),
-      file_system_driver_(editor().thread_pool()) {
+      file_system_driver_(std::move(file_system_driver)) {
   work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
       std::weak_ptr<WorkQueue>(work_queue_.get_shared()), editor().work_queue(),
@@ -452,7 +459,7 @@ OpenBuffer::~OpenBuffer() { LOG(INFO) << "Start destructor: " << name(); }
 
 EditorState& OpenBuffer::editor() const { return options_.editor; }
 
-Status& OpenBuffer::status() const { return status_; }
+Status& OpenBuffer::status() const { return status_.value(); }
 
 PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
@@ -978,7 +985,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
-    status_.InsertError(Error{LazyString{L"Buffer can't be saved."}});
+    status_->InsertError(Error{LazyString{L"Buffer can't be saved."}});
     return futures::Past(
         PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
@@ -1019,9 +1026,11 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   LOG(INFO) << "GetEdgeStateDirectory: Preparing state directory: " << *path;
   return futures::ForEachWithCopy(
              file_path_components.begin(), file_path_components.end(),
-             [this, path, error](auto component) {
+             [file_system_driver = file_system_driver_.ToRoot(), path,
+              error](auto component) {
                *path = Path::Join(*path, component);
-               return file_system_driver_.Stat(*path)
+               return file_system_driver.ptr()
+                   ->Stat(*path)
                    .Transform([path, error](struct stat stat_buffer) {
                      if (S_ISDIR(stat_buffer.st_mode)) {
                        return Success(IterationControlCommand::kContinue);
@@ -1031,8 +1040,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                          path->read()};
                      return Success(IterationControlCommand::kStop);
                    })
-                   .ConsumeErrors([this, path, error](Error) {
-                     return file_system_driver_.Mkdir(*path, 0700)
+                   .ConsumeErrors([file_system_driver, path, error](Error) {
+                     return file_system_driver.ptr()
+                         ->Mkdir(*path, 0700)
                          .Transform([](EmptyValue) {
                            return Success(IterationControlCommand::kContinue);
                          })
@@ -1191,7 +1201,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
       overload{[&](Error error) {
                  error = AugmentError(LazyString{L"🐜Compilation error"},
                                       std::move(error));
-                 status_.Set(error);
+                 status_->Set(error);
                  return futures::Past(
                      ValueOrError<gc::Root<Value>>(std::move(error)));
                },
@@ -1211,7 +1221,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
       overload{[&](Error error) {
                  error = AugmentError(path.read() + LazyString{L": error: "},
                                       std::move(error));
-                 status_.Set(error);
+                 status_->Set(error);
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },
                [&](NonNull<std::unique_ptr<Expression>> expression) {
@@ -1387,7 +1397,7 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  status_.SetInformationText(
+  status_->SetInformationText(
       LineBuilder{SINGLE_LINE_CONSTANT(L"cursors stack ") +
                   Parenthesize(NonEmptySingleLine{stack_size}) +
                   SINGLE_LINE_CONSTANT(L": +")}
@@ -1397,11 +1407,11 @@ void OpenBuffer::PushActiveCursors() {
 void OpenBuffer::PopActiveCursors() {
   auto stack_size = cursors_tracker_.Pop();
   if (stack_size == 0) {
-    status_.InsertError(
+    status_->InsertError(
         Error{LazyString{L"cursors stack: -: Stack is empty!"}});
     return;
   }
-  status_.SetInformationText(
+  status_->SetInformationText(
       LineBuilder{SINGLE_LINE_CONSTANT(L"cursors stack ") +
                   Parenthesize(NonEmptySingleLine(stack_size - 1)) +
                   SINGLE_LINE_CONSTANT(L": -")}
@@ -1423,7 +1433,7 @@ void OpenBuffer::SetActiveCursorsToMarks() {
           return {};
       });
   if (cursors.empty())
-    status_.InsertError(Error{LazyString{L"Buffer has no marks!"}});
+    status_->InsertError(Error{LazyString{L"Buffer has no marks!"}});
   else
     set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
 }
@@ -1479,7 +1489,7 @@ void OpenBuffer::CreateCursor() {
       range.set_begin(tmp_first);
     }
   }
-  status_.SetInformationText(Line{SINGLE_LINE_CONSTANT(L"Cursor created.")});
+  status_->SetInformationText(Line{SINGLE_LINE_CONSTANT(L"Cursor created.")});
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position,
@@ -1748,13 +1758,13 @@ const struct timespec OpenBuffer::time_last_exit() const {
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {
-  status_.SetInformationText(Line{NonEmptySingleLine{signal.read()}});
+  status_->SetInformationText(Line{NonEmptySingleLine{signal.read()}});
   if (file_adapter_->WriteSignal(signal)) return;
 
   switch (signal.read()) {
     case SIGINT:
       if (child_pid_ != std::nullopt) {
-        status_.SetInformationText(LineBuilder{
+        status_->SetInformationText(LineBuilder{
             SINGLE_LINE_CONSTANT(L"SIGINT >> pid:") +
             NonEmptySingleLine{
                 child_pid_->read()}}.Build());
@@ -1763,12 +1773,12 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       }
   }
 
-  status_.InsertError(Error{LazyString{L"Unhandled signal received: "} +
-                            LazyString{std::to_wstring(signal.read())}});
+  status_->InsertError(Error{LazyString{L"Unhandled signal received: "} +
+                             LazyString{std::to_wstring(signal.read())}});
 }
 
 FileSystemDriver& OpenBuffer::file_system_driver() const {
-  return file_system_driver_;
+  return file_system_driver_.value();
 }
 
 BufferName OpenBuffer::name() const { return options_.name; }
@@ -2528,7 +2538,8 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 OpenBuffer::Expand() const {
   return {environment().object_metadata(), default_commands_.object_metadata(),
-          mode_.object_metadata()};
+          mode_.object_metadata(), status_.object_metadata(),
+          file_system_driver_.object_metadata()};
 }
 
 const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
