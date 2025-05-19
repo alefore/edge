@@ -1,6 +1,6 @@
 #ifndef __AFC_EDITOR_TRANSFORMATION_VARIANT_H__
 #define __AFC_EDITOR_TRANSFORMATION_VARIANT_H__
- 
+
 #include <optional>
 #include <variant>
 
@@ -12,7 +12,6 @@
 #include "src/vm/environment.h"
 
 namespace afc::editor {
-class OpenBuffer;
 class CompositeTransformation;
 namespace transformation {
 using CompositePtr =
