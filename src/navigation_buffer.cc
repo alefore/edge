@@ -201,7 +201,6 @@ class NavigationBufferCommand : public Command {
     editor_state_.set_current_buffer(buffer_root,
                                      CommandArgumentModeApplyMode::kFinal);
     editor_state_.status().Reset();
-    editor_state_.PushCurrentPosition();
     editor_state_.ResetRepetitions();
   }
 

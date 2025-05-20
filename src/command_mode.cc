@@ -135,68 +135,6 @@ class UndoCommand : public Command {
   const std::optional<Direction> direction_;
 };
 
-class GotoPreviousPositionCommand : public Command {
- public:
-  GotoPreviousPositionCommand(EditorState& editor_state)
-      : editor_state_(editor_state) {}
-
-  LazyString Description() const override {
-    return LazyString{L"go back to previous position"};
-  }
-  CommandCategory Category() const override {
-    return CommandCategory::kNavigate();
-  }
-
-  void ProcessInput(ExtendedChar) override {
-    if (!editor_state_.HasPositionsInStack()) {
-      LOG(INFO) << "Editor doesn't have positions in stack.";
-      return;
-    }
-    while (editor_state_.repetitions().value_or(1) > 0) {
-      if (!editor_state_.MovePositionsStack(editor_state_.direction())) {
-        LOG(INFO) << "Editor failed to move in positions stack.";
-        return;
-      }
-      const BufferPosition pos = editor_state_.ReadPositionsStack();
-      auto it = editor_state_.buffers()->find(pos.buffer_name);
-      auto current_buffer = editor_state_.current_buffer();
-      // TODO(easy, 2022-05-15): Why is this safe?
-      CHECK(current_buffer.has_value());
-      const LineColumn current_position =
-          editor_state_.current_buffer()->ptr()->position();
-      if (it != editor_state_.buffers()->end() &&
-          (pos.buffer_name != current_buffer->ptr()->name() ||
-           ((editor_state_.structure() == Structure::kLine ||
-             editor_state_.structure() == Structure::kWord ||
-             editor_state_.structure() == Structure::kSymbol ||
-             editor_state_.structure() == Structure::kChar) &&
-            pos.position.line != current_position.line) ||
-           (editor_state_.structure() == Structure::kChar &&
-            pos.position.column != current_position.column))) {
-        LOG(INFO) << "Jumping to position: "
-                  << it->second.ptr()->Read(buffer_variables::name) << " "
-                  << pos.position;
-        editor_state_.set_current_buffer(it->second,
-                                         CommandArgumentModeApplyMode::kFinal);
-        it->second.ptr()->set_position(pos.position);
-        editor_state_.set_repetitions(editor_state_.repetitions().value_or(1) -
-                                      1);
-      }
-    }
-    editor_state_.ResetDirection();
-    editor_state_.ResetRepetitions();
-    editor_state_.ResetStructure();
-  }
-
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
-
- private:
-  EditorState& editor_state_;
-};
-
 class EnterInsertModeCommand : public Command {
  public:
   EnterInsertModeCommand(EditorState& editor_state,
@@ -391,7 +329,6 @@ class ActivateLink : public Command {
                       outgoing_link.line_column;
                   if (target_position.has_value())
                     target_link->ptr()->set_position(*target_position);
-                  editor_state_.PushCurrentPosition();
                   buffer.ptr()->ResetMode();
                   target_link->ptr()->ResetMode();
                   return;
@@ -725,11 +662,6 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    .NewRoot(MakeNonNullUnique<ActivateLink>(editor_state))
                    .ptr());
 
-  commands.Add(
-      {L'b'},
-      editor_state.gc_pool()
-          .NewRoot(MakeNonNullUnique<GotoPreviousPositionCommand>(editor_state))
-          .ptr());
   commands.Add({L'n'}, NewNavigateCommand(editor_state).ptr());
 
   for (ExtendedChar x :

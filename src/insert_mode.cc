@@ -445,7 +445,6 @@ class InsertMode : public InputReceiver {
                   })
                   .Transform([options, buffer_root](EmptyValue) {
                     buffer_root.ptr()->PopTransformationStack();
-                    options.editor_state.PushCurrentPosition();
                     buffer_root.ptr()->status().Reset();
                     return EmptyValue();
                   });

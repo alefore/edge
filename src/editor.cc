@@ -292,7 +292,6 @@ EditorState::~EditorState() {
       })));
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
-  buffers_.clear();
   buffer_registry_.ptr()->Clear();
 
   LOG(INFO) << "Reclaim GC pool.";
@@ -381,7 +380,6 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
             buffer.ptr()->Close();
             buffer_tree_.RemoveBuffers(std::unordered_set{
                 NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
-            buffers_.erase(buffer.ptr()->name());
             AdjustWidgets();
             return futures::Past(Success());
           });
@@ -390,11 +388,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
     BufferName name, OnceOnlyFunction<gc::Root<OpenBuffer>()> callback) {
   LOG(INFO) << "FindOrBuildBuffer: " << name;
-  return buffer_registry_.ptr()->MaybeAdd(name, [this, &name, &callback] {
-    gc::Root<OpenBuffer> value = std::move(callback)();
-    buffers_.insert_or_assign(name, value.ptr().ToRoot());
-    return value;
-  });
+  return buffer_registry_.ptr()->MaybeAdd(name, std::move(callback));
 }
 
 void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
@@ -790,97 +784,6 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
   return output;
 }
 
-// We will store the positions in a special buffer.  They will be sorted from
-// old (top) to new (bottom), one per line.  Each line will be of the form:
-//
-//   line column buffer
-//
-// The current line position is set to one line after the line to be returned by
-// a pop.  To insert a new position, we insert it right at the current line.
-static const BufferName& PositionsBufferName() {
-  static const BufferName* const output =
-      new BufferName{LazyString{L"- positions"}};
-  return *output;
-}
-
-void EditorState::PushCurrentPosition() {
-  auto buffer = current_buffer();
-  if (buffer.has_value()) {
-    PushPosition(buffer->ptr()->position());
-  }
-}
-
-void EditorState::PushPosition(LineColumn position) {
-  switch (args_.positions_history_behavior) {
-    case CommandLineValues::HistoryFileBehavior::kReadOnly:
-      break;
-
-    case CommandLineValues::HistoryFileBehavior::kUpdate:
-      auto buffer = current_buffer();
-      if (!buffer.has_value() ||
-          !buffer->ptr()->Read(buffer_variables::push_positions_to_history)) {
-        return;
-      }
-      auto buffer_it = buffers_.find(PositionsBufferName());
-      futures::Value<gc::Root<OpenBuffer>> future_positions_buffer =
-          buffer_it != buffers_.end()
-              ? futures::Past(buffer_it->second)
-              // Insert a new entry into the list of buffers.
-              : OpenOrCreateFile(
-                    OpenFileOptions{
-                        .editor_state = *this,
-                        .name = PositionsBufferName(),
-                        .path =
-                            edge_path().empty()
-                                ? std::optional<Path>()
-                                : Path::Join(edge_path().front(),
-                                             ValueOrDie(Path::New(
-                                                 LazyString{L"positions"}))),
-                        .insertion_type = BuffersList::AddBufferType::kIgnore})
-                    .Transform([](gc::Root<OpenBuffer> buffer_root) {
-                      OpenBuffer& output = buffer_root.ptr().value();
-                      output.Set(buffer_variables::save_on_close, true);
-                      output.Set(
-                          buffer_variables::trigger_reload_on_buffer_write,
-                          false);
-                      output.Set(buffer_variables::show_in_buffers_list, false);
-                      output.Set(buffer_variables::vm_lines_evaluation, false);
-                      return buffer_root;
-                    });
-
-      std::move(future_positions_buffer)
-          .Transform([line_to_insert =
-                          Line(SingleLine{LazyString{position.ToString()}} +
-                               SingleLine{LazyString{L" "}} +
-                               ToSingleLine(buffer->ptr()->name()))](
-                         gc::Root<OpenBuffer> positions_buffer_root) {
-            OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
-            positions_buffer.CheckPosition();
-            CHECK_LE(positions_buffer.position().line,
-                     LineNumber(0) + positions_buffer.contents().size());
-            positions_buffer.InsertLine(
-                positions_buffer.current_position_line(), line_to_insert);
-            CHECK_LE(positions_buffer.position().line,
-                     LineNumber(0) + positions_buffer.contents().size());
-            return Success();
-          });
-  }
-}
-
-static BufferPosition PositionFromLine(const std::wstring& line) {
-  std::wstringstream line_stream(line);
-  size_t line_number;
-  size_t column_number;
-  line_stream >> line_number >> column_number;
-  // TODO(easy, 2022-06-06): Define operator>> and use it here?
-  LineColumn position{LineNumber(line_number), ColumnNumber(column_number)};
-  line_stream.get();
-  std::wstring buffer_name;
-  getline(line_stream, buffer_name);
-  return BufferPosition{.buffer_name = BufferName{LazyString{buffer_name}},
-                        .position = std::move(position)};
-}
-
 gc::Root<OpenBuffer> EditorState::GetConsole() {
   return FindOrBuildBuffer(ConsoleBufferName{}, [&] {
     gc::Root<OpenBuffer> buffer_root =
@@ -891,43 +794,6 @@ gc::Root<OpenBuffer> EditorState::GetConsole() {
     buffer.Set(buffer_variables::persist_state, false);
     return buffer_root;
   });
-}
-
-bool EditorState::HasPositionsInStack() {
-  auto it = buffers_.find(PositionsBufferName());
-  return it != buffers_.end() &&
-         it->second.ptr()->contents().size() > LineNumberDelta(1);
-}
-
-BufferPosition EditorState::ReadPositionsStack() {
-  CHECK(HasPositionsInStack());
-  gc::Ptr<OpenBuffer> buffer =
-      buffers_.find(PositionsBufferName())->second.ptr();
-  return PositionFromLine(buffer->CurrentLine().ToString());
-}
-
-bool EditorState::MovePositionsStack(Direction direction) {
-  // The directions here are somewhat counterintuitive: Direction::kForwards
-  // means the user is actually going "back" in the history, which means we have
-  // to decrement the line counter.
-  CHECK(HasPositionsInStack());
-  gc::Ptr<OpenBuffer> buffer =
-      buffers_.find(PositionsBufferName())->second.ptr();
-  if (direction == Direction::kBackwards) {
-    if (buffer->current_position_line() >= buffer->EndLine()) {
-      return false;
-    }
-    buffer->set_current_position_line(buffer->current_position_line() +
-                                      LineNumberDelta(1));
-    return true;
-  }
-
-  if (buffer->current_position_line() == LineNumber(0)) {
-    return false;
-  }
-  buffer->set_current_position_line(buffer->current_position_line() -
-                                    LineNumberDelta(1));
-  return true;
 }
 
 Status& EditorState::status() { return shared_data_->status; }

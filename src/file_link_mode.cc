@@ -489,14 +489,12 @@ gc::Root<OpenBuffer> CreateBuffer(
   if (resolve_path_output.has_value() &&
       !resolve_path_output->pattern.empty()) {
     std::visit(
-        overload{[&](LineColumn position) {
-                   buffer.ptr()->set_position(position);
-                   editor_state.PushCurrentPosition();
-                 },
-                 [&buffer](Error error) {
-                   buffer.ptr()->status().SetInformationText(Line(
-                       LineSequence::BreakLines(error.read()).FoldLines()));
-                 }},
+        overload{
+            [&](LineColumn position) { buffer.ptr()->set_position(position); },
+            [&buffer](Error error) {
+              buffer.ptr()->status().SetInformationText(
+                  Line(LineSequence::BreakLines(error.read()).FoldLines()));
+            }},
         GetNextMatch(
             options.editor_state.modifiers().direction,
             SearchOptions{.starting_position = buffer.ptr()->position(),

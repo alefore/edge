@@ -199,7 +199,6 @@ class GotoCommand : public Command {
       }
     }
 
-    editor_state_.PushCurrentPosition();
     editor_state_.ResetStructure();
     editor_state_.ResetDirection();
     editor_state_.ResetRepetitions();

@@ -93,10 +93,6 @@ class MoveTransformation : public CompositeTransformation {
       return futures::Past(Output());
     }
 
-    if (input.modifiers.repetitions > 1) {
-      input.editor.PushPosition(position.value());
-    }
-
     LOG(INFO) << "Move from " << input.original_position << " to "
               << position.value() << " " << input.modifiers;
     return futures::Past(Output::SetPosition(position.value()));

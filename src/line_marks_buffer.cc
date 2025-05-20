@@ -134,7 +134,6 @@ class Impl : public Command {
     editor_.set_current_buffer(buffer_root,
                                CommandArgumentModeApplyMode::kFinal);
     editor_.status().Reset();
-    editor_.PushCurrentPosition();
     editor_.ResetRepetitions();
   }
 

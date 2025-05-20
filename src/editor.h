@@ -197,12 +197,7 @@ class EditorState {
     screen_state_.needs_hard_redraw = value;
   }
 
-  void PushCurrentPosition();
-  void PushPosition(language::text::LineColumn position);
   language::gc::Root<OpenBuffer> GetConsole();
-  bool HasPositionsInStack();
-  BufferPosition ReadPositionsStack();
-  bool MovePositionsStack(Direction direction);
 
   Status& status();
   const Status& status() const;
