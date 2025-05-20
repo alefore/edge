@@ -170,28 +170,31 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                           SINGLE_LINE_CONSTANT(L"” "));
     }
 
-    int running = 0;
-    int failed = 0;
-    for (const OpenBuffer& buffer :
-         options.buffer->editor().buffer_registry().buffers() | gc::view::Value)
-      if (buffer.child_pid().has_value()) {
-        running++;
-      } else if (buffer.child_exit_status().has_value()) {
-        int status = buffer.child_exit_status().value();
-        if (WIFEXITED(status) && WEXITSTATUS(status)) {
-          failed++;
-        }
-      }
-    if (running > 0) {
+    std::vector<gc::Root<OpenBuffer>> buffers =
+        options.buffer->editor().buffer_registry().buffers();
+    if (int running =
+            std::ranges::count_if(buffers | gc::view::Value,
+                                  [](const OpenBuffer& buffer) {
+                                    return buffer.child_pid().has_value();
+                                  });
+        running > 0)
       output.AppendString(SINGLE_LINE_CONSTANT(L"  🏃") +
                           SingleLine{LazyString{std::to_wstring(running)}} +
                           SINGLE_LINE_CONSTANT(L"  "));
-    }
-    if (failed > 0) {
+
+    if (int failed = std::ranges::count_if(
+            buffers | gc::view::Value,
+            [](const OpenBuffer& buffer) {
+              if (buffer.child_pid().has_value() ||
+                  !buffer.child_exit_status().has_value())
+                return false;
+              int status = buffer.child_exit_status().value();
+              return WIFEXITED(status) && WEXITSTATUS(status);
+            });
+        failed > 0)
       output.AppendString(SINGLE_LINE_CONSTANT(L"  💥") +
                           SingleLine{LazyString{std::to_wstring(failed)}} +
                           SINGLE_LINE_CONSTANT(L"  "));
-    }
   }
 
   std::optional<ColumnNumber> cursor;
