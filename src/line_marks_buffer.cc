@@ -1,5 +1,6 @@
 #include "src/line_marks_buffer.h"
 
+#include "src/buffer_registry.h"
 #include "src/command_argument_mode.h"
 #include "src/infrastructure/extended_char.h"
 #include "src/language/container.h"
@@ -44,16 +45,16 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
   std::map<BufferName, std::vector<MarkView>> marks_by_source;
   for (const std::pair<const LineColumn, LineMarks::Mark>& data :
        marks.GetMarksForTargetBuffer(name)) {
-    auto source = editor.buffers()->find(data.second.source_buffer);
+    std::optional<gc::Root<OpenBuffer>> source =
+        editor.buffer_registry().Find(data.second.source_buffer);
     marks_by_source[data.second.source_buffer].push_back(MarkView{
         .expired = false,
         .target = data.first,
-        .text =
-            (source != editor.buffers()->end() &&
-             data.second.source_line <
-                 LineNumber(0) + source->second.ptr()->contents().size())
-                ? source->second.ptr()->contents().at(data.second.source_line)
-                : Line{SingleLine{LazyString{L"(dead mark)"}}}});
+        .text = (source.has_value() &&
+                 data.second.source_line <
+                     LineNumber(0) + source->ptr()->contents().size())
+                    ? source->ptr()->contents().at(data.second.source_line)
+                    : Line{SingleLine{LazyString{L"(dead mark)"}}}});
   }
   for (const std::pair<const LineColumn, LineMarks::ExpiredMark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))

@@ -227,11 +227,13 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
 }
 
 void OpenServerBuffer(EditorState& editor_state, const Path& address) {
-  gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
-      OpenBuffer::Options{.editor = editor_state,
-                          .name = ServerBufferName{address},
-                          .path = address,
-                          .generate_contents = GenerateContents});
+  gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
+      .editor = editor_state,
+      .name = ServerBufferName{address},
+      .path = address,
+      .generate_contents = GenerateContents,
+      .survival_behavior =
+          OpenBuffer::Options::SurvivalBehavior::kExplicitCloseRequired});
   OpenBuffer& buffer = buffer_root.ptr().value();
   buffer.NewCloseFuture().Transform([buffer_root, address](EmptyValue) {
     return buffer_root.ptr()->file_system_driver().Unlink(address);
@@ -254,8 +256,6 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
 
   editor_state.buffer_registry().Add(buffer.name(),
                                      buffer_root.ptr().ToWeakPtr());
-  editor_state.buffers()->insert_or_assign(buffer.name(),
-                                           buffer_root.ptr().ToRoot());
   buffer.Reload();
 }
 

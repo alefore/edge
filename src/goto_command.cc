@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
@@ -184,17 +185,18 @@ class GotoCommand : public Command {
       editor_state_.ApplyToActiveBuffers(
           MakeNonNullUnique<GotoTransformation>(calls_));
     } else if (structure == Structure::kBuffer) {
-      size_t buffers = editor_state_.buffers()->size();
-      size_t position =
-          ComputePosition(0, buffers, buffers, editor_state_.direction(),
-                          editor_state_.repetitions().value_or(1), calls_);
-      CHECK_LT(position, editor_state_.buffers()->size());
-      auto it = editor_state_.buffers()->begin();
+      std::vector<gc::Root<OpenBuffer>> buffers =
+          editor_state_.buffer_registry().buffers();
+      size_t position = ComputePosition(
+          0, buffers.size(), buffers.size(), editor_state_.direction(),
+          editor_state_.repetitions().value_or(1), calls_);
+      CHECK_LT(position, buffers.size());
+      auto it = buffers.begin();
       advance(it, position);
       if (auto current = editor_state_.current_buffer();
           !current.has_value() ||
-          &it->second.ptr().value() != &current->ptr().value()) {
-        editor_state_.set_current_buffer(it->second,
+          &it->ptr().value() != &current->ptr().value()) {
+        editor_state_.set_current_buffer(*it,
                                          CommandArgumentModeApplyMode::kFinal);
       }
     }

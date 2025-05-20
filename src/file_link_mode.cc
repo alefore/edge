@@ -293,36 +293,38 @@ namespace {
 futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
     EditorState& editor_state, const Path& edge_path) {
   BufferName buffer_name{LazyString{L"- search paths"}};
-  auto it = editor_state.buffers()->find(buffer_name);
-  futures::Value<gc::Root<OpenBuffer>> output =
-      it != editor_state.buffers()->end()
-          ? futures::Past(it->second)
-          : OpenOrCreateFile(
-                OpenFileOptions{
-                    .editor_state = editor_state,
-                    .name = buffer_name,
-                    .path = Path::Join(
-                        edge_path,
-                        ValueOrDie(Path::New(LazyString{L"/search_paths"}))),
-                    .insertion_type = BuffersList::AddBufferType::kIgnore,
-                    .use_search_paths = false})
-                .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
-                  buffer.ptr()->Set(buffer_variables::save_on_close, true);
-                  buffer.ptr()->Set(
-                      buffer_variables::trigger_reload_on_buffer_write, false);
-                  buffer.ptr()->Set(buffer_variables::show_in_buffers_list,
-                                    false);
-                  if (!editor_state.has_current_buffer()) {
-                    editor_state.set_current_buffer(
-                        buffer, CommandArgumentModeApplyMode::kFinal);
-                  }
-                  return buffer;
-                });
-
-  return std::move(output).Transform([](gc::Root<OpenBuffer> buffer) {
-    return buffer.ptr()->WaitForEndOfFile().Transform(
-        [buffer](EmptyValue) { return buffer; });
-  });
+  return VisitOptional(
+             [](gc::Root<OpenBuffer> buffer) { return futures::Past(buffer); },
+             [&] {
+               return OpenOrCreateFile(
+                          OpenFileOptions{
+                              .editor_state = editor_state,
+                              .name = buffer_name,
+                              .path = Path::Join(
+                                  edge_path, ValueOrDie(Path::New(LazyString{
+                                                 L"/search_paths"}))),
+                              .insertion_type =
+                                  BuffersList::AddBufferType::kIgnore,
+                              .use_search_paths = false})
+                   .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
+                     buffer.ptr()->Set(buffer_variables::save_on_close, true);
+                     buffer.ptr()->Set(
+                         buffer_variables::trigger_reload_on_buffer_write,
+                         false);
+                     buffer.ptr()->Set(buffer_variables::show_in_buffers_list,
+                                       false);
+                     if (!editor_state.has_current_buffer()) {
+                       editor_state.set_current_buffer(
+                           buffer, CommandArgumentModeApplyMode::kFinal);
+                     }
+                     return buffer;
+                   });
+             },
+             editor_state.buffer_registry().Find(buffer_name))
+      .Transform([](gc::Root<OpenBuffer> buffer) {
+        return buffer.ptr()->WaitForEndOfFile().Transform(
+            [buffer](EmptyValue) { return buffer; });
+      });
 }
 }  // namespace
 

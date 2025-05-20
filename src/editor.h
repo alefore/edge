@@ -95,15 +95,6 @@ class EditorState {
 
   void CloseBuffer(OpenBuffer& buffer);
 
-  const std::map<BufferName, afc::language::gc::Root<OpenBuffer>>* buffers()
-      const {
-    return &buffers_;
-  }
-
-  std::map<BufferName, afc::language::gc::Root<OpenBuffer>>* buffers() {
-    return &buffers_;
-  }
-
   language::gc::Root<OpenBuffer> FindOrBuildBuffer(
       BufferName,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
@@ -260,7 +251,6 @@ class EditorState {
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
 
-  std::map<BufferName, afc::language::gc::Root<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
   std::set<BufferName> dirty_buffers_saved_to_backup_;
 

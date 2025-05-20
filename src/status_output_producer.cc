@@ -8,10 +8,12 @@
 #include <string>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -55,12 +57,11 @@ SingleLine GetBufferContext(const OpenBuffer& buffer) {
       current_line_marks != marks.end() &&
       current_line_marks->first.line == buffer.position().line) {
     auto mark = current_line_marks->second;
-    auto source = buffer.editor().buffers()->find(mark.source_buffer);
-    if (source != buffer.editor().buffers()->end() &&
-        LineNumber(0) + source->second.ptr()->contents().size() >
-            mark.source_line) {
-      return source->second.ptr()->contents().at(mark.source_line).contents();
-    }
+    if (std::optional<gc::Root<OpenBuffer>> source =
+            buffer.editor().buffer_registry().Find(mark.source_buffer);
+        source.has_value() &&
+        LineNumber(0) + source->ptr()->contents().size() > mark.source_line)
+      return source->ptr()->contents().at(mark.source_line).contents();
   }
   return LineSequence::BreakLines(buffer.Read(buffer_variables::name))
       .FoldLines();
@@ -171,8 +172,8 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
     int running = 0;
     int failed = 0;
-    for (const auto& entry : *options.buffer->editor().buffers()) {
-      OpenBuffer& buffer = entry.second.ptr().value();
+    for (const OpenBuffer& buffer :
+         options.buffer->editor().buffer_registry().buffers() | gc::view::Value)
       if (buffer.child_pid().has_value()) {
         running++;
       } else if (buffer.child_exit_status().has_value()) {
@@ -181,7 +182,6 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           failed++;
         }
       }
-    }
     if (running > 0) {
       output.AppendString(SINGLE_LINE_CONSTANT(L"  🏃") +
                           SingleLine{LazyString{std::to_wstring(running)}} +

@@ -14,9 +14,9 @@
 
 namespace container = afc::language::container;
 
-using afc::language::text::Line;
-using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
 
