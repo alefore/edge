@@ -59,23 +59,16 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::FindBuffersPathEndingIn(
     const Path& path) const {
   return data_.lock([&](const Data& data) {
-    std::vector<gc::WeakPtr<OpenBuffer>> weak_ptr_output =
-        container::MaterializeVector(
-            data.path_suffix_map.FindPathWithSuffix(path) |
-            std::views::transform(
-                [&data](const Path& buffer_path) -> gc::WeakPtr<OpenBuffer> {
-                  if (auto it = data.buffer_map.find(BufferFileId{buffer_path});
-                      it != data.buffer_map.end())
-                    return it->second;
-                  return gc::WeakPtr<OpenBuffer>();
-                }));
-    // TODO(2025-05-15): Figure out why we can't just include gc::view::Lock in
-    // the expression above and just return that. It gives a typing error in the
-    // call to MaterializeVector.
-    std::vector<gc::Root<OpenBuffer>> output;
-    for (gc::Root<OpenBuffer> o : weak_ptr_output | gc::view::Lock)
-      output.push_back(std::move(o));
-    return output;
+    return container::MaterializeVector(
+        data.path_suffix_map.FindPathWithSuffix(path) |
+        std::views::transform(
+            [&data](const Path& buffer_path) -> gc::WeakPtr<OpenBuffer> {
+              if (auto it = data.buffer_map.find(BufferFileId{buffer_path});
+                  it != data.buffer_map.end())
+                return it->second;
+              return gc::WeakPtr<OpenBuffer>();
+            }) |
+        gc::view::Lock);
   });
 }
 
