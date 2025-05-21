@@ -86,12 +86,9 @@ class RootValueIterator {
   using difference_type =
       typename std::iterator_traits<Iterator>::difference_type;
   using reference = decltype(Adapter::Adjust(std::declval<const Iterator&>()));
-  using value_type =
-      std::decay_t<reference>;
+  using value_type = std::decay_t<reference>;
 
-  reference operator*() const {
-    return Adapter::Adjust(iterator_);
-  }
+  reference operator*() const { return Adapter::Adjust(iterator_); }
 
   bool operator!=(const RootValueIterator& other) const {
     return iterator_ != other.iterator_;
@@ -124,8 +121,9 @@ class RootValueIterator {
   // Define this only if the underlying iterator supports it
   template <typename It = Iterator>
     requires Addable<It>
-  friend It operator+(const RootValueIterator& iter,
-                      typename std::iterator_traits<It>::difference_type n) {
+  friend RootValueIterator operator+(
+      const RootValueIterator& iter,
+      typename std::iterator_traits<It>::difference_type n) {
     return iter.iterator_ + n;
   }
 
@@ -133,8 +131,9 @@ class RootValueIterator {
   // Define this only if the underlying iterator supports it
   template <typename It = Iterator>
     requires Addable<It>
-  friend It operator+(typename std::iterator_traits<It>::difference_type n,
-                      const RootValueIterator& iter) {
+  friend RootValueIterator operator+(
+      typename std::iterator_traits<It>::difference_type n,
+      const RootValueIterator& iter) {
     return n + iter.iterator_;
   }
 };
@@ -158,9 +157,8 @@ class RootValueRange
   explicit RootValueRange(R&& range) : range_(std::forward<R>(range)) {}
 
  public:
-  using value_type =
-      RootValueIterator<Adapter, decltype(std::begin(
-                                     std::declval<Range>()))>::value_type;
+  using value_type = typename RootValueIterator<
+      Adapter, decltype(std::begin(std::declval<Range&>()))>::value_type;
 
   auto begin() { return RootValueIterator(Adapter{}, std::begin(range_)); }
   auto begin() const {
@@ -170,7 +168,11 @@ class RootValueRange
   auto end() { return RootValueIterator(Adapter{}, std::end(range_)); }
   auto end() const { return RootValueIterator(Adapter{}, std::end(range_)); }
 
-  size_t size() const { return range_.size(); }
+  template <typename R = Range>
+    requires requires(const R& r) { r.size(); }
+  size_t size() const {
+    return range_.size();
+  }
 };
 
 template <typename Adapter>
@@ -193,7 +195,10 @@ class RootValueFilterViewAdapter {
                std::forward<Range>(range)) |
            std::views::filter(
                [](const auto& root) { return root.has_value(); }) |
-           std::views::transform([](const auto& root) { return root.value(); });
+           std::views::transform([](auto&& root_optional) {
+             return std::forward<decltype(root_optional)>(root_optional)
+                 .value();
+           });
   }
 };
 
@@ -230,7 +235,8 @@ auto operator|(Range&& r, const LockAdaptorClosure& adapter) {
 namespace std::ranges {
 template <typename Adapter, typename Range>
 inline constexpr bool enable_borrowed_range<
-    afc::language::gc::view::RootValueRange<Adapter, Range>> = true;
-}
+    afc::language::gc::view::RootValueRange<Adapter, Range>> =
+    enable_borrowed_range<Range>;
+}  // namespace std::ranges
 
 #endif  // __AFC_LANGUAGE_GC_VIEW_H__
