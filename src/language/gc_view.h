@@ -67,7 +67,7 @@ class GetObjectMetadata {
 class LockWeakPtr {
  public:
   template <typename Iterator>
-  static auto Adjust(const Iterator& iterator) {
+  static decltype(auto) Adjust(const Iterator& iterator) {
     return (*iterator).Lock();
   }
 };
@@ -78,18 +78,18 @@ class RootValueIterator {
 
  public:
   explicit RootValueIterator(Adapter, Iterator iterator)
-      : iterator_(iterator) {}
-  explicit RootValueIterator() {}
+      : iterator_(std::move(iterator)) {}
+  explicit RootValueIterator() = default;
 
   using iterator_category =
       typename std::iterator_traits<Iterator>::iterator_category;
   using difference_type =
       typename std::iterator_traits<Iterator>::difference_type;
+  using reference = decltype(Adapter::Adjust(std::declval<const Iterator&>()));
   using value_type =
-      std::decay_t<decltype(Adapter::Adjust(std::declval<const Iterator&>()))>;
-  using reference = value_type&;
+      std::decay_t<reference>;
 
-  decltype(Adapter::Adjust(std::declval<const Iterator&>())) operator*() const {
+  reference operator*() const {
     return Adapter::Adjust(iterator_);
   }
 
