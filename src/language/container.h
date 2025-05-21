@@ -110,12 +110,18 @@ std::optional<std::ranges::range_value_t<Range>> FindFirstIf(Range&& range,
 // soon, and then we can just get rid of this.
 template <typename Container>
 Container Materialize(auto&& view) {
-  return Container(view.begin(), view.end());
+  return Container(std::ranges::begin(view), std::ranges::end(view));
 }
 
-auto MaterializeVector(auto&& view) {
-  return Materialize<std::vector<std::decay_t<decltype(*view.begin())>>>(
-      std::move(view));
+template <std::ranges::input_range R>
+auto MaterializeVector(R&& view) {
+  using ViewValueType = std::ranges::range_value_t<R>;
+
+  std::vector<ViewValueType> result;
+  if constexpr (std::ranges::sized_range<R>)
+    if (auto s = std::ranges::size(view); s > 0) result.reserve(s);
+  for (auto&& elem : view) result.push_back(std::forward<decltype(elem)>(elem));
+  return result;
 }
 
 auto MaterializeSet(auto&& view) {
