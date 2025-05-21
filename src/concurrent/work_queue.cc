@@ -71,7 +71,7 @@ void WorkQueue::Execute(std::function<infrastructure::Time()> clock) {
 }
 
 std::optional<struct timespec> WorkQueue::NextExecution() {
-  return data_.lock([](MutableData & data) -> std::optional<struct timespec> {
+  return data_.lock([](MutableData& data) -> std::optional<struct timespec> {
     if (data.callbacks.empty()) return std::nullopt;
     return data.callbacks.front().time;
   });
@@ -122,7 +122,7 @@ const bool work_queue_tests_registration = tests::Register(
      {.name = L"InsertOrder", .callback = [] {
         language::NonNull<std::shared_ptr<WorkQueue>> work_queue =
             WorkQueue::New();
-        struct timespec time {};
+        struct timespec time{};
         using infrastructure::AddSeconds;
         // We insert them in some ~random order.
         for (double delta : {6, 2, 4, 3, 7, 1, 0, 5})
