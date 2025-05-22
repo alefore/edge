@@ -104,3 +104,10 @@ bool operator<=(const struct timespec& a, const struct timespec& b) {
 bool operator>=(const struct timespec& a, const struct timespec& b) {
   return a > b || a == b;
 }
+
+std::strong_ordering operator<=>(const timespec& lhs, const timespec& rhs) {
+  if (auto cmp = lhs.tv_sec <=> rhs.tv_sec; cmp != 0) {
+    return cmp;
+  }
+  return lhs.tv_nsec <=> rhs.tv_nsec;
+}

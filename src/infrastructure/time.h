@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__
 #define __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__
 
+#include <compare>
 #include <optional>
 #include <string>
 
@@ -49,5 +50,6 @@ bool operator<=(const afc::infrastructure::Time& a,
                 const afc::infrastructure::Time& b);
 bool operator>=(const afc::infrastructure::Time& a,
                 const afc::infrastructure::Time& b);
-
+std::strong_ordering operator<=>(const afc::infrastructure::Time& a,
+                                 const afc::infrastructure::Time& b);
 #endif  // __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__
