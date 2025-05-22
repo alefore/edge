@@ -597,8 +597,6 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                    error = AugmentError(
                        LazyString{L"Unable to get Edge state directory"},
                        std::move(error));
-                   // TODO(trivial, 2025-05-22): Add operator-> on WeakPtr and
-                   // use that here.
                    VisitPointer(
                        weak_status.Lock(),
                        [&error](gc::Root<Status> root_status) {
@@ -629,8 +627,6 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             [weak_status](Error error) {
               error = AugmentError(LazyString{L"Unable to persist state"},
                                    std::move(error));
-              // TODO(trivial, 2025-05-22): Add operator-> on WeakPtr and use
-              // that here.
               VisitPointer(
                   weak_status.Lock(),
                   [&error](gc::Root<Status> root_status) {
