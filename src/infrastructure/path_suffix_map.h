@@ -26,6 +26,8 @@ class InvertedMap {
     CHECK(value_supplier_ != nullptr);
   }
 
+  void Clear() { table_.clear(); }
+
   void Insert(const Key& key) {
     std::ranges::for_each(
         value_supplier_(key),
@@ -62,6 +64,7 @@ class PathSuffixMap {
 
  public:
   PathSuffixMap() = default;
+  void Clear();
   void Insert(const Path& path);
   void Erase(const Path& path);
 

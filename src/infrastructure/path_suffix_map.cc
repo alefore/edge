@@ -27,6 +27,10 @@ std::list<std::list<PathComponent>> GetSuffixes(const Path& path) {
 
 PathSuffixMap::Data::Data() : paths(&GetSuffixes) {}
 
+void PathSuffixMap::Clear() {
+  data_.lock([](Data& data) { data.paths.Clear(); });
+}
+
 void PathSuffixMap::Insert(const Path& path) {
   data_.lock([&path](Data& data) { data.paths.Insert(path); });
 }
