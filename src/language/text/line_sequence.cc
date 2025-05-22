@@ -554,5 +554,4 @@ LineSequenceIterator& LineSequenceIterator::operator--() {
   }
   return *this;
 }
-
 }  // namespace afc::language::text

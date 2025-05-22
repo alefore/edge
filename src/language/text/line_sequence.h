@@ -173,6 +173,5 @@ class LineSequenceIterator {
  private:
   bool IsAtEnd() const { return position_.ToDelta() >= container_.size(); }
 };
-
 }  // namespace afc::language::text
 #endif  // __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__
