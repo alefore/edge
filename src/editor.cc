@@ -482,20 +482,19 @@ std::optional<gc::Root<OpenBuffer>> EditorState::current_buffer() const {
 }
 
 std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
-  std::vector<gc::Root<OpenBuffer>> output;
   if (status().GetType() == Status::Type::kPrompt) {
-    output.push_back(status().prompt_buffer().value());
+    return {status().prompt_buffer().value()};
   } else if (Read(editor_variables::multiple_buffers)) {
-    output = buffer_registry_.ptr()->LockListedBuffers(
+    return buffer_registry_.ptr()->LockListedBuffers(
         [](std::vector<gc::Root<OpenBuffer>> buffers) { return buffers; });
   } else if (std::optional<gc::Root<OpenBuffer>> buffer = current_buffer();
              buffer.has_value()) {
     if (buffer->ptr()->status().GetType() == Status::Type::kPrompt) {
       buffer = buffer->ptr()->status().prompt_buffer()->ptr().ToRoot();
     }
-    output.push_back(buffer.value());
+    return {buffer.value()};
   }
-  return output;
+  return {};
 }
 
 void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
