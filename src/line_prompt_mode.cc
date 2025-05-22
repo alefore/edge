@@ -120,7 +120,7 @@ std::multimap<Identifier, EscapedString> GetCurrentFeatures(
   for (OpenBuffer& buffer :
        editor.buffer_registry().buffers() | gc::view::Value)
     if (buffer.Read(buffer_variables::show_in_buffers_list) &&
-        editor.buffer_tree().GetBufferIndex(buffer).has_value())
+        editor.buffer_registry().GetListedBufferIndex(buffer).has_value())
       output.insert(
           {HistoryIdentifierName(),
            EscapedString{LazyString{buffer.Read(buffer_variables::name)}}});

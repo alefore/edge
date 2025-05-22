@@ -252,7 +252,7 @@ futures::Value<PossibleError> GenerateContents(
                      target.Read(buffer_variables::pts), child_pid)
       .Transform([&editor_state, data, &target](EmptyValue) {
         LOG(INFO) << "End of file notification.";
-        if (editor_state.buffer_tree().GetBufferIndex(target).has_value()) {
+        if (editor_state.buffer_registry().GetListedBufferIndex(target).has_value()) {
           namespace audio = infrastructure::audio;
 
           CHECK(target.child_exit_status().has_value());

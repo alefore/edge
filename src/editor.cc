@@ -92,6 +92,49 @@ using error::FromOptional;
 namespace afc::editor {
 using ::operator<<;
 
+namespace {
+std::weak_ordering BufferComparePinFirst(const OpenBuffer& a,
+                                         const OpenBuffer& b) {
+  if (a.Read(buffer_variables::pin) && !b.Read(buffer_variables::pin))
+    return std::weak_ordering::less;
+  if (b.Read(buffer_variables::pin) && !a.Read(buffer_variables::pin))
+    return std::weak_ordering::greater;
+  return std::weak_ordering::equivalent;
+}
+
+#if 0
+std::weak_ordering BufferCompareLastVisit(const OpenBuffer& a,
+                                          const OpenBuffer& b) {
+  if (auto pin_order = BufferComparePinFirst(a, b);
+      pin_order != std::weak_ordering::equivalent)
+    return pin_order;
+  return a.last_visit() <=> b.last_visit();
+}
+#endif
+
+std::weak_ordering BufferCompareLastVisitInverted(const OpenBuffer& a,
+                                                  const OpenBuffer& b) {
+  if (auto pin_order = BufferComparePinFirst(a, b);
+      pin_order != std::weak_ordering::equivalent)
+    return pin_order;
+  return b.last_visit() <=> a.last_visit();
+}
+
+std::weak_ordering BufferCompareAlphabetic(const OpenBuffer& a,
+                                           const OpenBuffer& b) {
+  if (auto pin_order = BufferComparePinFirst(a, b);
+      pin_order != std::weak_ordering::equivalent)
+    return pin_order;
+  return a.name() <=> b.name();
+}
+
+BufferRegistry::BufferComparePredicate GetBufferComparePredicate(
+    LazyString name) {
+  return name == LazyString{L"last_visit"} ? BufferCompareLastVisitInverted
+                                           : BufferCompareAlphabetic;
+}
+}  // namespace
+
 /* static */
 PathComponent EditorState::StatePathComponent() {
   return PathComponent::FromString(L"state");
@@ -226,7 +269,9 @@ EditorState::EditorState(CommandLineValues args,
       }()),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
-      buffer_registry_(gc_pool_.NewRoot(MakeNonNullUnique<BufferRegistry>())),
+      buffer_registry_(gc_pool_.NewRoot(MakeNonNullUnique<BufferRegistry>(
+          GetBufferComparePredicate(Read(editor_variables::buffer_sort_order)),
+          [](const OpenBuffer& b) { return b.dirty(); }))),
       buffer_tree_(buffer_registry_.ptr().value(),
                    MakeNonNullUnique<BuffersListAdapter>(*this)) {
   work_queue_->OnSchedule().Add([shared_data = shared_data_] {
@@ -284,12 +329,6 @@ EditorState::~EditorState() {
   LOG(INFO) << "Closing buffers.";
   std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
                         &OpenBuffer::Close);
-
-  buffer_tree_.RemoveBuffers(container::MaterializeUnorderedSet(
-      buffer_registry().buffers() | gc::view::Value |
-      std::views::transform([](const OpenBuffer& buffer) {
-        return NonNull<const OpenBuffer*>::AddressOf(buffer);
-      })));
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
   buffer_registry_.ptr()->Clear();
@@ -378,7 +417,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
       .Transform(
           [this, buffer = buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
             buffer.ptr()->Close();
-            buffer_tree_.RemoveBuffers(std::unordered_set{
+            buffer_registry_.ptr()->RemoveListedBuffers(std::unordered_set{
                 NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
             AdjustWidgets();
             return futures::Past(Success());
@@ -402,28 +441,29 @@ void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
 
 void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(
-      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()),
+      buffer_registry_.ptr()->GetListedBuffer(
+          position % buffer_registry_.ptr()->ListedBuffersCount()),
       CommandArgumentModeApplyMode::kFinal);
 }
 
 void EditorState::AdvanceActiveBuffer(int delta) {
-  if (buffer_tree_.BuffersCount() <= 1) return;
-  delta += buffer_tree_.GetCurrentIndex();
-  size_t total = buffer_tree_.BuffersCount();
+  // TODO(2025-05-20): This function isn't really thread-safe.
+  if (buffer_registry_.ptr()->ListedBuffersCount() <= 1) return;
+  delta += buffer_tree().GetCurrentIndex();
+  size_t total = buffer_registry_.ptr()->ListedBuffersCount();
   if (delta < 0) {
     delta = total - ((-delta) % total);
   } else {
     delta %= total;
   }
-  set_current_buffer(buffer_tree_.GetBuffer(delta % total),
+  set_current_buffer(buffer_registry_.ptr()->GetListedBuffer(delta % total),
                      CommandArgumentModeApplyMode::kFinal);
 }
 
 void EditorState::AdjustWidgets() {
-  buffer_tree_.SetBufferSortOrder(
-      Read(editor_variables::buffer_sort_order) == LazyString{L"last_visit"}
-          ? BuffersList::BufferSortOrder::kLastVisit
-          : BuffersList::BufferSortOrder::kAlphabetic);
+  buffer_registry_.ptr()->SetListedSortOrder(
+      GetBufferComparePredicate(Read(editor_variables::buffer_sort_order)));
+
   auto buffers_to_retain = Read(editor_variables::buffers_to_retain);
   buffer_registry_.ptr()->SetListedCount(buffers_to_retain >= 0
                                              ? size_t(buffers_to_retain)
@@ -446,7 +486,8 @@ std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
   if (status().GetType() == Status::Type::kPrompt) {
     output.push_back(status().prompt_buffer().value());
   } else if (Read(editor_variables::multiple_buffers)) {
-    output = buffer_tree_.GetAllBuffers();
+    output = buffer_registry_.ptr()->LockListedBuffers(
+        [](std::vector<gc::Root<OpenBuffer>> buffers) { return buffers; });
   } else if (std::optional<gc::Root<OpenBuffer>> buffer = current_buffer();
              buffer.has_value()) {
     if (buffer->ptr()->status().GetType() == Status::Type::kPrompt) {
@@ -460,6 +501,8 @@ std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
 void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
                             BuffersList::AddBufferType insertion_type) {
   std::vector<gc::Root<OpenBuffer>> initial_active_buffers = active_buffers();
+  if (insertion_type != BuffersList::AddBufferType::kIgnore)
+    buffer_registry().AddListedBuffer(buffer);
   buffer_tree().AddBuffer(buffer, insertion_type);
   AdjustWidgets();
 
@@ -490,9 +533,9 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
   } else {
-    gc::Root<OpenBuffer> buffer = buffer_tree().GetBuffer(
+    gc::Root<OpenBuffer> buffer = buffer_registry_.ptr()->GetListedBuffer(
         (std::max(modifiers().repetitions.value(), 1ul) - 1) %
-        buffer_tree().BuffersCount());
+        buffer_registry_.ptr()->ListedBuffersCount());
     value = callback(buffer.ptr().value());
   }
   return std::move(value).Transform([this](EmptyValue) {
@@ -756,8 +799,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
     return OpenAnonymousBuffer(*this).Transform(
         [this, input, start_index](gc::Root<OpenBuffer> buffer) {
           if (!has_current_buffer()) {
-            buffer_tree_.AddBuffer(buffer,
-                                   BuffersList::AddBufferType::kOnlyList);
+            buffer_registry_.ptr()->AddListedBuffer(buffer);
             set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
             CHECK(has_current_buffer());
             CHECK(&current_buffer().value().ptr().value() ==

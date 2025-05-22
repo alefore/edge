@@ -292,7 +292,7 @@ std::optional<std::unordered_set<NonNull<const OpenBuffer*>>> OptimizeFilter(
 }
 
 struct BuffersListOptions {
-  const std::vector<gc::Root<OpenBuffer>>& buffers;
+  const std::vector<gc::Root<OpenBuffer>> buffers;
   std::optional<gc::Root<OpenBuffer>> active_buffer;
   std::set<NonNull<const OpenBuffer*>> active_buffers;
   size_t buffers_per_line;
@@ -614,7 +614,7 @@ ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
 }
 
 LineWithCursor::Generator::Vector ProduceBuffersList(
-    NonNull<std::shared_ptr<BuffersListOptions>> options) {
+    NonNull<std::shared_ptr<const BuffersListOptions>> options) {
   TRACK_OPERATION(BuffersList__ProduceBuffersList);
 
   // We reserve space for the largest number, and extra space for the `progress`
@@ -787,26 +787,12 @@ void BuffersList::AddBuffer(gc::Root<OpenBuffer> buffer,
                             AddBufferType add_buffer_type) {
   switch (add_buffer_type) {
     case AddBufferType::kVisit:
-      if (std::find_if(buffers_.begin(), buffers_.end(),
-                       [buffer_addr = &buffer.ptr().value()](
-                           gc::Root<OpenBuffer>& candidate) {
-                         return &candidate.ptr().value() == buffer_addr;
-                       }) == buffers_.end()) {
-        buffers_.push_back(buffer);
-      }
       active_buffer_widget_->SetBuffer(buffer.ptr().ToWeakPtr());
       buffer.ptr()->Visit();
       Update();
       break;
 
     case AddBufferType::kOnlyList:
-      if (std::find_if(buffers_.begin(), buffers_.end(),
-                       [buffer_addr = &buffer.ptr().value()](
-                           gc::Root<OpenBuffer>& candidate) {
-                         return &candidate.ptr().value() == buffer_addr;
-                       }) == buffers_.end()) {
-        buffers_.push_back(buffer);
-      }
       Update();
       break;
 
@@ -815,43 +801,14 @@ void BuffersList::AddBuffer(gc::Root<OpenBuffer> buffer,
   }
 }
 
-std::vector<gc::Root<OpenBuffer>> BuffersList::GetAllBuffers() const {
-  return buffers_;
-}
-
-void BuffersList::RemoveBuffers(
-    const std::unordered_set<NonNull<const OpenBuffer*>>& buffers_to_erase) {
-  EraseIf(buffers_, [&buffers_to_erase](const gc::Root<OpenBuffer>& candidate) {
-    return buffers_to_erase.contains(
-        NonNull<const OpenBuffer*>::AddressOf(candidate.ptr().value()));
-  });
-  Update();
-}
-
-const gc::Root<OpenBuffer>& BuffersList::GetBuffer(size_t index) const {
-  CHECK_LT(index, buffers_.size());
-  return buffers_[index];
-}
-
-std::optional<size_t> BuffersList::GetBufferIndex(
-    const OpenBuffer& buffer) const {
-  auto it = std::find_if(buffers_.begin(), buffers_.end(),
-                         [&buffer](const gc::Root<OpenBuffer>& candidate) {
-                           return &candidate.ptr().value() == &buffer;
-                         });
-  return it == buffers_.end() ? std::optional<size_t>()
-                              : std::distance(buffers_.begin(), it);
-}
-
 size_t BuffersList::GetCurrentIndex() {
+  // TODO(2025-05-20, easy): Get rid of this function.
   std::optional<gc::Root<OpenBuffer>> buffer = active_buffer();
   if (!buffer.has_value()) {
     return 0;
   }
-  return GetBufferIndex(buffer->ptr().value()).value();
+  return buffer_registry_.GetListedBufferIndex(buffer->ptr().value()).value();
 }
-
-size_t BuffersList::BuffersCount() const { return buffers_.size(); }
 
 void BuffersList::set_filter(
     std::optional<std::vector<gc::WeakPtr<OpenBuffer>>> filter) {
@@ -980,10 +937,13 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
     Widget::OutputProducerOptions options) const {
   TRACK_OPERATION(BuffersList__GetLines);
 
+  auto buffers = buffer_registry_.LockListedBuffers(
+      [](std::vector<gc::Root<OpenBuffer>> output) { return output; });
+
   Layout layout = BuffersPerLine(options.size.line / 2, options.size.column,
-                                 buffers_.size());
+                                 buffers.size());
   VLOG(1) << "Buffers list lines: " << layout.lines
-          << ", size: " << buffers_.size()
+          << ", size: " << buffers.size()
           << ", size column: " << options.size.column;
 
   LineWithCursor::Generator::Vector output;
@@ -991,12 +951,12 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
     options.size.line -= layout.lines;
 
     VLOG(2) << "Buffers per line: " << layout.buffers_per_line
-            << ", from: " << buffers_.size()
+            << ", from: " << buffers.size()
             << " buffers with lines: " << layout.lines;
 
     output = ProduceBuffersList(
         MakeNonNullShared<BuffersListOptions>(BuffersListOptions{
-            .buffers = buffers_,
+            .buffers = std::move(buffers),
             .active_buffer = active_buffer(),
             .active_buffers = container::MaterializeSet(
                 customer_->active_buffers() | gc::view::Value |
@@ -1023,63 +983,29 @@ std::optional<gc::Root<OpenBuffer>> BuffersList::active_buffer() const {
   return active_buffer_widget_->Lock();
 }
 
-void BuffersList::SetBufferSortOrder(BufferSortOrder buffer_sort_order) {
-  buffer_sort_order_ = buffer_sort_order;
-}
-
 void BuffersList::Update() {
   TRACK_OPERATION(BuffersList__Update);
 
-  auto order_predicate =
-      buffer_sort_order_ == BufferSortOrder::kLastVisit
-          ? [](const OpenBuffer& a,
-               const OpenBuffer& b) { return a.last_visit() > b.last_visit(); }
-          : [](const OpenBuffer& a, const OpenBuffer& b) {
-              return a.name() < b.name();
-            };
-  std::sort(buffers_.begin(), buffers_.end(),
-            [order_predicate](const gc::Root<OpenBuffer>& a,
-                              const gc::Root<OpenBuffer>& b) {
-              return (a.ptr()->Read(buffer_variables::pin) ==
-                              b.ptr()->Read(buffer_variables::pin)
-                          ? order_predicate(a.ptr().value(), b.ptr().value())
-                          : a.ptr()->Read(buffer_variables::pin) >
-                                b.ptr()->Read(buffer_variables::pin));
-            });
+  // This is a copy of buffer_registry_'s listed buffers, but filtering down
+  // some buffers that shouldn't be shown.
+  std::vector<gc::Root<OpenBuffer>> buffers =
+      buffer_registry_.LockListedBuffers(
+          [](std::vector<gc::Root<OpenBuffer>> output) { return output; });
 
-  VisitOptional(
-      [&](size_t limit) {
-        if (buffers_.size() > limit) {
-          std::vector<gc::Root<OpenBuffer>> retained_buffers;
-          retained_buffers.reserve(buffers_.size());
-          for (size_t index = 0; index < buffers_.size(); ++index) {
-            if (index < limit || buffers_[index].ptr()->dirty()) {
-              retained_buffers.push_back(std::move(buffers_[index]));
-            } else {
-              buffers_[index].ptr()->Close();
-            }
-          }
-          buffers_ = std::move(retained_buffers);
-        }
-      },
-      [] { /* Nothing. */
-      },
-      buffer_registry_.listed_count());
-
-  // This is a copy of buffers_ but filtering down some buffers that shouldn't
-  // be shown.
-  std::vector<gc::Root<OpenBuffer>> buffers;
-  std::optional<gc::Root<OpenBuffer>> active_buffer =
-      active_buffer_widget_->Lock();
-  size_t index_active = 0;  // The index in `buffers` of `active_buffer`.
-  for (size_t index = 0; index < BuffersCount(); index++) {
-    gc::Root<OpenBuffer> buffer = GetBuffer(index);
-    if (active_buffer.has_value() &&
-        &buffer.ptr().value() == &active_buffer->ptr().value()) {
-      index_active = buffers.size();
-    }
-    buffers.push_back(std::move(buffer));
-  }
+  // The index in `buffers` of `active_buffer`.
+  size_t index_active = std::invoke([&] {
+    return VisitOptional(
+        [&buffers](gc::Root<OpenBuffer> active_buffer) {
+          if (auto it = std::find_if(buffers.begin(), buffers.end(),
+                                     [&](const gc::Root<OpenBuffer>& buffer) {
+                                       return buffer == active_buffer;
+                                     });
+              it != buffers.end())
+            return std::distance(buffers.begin(), it);
+          return 0l;
+        },
+        [] { return 0l; }, active_buffer_widget_->Lock());
+  });
 
   VisitOptional(
       [&index_active, &buffers](size_t count) {
@@ -1093,7 +1019,6 @@ void BuffersList::Update() {
         }
       },
       []() { /* Nothing. */ }, buffer_registry_.shown_count());
-
   if (buffers.empty()) {
     NonNull<std::unique_ptr<BufferWidget>> buffer_widget =
         MakeNonNullUnique<BufferWidget>(BufferWidget::Options{});

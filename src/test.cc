@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command_argument_mode.h"
 #include "src/editor.h"
@@ -43,9 +44,9 @@ bool IsEmpty(EditorState* editor_state) {
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInput({ControlChar::kEscape});
   editor_state->set_current_buffer(
-      editor_state->buffers()
-          ->find(BufferName(LazyString{L"anonymous buffer 0"}))
-          ->second,
+      editor_state->buffer_registry()
+          .Find(BufferName(LazyString{L"anonymous buffer 0"}))
+          .value(),
       CommandArgumentModeApplyMode::kFinal);
 
   editor_state->ProcessInput(

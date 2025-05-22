@@ -15,6 +15,7 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
+using afc::language::EraseIf;
 using afc::language::GetValueOrDefault;
 using afc::language::IgnoreErrors;
 using afc::language::IsError;
@@ -25,6 +26,14 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 
 namespace afc::editor {
+BufferRegistry::BufferRegistry(
+    BufferRegistry::BufferComparePredicate listed_order,
+    std::function<bool(const OpenBuffer&)> is_dirty)
+    : data_(Data{.listed_order = std::move(listed_order)}),
+      is_dirty_(std::move(is_dirty)) {
+  CHECK(is_dirty_ != nullptr);
+}
+
 gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
     const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
   return data_.lock([id, &factory](Data& data) {
@@ -44,6 +53,31 @@ gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
 void BufferRegistry::Add(const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
   data_.lock([&name, &buffer](Data& data) { Add(data, name, buffer); });
+}
+
+void BufferRegistry::AddListedBuffer(gc::Root<OpenBuffer> buffer) {
+  data_.lock([&](Data& data) {
+    if (std::find_if(data.listed_buffers.begin(), data.listed_buffers.end(),
+                     [buffer_addr = &buffer.ptr().value()](
+                         const gc::Root<OpenBuffer>& candidate) {
+                       return &candidate.ptr().value() == buffer_addr;
+                     }) != data.listed_buffers.end())
+      return;
+    data.listed_buffers.push_back(buffer);
+    AdjustListedBuffers(data);
+  });
+}
+
+void BufferRegistry::RemoveListedBuffers(
+    const std::unordered_set<NonNull<const OpenBuffer*>>& buffers_to_erase) {
+  data_.lock([&](Data& data) {
+    EraseIf(data.listed_buffers, [&buffers_to_erase](
+                                     const gc::Root<OpenBuffer>& candidate) {
+      return buffers_to_erase.contains(
+          NonNull<const OpenBuffer*>::AddressOf(candidate.ptr().value()));
+    });
+    AdjustListedBuffers(data);
+  });
 }
 
 std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
@@ -107,6 +141,8 @@ void BufferRegistry::Clear() {
   return data_.lock([](Data& data) {
     data.buffer_map = {};
     data.retained_buffers = {};
+    data.buffers_with_screen = {};
+    data.listed_buffers.clear();
   });
 }
 
@@ -116,6 +152,32 @@ bool BufferRegistry::Remove(const BufferName& name) {
     if (const auto* id = std::get_if<BufferFileId>(&name); id != nullptr)
       data.path_suffix_map.Erase(id->read());
     return data.buffer_map.erase(name) > 0;
+  });
+}
+
+size_t BufferRegistry::ListedBuffersCount() const {
+  return data_.lock(
+      [](const Data& data) { return data.listed_buffers.size(); });
+}
+
+language::gc::Root<OpenBuffer> BufferRegistry::GetListedBuffer(
+    size_t index) const {
+  return data_.lock([index](const Data& data) {
+    return data.listed_buffers[index % data.listed_buffers.size()];
+  });
+}
+
+std::optional<size_t> BufferRegistry::GetListedBufferIndex(
+    const OpenBuffer& buffer) const {
+  return data_.lock([&buffer](const Data& data) -> std::optional<size_t> {
+    if (auto it =
+            std::find_if(data.listed_buffers.begin(), data.listed_buffers.end(),
+                         [&buffer](const gc::Root<OpenBuffer>& candidate) {
+                           return &candidate.ptr().value() == &buffer;
+                         });
+        it != data.listed_buffers.end())
+      return std::distance(data.listed_buffers.begin(), it);
+    return std::nullopt;
   });
 }
 
@@ -136,11 +198,19 @@ std::optional<size_t> BufferRegistry::listed_count() const {
 }
 
 void BufferRegistry::SetShownCount(std::optional<size_t> value) {
-  data_.lock([value](Data& data) { data.shown_count = value; });
+  data_.lock([value, this](Data& data) {
+    data.shown_count = value;
+    AdjustListedBuffers(data);
+  });
 }
 
 std::optional<size_t> BufferRegistry::shown_count() const {
   return data_.lock([](const Data& data) { return data.shown_count; });
+}
+
+void BufferRegistry::SetListedSortOrder(BufferComparePredicate predicate) {
+  return data_.lock(
+      [&predicate](Data& data) { data.listed_order = predicate; });
 }
 
 /* static */
@@ -155,5 +225,44 @@ void BufferRegistry::Add(Data& data, const BufferName& name,
   if (const auto* id = std::get_if<BufferFileId>(&name); id != nullptr)
     data.path_suffix_map.Insert(id->read());
   data.buffer_map.insert_or_assign(name, std::move(buffer));
+}
+
+void BufferRegistry::AdjustListedBuffers(Data& data) {
+  std::sort(data.listed_buffers.begin(), data.listed_buffers.end(),
+            [order = std::ref(data.listed_order)](
+                const gc::Root<OpenBuffer>& a,
+                const gc::Root<OpenBuffer>& b) -> bool {
+              return order(a.ptr().value(), b.ptr().value()) < 0;
+            });
+
+  VisitOptional(
+      [&](size_t limit) {
+        if (data.listed_buffers.size() > limit) {
+          std::vector<gc::Root<OpenBuffer>> retained_buffers;
+          retained_buffers.reserve(data.listed_buffers.size());
+          for (size_t index = 0; index < data.listed_buffers.size(); ++index) {
+            if (index < limit ||
+                is_dirty_(data.listed_buffers[index].ptr().value())) {
+              retained_buffers.push_back(std::move(data.listed_buffers[index]));
+            } else {
+              // TODO(2025-05-20, important): Enable the following (or
+              // equivalent) logic: the buffers leaked should be closed! We
+              // can't do that without making BufferRegistry depend on
+              // OpenBuffer, which would create circular dependencies.
+              //
+              // But if we move `Close` logic to the ~OpenBuffer destructor,
+              // this problem goes away. However, that's a bit tricky, because
+              // logic called inside `Close` may want to force the buffer to be
+              // retained further.
+              //
+              // data.listed_buffers[index].ptr()->Close();
+            }
+          }
+          data.listed_buffers = std::move(retained_buffers);
+        }
+      },
+      [] { /* Nothing. */
+      },
+      data.listed_count);
 }
 }  // namespace afc::editor
