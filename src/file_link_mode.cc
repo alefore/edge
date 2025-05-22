@@ -131,7 +131,7 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
 }
 
 futures::Value<PossibleError> Save(
-    EditorState*, NonNull<std::shared_ptr<struct stat>> stat_buffer,
+    EditorState& editor, NonNull<std::shared_ptr<struct stat>> stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto& buffer = options.buffer;
   FUTURES_ASSIGN_OR_RETURN(
@@ -163,24 +163,31 @@ futures::Value<PossibleError> Save(
   }
 
   return std::move(path_future)
-      .Transform([stat_buffer, options, buffer = buffer.NewRoot()](Path path) {
-        return SaveContentsToFile(path, buffer.ptr()->contents().snapshot(),
-                                  buffer.ptr()->editor().thread_pool(),
-                                  buffer.ptr()->file_system_driver())
+      .Transform([&editor, stat_buffer, options,
+                  buffer = buffer.NewRoot()](Path path) {
+        return SaveContentsToFile(path, options.contents_snapshot,
+                                  editor.thread_pool(),
+                                  options.file_system_driver.ptr().value())
             .Transform(
                 [buffer](EmptyValue) { return buffer.ptr()->PersistState(); })
-            .Transform([stat_buffer, options, buffer, path](EmptyValue) {
+            .Transform([&editor, stat_buffer, options, buffer,
+                        path](EmptyValue) {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
-                  buffer.ptr()->status().SetInformationText(LineBuilder{
-                      SingleLine{LazyString{L"🖫 Saved: "}} +
-                      SingleLine{path.read()}}.Build());
+                  VisitPointer(
+                      options.status.Lock(),
+                      [&path](gc::Root<Status> status_root) {
+                        status_root.ptr()->SetInformationText(LineBuilder{
+                            SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
+                            SingleLine{path.read()}}.Build());
+                      },
+                      [] {});
                   // TODO(easy): Move this to the caller, for symmetry with
                   // kBackup case.
                   // TODO: Since the save is async, what if the contents have
                   // changed in the meantime?
                   buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
-                  for (const auto& dir : buffer.ptr()->editor().edge_path()) {
+                  for (const auto& dir : editor.edge_path()) {
                     buffer.ptr()->EvaluateFile(Path::Join(
                         dir, ValueOrDie(Path::New(
                                  LazyString{L"/hooks/buffer-save.cc"}))));
@@ -188,8 +195,7 @@ futures::Value<PossibleError> Save(
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
                     std::ranges::for_each(
-                        buffer.ptr()->editor().buffer_registry().buffers() |
-                            gc::view::Value |
+                        editor.buffer_registry().buffers() | gc::view::Value |
                             std::views::filter([](OpenBuffer& reload_buffer) {
                               return reload_buffer.Read(
                                   buffer_variables::reload_on_buffer_write);
@@ -435,7 +441,7 @@ gc::Root<OpenBuffer> CreateBuffer(
       gc::WeakPtr<OpenBuffer> buffer_weak =
           save_options.buffer.NewRoot().ptr().ToWeakPtr();
       return futures::OnError(
-          Save(&editor_state, stat_buffer, std::move(save_options)),
+          Save(editor_state, stat_buffer, std::move(save_options)),
           [buffer_weak](Error error) {
             VisitPointer(
                 buffer_weak.Lock(),
