@@ -64,13 +64,9 @@ LineSequence AddVariables(std::wstring type_name,
 }
 }  // namespace
 
-LineSequence SerializeState(Path path, LineColumn position,
+LineSequence SerializeState(LineColumn position,
                             const BufferVariablesInstance& variables) {
   MutableLineSequence contents;
-  contents.push_back(
-      Line{SINGLE_LINE_CONSTANT(L"// State of file: ") +
-           EscapedString::FromString(path.read()).EscapedRepresentation()});
-  contents.push_back(L"");
 
   // TODO(2023-11-26, P1): Turn this into an entry in LineColumnStruct.
   contents.push_back(Line{SINGLE_LINE_CONSTANT(L"buffer.set_position(") +

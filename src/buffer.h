@@ -487,6 +487,9 @@ class OpenBuffer {
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
+  //
+  // The OpenBuffer can be deleted once `GetEdgeStateDirectory` returns before
+  // the future returned by this function has a value.
   futures::ValueOrError<infrastructure::Path> GetEdgeStateDirectory() const;
 
   Log& log() const;

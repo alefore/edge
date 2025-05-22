@@ -593,26 +593,50 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
 
   return OnError(GetEdgeStateDirectory(),
-                 [this](Error error) {
+                 [weak_status = status_.ToWeakPtr()](Error error) {
                    error = AugmentError(
                        LazyString{L"Unable to get Edge state directory"},
                        std::move(error));
-                   status().Set(error);
+                   // TODO(trivial, 2025-05-22): Add operator-> on WeakPtr and
+                   // use that here.
+                   VisitPointer(
+                       weak_status.Lock(),
+                       [&error](gc::Root<Status> root_status) {
+                         root_status.ptr()->Set(error);
+                       },
+                       [] {});
                    return futures::Past(error);
                  })
-      .Transform([this,
-                  root_this = ptr_this_->ToRoot()](Path edge_state_directory) {
+      .Transform([serialized_state = SerializeState(position(), variables_),
+                  file_system_driver = file_system_driver_.ToRoot(),
+                  &editor = editor(), weak_status = status_.ToWeakPtr()](
+                     Path edge_state_directory) {
         Path path = Path::Join(edge_state_directory,
                                PathComponent::FromString(L".edge_state"));
         LOG(INFO) << "PersistState: Preparing state file: " << path;
+        // TODO(trivial, 2025-05-22): Add an operator+ for LineSequence and just
+        // use that here.
+        MutableLineSequence serialized_state_with_header;
+        serialized_state_with_header.push_back(Line{
+            SINGLE_LINE_CONSTANT(L"// State of file: ") +
+            EscapedString::FromString(path.read()).EscapedRepresentation()});
+        serialized_state_with_header.push_back(L"");
+        serialized_state_with_header.append_back(serialized_state);
         return futures::OnError(
-            SaveContentsToFile(path,
-                               SerializeState(path, position(), variables_),
-                               editor().thread_pool(), file_system_driver()),
-            [root_this](Error error) {
+            SaveContentsToFile(path, serialized_state_with_header.snapshot(),
+                               editor.thread_pool(),
+                               file_system_driver.ptr().value()),
+            [weak_status](Error error) {
               error = AugmentError(LazyString{L"Unable to persist state"},
                                    std::move(error));
-              root_this.ptr()->status().Set(error);
+              // TODO(trivial, 2025-05-22): Add operator-> on WeakPtr and use
+              // that here.
+              VisitPointer(
+                  weak_status.Lock(),
+                  [&error](gc::Root<Status> root_status) {
+                    root_status.ptr()->Set(error);
+                  },
+                  [] {});
               return futures::Past(error);
             });
       });

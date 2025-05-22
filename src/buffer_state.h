@@ -22,7 +22,7 @@ struct BufferVariablesInstance {
 };
 
 language::text::LineSequence SerializeState(
-    infrastructure::Path, language::text::LineColumn input,
+    language::text::LineColumn input,
     const BufferVariablesInstance& buffer_variables_instance);
 }  // namespace afc::editor
 
