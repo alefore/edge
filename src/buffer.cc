@@ -989,7 +989,12 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
     return futures::Past(
         PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
-  return options_.handle_save({.buffer = *this, .save_type = save_type});
+  return options_.handle_save(Options::HandleSaveOptions{
+      .buffer = *this,
+      .contents_snapshot = contents().snapshot(),
+      .save_type = save_type,
+      .file_system_driver = file_system_driver_.ToRoot(),
+      .status = status_.ToWeakPtr()});
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
@@ -1064,8 +1069,12 @@ void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
   log_->Append(LazyString{L"UpdateBackup starts."});
   if (options_.handle_save != nullptr) {
-    options_.handle_save(
-        {.buffer = *this, .save_type = Options::SaveType::kBackup});
+    options_.handle_save(Options::HandleSaveOptions{
+        .buffer = *this,
+        .contents_snapshot = contents().snapshot(),
+        .save_type = Options::SaveType::kBackup,
+        .file_system_driver = file_system_driver_.ToRoot(),
+        .status = status_.ToWeakPtr()});
   }
   backup_state_ = DiskState::kCurrent;
 }

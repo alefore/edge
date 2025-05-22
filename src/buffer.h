@@ -110,7 +110,10 @@ class OpenBuffer {
     // save the buffer will fail.
     struct HandleSaveOptions {
       OpenBuffer& buffer;
+      language::text::LineSequence contents_snapshot;
       SaveType save_type = SaveType::kMainFile;
+      language::gc::Root<infrastructure::FileSystemDriver> file_system_driver;
+      language::gc::WeakPtr<Status> status;
     };
     std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
