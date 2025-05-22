@@ -422,4 +422,10 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
   return output;
 }
 
+LineSequence operator+(const LineSequence& lhs, const LineSequence& rhs) {
+  MutableLineSequence output{lhs};
+  output.append_back(rhs);
+  return output.snapshot();
+}
+
 }  // namespace afc::language::text

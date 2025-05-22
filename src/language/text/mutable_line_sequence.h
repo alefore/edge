@@ -225,5 +225,9 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // this, and ListenableValue requires moves.
   language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer_;
 };
+
+// For convenience, define this wrapper that builds a temporary
+// `MutableLineSequence` to append two `LineSequence` instances.
+LineSequence operator+(const LineSequence&, const LineSequence&);
 }  // namespace afc::language::text
 #endif
