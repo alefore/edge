@@ -398,8 +398,6 @@ class OpenBuffer {
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
       const language::lazy_string::LazyString& str);
-  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
-      const infrastructure::Path& path);
 
   language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue() const;
 
@@ -475,6 +473,7 @@ class OpenBuffer {
 
   void PushSignal(infrastructure::UnixSignal signal);
 
+  const language::gc::Ptr<ExecutionContext>& execution_context() const;
   const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>&
   file_system_driver() const;
 

@@ -124,7 +124,7 @@ futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, gc::WeakPtr<OpenBuffer> source_weak,
     OpenBuffer& target) {
   for (const auto& dir : editor_state.edge_path()) {
-    target.EvaluateFile(Path::Join(
+    target.execution_context()->EvaluateFile(Path::Join(
         dir,
         ValueOrDie(Path::New(LazyString{L"hooks/navigation-buffer-reload.cc"}),
                    L"navigation buffer: GenerateContents")));

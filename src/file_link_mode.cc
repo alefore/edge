@@ -171,6 +171,8 @@ futures::Value<PossibleError> Save(
             .Transform(
                 [buffer](EmptyValue) { return buffer.ptr()->PersistState(); })
             .Transform([&editor, stat_buffer, options, buffer,
+                        root_execution_context =
+                            buffer.ptr()->execution_context().ToRoot(),
                         path](EmptyValue) {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
@@ -188,7 +190,7 @@ futures::Value<PossibleError> Save(
                   // changed in the meantime?
                   buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
                   for (const auto& dir : editor.edge_path()) {
-                    buffer.ptr()->EvaluateFile(Path::Join(
+                    root_execution_context.ptr()->EvaluateFile(Path::Join(
                         dir, ValueOrDie(Path::New(
                                  LazyString{L"/hooks/buffer-save.cc"}))));
                   }

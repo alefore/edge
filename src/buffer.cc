@@ -406,11 +406,14 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                         .Transform(
                             [state_path,
                              weak_this = ptr_this_->ToWeakPtr()](struct stat) {
+                              // TODO(2025-05-23, trivial): Retain the
+                              // execution_context, rather than weak_this.
                               return VisitPointer(
                                   weak_this.Lock(),
                                   [&](gc::Root<OpenBuffer> root_this) {
-                                    return root_this.ptr()->EvaluateFile(
-                                        state_path);
+                                    return root_this.ptr()
+                                        ->execution_context()
+                                        ->EvaluateFile(state_path);
                                   },
                                   [] {
                                     return futures::Past(
@@ -424,9 +427,10 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
             Path::New(Read(buffer_variables::path)));
         auto paths = editor().edge_path();
         futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
-          return EvaluateFile(
-                     Path::Join(dir, ValueOrDie(Path::New(LazyString{
-                                         L"hooks/buffer-first-enter.cc"}))))
+          return execution_context_
+              ->EvaluateFile(Path::Join(
+                  dir, ValueOrDie(Path::New(
+                           LazyString{L"hooks/buffer-first-enter.cc"}))))
               .Transform([](gc::Root<Value>)
                              -> futures::ValueOrError<IterationControlCommand> {
                 return Past(IterationControlCommand::kContinue);
@@ -1242,32 +1246,6 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
       CompileString(code));
 }
 
-futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
-    const Path& path) {
-  return std::visit(
-      overload{[&](Error error) {
-                 error = AugmentError(path.read() + LazyString{L": error: "},
-                                      std::move(error));
-                 status_->Set(error);
-                 return futures::Past(ValueOrError<gc::Root<Value>>(error));
-               },
-               [&](NonNull<std::unique_ptr<Expression>> expression) {
-                 LOG(INFO) << Read(buffer_variables::path) << " "
-                           << Parenthesize(Read(buffer_variables::name))
-                           << ": Evaluating file: " << path;
-                 return Evaluate(
-                     std::move(expression), editor().gc_pool(),
-                     environment_.ToRoot(),
-                     [path, work_queue =
-                                work_queue()](OnceOnlyFunction<void()> resume) {
-                       LOG(INFO) << "Evaluation of file yields: " << path;
-                       work_queue->Schedule(
-                           WorkQueue::Callback{.callback = std::move(resume)});
-                     });
-               }},
-      CompileFile(path, editor().gc_pool(), environment_.ToRoot()));
-}
-
 NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {
   return execution_context_->work_queue();
 }
@@ -1802,6 +1780,11 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
 
   status_->InsertError(Error{LazyString{L"Unhandled signal received: "} +
                              LazyString{std::to_wstring(signal.read())}});
+}
+
+const language::gc::Ptr<ExecutionContext>& OpenBuffer::execution_context()
+    const {
+  return execution_context_;
 }
 
 const NonNull<std::shared_ptr<FileSystemDriver>>&

@@ -80,6 +80,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                    return futures::Past(IterationControlCommand::kStop);
                  ++index.value();
                  return buffer->ptr()
+                     ->execution_context()
                      ->EvaluateFile(adjusted_input)
                      .Transform([](gc::Root<vm::Value>) {
                        return Success(IterationControlCommand::kContinue);

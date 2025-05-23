@@ -658,7 +658,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                   .Transform([buffer, path](
                                                  ResolvePathOutput<EmptyValue>
                                                      results) {
-                                    buffer->EvaluateFile(results.path);
+                                    buffer->execution_context()->EvaluateFile(
+                                        results.path);
                                     return Success();
                                   }),
                               [buffer, path](Error error) {
@@ -703,7 +704,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       IDENTIFIER_CONSTANT(L"EvaluateFile"),
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [](gc::Ptr<OpenBuffer> buffer, Path path) {
-                        buffer->EvaluateFile(std::move(path));
+                        buffer->execution_context()->EvaluateFile(
+                            std::move(path));
                       })
           .ptr());
 
