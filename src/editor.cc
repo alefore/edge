@@ -294,38 +294,15 @@ EditorState::EditorState(
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
     auto path =
         Path::Join(dir, ValueOrDie(Path::New(LazyString{L"hooks/start.cc"})));
-    return std::visit(
-        overload{
-            [&](NonNull<std::unique_ptr<vm::Expression>> expression)
-                -> futures::Value<futures::IterationControlCommand> {
-              LOG(INFO) << "Evaluating file: " << path;
-              return Evaluate(std::move(expression), execution_context().pool(),
-                              execution_context().ptr()->environment(),
-                              [path, work_queue = work_queue()](
-                                  OnceOnlyFunction<void()> resume) {
-                                LOG(INFO)
-                                    << "Evaluation of file yields: " << path;
-                                work_queue->Schedule(WorkQueue::Callback{
-                                    .callback = std::move(resume)});
-                              })
-                  .Transform([](gc::Root<vm::Value>) {
-                    // TODO(2022-04-26): Figure out a way to get rid of
-                    // `Success`.
-                    return futures::Past(
-                        Success(futures::IterationControlCommand::kContinue));
-                  })
-                  .ConsumeErrors([](Error) {
-                    return futures::Past(
-                        futures::IterationControlCommand::kContinue);
-                  });
-            },
-            [&](Error error) {
-              LOG(INFO) << "Compilation error: " << error;
-              status().Set(error);
-              return futures::Past(futures::IterationControlCommand::kContinue);
-            }},
-        vm::CompileFile(path, execution_context().pool(),
-                        execution_context().ptr()->environment()));
+    return execution_context_.ptr()
+        ->EvaluateFile(path)
+        .Transform([](gc::Root<vm::Value>) {
+          return futures::Past(
+              Success(futures::IterationControlCommand::kContinue));
+        })
+        .ConsumeErrors([](Error) {
+          return futures::Past(futures::IterationControlCommand::kContinue);
+        });
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
