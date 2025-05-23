@@ -21,20 +21,20 @@ class ExecutionContext {
   struct ConstructorAccessTag {};
 
   const language::gc::Ptr<vm::Environment> environment_;
-  const language::gc::WeakPtr<Status> status_;
+  const std::weak_ptr<Status> status_;
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
   const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
       file_system_driver_;
 
  public:
   static language::gc::Root<ExecutionContext> New(
-      language::gc::Ptr<vm::Environment>, language::gc::WeakPtr<Status>,
+      language::gc::Ptr<vm::Environment>, std::weak_ptr<Status>,
       language::NonNull<std::shared_ptr<concurrent::WorkQueue>>,
       language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>);
 
   ExecutionContext(
       ConstructorAccessTag, language::gc::Ptr<vm::Environment>,
-      language::gc::WeakPtr<Status>,
+      std::weak_ptr<Status>,
       language::NonNull<std::shared_ptr<concurrent::WorkQueue>>,
       language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>);
 

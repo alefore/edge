@@ -65,7 +65,7 @@ class EditorState {
         pipe_to_communicate_internal_events;
     concurrent::Protected<bool> has_internal_events =
         concurrent::Protected<bool>(false);
-    language::gc::Root<Status> status;
+    language::NonNull<std::shared_ptr<Status>> status;
   };
 
   // The callbacks we schedule in work_queue may survive `this`. Anything those

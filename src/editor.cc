@@ -192,7 +192,7 @@ void EditorState::NotifyInternalEvent(EditorState::SharedData& data) {
       data.pipe_to_communicate_internal_events.has_value() &&
       write(data.pipe_to_communicate_internal_events->second.read(), " ", 1) ==
           -1) {
-    data.status.ptr()->InsertError(
+    data.status->InsertError(
         Error{LazyString{L"Write to internal pipe failed: "} +
               LazyString{FromByteString(strerror(errno))}});
   }
@@ -263,8 +263,7 @@ EditorState::EditorState(
                 return std::make_pair(FileDescriptor(output[0]),
                                       FileDescriptor(output[1]));
               }),
-          .status =
-              gc_pool_->NewRoot(MakeNonNullUnique<Status>(audio_player))})),
+          .status = MakeNonNullShared<Status>(audio_player)})),
       string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
@@ -283,7 +282,7 @@ EditorState::EditorState(
                         std::shared_ptr<EditorState>(this, [](void*) {}))));
             return environment;
           }),
-          shared_data_->status.ptr().ToWeakPtr(), thread_pool_->work_queue(),
+          shared_data_->status.get_shared(), thread_pool_->work_queue(),
           MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()))),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
@@ -839,9 +838,9 @@ gc::Root<OpenBuffer> EditorState::GetConsole() {
   });
 }
 
-Status& EditorState::status() { return shared_data_->status.ptr().value(); }
+Status& EditorState::status() { return shared_data_->status.value(); }
 const Status& EditorState::status() const {
-  return shared_data_->status.ptr().value();
+  return shared_data_->status.value();
 }
 
 const infrastructure::Path& EditorState::home_directory() const {

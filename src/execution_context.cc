@@ -13,12 +13,12 @@ using afc::language::Error;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::overload;
-using afc::language::VisitOptional;
+using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 /* static */ gc::Root<ExecutionContext> ExecutionContext::New(
-    gc::Ptr<vm::Environment> environment, gc::WeakPtr<Status> status,
+    gc::Ptr<vm::Environment> environment, std::weak_ptr<Status> status,
     NonNull<std::shared_ptr<WorkQueue>> work_queue,
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver) {
   gc::Pool& pool = environment.pool();
@@ -29,7 +29,8 @@ namespace afc::editor {
 
 ExecutionContext::ExecutionContext(
     ConstructorAccessTag, gc::Ptr<vm::Environment> environment,
-    gc::WeakPtr<Status> status, NonNull<std::shared_ptr<WorkQueue>> work_queue,
+    std::weak_ptr<Status> status,
+    NonNull<std::shared_ptr<WorkQueue>> work_queue,
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver)
     : environment_(std::move(environment)),
       status_(std::move(status)),
@@ -52,29 +53,31 @@ ExecutionContext::file_system_driver() const {
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
     infrastructure::Path path) {
   return std::visit(
-      overload{
-          [environment = environment_.ToRoot(), work_queue = work_queue_,
-           path](NonNull<std::unique_ptr<vm::Expression>> expression) {
-            LOG(INFO) << "Evaluating file: " << path;
-            return Evaluate(
-                std::move(expression), environment.pool(), environment,
-                [path, work_queue](OnceOnlyFunction<void()> resume) {
-                  LOG(INFO) << "Evaluation of file yields: " << path;
-                  work_queue->Schedule(
-                      WorkQueue::Callback{.callback = std::move(resume)});
-                });
-          },
-          [weak_status = status_,
-           path](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
-            LOG(INFO) << "Compilation error: " << error;
-            error = AugmentError(path.read() + LazyString{L": error: "},
-                                 std::move(error));
-            VisitOptional(
-                [&error](gc::Root<Status> status) { status.ptr()->Set(error); },
-                [] {}, weak_status.Lock());
+      overload{[environment = environment_.ToRoot(), work_queue = work_queue_,
+                path](NonNull<std::unique_ptr<vm::Expression>> expression) {
+                 LOG(INFO) << "Evaluating file: " << path;
+                 return Evaluate(
+                     std::move(expression), environment.pool(), environment,
+                     [path, work_queue](OnceOnlyFunction<void()> resume) {
+                       LOG(INFO) << "Evaluation of file yields: " << path;
+                       work_queue->Schedule(
+                           WorkQueue::Callback{.callback = std::move(resume)});
+                     });
+               },
+               [weak_status = status_, path](
+                   Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
+                 LOG(INFO) << "Compilation error: " << error;
+                 error = AugmentError(path.read() + LazyString{L": error: "},
+                                      std::move(error));
+                 VisitPointer(
+                     weak_status,
+                     [&error](NonNull<std::shared_ptr<Status>> status) {
+                       status->Set(error);
+                     },
+                     [] {});
 
-            return futures::Past(error);
-          }},
+                 return futures::Past(error);
+               }},
       vm::CompileFile(path, environment_.pool(), environment_.ToRoot()));
 }
 

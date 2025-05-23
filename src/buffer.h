@@ -115,7 +115,7 @@ class OpenBuffer {
       SaveType save_type = SaveType::kMainFile;
       language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
           file_system_driver;
-      language::gc::WeakPtr<Status> status;
+      std::weak_ptr<Status> status;
     };
     // `this` may be deleted before the future returned by `handle_save` has
     // received a value.
@@ -145,7 +145,7 @@ class OpenBuffer {
              language::gc::Ptr<MapModeCommands> default_commands,
              language::gc::Ptr<InputReceiver> mode,
              language::gc::Ptr<vm::Environment> environment,
-             language::gc::Ptr<Status> status,
+             language::NonNull<std::shared_ptr<Status>> status,
              language::gc::Ptr<ExecutionContext> execution_context);
   ~OpenBuffer();
 
@@ -685,7 +685,7 @@ class OpenBuffer {
   // TODO: Add a Time type to the VM and expose this?
   struct timespec last_progress_update_ = {0, 0};
 
-  const language::gc::Ptr<Status> status_;
+  const language::NonNull<std::shared_ptr<Status>> status_;
 
   BufferSyntaxParser buffer_syntax_parser_;
 

@@ -182,9 +182,9 @@ futures::Value<PossibleError> Save(
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   VisitPointer(
-                      options.status.Lock(),
-                      [&path](gc::Root<Status> status_root) {
-                        status_root.ptr()->SetInformationText(LineBuilder{
+                      options.status,
+                      [&path](NonNull<std::shared_ptr<Status>> status) {
+                        status->SetInformationText(LineBuilder{
                             SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
                             SingleLine{path.read()}}.Build());
                       },

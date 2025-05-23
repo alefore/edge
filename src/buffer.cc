@@ -289,15 +289,14 @@ using namespace afc::vm;
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<Environment> environment =
       Environment::New(options.editor.environment().ptr());
-  gc::Root<Status> status = options.editor.gc_pool().NewRoot(
-      MakeNonNullUnique<Status>(options.editor.audio_player()));
+  auto status = MakeNonNullShared<Status>(options.editor.audio_player());
   gc::Root<ExecutionContext> execution_context = ExecutionContext::New(
-      environment.ptr(), status.ptr().ToWeakPtr(), WorkQueue::New(),
+      environment.ptr(), status.get_shared(), WorkQueue::New(),
       MakeNonNullUnique<FileSystemDriver>(options.editor.thread_pool()));
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
-          mode.ptr(), environment.ptr(), status.ptr(),
+          mode.ptr(), environment.ptr(), std::move(status),
           execution_context.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
@@ -374,7 +373,8 @@ class OpenBufferMutableLineSequenceObserver
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<InputReceiver> mode,
-                       gc::Ptr<Environment> environment, gc::Ptr<Status> status,
+                       gc::Ptr<Environment> environment,
+                       NonNull<std::shared_ptr<Status>> status,
                        gc::Ptr<ExecutionContext> execution_context)
     : options_(std::move(options)),
       transformation_adapter_(
@@ -602,21 +602,23 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   }
 
   return OnError(GetEdgeStateDirectory(),
-                 [weak_status = status_.ToWeakPtr()](Error error) {
+                 [weak_status = std::weak_ptr<Status>(status_.get_shared())](
+                     Error error) {
                    error = AugmentError(
                        LazyString{L"Unable to get Edge state directory"},
                        std::move(error));
                    VisitPointer(
-                       weak_status.Lock(),
-                       [&error](gc::Root<Status> root_status) {
-                         root_status.ptr()->Set(error);
+                       weak_status,
+                       [&error](NonNull<std::shared_ptr<Status>> status) {
+                         status->Set(error);
                        },
                        [] {});
                    return futures::Past(error);
                  })
       .Transform([serialized_state = SerializeState(position(), variables_),
                   file_system_driver = execution_context_->file_system_driver(),
-                  &editor = editor(), weak_status = status_.ToWeakPtr()](
+                  &editor = editor(),
+                  weak_status = std::weak_ptr<Status>(status_.get_shared())](
                      Path edge_state_directory) {
         Path path = Path::Join(edge_state_directory,
                                PathComponent::FromString(L".edge_state"));
@@ -634,9 +636,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
               error = AugmentError(LazyString{L"Unable to persist state"},
                                    std::move(error));
               VisitPointer(
-                  weak_status.Lock(),
-                  [&error](gc::Root<Status> root_status) {
-                    root_status.ptr()->Set(error);
+                  weak_status,
+                  [&error](NonNull<std::shared_ptr<Status>> status) {
+                    status->Set(error);
                   },
                   [] {});
               return futures::Past(error);
@@ -1016,12 +1018,13 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
         PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
   LineSequence contents_snapshot = contents().snapshot();
-  futures::Value<PossibleError> output = options_.handle_save(
-      Options::HandleSaveOptions{.buffer = *this,
-                                 .contents_snapshot = contents_snapshot,
-                                 .save_type = save_type,
-                                 .file_system_driver = file_system_driver(),
-                                 .status = status_.ToWeakPtr()});
+  futures::Value<PossibleError> output =
+      options_.handle_save(Options::HandleSaveOptions{
+          .buffer = *this,
+          .contents_snapshot = contents_snapshot,
+          .save_type = save_type,
+          .file_system_driver = file_system_driver(),
+          .status = std::weak_ptr<Status>(status_.get_shared())});
   if (save_type == OpenBuffer::Options::SaveType::kMainFile)
     output = std::move(output).Transform(
         [&editor = editor(), disk_state = disk_state_, contents_snapshot,
@@ -1048,10 +1051,11 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
           return futures::Past(Success());
         });
   return OnError(
-      std::move(output), [weak_status = status_.ToWeakPtr()](Error error) {
+      std::move(output),
+      [weak_status = std::weak_ptr<Status>(status_.get_shared())](Error error) {
         VisitPointer(
-            weak_status.Lock(),
-            [&error](gc::Root<Status> status) {
+            weak_status,
+            [&error](NonNull<std::shared_ptr<Status>> status) {
               status->Set(AugmentError(LazyString{L"🖫 Save failed"}, error));
             },
             [] {});
@@ -1129,12 +1133,12 @@ void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
   log_->Append(LazyString{L"UpdateBackup starts."});
   if (options_.handle_save != nullptr) {
-    options_.handle_save(
-        Options::HandleSaveOptions{.buffer = *this,
-                                   .contents_snapshot = contents().snapshot(),
-                                   .save_type = Options::SaveType::kBackup,
-                                   .file_system_driver = file_system_driver(),
-                                   .status = status_.ToWeakPtr()});
+    options_.handle_save(Options::HandleSaveOptions{
+        .buffer = *this,
+        .contents_snapshot = contents().snapshot(),
+        .save_type = Options::SaveType::kBackup,
+        .file_system_driver = file_system_driver(),
+        .status = std::weak_ptr<Status>(status_.get_shared())});
   }
   backup_state_ = DiskState::kCurrent;
 }
@@ -2591,8 +2595,7 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 OpenBuffer::Expand() const {
   return {environment().object_metadata(), default_commands_.object_metadata(),
-          mode_.object_metadata(), status_.object_metadata(),
-          execution_context_.object_metadata()};
+          mode_.object_metadata(), execution_context_.object_metadata()};
 }
 
 const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
