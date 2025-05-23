@@ -117,6 +117,8 @@ class OpenBuffer {
           file_system_driver;
       language::gc::WeakPtr<Status> status;
     };
+    // `this` may be deleted before the future returned by `handle_save` has
+    // received a value.
     std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
 
@@ -328,8 +330,8 @@ class OpenBuffer {
     // The file (in disk) doesn't reflect the last changes applied by the user.
     kStale
   };
-  void SetDiskState(DiskState disk_state) { disk_state_ = disk_state; }
-  DiskState disk_state() const { return disk_state_; }
+  void SetDiskState(DiskState disk_state) { disk_state_.value() = disk_state; }
+  DiskState disk_state() const { return disk_state_.value(); }
   // Returns a unique_ptr with the current disk state value. When the pointer is
   // destroyed, restores the state of the buffer to that value. This is useful
   // for customers that want to apply modifications to the buffer that shouldn't
@@ -443,9 +445,7 @@ class OpenBuffer {
   //
   // TODO(easy, 2023-08-21): Stop passing a reference to TerminalInputParser;
   // instead, extend TerminalInputParser::Receiver.
-  const language::text::MutableLineSequence& contents() const {
-    return contents_;
-  }
+  const language::text::MutableLineSequence& contents() const;
 
   BufferName name() const;
 
@@ -633,10 +633,15 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<OpenBufferMutableLineSequenceObserver>>
       contents_observer_;
 
-  language::text::MutableLineSequence contents_;
+  // Only internally shared (allows OpenBuffer to be deleted while a save
+  // operation is pending; the save operation will generally check if the
+  // contents_ didn't change and conditionally update disk_state_).
+  const language::NonNull<std::shared_ptr<language::text::MutableLineSequence>>
+      contents_;
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
-  DiskState disk_state_ = DiskState::kCurrent;
+  language::NonNull<std::shared_ptr<DiskState>> disk_state_ =
+      language::MakeNonNullShared<DiskState>(DiskState::kCurrent);
   DiskState backup_state_ = DiskState::kCurrent;
   bool reading_from_parser_ = false;
 

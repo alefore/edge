@@ -379,10 +379,12 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
-      contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
-          std::vector<NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
-              {contents_observer_,
-               cursors_tracker_.NewMutableLineSequenceObserver()}))),
+      contents_(MakeNonNullShared<MutableLineSequence>(
+          MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
+              std::vector<
+                  NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
+                  {contents_observer_,
+                   cursors_tracker_.NewMutableLineSequenceObserver()})))),
       environment_(std::move(environment)),
       default_commands_(std::move(default_commands)),
       mode_(std::move(mode)),
@@ -647,15 +649,15 @@ void OpenBuffer::ClearContents() {
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
   options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
                                                      name());
-  contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
-                       MutableLineSequence::ObserverBehavior::kHide);
+  contents_->EraseLines(LineNumber(0), LineNumber(0) + contents_->size(),
+                        MutableLineSequence::ObserverBehavior::kHide);
   file_adapter_->SetPositionToZero();
   undo_state_.Clear();
 }
 
 void OpenBuffer::AppendEmptyLine() {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(Line());
+  contents_->push_back(Line());
 }
 
 void OpenBuffer::SignalEndOfFile() {
@@ -852,7 +854,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
-  buffer_syntax_parser_.Parse(contents_.snapshot());
+  buffer_syntax_parser_.Parse(contents_->snapshot());
 }
 
 void OpenBuffer::StartNewLine(Line line) {
@@ -868,8 +870,8 @@ void OpenBuffer::AppendLines(
   auto lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
   lines_read_rate_.IncrementAndGetEventsPerSecond(lines_added.read());
-  LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
-  contents_.append_back(
+  LineNumberDelta start_new_section = contents_->size() - LineNumberDelta(1);
+  contents_->append_back(
       UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
       observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
@@ -877,8 +879,8 @@ void OpenBuffer::AppendLines(
     ResolvePathOptions<EmptyValue>::New(
         editor(), MakeNonNullShared<FileSystemDriver>(editor().thread_pool()))
         .Transform(
-            [buffer_name = name(), lines_added, contents = contents_.snapshot(),
-             start_new_section,
+            [buffer_name = name(), lines_added,
+             contents = contents_->snapshot(), start_new_section,
              &editor = editor()](ResolvePathOptions<EmptyValue> options) {
               for (LineNumberDelta i; i < lines_added; ++i) {
                 auto source_line = LineNumber() + start_new_section + i;
@@ -1013,12 +1015,48 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
     return futures::Past(
         PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
-  return options_.handle_save(
+  LineSequence contents_snapshot = contents().snapshot();
+  futures::Value<PossibleError> output = options_.handle_save(
       Options::HandleSaveOptions{.buffer = *this,
-                                 .contents_snapshot = contents().snapshot(),
+                                 .contents_snapshot = contents_snapshot,
                                  .save_type = save_type,
                                  .file_system_driver = file_system_driver(),
                                  .status = status_.ToWeakPtr()});
+  if (save_type == OpenBuffer::Options::SaveType::kMainFile)
+    output = std::move(output).Transform(
+        [&editor = editor(), disk_state = disk_state_, contents_snapshot,
+         contents = contents_,
+         trigger_reload_on_buffer_write =
+             Read(buffer_variables::trigger_reload_on_buffer_write),
+         name = name()](EmptyValue) -> futures::Value<PossibleError> {
+          if (contents_snapshot == contents->snapshot())
+            disk_state.value() = OpenBuffer::DiskState::kCurrent;
+          if (trigger_reload_on_buffer_write) {
+            std::ranges::for_each(
+                editor.buffer_registry().buffers() | gc::view::Value |
+                    std::views::filter([](OpenBuffer& reload_buffer) {
+                      return reload_buffer.Read(
+                          buffer_variables::reload_on_buffer_write);
+                    }),
+                [name](OpenBuffer& reload_buffer) {
+                  LOG(INFO) << "Write of " << name << " triggers reload: "
+                            << reload_buffer.Read(buffer_variables::name);
+                  reload_buffer.Reload();
+                });
+          }
+
+          return futures::Past(Success());
+        });
+  return OnError(
+      std::move(output), [weak_status = status_.ToWeakPtr()](Error error) {
+        VisitPointer(
+            weak_status.Lock(),
+            [&error](gc::Root<Status> status) {
+              status->Set(AugmentError(LazyString{L"🖫 Save failed"}, error));
+            },
+            [] {});
+        return futures::Past(error);
+      });
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
@@ -1029,14 +1067,14 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   }
   FUTURES_ASSIGN_OR_RETURN(
       Path file_path,
-      AugmentError(
-          LazyString{L"Unable to persist buffer with invalid path "} +
-              Parenthesize(dirty() ? LazyString{L"dirty"}
-                                   : LazyString{L"clean"}) +
-              LazyString{L" "} +
-              (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
-                                                : LazyString{L"not modified"}),
-          AbsolutePath::New(Read(buffer_variables::path))));
+      AugmentError(LazyString{L"Unable to persist buffer with invalid path "} +
+                       Parenthesize(dirty() ? LazyString{L"dirty"}
+                                            : LazyString{L"clean"}) +
+                       LazyString{L" "} +
+                       (disk_state_.value() == DiskState::kStale
+                            ? LazyString{L"modified"}
+                            : LazyString{L"not modified"}),
+                   AbsolutePath::New(Read(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
     return futures::Past(ValueOrError<Path>(
@@ -1111,7 +1149,7 @@ void OpenBuffer::SortContents(
     std::function<bool(const Line&, const Line&)> compare) {
   CHECK_GE(length, LineNumberDelta());
   CHECK_LE((start + length).ToDelta(), lines_size());
-  contents_.sort(start, length, compare);
+  contents_->sort(start, length, compare);
 }
 
 void OpenBuffer::SortAllContents(
@@ -1126,9 +1164,9 @@ void OpenBuffer::SortAllContentsIgnoringCase() {
   });
 }
 
-LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
+LineNumberDelta OpenBuffer::lines_size() const { return contents_->size(); }
 
-LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
+LineNumber OpenBuffer::EndLine() const { return contents_->EndLine(); }
 
 InputReceiver& OpenBuffer::mode() const { return mode_.value(); }
 
@@ -1144,12 +1182,12 @@ gc::Ptr<MapModeCommands> OpenBuffer::default_commands() {
 
 void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
   CHECK_LE(first, last);
-  CHECK_LE(last, LineNumber(0) + contents_.size());
-  contents_.EraseLines(first, last);
+  CHECK_LE(last, LineNumber(0) + contents_->size());
+  contents_->EraseLines(first, last);
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position, Line line) {
-  contents_.insert_line(
+  contents_->insert_line(
       line_position,
       UpdateLineMetadata(*this, line_processor_map_, {std::move(line)})[0]);
 }
@@ -1163,8 +1201,8 @@ void OpenBuffer::AppendLine(SingleLine str) {
     return;
   }
 
-  if (contents_.size() == LineNumberDelta(1) &&
-      contents_.back().EndColumn().IsZero()) {
+  if (contents_->size() == LineNumberDelta(1) &&
+      contents_->back().EndColumn().IsZero()) {
     if (str == LazyString{L"EDGE PARSER v1.0"}) {
       reading_from_parser_ = true;
       return;
@@ -1182,7 +1220,7 @@ void OpenBuffer::AppendRawLine(
 void OpenBuffer::AppendRawLine(
     Line line, MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
-  contents_.append_back(
+  contents_->append_back(
       UpdateLineMetadata(*this, line_processor_map_, {std::move(line)}),
       observer_behavior);
 }
@@ -1194,13 +1232,13 @@ void OpenBuffer::AppendToLastLine(SingleLine str) {
 void OpenBuffer::AppendToLastLine(Line line) {
   TRACK_OPERATION(OpenBuffer_AppendToLastLine);
   auto follower = GetEndPositionFollower();
-  LineBuilder options(contents_.back());
+  LineBuilder options(contents_->back());
   options.Append(LineBuilder(std::move(line)));
   AppendRawLine(std::move(options).Build(),
                 MutableLineSequence::ObserverBehavior::kHide);
-  contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
-                       contents_.EndLine(),
-                       MutableLineSequence::ObserverBehavior::kHide);
+  contents_->EraseLines(contents_->EndLine() - LineNumberDelta(1),
+                        contents_->EndLine(),
+                        MutableLineSequence::ObserverBehavior::kHide);
 }
 
 ValueOrError<
@@ -1271,19 +1309,19 @@ void OpenBuffer::AddLineProcessor(
 
 void OpenBuffer::DeleteRange(const Range& range) {
   if (range.IsSingleLine()) {
-    contents_.DeleteCharactersFromLine(
+    contents_->DeleteCharactersFromLine(
         range.begin(), range.end().column - range.begin().column);
-    SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
-                                       range.begin().line);
+    SetMutableLineSequenceLineMetadata(*this, line_processor_map_,
+                                       contents_.value(), range.begin().line);
   } else {
-    contents_.DeleteToLineEnd(range.begin());
-    contents_.DeleteCharactersFromLine(LineColumn(range.end().line),
-                                       range.end().column.ToDelta());
+    contents_->DeleteToLineEnd(range.begin());
+    contents_->DeleteCharactersFromLine(LineColumn(range.end().line),
+                                        range.end().column.ToDelta());
     // Lines in the middle.
     EraseLines(range.begin().line + LineNumberDelta(1), range.end().line);
-    contents_.FoldNextLine(range.begin().line);
-    SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
-                                       range.begin().line);
+    contents_->FoldNextLine(range.begin().line);
+    SetMutableLineSequenceLineMetadata(*this, line_processor_map_,
+                                       contents_.value(), range.begin().line);
   }
 }
 
@@ -1294,18 +1332,18 @@ LineColumn OpenBuffer::InsertInPosition(
           << (modifiers.has_value() ? modifiers.value().size() : 1);
   auto blocker = cursors_tracker_.DelayTransformations();
   LineColumn position = input_position;
-  if (position.line > contents_.EndLine()) {
-    position.line = contents_.EndLine();
-    position.column = contents_.at(position.line).EndColumn();
+  if (position.line > contents_->EndLine()) {
+    position.line = contents_->EndLine();
+    position.column = contents_->at(position.line).EndColumn();
   }
-  if (position.column > contents_.at(position.line).EndColumn()) {
-    position.column = contents_.at(position.line).EndColumn();
+  if (position.column > contents_->at(position.line).EndColumn()) {
+    position.column = contents_->at(position.line).EndColumn();
   }
-  contents_.SplitLine(position);
-  contents_.insert(position.line.next(), contents_to_insert, modifiers);
-  contents_.FoldNextLine(position.line);
-  SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
-                                     position.line);
+  contents_->SplitLine(position);
+  contents_->insert(position.line.next(), contents_to_insert, modifiers);
+  contents_->FoldNextLine(position.line);
+  SetMutableLineSequenceLineMetadata(*this, line_processor_map_,
+                                     contents_.value(), position.line);
 
   LineNumber last_line =
       position.line + contents_to_insert.size() - LineNumberDelta(1);
@@ -1314,9 +1352,9 @@ LineColumn OpenBuffer::InsertInPosition(
   CHECK(line.has_value());
   ColumnNumber column = line->EndColumn();
 
-  contents_.FoldNextLine(last_line);
-  SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
-                                     last_line);
+  contents_->FoldNextLine(last_line);
+  SetMutableLineSequenceLineMetadata(*this, line_processor_map_,
+                                     contents_.value(), last_line);
   return LineColumn(last_line, column);
 }
 
@@ -1330,19 +1368,19 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 }
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
-  CHECK_LE(position.line, contents_.EndLine());
-  const Line& line = contents_.at(position.line);
+  CHECK_LE(position.line, contents_->EndLine());
+  const Line& line = contents_->at(position.line);
   if (line.EndColumn() > position.column + ColumnNumberDelta(1)) return;
 
   LineBuilder options(line);
   options.Append(LineBuilder{SingleLine{LazyString{
       position.column - line.EndColumn() + ColumnNumberDelta(1), L' '}}});
-  contents_.set_line(position.line, std::move(options).Build());
+  contents_->set_line(position.line, std::move(options).Build());
 }
 
 void OpenBuffer::CheckPosition() {
-  if (position().line > contents_.EndLine()) {
-    set_position(LineColumn(contents_.EndLine()));
+  if (position().line > contents_->EndLine()) {
+    set_position(LineColumn(contents_->EndLine()));
   }
 }
 
@@ -1397,7 +1435,7 @@ void OpenBuffer::ToggleActiveCursors() {
 
   cursors.SetCurrentCursor(*cursors.begin());
   LOG(INFO) << "Picked up the first cursor: " << position();
-  CHECK_LE(position().line, LineNumber(0) + contents_.size());
+  CHECK_LE(position().line, LineNumber(0) + contents_->size());
 }
 
 void OpenBuffer::PushActiveCursors() {
@@ -1470,7 +1508,7 @@ SeekInput OpenBuffer::NewSeekInput(Structure structure, Direction direction,
 
 void OpenBuffer::CreateCursor() {
   if (options_.editor.modifiers().structure == Structure::kChar) {
-    CHECK_LE(position().line, LineNumber(0) + contents_.size());
+    CHECK_LE(position().line, LineNumber(0) + contents_->size());
     active_cursors().insert(position());
   } else {
     auto structure = options_.editor.modifiers().structure;
@@ -1545,7 +1583,7 @@ void OpenBuffer::DestroyCursor() {
 void OpenBuffer::DestroyOtherCursors() {
   CheckPosition();
   auto position = this->position();
-  CHECK_LE(position, LineColumn(LineNumber(0) + contents_.size()));
+  CHECK_LE(position, LineColumn(LineNumber(0) + contents_->size()));
   CursorsSet& cursors = active_cursors();
   cursors.clear();
   cursors.insert(position);
@@ -1557,7 +1595,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
-  position.line = std::min(contents_.EndLine(), position.line);
+  position.line = std::min(contents_->EndLine(), position.line);
   if (position.column > LineAt(position.line)->EndColumn()) {
     if (Read(buffer_variables::extend_lines)) {
       // TODO: Somehow move this to a more suitable location. Here it clashes
@@ -1571,7 +1609,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   if (modifiers.direction == Direction::kBackwards &&
       modifiers.structure != Structure::kTree) {
     // TODO: Handle this in structure.
-    Seek(contents_.snapshot(), &position).Backwards().WrappingLines().Once();
+    Seek(contents_->snapshot(), &position).Backwards().WrappingLines().Once();
   }
 
   LineColumn output_begin = position;
@@ -1592,7 +1630,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     case Modifiers::LIMIT_CURRENT: {
       if (SeekToLimit(
               NewSeekInput(modifiers.structure, backward, &output_begin))) {
-        Seek(contents_.snapshot(), &output_begin)
+        Seek(contents_->snapshot(), &output_begin)
             .WrappingLines()
             .WithDirection(forward)
             .Once();
@@ -1645,7 +1683,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     CHECK(modifiers.direction == Direction::kBackwards);
     std::swap(output_begin, output_end);
     if (move_start) {
-      Seek(contents_.snapshot(), &output_begin).WrappingLines().Once();
+      Seek(contents_->snapshot(), &output_begin).WrappingLines().Once();
     }
   }
   LOG(INFO) << "After wrap: " << output_begin << " to " << output_end;
@@ -1732,7 +1770,7 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
   };
 
   return MakeNonNullUnique<TerminalAdapter>(MakeNonNullUnique<Adapter>(*this),
-                                            contents_);
+                                            contents_.value());
 }
 
 double OpenBuffer::lines_read_rate() const {
@@ -1750,12 +1788,12 @@ std::optional<Line> OpenBuffer::OptionalCurrentLine() const {
 }
 
 std::optional<Line> OpenBuffer::LineAt(LineNumber line_number) const {
-  if (line_number > contents_.EndLine()) return std::nullopt;
-  return contents_.at(line_number);
+  if (line_number > contents_->EndLine()) return std::nullopt;
+  return contents_->at(line_number);
 }
 
 LazyString OpenBuffer::ToString() const {
-  return contents_.snapshot().ToLazyString();
+  return contents_->snapshot().ToLazyString();
 }
 
 const struct timespec OpenBuffer::time_last_exit() const {
@@ -1790,6 +1828,10 @@ const language::gc::Ptr<ExecutionContext>& OpenBuffer::execution_context()
 const NonNull<std::shared_ptr<FileSystemDriver>>&
 OpenBuffer::file_system_driver() const {
   return execution_context_->file_system_driver();
+}
+
+const language::text::MutableLineSequence& OpenBuffer::contents() const {
+  return contents_.value();
 }
 
 BufferName OpenBuffer::name() const { return options_.name; }
@@ -1937,7 +1979,7 @@ LineNumber OpenBuffer::current_position_line() const { return position().line; }
 
 void OpenBuffer::set_current_position_line(LineNumber line) {
   set_current_cursor(
-      LineColumn(std::min(line, LineNumber(0) + contents_.size())));
+      LineColumn(std::min(line, LineNumber(0) + contents_->size())));
 }
 
 ColumnNumber OpenBuffer::current_position_col() const {
@@ -2150,8 +2192,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
 }
 
 LineColumn OpenBuffer::end_position() const {
-  CHECK_GT(contents_.size(), LineNumberDelta(0));
-  return LineColumn(contents_.EndLine(), contents_.back().EndColumn());
+  CHECK_GT(contents_->size(), LineNumberDelta(0));
+  return LineColumn(contents_->EndLine(), contents_->back().EndColumn());
 }
 
 std::unique_ptr<OpenBuffer::DiskState,
@@ -2159,14 +2201,14 @@ std::unique_ptr<OpenBuffer::DiskState,
 OpenBuffer::FreezeDiskState() {
   return std::unique_ptr<DiskState,
                          std::function<void(OpenBuffer::DiskState*)>>(
-      new DiskState(disk_state_), [this](DiskState* old_state) {
+      new DiskState(disk_state_.value()), [this](DiskState* old_state) {
         SetDiskState(Pointer(old_state).Reference());
         delete old_state;
       });
 }
 
 bool OpenBuffer::dirty() const {
-  return (disk_state_ == DiskState::kStale &&
+  return (disk_state_.value() == DiskState::kStale &&
           (!Read(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
@@ -2203,7 +2245,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
 
   if (fd() != nullptr) {
     output.insert({BufferFlagKey{SingleLine::Char<L'<'>()}, BufferFlagValue{}});
-    switch (contents_.size().read()) {
+    switch (contents_->size().read()) {
       case 1:
         output.insert(
             {BufferFlagKey{SingleLine::Char<L'⚊'>()}, BufferFlagValue{}});
@@ -2219,7 +2261,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
       default:
         output.insert(
             {BufferFlagKey{SINGLE_LINE_CONSTANT(L"☰ ")},
-             BufferFlagValue{NonEmptySingleLine{contents_.size().read()}}});
+             BufferFlagValue{NonEmptySingleLine{contents_->size().read()}}});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
       output.insert(
@@ -2581,8 +2623,8 @@ const language::gc::Ptr<vm::Environment>& OpenBuffer::environment() const {
 
 bool OpenBuffer::IsPastPosition(LineColumn position) const {
   return position != LineColumn::Max() &&
-         (position.line < contents_.EndLine() ||
-          (position.line == contents_.EndLine() &&
+         (position.line < contents_->EndLine() ||
+          (position.line == contents_->EndLine() &&
            position.column <= LineAt(position.line)->EndColumn()));
 }
 
