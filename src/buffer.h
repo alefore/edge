@@ -113,7 +113,8 @@ class OpenBuffer {
       OpenBuffer& buffer;
       language::text::LineSequence contents_snapshot;
       SaveType save_type = SaveType::kMainFile;
-      language::gc::Root<infrastructure::FileSystemDriver> file_system_driver;
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+          file_system_driver;
       language::gc::WeakPtr<Status> status;
     };
     std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
@@ -138,14 +139,12 @@ class OpenBuffer {
   // call `Reload` explicitly on the returned buffer (perhaps after setting some
   // variables).
   static language::gc::Root<OpenBuffer> New(Options options);
-  OpenBuffer(
-      ConstructorAccessTag, Options options,
-      language::gc::Ptr<MapModeCommands> default_commands,
-      language::gc::Ptr<InputReceiver> mode,
-      language::gc::Ptr<vm::Environment> environment,
-      language::gc::Ptr<Status> status,
-      language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver,
-      language::gc::Ptr<ExecutionContext> execution_context);
+  OpenBuffer(ConstructorAccessTag, Options options,
+             language::gc::Ptr<MapModeCommands> default_commands,
+             language::gc::Ptr<InputReceiver> mode,
+             language::gc::Ptr<vm::Environment> environment,
+             language::gc::Ptr<Status> status,
+             language::gc::Ptr<ExecutionContext> execution_context);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -476,7 +475,8 @@ class OpenBuffer {
 
   void PushSignal(infrastructure::UnixSignal signal);
 
-  infrastructure::FileSystemDriver& file_system_driver() const;
+  const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>&
+  file_system_driver() const;
 
   language::NonNull<std::unique_ptr<infrastructure::TerminalAdapter>>
   NewTerminal();  // Public for testing.
@@ -691,7 +691,6 @@ class OpenBuffer {
   // initialization of state (only on the first call to `Enter`).
   language::LazyValue<bool> load_visual_state_;
 
-  const language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver_;
   const language::gc::Ptr<ExecutionContext> execution_context_;
 
   language::text::LineProcessorMap line_processor_map_;

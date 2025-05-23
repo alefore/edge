@@ -283,7 +283,8 @@ EditorState::EditorState(
                         std::shared_ptr<EditorState>(this, [](void*) {}))));
             return environment;
           }),
-          shared_data_->status.ptr().ToWeakPtr(), thread_pool_->work_queue())),
+          shared_data_->status.ptr().ToWeakPtr(), thread_pool_->work_queue(),
+          MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()))),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
       buffer_registry_(gc_pool_->NewRoot(MakeNonNullUnique<BufferRegistry>(

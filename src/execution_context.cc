@@ -7,6 +7,7 @@
 namespace gc = afc::language::gc;
 
 using afc::concurrent::WorkQueue;
+using afc::infrastructure::FileSystemDriver;
 using afc::language::Error;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
@@ -16,19 +17,22 @@ using afc::language::VisitOptional;
 namespace afc::editor {
 /* static */ gc::Root<ExecutionContext> ExecutionContext::New(
     gc::Ptr<vm::Environment> environment, gc::WeakPtr<Status> status,
-    NonNull<std::shared_ptr<WorkQueue>> work_queue) {
+    NonNull<std::shared_ptr<WorkQueue>> work_queue,
+    NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver) {
   gc::Pool& pool = environment.pool();
   return pool.NewRoot(MakeNonNullUnique<ExecutionContext>(
       ConstructorAccessTag{}, std::move(environment), std::move(status),
-      std::move(work_queue)));
+      std::move(work_queue), std::move(file_system_driver)));
 }
 
 ExecutionContext::ExecutionContext(
     ConstructorAccessTag, gc::Ptr<vm::Environment> environment,
-    gc::WeakPtr<Status> status, NonNull<std::shared_ptr<WorkQueue>> work_queue)
+    gc::WeakPtr<Status> status, NonNull<std::shared_ptr<WorkQueue>> work_queue,
+    NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver)
     : environment_(std::move(environment)),
       status_(std::move(status)),
-      work_queue_(std::move(work_queue)) {}
+      work_queue_(std::move(work_queue)),
+      file_system_driver_(std::move(file_system_driver)) {}
 
 const gc::Ptr<vm::Environment>& ExecutionContext::environment() const {
   return environment_;
@@ -36,6 +40,11 @@ const gc::Ptr<vm::Environment>& ExecutionContext::environment() const {
 
 NonNull<std::shared_ptr<WorkQueue>> ExecutionContext::work_queue() const {
   return work_queue_;
+}
+
+const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>&
+ExecutionContext::file_system_driver() const {
+  return file_system_driver_;
 }
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(

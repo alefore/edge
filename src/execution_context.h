@@ -11,6 +11,9 @@
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
+namespace afc::infrastructure {
+class FileSystemDriver;
+}
 namespace afc::editor {
 class Status;
 
@@ -20,18 +23,25 @@ class ExecutionContext {
   const language::gc::Ptr<vm::Environment> environment_;
   const language::gc::WeakPtr<Status> status_;
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
+  const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+      file_system_driver_;
 
  public:
   static language::gc::Root<ExecutionContext> New(
       language::gc::Ptr<vm::Environment>, language::gc::WeakPtr<Status>,
-      language::NonNull<std::shared_ptr<concurrent::WorkQueue>>);
+      language::NonNull<std::shared_ptr<concurrent::WorkQueue>>,
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>);
 
-  ExecutionContext(ConstructorAccessTag, language::gc::Ptr<vm::Environment>,
-                   language::gc::WeakPtr<Status>,
-                   language::NonNull<std::shared_ptr<concurrent::WorkQueue>>);
+  ExecutionContext(
+      ConstructorAccessTag, language::gc::Ptr<vm::Environment>,
+      language::gc::WeakPtr<Status>,
+      language::NonNull<std::shared_ptr<concurrent::WorkQueue>>,
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>);
 
   const language::gc::Ptr<vm::Environment>& environment() const;
   language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue() const;
+  const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>&
+  file_system_driver() const;
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       infrastructure::Path path);

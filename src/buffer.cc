@@ -291,15 +291,13 @@ using namespace afc::vm;
       Environment::New(options.editor.environment().ptr());
   gc::Root<Status> status = options.editor.gc_pool().NewRoot(
       MakeNonNullUnique<Status>(options.editor.audio_player()));
-  gc::Root<FileSystemDriver> file_system_driver =
-      options.editor.gc_pool().NewRoot(
-          MakeNonNullUnique<FileSystemDriver>(options.editor.thread_pool()));
   gc::Root<ExecutionContext> execution_context = ExecutionContext::New(
-      environment.ptr(), status.ptr().ToWeakPtr(), WorkQueue::New());
+      environment.ptr(), status.ptr().ToWeakPtr(), WorkQueue::New(),
+      MakeNonNullUnique<FileSystemDriver>(options.editor.thread_pool()));
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
-          mode.ptr(), environment.ptr(), status.ptr(), file_system_driver.ptr(),
+          mode.ptr(), environment.ptr(), status.ptr(),
           execution_context.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
@@ -377,7 +375,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<InputReceiver> mode,
                        gc::Ptr<Environment> environment, gc::Ptr<Status> status,
-                       gc::Ptr<FileSystemDriver> file_system_driver,
                        gc::Ptr<ExecutionContext> execution_context)
     : options_(std::move(options)),
       transformation_adapter_(
@@ -404,7 +401,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                         Path::Join(dir, EditorState::StatePathComponent()),
                         Path::Join(buffer_path,
                                    PathComponent::FromString(L".edge_state")));
-                    file_system_driver_->Stat(state_path)
+                    file_system_driver()
+                        ->Stat(state_path)
                         .Transform(
                             [state_path,
                              weak_this = ptr_this_->ToWeakPtr()](struct stat) {
@@ -439,7 +437,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
         });
         return true;
       }}),
-      file_system_driver_(std::move(file_system_driver)),
       execution_context_(std::move(execution_context)) {
   work_queue()->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
@@ -504,8 +501,8 @@ OpenBuffer::PrepareToClose() {
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
                                 << Read(buffer_variables::name);
-                      file_system_driver().Kill(child_pid_.value(),
-                                                UnixSignal(SIGHUP));
+                      file_system_driver()->Kill(child_pid_.value(),
+                                                 UnixSignal(SIGHUP));
                       auto future =
                           futures::Future<ValueOrError<PrepareToCloseOutput>>();
                       on_exit_handler_ =
@@ -612,7 +609,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                    return futures::Past(error);
                  })
       .Transform([serialized_state = SerializeState(position(), variables_),
-                  file_system_driver = file_system_driver_.ToRoot(),
+                  file_system_driver = execution_context_->file_system_driver(),
                   &editor = editor(), weak_status = status_.ToWeakPtr()](
                      Path edge_state_directory) {
         Path path = Path::Join(edge_state_directory,
@@ -626,7 +623,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         return futures::OnError(
             SaveContentsToFile(path, header + serialized_state,
                                editor.thread_pool(),
-                               file_system_driver.ptr().value()),
+                               file_system_driver.value()),
             [weak_status](Error error) {
               error = AugmentError(LazyString{L"Unable to persist state"},
                                    std::move(error));
@@ -930,8 +927,8 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
 
   if (child_pid_.has_value()) {
     LOG(INFO) << "Sending SIGHUP.";
-    file_system_driver().Kill(ProcessId(-child_pid_->read()),
-                              UnixSignal(SIGHUP));
+    file_system_driver()->Kill(ProcessId(-child_pid_->read()),
+                               UnixSignal(SIGHUP));
     Set(buffer_variables::reload_after_exit, true);
     return futures::Past(Success());
   }
@@ -1012,12 +1009,12 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
     return futures::Past(
         PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
-  return options_.handle_save(Options::HandleSaveOptions{
-      .buffer = *this,
-      .contents_snapshot = contents().snapshot(),
-      .save_type = save_type,
-      .file_system_driver = file_system_driver_.ToRoot(),
-      .status = status_.ToWeakPtr()});
+  return options_.handle_save(
+      Options::HandleSaveOptions{.buffer = *this,
+                                 .contents_snapshot = contents().snapshot(),
+                                 .save_type = save_type,
+                                 .file_system_driver = file_system_driver(),
+                                 .status = status_.ToWeakPtr()});
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
@@ -1054,11 +1051,10 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   LOG(INFO) << "GetEdgeStateDirectory: Preparing state directory: " << *path;
   return futures::ForEachWithCopy(
              file_path_components.begin(), file_path_components.end(),
-             [file_system_driver = file_system_driver_.ToRoot(), path,
+             [file_system_driver = file_system_driver(), path,
               error](auto component) {
                *path = Path::Join(*path, component);
-               return file_system_driver.ptr()
-                   ->Stat(*path)
+               return file_system_driver->Stat(*path)
                    .Transform([path, error](struct stat stat_buffer) {
                      if (S_ISDIR(stat_buffer.st_mode)) {
                        return Success(IterationControlCommand::kContinue);
@@ -1069,8 +1065,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                      return Success(IterationControlCommand::kStop);
                    })
                    .ConsumeErrors([file_system_driver, path, error](Error) {
-                     return file_system_driver.ptr()
-                         ->Mkdir(*path, 0700)
+                     return file_system_driver->Mkdir(*path, 0700)
                          .Transform([](EmptyValue) {
                            return Success(IterationControlCommand::kContinue);
                          })
@@ -1092,12 +1087,12 @@ void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
   log_->Append(LazyString{L"UpdateBackup starts."});
   if (options_.handle_save != nullptr) {
-    options_.handle_save(Options::HandleSaveOptions{
-        .buffer = *this,
-        .contents_snapshot = contents().snapshot(),
-        .save_type = Options::SaveType::kBackup,
-        .file_system_driver = file_system_driver_.ToRoot(),
-        .status = status_.ToWeakPtr()});
+    options_.handle_save(
+        Options::HandleSaveOptions{.buffer = *this,
+                                   .contents_snapshot = contents().snapshot(),
+                                   .save_type = Options::SaveType::kBackup,
+                                   .file_system_driver = file_system_driver(),
+                                   .status = status_.ToWeakPtr()});
   }
   backup_state_ = DiskState::kCurrent;
 }
@@ -1800,7 +1795,7 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
             SINGLE_LINE_CONSTANT(L"SIGINT >> pid:") +
             NonEmptySingleLine{
                 child_pid_->read()}}.Build());
-        file_system_driver().Kill(child_pid_.value(), signal);
+        file_system_driver()->Kill(child_pid_.value(), signal);
         return;
       }
   }
@@ -1809,8 +1804,9 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
                              LazyString{std::to_wstring(signal.read())}});
 }
 
-FileSystemDriver& OpenBuffer::file_system_driver() const {
-  return file_system_driver_.value();
+const NonNull<std::shared_ptr<FileSystemDriver>>&
+OpenBuffer::file_system_driver() const {
+  return execution_context_->file_system_driver();
 }
 
 BufferName OpenBuffer::name() const { return options_.name; }
@@ -1899,7 +1895,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                 [&](ProcessId materialized_child_pid)
                     -> futures::Value<EmptyValue> {
                   return file_system_driver()
-                      .WaitPid(materialized_child_pid, 0)
+                      ->WaitPid(materialized_child_pid, 0)
                       .Transform(
                           [this, root = NewRoot()](
                               FileSystemDriver::WaitPidOutput waitpid_output) {
@@ -1924,7 +1920,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
 
 futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
     const infrastructure::Path& path) {
-  return OnError(file_system_driver().Open(path, O_RDONLY | O_NONBLOCK, 0),
+  return OnError(file_system_driver()->Open(path, O_RDONLY | O_NONBLOCK, 0),
                  [path](Error error) {
                    LOG(INFO)
                        << path << ": SetInputFromPath: Open failed: " << error;
@@ -2569,11 +2565,8 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 OpenBuffer::Expand() const {
-  return {environment().object_metadata(),
-          default_commands_.object_metadata(),
-          mode_.object_metadata(),
-          status_.object_metadata(),
-          file_system_driver_.object_metadata(),
+  return {environment().object_metadata(), default_commands_.object_metadata(),
+          mode_.object_metadata(), status_.object_metadata(),
           execution_context_.object_metadata()};
 }
 

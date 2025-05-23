@@ -167,7 +167,7 @@ futures::Value<PossibleError> Save(
                   buffer = buffer.NewRoot()](Path path) {
         return SaveContentsToFile(path, options.contents_snapshot,
                                   editor.thread_pool(),
-                                  options.file_system_driver.ptr().value())
+                                  options.file_system_driver.value())
             .Transform(
                 [buffer](EmptyValue) { return buffer.ptr()->PersistState(); })
             .Transform([&editor, stat_buffer, options, buffer,

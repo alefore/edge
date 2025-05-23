@@ -235,9 +235,10 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
       .survival_behavior =
           OpenBuffer::Options::SurvivalBehavior::kExplicitCloseRequired});
   OpenBuffer& buffer = buffer_root.ptr().value();
-  buffer.NewCloseFuture().Transform([buffer_root, address](EmptyValue) {
-    return buffer_root.ptr()->file_system_driver().Unlink(address);
-  });
+  buffer.NewCloseFuture().Transform(
+      [file_system_driver = buffer.file_system_driver(), address](EmptyValue) {
+        return file_system_driver->Unlink(address);
+      });
 
   // We need to trigger the call to `handle_save` in order to unlink the file
   // in `address`.
