@@ -20,6 +20,7 @@
 #include "src/direction.h"
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
+#include "src/execution_context.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
@@ -45,7 +46,11 @@ class BufferRegistry;
 enum class CommandArgumentModeApplyMode;
 
 class EditorState {
+  struct ConstructorAccessTag {};
+
   const CommandLineValues args_;
+
+  const language::NonNull<std::unique_ptr<language::gc::Pool>> gc_pool_;
 
   struct SharedData {
     // Each editor has a pipe. The customer of the editor can poll from the read
@@ -60,10 +65,10 @@ class EditorState {
         pipe_to_communicate_internal_events;
     concurrent::Protected<bool> has_internal_events =
         concurrent::Protected<bool>(false);
-    Status status;
+    language::gc::Root<Status> status;
   };
 
-  // The callbacks we schedule in work_queue_ may survive `this`. Anything those
+  // The callbacks we schedule in work_queue may survive `this`. Anything those
   // callbacks may depend on will be in `shared_data_`, allowing `this` to be
   // deleted.
   const language::NonNull<std::shared_ptr<SharedData>> shared_data_;
@@ -73,8 +78,14 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(CommandLineValues args,
-              infrastructure::audio::Player& audio_player);
+  static language::NonNull<std::unique_ptr<EditorState>> New(
+      CommandLineValues args, infrastructure::audio::Player& audio_player);
+  EditorState(
+      ConstructorAccessTag, CommandLineValues args,
+      infrastructure::audio::Player& audio_player,
+      language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
+          thread_pool,
+      language::NonNull<std::unique_ptr<language::gc::Pool>> gc_pool);
   ~EditorState();
 
   const CommandLineValues& args();
@@ -203,9 +214,10 @@ class EditorState {
   // should be kept.
   static infrastructure::PathComponent StatePathComponent();
 
-  language::gc::Pool& gc_pool() { return gc_pool_; }
+  language::gc::Pool& gc_pool();
 
-  language::gc::Root<vm::Environment> environment() { return environment_; }
+  language::gc::Root<vm::Environment> environment();
+  language::gc::Root<ExecutionContext> execution_context();
 
   infrastructure::Path expand_path(infrastructure::Path path) const;
 
@@ -231,7 +243,7 @@ class EditorState {
   std::optional<struct timespec> WorkQueueNextExecution() const;
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
       const;
-  concurrent::ThreadPoolWithWorkQueue& thread_pool();
+  concurrent::ThreadPoolWithWorkQueue& thread_pool() const;
 
  private:
   futures::Value<language::EmptyValue> ProcessInput(
@@ -239,12 +251,6 @@ class EditorState {
       size_t start_index);
 
   static void NotifyInternalEvent(SharedData& data);
-
-  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
-  language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
-      thread_pool_;
-
-  language::gc::Pool gc_pool_;
 
   EdgeStructInstance<language::lazy_string::LazyString> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
@@ -256,7 +262,7 @@ class EditorState {
 
   const std::vector<infrastructure::Path> edge_path_;
 
-  const language::gc::Root<vm::Environment> environment_;
+  const language::gc::Root<ExecutionContext> execution_context_;
 
   // Should only be directly used when the editor has no buffer.
   const language::gc::Root<MapModeCommands> default_commands_;

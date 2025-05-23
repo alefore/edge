@@ -254,7 +254,7 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Creating editor.";
   global_editor_state =
-      std::make_unique<EditorState>(args, audio_player.value());
+      EditorState::New(args, audio_player.value()).get_unique();
 
   VisitOptional(
       [](BenchmarkName benchmark) {

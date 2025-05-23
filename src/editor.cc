@@ -155,7 +155,7 @@ EditorState::set_keyboard_redirect(
 void EditorState::ExecutePendingWork() {
   VLOG(5) << "Executing pending work.";
   TRACK_OPERATION(EditorState_ExecutePendingWork);
-  work_queue_->Execute();
+  work_queue()->Execute();
 }
 
 std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
@@ -174,11 +174,11 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
-  return work_queue_;
+  return thread_pool().work_queue();
 }
 
-ThreadPoolWithWorkQueue& EditorState::thread_pool() {
-  return thread_pool_.value();
+ThreadPoolWithWorkQueue& EditorState::thread_pool() const {
+  return execution_context_.ptr()->thread_pool();
 }
 
 /* static */
@@ -192,7 +192,7 @@ void EditorState::NotifyInternalEvent(EditorState::SharedData& data) {
       data.pipe_to_communicate_internal_events.has_value() &&
       write(data.pipe_to_communicate_internal_events->second.read(), " ", 1) ==
           -1) {
-    data.status.InsertError(
+    data.status.ptr()->InsertError(
         Error{LazyString{L"Write to internal pipe failed: "} +
               LazyString{FromByteString(strerror(errno))}});
   }
@@ -227,9 +227,27 @@ class BuffersListAdapter : public BuffersList::CustomerAdapter {
   const EditorState& editor_;
 };
 
-EditorState::EditorState(CommandLineValues args,
-                         infrastructure::audio::Player& audio_player)
+/* static */ NonNull<std::unique_ptr<EditorState>> EditorState::New(
+    CommandLineValues args, infrastructure::audio::Player& audio_player) {
+  auto thread_pool = MakeNonNullShared<ThreadPoolWithWorkQueue>(
+      MakeNonNullShared<ThreadPool>(32), WorkQueue::New());
+  return MakeNonNullUnique<EditorState>(
+      ConstructorAccessTag{}, args, audio_player, thread_pool,
+      MakeNonNullUnique<language::gc::Pool>(gc::Pool::Options{
+          .collect_duration_threshold = 0.05,
+          .operation_factory =
+              std::move(MakeNonNullUnique<concurrent::OperationFactory>(
+                            thread_pool->thread_pool())
+                            .get_unique())}));
+}
+
+EditorState::EditorState(
+    ConstructorAccessTag, CommandLineValues args,
+    infrastructure::audio::Player& audio_player,
+    NonNull<std::shared_ptr<ThreadPoolWithWorkQueue>> thread_pool,
+    NonNull<std::unique_ptr<language::gc::Pool>> gc_pool)
     : args_(std::move(args)),
+      gc_pool_(std::move(gc_pool)),
       shared_data_(MakeNonNullShared<SharedData>(SharedData{
           .pipe_to_communicate_internal_events = std::invoke(
               [] -> std::optional<std::pair<FileDescriptor, FileDescriptor>> {
@@ -238,43 +256,37 @@ EditorState::EditorState(CommandLineValues args,
                 return std::make_pair(FileDescriptor(output[0]),
                                       FileDescriptor(output[1]));
               }),
-          .status = audio_player})),
-      work_queue_(WorkQueue::New()),
-      thread_pool_(MakeNonNullShared<ThreadPoolWithWorkQueue>(
-          MakeNonNullShared<ThreadPool>(32), work_queue_)),
-      gc_pool_(gc::Pool::Options{
-          .collect_duration_threshold = 0.05,
-          .operation_factory =
-              std::move(MakeNonNullUnique<concurrent::OperationFactory>(
-                            thread_pool_->thread_pool())
-                            .get_unique())}),
+          .status =
+              gc_pool_->NewRoot(MakeNonNullUnique<Status>(audio_player))})),
       string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
       edge_path_(args_.config_paths),
-      environment_([&] {
-        gc::Root<vm::Environment> output = BuildEditorEnvironment(
-            gc_pool_,
-            MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()));
-        output.ptr()->Define(
-            vm::Identifier{
-                NonEmptySingleLine{SingleLine{LazyString{L"editor"}}}},
-            vm::Value::NewObject(
-                gc_pool_,
-                vm::VMTypeMapper<editor::EditorState>::object_type_name,
-                NonNull<std::shared_ptr<EditorState>>::Unsafe(
-                    std::shared_ptr<EditorState>(this, [](void*) {}))));
-        return output;
-      }()),
+      execution_context_(gc_pool_->NewRoot(MakeNonNullUnique<ExecutionContext>(
+          std::invoke([&] {
+            gc::Root<vm::Environment> output = BuildEditorEnvironment(
+                gc_pool_.value(),
+                MakeNonNullUnique<FileSystemDriver>(thread_pool.value()));
+            output.ptr()->Define(
+                vm::Identifier{
+                    NonEmptySingleLine{SingleLine{LazyString{L"editor"}}}},
+                vm::Value::NewObject(
+                    gc_pool_.value(),
+                    vm::VMTypeMapper<editor::EditorState>::object_type_name,
+                    NonNull<std::shared_ptr<EditorState>>::Unsafe(
+                        std::shared_ptr<EditorState>(this, [](void*) {}))));
+            return output;
+          }),
+          shared_data_->status.ptr().ToWeakPtr(), thread_pool))),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
-      buffer_registry_(gc_pool_.NewRoot(MakeNonNullUnique<BufferRegistry>(
+      buffer_registry_(gc_pool_->NewRoot(MakeNonNullUnique<BufferRegistry>(
           GetBufferComparePredicate(Read(editor_variables::buffer_sort_order)),
           [](const OpenBuffer& b) { return b.dirty(); }))),
       buffer_tree_(buffer_registry_.ptr().value(),
                    MakeNonNullUnique<BuffersListAdapter>(*this)) {
-  work_queue_->OnSchedule().Add([shared_data = shared_data_] {
+  work_queue()->OnSchedule().Add([shared_data = shared_data_] {
     NotifyInternalEvent(shared_data.value());
     return Observers::State::kAlive;
   });
@@ -287,7 +299,8 @@ EditorState::EditorState(CommandLineValues args,
             [&](NonNull<std::unique_ptr<vm::Expression>> expression)
                 -> futures::Value<futures::IterationControlCommand> {
               LOG(INFO) << "Evaluating file: " << path;
-              return Evaluate(std::move(expression), gc_pool_, environment_,
+              return Evaluate(std::move(expression), execution_context().pool(),
+                              execution_context().ptr()->environment(),
                               [path, work_queue = work_queue()](
                                   OnceOnlyFunction<void()> resume) {
                                 LOG(INFO)
@@ -311,7 +324,8 @@ EditorState::EditorState(CommandLineValues args,
               status().Set(error);
               return futures::Past(futures::IterationControlCommand::kContinue);
             }},
-        CompileFile(path, gc_pool_, environment_));
+        vm::CompileFile(path, execution_context().pool(),
+                        execution_context().ptr()->environment()));
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
@@ -320,7 +334,7 @@ EditorState::EditorState(CommandLineValues args,
     return Observers::State::kAlive;
   });
 
-  ReclaimAndSchedule(gc_pool_, work_queue_.value());
+  ReclaimAndSchedule(execution_context().pool(), work_queue().value());
 }
 
 EditorState::~EditorState() {
@@ -330,12 +344,18 @@ EditorState::~EditorState() {
   std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
                         &OpenBuffer::Close);
 
-  environment_.ptr()->Clear();  // We may have loops. This helps break them.
+  // TODO(2025-05-23, trivial): Add operator-> to gc::Root and get rid of the
+  // ptr() bits.
+  execution_context()
+      .ptr()
+      ->environment()
+      .ptr()
+      ->Clear();  // We may have loops. This helps break them.
   buffer_registry_.ptr()->Clear();
 
   LOG(INFO) << "Reclaim GC pool.";
-  gc_pool_.FullCollect();
-  gc_pool_.BlockUntilDone();
+  execution_context().pool().FullCollect();
+  execution_context().pool().BlockUntilDone();
 
   LOG(INFO) << "Destructor finished running.";
 }
@@ -816,7 +836,7 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
     // This is enough to cause the main loop to wake up; it'll attempt to do a
     // redraw then. Multiple attempts may be scheduled, but that's fine (just
     // a bit wasteful of memory).
-    work_queue_->Wait(next_screen_update_);
+    work_queue()->Wait(next_screen_update_);
     return {};
   }
   next_screen_update_ = AddSeconds(now, 1.0 / args_.frames_per_second);
@@ -837,11 +857,23 @@ gc::Root<OpenBuffer> EditorState::GetConsole() {
   });
 }
 
-Status& EditorState::status() { return shared_data_->status; }
-const Status& EditorState::status() const { return shared_data_->status; }
+Status& EditorState::status() { return shared_data_->status.ptr().value(); }
+const Status& EditorState::status() const {
+  return shared_data_->status.ptr().value();
+}
 
 const infrastructure::Path& EditorState::home_directory() const {
   return args_.home_directory;
+}
+
+language::gc::Pool& EditorState::gc_pool() { return execution_context_.pool(); }
+
+language::gc::Root<vm::Environment> EditorState::environment() {
+  return execution_context_.ptr()->environment();
+}
+
+language::gc::Root<ExecutionContext> EditorState::execution_context() {
+  return execution_context_;
 }
 
 Path EditorState::expand_path(Path path) const {

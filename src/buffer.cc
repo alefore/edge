@@ -2651,14 +2651,13 @@ void OpenBuffer::OnCursorMove() {
 NonNull<std::unique_ptr<EditorState>> EditorForTests(
     std::optional<infrastructure::Path> config_path) {
   static audio::Player* player = audio::NewNullPlayer().get_unique().release();
-  return MakeNonNullUnique<EditorState>(
-      std::invoke([config_path] {
-        CommandLineValues output;
-        if (config_path.has_value())
-          output.config_paths = {config_path.value()};
-        return output;
-      }),
-      *player);
+  return EditorState::New(std::invoke([config_path] {
+                            CommandLineValues output;
+                            if (config_path.has_value())
+                              output.config_paths = {config_path.value()};
+                            return output;
+                          }),
+                          *player);
 }
 
 gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {

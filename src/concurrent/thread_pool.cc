@@ -71,8 +71,13 @@ ThreadPoolWithWorkQueue::ThreadPoolWithWorkQueue(
       work_queue_(std::move(work_queue)) {}
 
 const language::NonNull<std::shared_ptr<ThreadPool>>&
-ThreadPoolWithWorkQueue::thread_pool() {
+ThreadPoolWithWorkQueue::thread_pool() const {
   return thread_pool_;
+}
+
+const language::NonNull<std::shared_ptr<WorkQueue>>&
+ThreadPoolWithWorkQueue::work_queue() const {
+  return work_queue_;
 }
 
 }  // namespace afc::concurrent

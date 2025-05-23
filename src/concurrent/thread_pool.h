@@ -50,7 +50,8 @@ class ThreadPoolWithWorkQueue {
       language::NonNull<std::shared_ptr<ThreadPool>> thread_pool,
       language::NonNull<std::shared_ptr<WorkQueue>> work_queue);
 
-  const language::NonNull<std::shared_ptr<ThreadPool>>& thread_pool();
+  const language::NonNull<std::shared_ptr<ThreadPool>>& thread_pool() const;
+  const language::NonNull<std::shared_ptr<WorkQueue>>& work_queue() const;
 
   template <typename Callable>
   void RunIgnoringResult(Callable callable) {
