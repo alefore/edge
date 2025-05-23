@@ -518,6 +518,8 @@ class Root {
   Root<T>& operator=(const Root<T>& other) = delete;
   Pool& pool() const { return ptr_.pool(); }
 
+  T* operator->() const { return ptr_.operator->(); }
+
   Ptr<T>& ptr() { return ptr_; }
   const Ptr<T>& ptr() const { return ptr_; }
 
