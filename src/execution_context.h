@@ -15,18 +15,23 @@ namespace afc::editor {
 class Status;
 
 class ExecutionContext {
-  const language::gc::Root<vm::Environment> environment_;
+  struct ConstructorAccessTag {};
+
+  const language::gc::Ptr<vm::Environment> environment_;
   const language::gc::WeakPtr<Status> status_;
-  const language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
-      thread_pool_;
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
  public:
-  ExecutionContext(
-      language::gc::Root<vm::Environment>, language::gc::WeakPtr<Status>,
-      language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>);
+  static language::gc::Root<ExecutionContext> New(
+      language::gc::Ptr<vm::Environment>, language::gc::WeakPtr<Status>,
+      language::NonNull<std::shared_ptr<concurrent::WorkQueue>>);
 
-  language::gc::Root<vm::Environment> environment() const;
-  concurrent::ThreadPoolWithWorkQueue& thread_pool() const;
+  ExecutionContext(ConstructorAccessTag, language::gc::Ptr<vm::Environment>,
+                   language::gc::WeakPtr<Status>,
+                   language::NonNull<std::shared_ptr<concurrent::WorkQueue>>);
+
+  const language::gc::Ptr<vm::Environment>& environment() const;
+  language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue() const;
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       infrastructure::Path path);

@@ -178,7 +178,7 @@ const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
 }
 
 ThreadPoolWithWorkQueue& EditorState::thread_pool() const {
-  return execution_context_.ptr()->thread_pool();
+  return thread_pool_.value();
 }
 
 /* static */
@@ -231,21 +231,28 @@ class BuffersListAdapter : public BuffersList::CustomerAdapter {
     CommandLineValues args, infrastructure::audio::Player& audio_player) {
   auto thread_pool = MakeNonNullShared<ThreadPoolWithWorkQueue>(
       MakeNonNullShared<ThreadPool>(32), WorkQueue::New());
-  return MakeNonNullUnique<EditorState>(
-      ConstructorAccessTag{}, args, audio_player, thread_pool,
+  NonNull<std::unique_ptr<language::gc::Pool>> gc_pool =
       MakeNonNullUnique<language::gc::Pool>(gc::Pool::Options{
           .collect_duration_threshold = 0.05,
           .operation_factory =
               std::move(MakeNonNullUnique<concurrent::OperationFactory>(
                             thread_pool->thread_pool())
-                            .get_unique())}));
+                            .get_unique())});
+  gc::Root<vm::Environment> environment = BuildEditorEnvironment(
+      gc_pool.value(),
+      MakeNonNullUnique<FileSystemDriver>(thread_pool.value()));
+
+  return MakeNonNullUnique<EditorState>(ConstructorAccessTag{}, args,
+                                        audio_player, thread_pool,
+                                        std::move(gc_pool), environment.ptr());
 }
 
 EditorState::EditorState(
-    ConstructorAccessTag, CommandLineValues args,
+    EditorState::ConstructorAccessTag, CommandLineValues args,
     infrastructure::audio::Player& audio_player,
     NonNull<std::shared_ptr<ThreadPoolWithWorkQueue>> thread_pool,
-    NonNull<std::unique_ptr<language::gc::Pool>> gc_pool)
+    NonNull<std::unique_ptr<language::gc::Pool>> gc_pool,
+    gc::Ptr<vm::Environment> environment)
     : args_(std::move(args)),
       gc_pool_(std::move(gc_pool)),
       shared_data_(MakeNonNullShared<SharedData>(SharedData{
@@ -263,12 +270,10 @@ EditorState::EditorState(
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
       edge_path_(args_.config_paths),
-      execution_context_(gc_pool_->NewRoot(MakeNonNullUnique<ExecutionContext>(
+      thread_pool_(std::move(thread_pool)),
+      execution_context_(ExecutionContext::New(
           std::invoke([&] {
-            gc::Root<vm::Environment> output = BuildEditorEnvironment(
-                gc_pool_.value(),
-                MakeNonNullUnique<FileSystemDriver>(thread_pool.value()));
-            output.ptr()->Define(
+            environment->Define(
                 vm::Identifier{
                     NonEmptySingleLine{SingleLine{LazyString{L"editor"}}}},
                 vm::Value::NewObject(
@@ -276,9 +281,9 @@ EditorState::EditorState(
                     vm::VMTypeMapper<editor::EditorState>::object_type_name,
                     NonNull<std::shared_ptr<EditorState>>::Unsafe(
                         std::shared_ptr<EditorState>(this, [](void*) {}))));
-            return output;
+            return environment;
           }),
-          shared_data_->status.ptr().ToWeakPtr(), thread_pool))),
+          shared_data_->status.ptr().ToWeakPtr(), thread_pool_->work_queue())),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
       buffer_registry_(gc_pool_->NewRoot(MakeNonNullUnique<BufferRegistry>(
@@ -326,7 +331,6 @@ EditorState::~EditorState() {
   execution_context()
       .ptr()
       ->environment()
-      .ptr()
       ->Clear();  // We may have loops. This helps break them.
   buffer_registry_.ptr()->Clear();
 
@@ -846,7 +850,8 @@ const infrastructure::Path& EditorState::home_directory() const {
 language::gc::Pool& EditorState::gc_pool() { return execution_context_.pool(); }
 
 language::gc::Root<vm::Environment> EditorState::environment() {
-  return execution_context_.ptr()->environment();
+  // TODO(2025-05-23, trivial): Consider switching this method to return a Ptr.
+  return execution_context_.ptr()->environment().ToRoot();
 }
 
 language::gc::Root<ExecutionContext> EditorState::execution_context() {

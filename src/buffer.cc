@@ -74,6 +74,7 @@ namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
 namespace container = afc::language::container;
 
+using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
 using afc::futures::OnError;
@@ -293,11 +294,13 @@ using namespace afc::vm;
   gc::Root<FileSystemDriver> file_system_driver =
       options.editor.gc_pool().NewRoot(
           MakeNonNullUnique<FileSystemDriver>(options.editor.thread_pool()));
+  gc::Root<ExecutionContext> execution_context = ExecutionContext::New(
+      environment.ptr(), status.ptr().ToWeakPtr(), WorkQueue::New());
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
-          mode.ptr(), environment.ptr(), status.ptr(),
-          file_system_driver.ptr()));
+          mode.ptr(), environment.ptr(), status.ptr(), file_system_driver.ptr(),
+          execution_context.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
 }
@@ -328,7 +331,7 @@ class OpenBufferMutableLineSequenceObserver
   void Notify(bool update_disk_state = true) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
-    root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+    root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
         .callback = gc::LockCallback(
             gc::BindFront(
                 root_this->ptr()->editor().gc_pool(),
@@ -345,7 +348,7 @@ class OpenBufferMutableLineSequenceObserver
             root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
             auto flush_backup_time = Now();
             flush_backup_time.tv_sec += 30;
-            root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+            root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
                 .time = flush_backup_time,
                 .callback = gc::LockCallback(
                     gc::BindFront(
@@ -374,7 +377,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<InputReceiver> mode,
                        gc::Ptr<Environment> environment, gc::Ptr<Status> status,
-                       gc::Ptr<FileSystemDriver> file_system_driver)
+                       gc::Ptr<FileSystemDriver> file_system_driver,
+                       gc::Ptr<ExecutionContext> execution_context)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -435,10 +439,12 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
         });
         return true;
       }}),
-      file_system_driver_(std::move(file_system_driver)) {
-  work_queue_->OnSchedule().Add(std::bind_front(
+      file_system_driver_(std::move(file_system_driver)),
+      execution_context_(std::move(execution_context)) {
+  work_queue()->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
-      std::weak_ptr<WorkQueue>(work_queue_.get_shared()), editor().work_queue(),
+      std::weak_ptr<WorkQueue>(work_queue().get_shared()),
+      editor().work_queue(),
       NonNull<std::shared_ptr<std::optional<struct timespec>>>()));
   for (auto* v :
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
@@ -1267,8 +1273,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
       CompileFile(path, editor().gc_pool(), environment_.ToRoot()));
 }
 
-const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
-  return work_queue_;
+NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {
+  return execution_context_->work_queue();
 }
 
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
@@ -2563,9 +2569,12 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 OpenBuffer::Expand() const {
-  return {environment().object_metadata(), default_commands_.object_metadata(),
-          mode_.object_metadata(), status_.object_metadata(),
-          file_system_driver_.object_metadata()};
+  return {environment().object_metadata(),
+          default_commands_.object_metadata(),
+          mode_.object_metadata(),
+          status_.object_metadata(),
+          file_system_driver_.object_metadata(),
+          execution_context_.object_metadata()};
 }
 
 const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
@@ -2590,6 +2599,10 @@ SingleLine OpenBuffer::GetLineMarksText() const {
   return output;
 }
 
+const language::gc::Ptr<vm::Environment>& OpenBuffer::environment() const {
+  return execution_context_->environment();
+}
+
 bool OpenBuffer::IsPastPosition(LineColumn position) const {
   return position != LineColumn::Max() &&
          (position.line < contents_.EndLine() ||
@@ -2603,7 +2616,7 @@ void OpenBuffer::UpdateLastAction() {
   last_action_ = now;
   if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
       idle_seconds >= 0.0) {
-    work_queue_->Schedule(WorkQueue::Callback{
+    work_queue()->Schedule(WorkQueue::Callback{
         .time = AddSeconds(Now(), idle_seconds),
         .callback = gc::LockCallback(
             gc::BindFront(

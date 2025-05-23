@@ -15,6 +15,7 @@
 #include "src/buffer_variables.h"
 #include "src/concurrent/work_queue.h"
 #include "src/editor_mode.h"
+#include "src/execution_context.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/execution.h"
@@ -143,7 +144,8 @@ class OpenBuffer {
       language::gc::Ptr<InputReceiver> mode,
       language::gc::Ptr<vm::Environment> environment,
       language::gc::Ptr<Status> status,
-      language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver);
+      language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver,
+      language::gc::Ptr<ExecutionContext> execution_context);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -383,9 +385,7 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Extensions
 
-  const language::gc::Ptr<vm::Environment>& environment() const {
-    return environment_;
-  }
+  const language::gc::Ptr<vm::Environment>& environment() const;
 
   language::ValueOrError<
       std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
@@ -402,8 +402,7 @@ class OpenBuffer {
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       const infrastructure::Path& path);
 
-  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
-      const;
+  language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue() const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be
   // given a direct reference to the buffer, since OpenBuffer isn't thread safe.
@@ -630,9 +629,6 @@ class OpenBuffer {
   // Optional function to execute when a sub-process exits.
   std::optional<language::OnceOnlyFunction<void()>> on_exit_handler_;
 
-  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_ =
-      concurrent::WorkQueue::New();
-
   infrastructure::screen::CursorsTracker cursors_tracker_;
 
   language::NonNull<std::shared_ptr<OpenBufferMutableLineSequenceObserver>>
@@ -696,6 +692,7 @@ class OpenBuffer {
   language::LazyValue<bool> load_visual_state_;
 
   const language::gc::Ptr<infrastructure::FileSystemDriver> file_system_driver_;
+  const language::gc::Ptr<ExecutionContext> execution_context_;
 
   language::text::LineProcessorMap line_processor_map_;
 

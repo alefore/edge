@@ -85,7 +85,8 @@ class EditorState {
       infrastructure::audio::Player& audio_player,
       language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
           thread_pool,
-      language::NonNull<std::unique_ptr<language::gc::Pool>> gc_pool);
+      language::NonNull<std::unique_ptr<language::gc::Pool>> gc_pool,
+      language::gc::Ptr<vm::Environment> environment);
   ~EditorState();
 
   const CommandLineValues& args();
@@ -262,6 +263,8 @@ class EditorState {
 
   const std::vector<infrastructure::Path> edge_path_;
 
+  const language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
+      thread_pool_;
   const language::gc::Root<ExecutionContext> execution_context_;
 
   // Should only be directly used when the editor has no buffer.
