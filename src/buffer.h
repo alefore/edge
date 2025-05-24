@@ -388,11 +388,6 @@ class OpenBuffer {
 
   const language::gc::Ptr<vm::Environment>& environment() const;
 
-  language::ValueOrError<
-      std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
-                language::gc::Root<vm::Environment>>>
-  CompileString(const language::lazy_string::LazyString& str) const;
-
   // `expr` can be deleted as soon as we return.
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateExpression(
       const language::NonNull<std::shared_ptr<vm::Expression>>& expr,

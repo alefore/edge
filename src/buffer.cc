@@ -200,49 +200,47 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
       .initial_value = LineProcessorOutput(SingleLine{}),
       .value = futures::Past(LineProcessorOutput(SingleLine{}))};
   return std::visit(
-      overload{
-          [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
-                        language::gc::Root<vm::Environment>>
-                  compilation_result)
-              -> ValueOrError<LineProcessorOutputFuture> {
-            LineProcessorOutputFuture output{
-                .initial_value = LineProcessorOutput(
-                    SINGLE_LINE_CONSTANT(L"C++: ") +
-                    vm::TypesToString(compilation_result.first->Types())),
-                .value = futures::Future<LineProcessorOutput>().value};
-            if (!compilation_result.first->purity().writes_external_outputs) {
-              output.initial_value = LineProcessorOutput(
-                  output.initial_value.read() + SINGLE_LINE_CONSTANT(L" ..."));
-              if (compilation_result.first->Types() ==
-                  std::vector<vm::Type>({vm::types::Void{}}))
-                return kEmptyOutput;
-              output.value = buffer.work_queue()->Wait(Now()).Transform(
-                  [buffer = buffer.NewRoot(),
-                   expr = std::move(compilation_result.first),
-                   sub_environment = std::move(compilation_result.second)](
-                      EmptyValue) mutable {
-                    return buffer
-                        ->EvaluateExpression(std::move(expr), sub_environment)
-                        .Transform([](gc::Root<vm::Value> value) {
-                          std::ostringstream oss;
-                          oss << value.ptr().value();
-                          return LineProcessorOutput::New(SingleLine::New(
-                              LazyString{FromByteString(oss.str())}));
-                        })
-                        .ConsumeErrors([](Error error) {
-                          return futures::Past(LineProcessorOutput(
-                              SINGLE_LINE_CONSTANT(L"E: ") +
-                              LineSequence::BreakLines(error.read())
-                                  .FoldLines()));
-                        });
-                  });
-            }
-            return output;
-          },
-          [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
-            return error;
-          }},
-      buffer.CompileString(input.read()));
+      overload{[&](ExecutionContext::CompilationResult compilation_result)
+                   -> ValueOrError<LineProcessorOutputFuture> {
+                 LineProcessorOutputFuture output{
+                     .initial_value = LineProcessorOutput(
+                         SINGLE_LINE_CONSTANT(L"C++: ") +
+                         vm::TypesToString(
+                             compilation_result.expression()->Types())),
+                     .value = futures::Future<LineProcessorOutput>().value};
+                 if (!compilation_result.expression()
+                          ->purity()
+                          .writes_external_outputs) {
+                   output.initial_value =
+                       LineProcessorOutput(output.initial_value.read() +
+                                           SINGLE_LINE_CONSTANT(L" ..."));
+                   if (compilation_result.expression()->Types() ==
+                       std::vector<vm::Type>({vm::types::Void{}}))
+                     return kEmptyOutput;
+                   output.value = buffer.work_queue()->Wait(Now()).Transform(
+                       [compilation_result =
+                            std::move(compilation_result)](EmptyValue) mutable {
+                         return compilation_result.evaluate()
+                             .Transform([](gc::Root<vm::Value> value) {
+                               std::ostringstream oss;
+                               oss << value.ptr().value();
+                               return LineProcessorOutput::New(SingleLine::New(
+                                   LazyString{FromByteString(oss.str())}));
+                             })
+                             .ConsumeErrors([](Error error) {
+                               return futures::Past(LineProcessorOutput(
+                                   SINGLE_LINE_CONSTANT(L"E: ") +
+                                   LineSequence::BreakLines(error.read())
+                                       .FoldLines()));
+                             });
+                       });
+                 }
+                 return output;
+               },
+               [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
+                 return error;
+               }},
+      buffer.execution_context()->CompileString(input.read()));
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
@@ -1242,17 +1240,6 @@ void OpenBuffer::AppendToLastLine(Line line) {
   contents_->EraseLines(contents_->EndLine() - LineNumberDelta(1),
                         contents_->EndLine(),
                         MutableLineSequence::ObserverBehavior::kHide);
-}
-
-ValueOrError<
-    std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
-OpenBuffer::CompileString(const LazyString& code) const {
-  TRACK_OPERATION(OpenBuffer_CompileString);
-  gc::Root<Environment> sub_environment = Environment::New(environment_);
-  ASSIGN_OR_RETURN(
-      NonNull<std::unique_ptr<Expression>> expression,
-      afc::vm::CompileString(code, editor().gc_pool(), sub_environment));
-  return std::make_pair(std::move(expression), sub_environment);
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
