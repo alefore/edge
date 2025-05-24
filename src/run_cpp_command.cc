@@ -91,13 +91,13 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
       editor_state.current_buffer(),
       [&](gc::Root<OpenBuffer> buffer) {
         buffer.ptr()->ResetMode();
-        return buffer.ptr()
+        return buffer->execution_context()
             ->EvaluateString(name.read())
             .Transform([buffer](gc::Root<vm::Value> value) {
               if (value.ptr()->IsVoid()) return Success();
               std::ostringstream oss;
               oss << "Evaluation result: " << value.ptr().value();
-              buffer.ptr()->status().SetInformationText(
+              buffer->status().SetInformationText(
                   Line{SingleLine{LazyString{FromByteString(oss.str())}}});
               return Success();
             })

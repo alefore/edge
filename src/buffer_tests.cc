@@ -204,7 +204,7 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
 
                gc::Root<vm::Value> result =
-                   ValueOrDie(buffer
+                   ValueOrDie(buffer->execution_context()
                                   ->EvaluateString(LazyString{
                                       L"number F() { return "
                                       L"\"foo\".find_last_of(\"o\", 3); }"
@@ -221,7 +221,8 @@ const bool buffer_tests_registration = tests::Register(
                    EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
-                   buffer->EvaluateString(LazyString{L"{ number v = 5; } v"})
+                   buffer->execution_context()
+                       ->EvaluateString(LazyString{L"{ number v = 5; } v"})
                        .Get()
                        .value();
                CHECK(IsError(result));

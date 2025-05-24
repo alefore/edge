@@ -116,7 +116,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
                        input.NewChild(delete_transformation->range->begin()));
         });
   }
-  return input.buffer.EvaluateString(contents.ToLazyString())
+  return input.buffer.execution_context()
+      ->EvaluateString(contents.ToLazyString())
       .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer,
                   input.delete_buffer.has_value()

@@ -240,7 +240,8 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
                [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
                  return error;
                }},
-      buffer.execution_context()->CompileString(input.read()));
+      buffer.execution_context()->CompileString(
+          input.read(), ExecutionContext::ErrorHandling::kIgnore));
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
@@ -1253,24 +1254,6 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
                   });
 }
 
-futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
-    const LazyString& code) {
-  LOG(INFO) << "Compiling code.";
-  return std::visit(
-      overload{[&](Error error) {
-                 error = AugmentError(LazyString{L"🐜Compilation error"},
-                                      std::move(error));
-                 status_->Set(error);
-                 return futures::Past(
-                     ValueOrError<gc::Root<Value>>(std::move(error)));
-               },
-               [&](ExecutionContext::CompilationResult result) {
-                 LOG(INFO) << "Code compiled, evaluating.";
-                 return result.evaluate();
-               }},
-      execution_context_->CompileString(code));
-}
-
 NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {
   return execution_context_->work_queue();
 }
@@ -1883,7 +1866,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                   RegisterProgress();
                   if (Read(buffer_variables::vm_exec)) {
                     LOG(INFO) << name() << ": Evaluating VM code: " << input;
-                    EvaluateString(input);
+                    execution_context()->EvaluateString(input);
                   }
                   file_adapter_->ReceiveInput(std::move(input), modifiers)
                       .Transform([done_callback =

@@ -10,6 +10,7 @@ namespace gc = afc::language::gc;
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::FileSystemDriver;
 using afc::language::Error;
+using afc::language::IgnoreErrors;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::overload;
@@ -53,13 +54,17 @@ ExecutionContext::file_system_driver() const {
 
 namespace {
 Error RegisterCompilationError(std::weak_ptr<Status> weak_status,
-                               LazyString details, Error error) {
+                               LazyString details, Error error,
+                               ExecutionContext::ErrorHandling error_handling) {
   LOG(INFO) << "Compilation error: " << error;
   error = AugmentError(details + LazyString{L": error: "}, std::move(error));
-  VisitPointer(
-      weak_status,
-      [&error](NonNull<std::shared_ptr<Status>> status) { status->Set(error); },
-      [] {});
+  if (error_handling == ExecutionContext::ErrorHandling::kLogToStatus)
+    VisitPointer(
+        weak_status,
+        [&error](NonNull<std::shared_ptr<Status>> status) {
+          status->Set(error);
+        },
+        [] {});
   return error;
 }
 }  // namespace
@@ -81,7 +86,8 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
                [weak_status = status_, path](
                    Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
                  return futures::Past(RegisterCompilationError(
-                     weak_status, ToLazyString(path), error));
+                     weak_status, ToLazyString(path), error,
+                     ErrorHandling::kLogToStatus));
                }},
       vm::CompileFile(path, environment_.pool(), environment_.ToRoot()));
 }
@@ -109,8 +115,23 @@ ExecutionContext::CompilationResult::evaluate() const {
                   });
 };
 
+futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
+    language::lazy_string::LazyString code) {
+  return std::visit(
+      overload{[](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
+                 // No need to log error here, `CompileString` already does it.
+                 return futures::Past(error);
+               },
+               [&](ExecutionContext::CompilationResult result) {
+                 LOG(INFO) << "Code compiled, evaluating.";
+                 return result.evaluate();
+               }},
+      CompileString(std::move(code)));
+}
+
 language::ValueOrError<ExecutionContext::CompilationResult>
-ExecutionContext::CompileString(language::lazy_string::LazyString code) {
+ExecutionContext::CompileString(language::lazy_string::LazyString code,
+                                ErrorHandling error_handling) {
   TRACK_OPERATION(ExecutionContext_CompileString);
   gc::Root<vm::Environment> sub_environment =
       vm::Environment::New(environment_);
@@ -121,10 +142,11 @@ ExecutionContext::CompileString(language::lazy_string::LazyString code) {
                  return CompilationResult(std::move(expression),
                                           sub_environment, work_queue);
                },
-               [weak_status = status_](
+               [weak_status = status_, error_handling](
                    Error error) -> language::ValueOrError<CompilationResult> {
                  return RegisterCompilationError(
-                     weak_status, LazyString{L"🐜Compilation error"}, error);
+                     weak_status, LazyString{L"🐜Compilation error"}, error,
+                     error_handling);
                }},
       afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
 }

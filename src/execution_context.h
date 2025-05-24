@@ -62,9 +62,13 @@ class ExecutionContext {
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       infrastructure::Path path);
+  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
+      language::lazy_string::LazyString code);
 
+  enum ErrorHandling { kIgnore, kLogToStatus };
   language::ValueOrError<CompilationResult> CompileString(
-      language::lazy_string::LazyString);
+      language::lazy_string::LazyString,
+      ErrorHandling error_handling = kLogToStatus);
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;

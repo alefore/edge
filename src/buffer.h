@@ -393,9 +393,6 @@ class OpenBuffer {
       const language::NonNull<std::shared_ptr<vm::Expression>>& expr,
       language::gc::Root<vm::Environment> environment);
 
-  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
-      const language::lazy_string::LazyString& str);
-
   language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue() const;
 
   // Asynchronous threads that need to interact with the buffer shouldn't be
