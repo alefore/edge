@@ -46,25 +46,24 @@ namespace {
 LazyString GetMetadata(std::wstring line) {
   NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(std::nullopt);
   gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-  buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
+  buffer->Set(buffer_variables::name, LazyString{L"tests"});
 
   // We add this so that tests can refer to it.
-  buffer.ptr()->AppendToLastLine(SINGLE_LINE_CONSTANT(L"5.0/2.0"));
-  buffer.ptr()->AppendEmptyLine();
-  buffer.ptr()->AppendToLastLine(
-      SINGLE_LINE_CONSTANT(L"5.0/ does not compile"));
-  buffer.ptr()->AppendEmptyLine();
+  buffer->AppendToLastLine(SINGLE_LINE_CONSTANT(L"5.0/2.0"));
+  buffer->AppendEmptyLine();
+  buffer->AppendToLastLine(SINGLE_LINE_CONSTANT(L"5.0/ does not compile"));
+  buffer->AppendEmptyLine();
 
-  buffer.ptr()->AppendToLastLine(SingleLine{LazyString{line}});
+  buffer->AppendToLastLine(SingleLine{LazyString{line}});
 
-  auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
+  auto line_in_buffer = buffer->LineAt(buffer->EndLine());
 
   // Triggers computation of metadata:
-  buffer.ptr()->contents().snapshot().ForEach(
+  buffer->contents().snapshot().ForEach(
       [](const Line& l) { l.metadata().get(); });
 
   // Gives it a chance to execute:
-  buffer.ptr()->editor().work_queue()->Execute();
+  buffer->editor().work_queue()->Execute();
 
   if (const auto metadata_it =
           line_in_buffer->metadata().get().find(LineMetadataKey{});
@@ -187,11 +186,10 @@ const bool buffer_tests_registration = tests::Register(
                // This is important: otherwise OpenBuffer will assume that it is
                // safe to override them (recompute them).
                line.metadata().get();
-               buffer.ptr()->AppendRawLine(std::move(line));
+               buffer->AppendRawLine(std::move(line));
                // Gives it a chance to execute:
-               buffer.ptr()->editor().work_queue()->Execute();
-               CHECK(buffer.ptr()
-                         ->contents()
+               buffer->editor().work_queue()->Execute();
+               CHECK(buffer->contents()
                          .back()
                          .metadata()
                          .get()
@@ -206,7 +204,7 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
 
                gc::Root<vm::Value> result =
-                   ValueOrDie(buffer.ptr()
+                   ValueOrDie(buffer
                                   ->EvaluateString(LazyString{
                                       L"number F() { return "
                                       L"\"foo\".find_last_of(\"o\", 3); }"
@@ -214,7 +212,7 @@ const bool buffer_tests_registration = tests::Register(
                                   .Get()
                                   .value(),
                               L"tests");
-               CHECK(result.ptr()->get_bool());
+               CHECK(result->get_bool());
              }},
         {.name = L"NestedStatements",
          .callback =
@@ -223,8 +221,7 @@ const bool buffer_tests_registration = tests::Register(
                    EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
-                   buffer.ptr()
-                       ->EvaluateString(LazyString{L"{ number v = 5; } v"})
+                   buffer->EvaluateString(LazyString{L"{ number v = 5; } v"})
                        .Get()
                        .value();
                CHECK(IsError(result));
@@ -365,7 +362,7 @@ const bool buffer_work_queue_tests_registration = tests::Register(
             bool keep_going = true;
             int iterations = 0;
             NonNull<std::shared_ptr<WorkQueue>> work_queue =
-                NewBufferForTests(editor.value()).ptr()->work_queue();
+                NewBufferForTests(editor.value())->work_queue();
             std::function<void()> callback =
                 [work_queue_weak =
                      std::weak_ptr<WorkQueue>(work_queue.get_shared()),
@@ -412,31 +409,31 @@ const bool buffer_positions_tests_registration = tests::Register(
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-        buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
-        for (int i = 0; i < 10; i++) buffer.ptr()->AppendEmptyLine();
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));
-        CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(10 + 1));
+        buffer->Set(buffer_variables::name, LazyString{L"tests"});
+        for (int i = 0; i < 10; i++) buffer->AppendEmptyLine();
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(0)));
+        CHECK_EQ(buffer->contents().size(), LineNumberDelta(10 + 1));
 
-        buffer.ptr()->set_position(LineColumn(LineNumber(222)));
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(222)));
+        buffer->set_position(LineColumn(LineNumber(222)));
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(222)));
 
-        buffer.ptr()->CheckPosition();
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(10)));
+        buffer->CheckPosition();
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(10)));
 
         CursorsSet::iterator insertion_iterator =
-            buffer.ptr()->active_cursors().insert(LineColumn(LineNumber(5)));
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(10)));
+            buffer->active_cursors().insert(LineColumn(LineNumber(5)));
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(10)));
 
-        buffer.ptr()->active_cursors().set_active(insertion_iterator);
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));
+        buffer->active_cursors().set_active(insertion_iterator);
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(5)));
 
-        buffer.ptr()->ClearContents();
+        buffer->ClearContents();
 
-        CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(1));
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));
+        CHECK_EQ(buffer->contents().size(), LineNumberDelta(1));
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(5)));
 
-        buffer.ptr()->DestroyCursor();
-        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));
+        buffer->DestroyCursor();
+        CHECK_EQ(buffer->position(), LineColumn(LineNumber(0)));
       }}});
 
 const bool buffer_registry_tests_registration = tests::Register(
