@@ -190,7 +190,7 @@ futures::Value<PossibleError> Save(
                       },
                       [] {});
                   for (const auto& dir : editor.edge_path()) {
-                    root_execution_context.ptr()->EvaluateFile(Path::Join(
+                    root_execution_context->EvaluateFile(Path::Join(
                         dir, ValueOrDie(Path::New(
                                  LazyString{L"/hooks/buffer-save.cc"}))));
                   }
@@ -300,12 +300,11 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})
                    .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
-                     buffer.ptr()->Set(buffer_variables::save_on_close, true);
-                     buffer.ptr()->Set(
+                     buffer->Set(buffer_variables::save_on_close, true);
+                     buffer->Set(
                          buffer_variables::trigger_reload_on_buffer_write,
                          false);
-                     buffer.ptr()->Set(buffer_variables::show_in_buffers_list,
-                                       false);
+                     buffer->Set(buffer_variables::show_in_buffers_list, false);
                      if (!editor_state.has_current_buffer()) {
                        editor_state.set_current_buffer(
                            buffer, CommandArgumentModeApplyMode::kFinal);
@@ -315,7 +314,7 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
              },
              editor_state.buffer_registry().Find(buffer_name))
       .Transform([](gc::Root<OpenBuffer> buffer) {
-        return buffer.ptr()->WaitForEndOfFile().Transform(
+        return buffer->WaitForEndOfFile().Transform(
             [buffer](EmptyValue) { return buffer; });
       });
 }
@@ -333,7 +332,7 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
                    .Transform([&editor_state, search_paths,
                                edge_path](gc::Root<OpenBuffer> buffer) {
                      std::ranges::copy(
-                         buffer.ptr()->contents().snapshot() |
+                         buffer->contents().snapshot() |
                              std::views::transform([](const Line& line) {
                                return Path::New(line.contents().read());
                              }) |
@@ -374,7 +373,7 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
                      -> futures::ValueOrError<
                          ResolvePathOutput<gc::Root<OpenBuffer>>> {
         if (input.position.has_value()) {
-          input.validator_output.ptr()->set_position(input.position.value());
+          input.validator_output->set_position(input.position.value());
         }
         // TODO: Apply pattern.
         return futures::Past(Success(std::move(input)));
@@ -445,25 +444,25 @@ gc::Root<OpenBuffer> CreateBuffer(
             buffer_options->name, [&] {
               gc::Root<OpenBuffer> output =
                   OpenBuffer::New(buffer_options.value());
-              output.ptr()->Set(buffer_variables::persist_state, true);
-              output.ptr()->Reload();
+              output->Set(buffer_variables::persist_state, true);
+              output->Reload();
               return output;
             });
       },
       [&] {
         gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
-        output.ptr()->Set(buffer_variables::persist_state, true);
-        output.ptr()->Reload();
-        options.editor_state.buffer_registry().Add(output.ptr()->name(),
-                                                   output.ptr().ToWeakPtr());
+        output->Set(buffer_variables::persist_state, true);
+        output->Reload();
+        options.editor_state.buffer_registry().Add(output->name(),
+                                                   output.ToWeakPtr());
         return output;
       },
       buffer_options->path);
-  buffer.ptr()->ResetMode();
+  buffer->ResetMode();
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->position.has_value()) {
-    buffer.ptr()->set_position(*resolve_path_output->position);
+    buffer->set_position(*resolve_path_output->position);
   }
 
   options.editor_state.AddBuffer(buffer, options.insertion_type);
@@ -471,17 +470,16 @@ gc::Root<OpenBuffer> CreateBuffer(
   if (resolve_path_output.has_value() &&
       !resolve_path_output->pattern.empty()) {
     std::visit(
-        overload{
-            [&](LineColumn position) { buffer.ptr()->set_position(position); },
-            [&buffer](Error error) {
-              buffer.ptr()->status().SetInformationText(
-                  Line(LineSequence::BreakLines(error.read()).FoldLines()));
-            }},
+        overload{[&](LineColumn position) { buffer->set_position(position); },
+                 [&buffer](Error error) {
+                   buffer->status().SetInformationText(Line(
+                       LineSequence::BreakLines(error.read()).FoldLines()));
+                 }},
         GetNextMatch(
             options.editor_state.modifiers().direction,
-            SearchOptions{.starting_position = buffer.ptr()->position(),
+            SearchOptions{.starting_position = buffer->position(),
                           .search_query = resolve_path_output->pattern},
-            buffer.ptr()->contents().snapshot()));
+            buffer->contents().snapshot()));
   }
   return buffer;
 }
@@ -543,7 +541,7 @@ futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
                  .use_search_paths = false})
       .Transform([](gc::Root<OpenBuffer> buffer_root) {
         // Wait until we've fully evaluated buffer-reload.cc on the buffer.
-        return buffer_root.ptr()->WaitForEndOfFile().Transform(
+        return buffer_root->WaitForEndOfFile().Transform(
             [buffer_root](EmptyValue) { return buffer_root; });
       });
 }
@@ -602,25 +600,22 @@ class TestDriver {
                                            .path = ValueOrDie(Path::New(path)),
                                            .use_search_paths = true})
         .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
-          return buffer.ptr()->WaitForEndOfFile().Transform(
-              [expected_content, buffer](EmptyValue) {
-                buffer.ptr()->contents().ForEach([](std::wstring line) {
-                  LOG(INFO) << "Read line: " << line;
-                });
-                if (expected_content.has_value()) {
-                  LOG(INFO)
-                      << "Validating, length: " << expected_content->size();
-                  CHECK_EQ(buffer.ptr()->lines_size(),
-                           expected_content->size());
-                  CHECK(buffer.ptr()->contents().snapshot().EveryLine(
-                      [expected_content](LineNumber i, const Line& line) {
-                        CHECK_EQ(line.contents().ToBytes(),
-                                 expected_content->at(i).contents().ToBytes());
-                        return true;
-                      }));
-                }
-                return futures::Past(Success(buffer));
-              });
+          return buffer->WaitForEndOfFile().Transform([expected_content,
+                                                       buffer](EmptyValue) {
+            buffer->contents().ForEach(
+                [](std::wstring line) { LOG(INFO) << "Read line: " << line; });
+            if (expected_content.has_value()) {
+              LOG(INFO) << "Validating, length: " << expected_content->size();
+              CHECK_EQ(buffer->lines_size(), expected_content->size());
+              CHECK(buffer->contents().snapshot().EveryLine(
+                  [expected_content](LineNumber i, const Line& line) {
+                    CHECK_EQ(line.contents().ToBytes(),
+                             expected_content->at(i).contents().ToBytes());
+                    return true;
+                  }));
+            }
+            return futures::Past(Success(buffer));
+          });
         });
   }
 
@@ -645,7 +640,7 @@ const bool buffer_positions_tests_registration = tests::Register(
             LineSequence::ForTests({L"Alejandro", L"Forero"});
         driver.OpenAndReadPath(driver.NewTmpFile(contents), contents)
             .Transform([&](gc::Root<OpenBuffer> buffer) {
-              buffer.ptr()->Close();
+              buffer->Close();
               driver.Stop();
               return Success();
             });
