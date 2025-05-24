@@ -114,11 +114,6 @@ Status::Status(infrastructure::audio::Player& audio_player)
 
 void Status::CopyFrom(const Status& status) { data_ = status.data_; }
 
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-Status::Expand() const {
-  return {};
-}
-
 Status::Type Status::GetType() const {
   ValidatePreconditions();
   return data_->type;
