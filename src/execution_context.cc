@@ -15,6 +15,7 @@ using afc::language::OnceOnlyFunction;
 using afc::language::overload;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::editor {
 /* static */ gc::Root<ExecutionContext> ExecutionContext::New(
@@ -50,6 +51,19 @@ ExecutionContext::file_system_driver() const {
   return file_system_driver_;
 }
 
+namespace {
+Error RegisterCompilationError(std::weak_ptr<Status> weak_status,
+                               LazyString details, Error error) {
+  LOG(INFO) << "Compilation error: " << error;
+  error = AugmentError(details + LazyString{L": error: "}, std::move(error));
+  VisitPointer(
+      weak_status,
+      [&error](NonNull<std::shared_ptr<Status>> status) { status->Set(error); },
+      [] {});
+  return error;
+}
+}  // namespace
+
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
     infrastructure::Path path) {
   return std::visit(
@@ -66,19 +80,53 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
                },
                [weak_status = status_, path](
                    Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
-                 LOG(INFO) << "Compilation error: " << error;
-                 error = AugmentError(path.read() + LazyString{L": error: "},
-                                      std::move(error));
-                 VisitPointer(
-                     weak_status,
-                     [&error](NonNull<std::shared_ptr<Status>> status) {
-                       status->Set(error);
-                     },
-                     [] {});
-
-                 return futures::Past(error);
+                 return futures::Past(RegisterCompilationError(
+                     weak_status, ToLazyString(path), error));
                }},
       vm::CompileFile(path, environment_.pool(), environment_.ToRoot()));
+}
+
+ExecutionContext::CompilationResult::CompilationResult(
+    language::NonNull<std::shared_ptr<vm::Expression>> expression,
+    language::gc::Root<vm::Environment> environment,
+    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue)
+    : expression_(std::move(expression)),
+      environment_(std::move(environment)),
+      work_queue_(std::move(work_queue)) {}
+
+const language::NonNull<std::shared_ptr<vm::Expression>>&
+ExecutionContext::CompilationResult::expression() const {
+  return expression_;
+}
+
+futures::ValueOrError<gc::Root<vm::Value>>
+ExecutionContext::CompilationResult::evaluate() const {
+  return Evaluate(expression_, environment_.pool(), environment_,
+                  [work_queue = work_queue_](OnceOnlyFunction<void()> resume) {
+                    LOG(INFO) << "Evaluation of code yields.";
+                    work_queue->Schedule(
+                        WorkQueue::Callback{.callback = std::move(resume)});
+                  });
+};
+
+language::ValueOrError<ExecutionContext::CompilationResult>
+ExecutionContext::CompileString(language::lazy_string::LazyString code) {
+  TRACK_OPERATION(ExecutionContext_CompileString);
+  gc::Root<vm::Environment> sub_environment =
+      vm::Environment::New(environment_);
+  return std::visit(
+      overload{[sub_environment, work_queue = work_queue()](
+                   NonNull<std::shared_ptr<vm::Expression>> expression)
+                   -> language::ValueOrError<CompilationResult> {
+                 return CompilationResult(std::move(expression),
+                                          sub_environment, work_queue);
+               },
+               [weak_status = status_](
+                   Error error) -> language::ValueOrError<CompilationResult> {
+                 return RegisterCompilationError(
+                     weak_status, LazyString{L"🐜Compilation error"}, error);
+               }},
+      afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>

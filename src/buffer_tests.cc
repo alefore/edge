@@ -272,27 +272,20 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
           {
             futures::ValueOrError<gc::Root<vm::Value>> future_value =
                 [&code, &editor] {
-                  std::pair<NonNull<std::unique_ptr<vm::Expression>>,
-                            gc::Root<vm::Environment>>
-                      compilation_result = [&code, &editor] {
-                        auto buffer = NewBufferForTests(editor.value());
-                        CHECK(editor->current_buffer() == buffer);
-                        CHECK_EQ(editor->active_buffers().size(), 1ul);
-                        CHECK(editor->active_buffers()[0] == buffer);
-                        auto output = ValueOrDie(
-                            buffer.ptr()->CompileString(LazyString{code}));
-                        editor->CloseBuffer(buffer.ptr().value());
-                        return output;
-                      }();
+                  auto compilation_result = std::invoke([&code, &editor] {
+                    auto buffer = NewBufferForTests(editor.value());
+                    CHECK(editor->current_buffer() == buffer);
+                    CHECK_EQ(editor->active_buffers().size(), 1ul);
+                    CHECK(editor->active_buffers()[0] == buffer);
+                    auto output =
+                        ValueOrDie(buffer->execution_context()->CompileString(
+                            LazyString{code}));
+                    editor->CloseBuffer(buffer.ptr().value());
+                    return output;
+                  });
 
                   LOG(INFO) << "Start evaluation.";
-                  return Evaluate(
-                      std::move(compilation_result.first), editor->gc_pool(),
-                      compilation_result.second,
-                      [&editor](OnceOnlyFunction<void()> resume_callback) {
-                        editor->work_queue()->Schedule(WorkQueue::Callback{
-                            .callback = std::move(resume_callback)});
-                      });
+                  return compilation_result.evaluate();
                 }();
             while (!future_value.Get().has_value())
               editor->work_queue()->Execute();

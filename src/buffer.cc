@@ -1277,14 +1277,11 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
                  return futures::Past(
                      ValueOrError<gc::Root<Value>>(std::move(error)));
                },
-               [&](std::pair<NonNull<std::unique_ptr<Expression>>,
-                             gc::Root<Environment>>
-                       compilation_result) {
-                 auto [expression, environment] = std::move(compilation_result);
+               [&](ExecutionContext::CompilationResult result) {
                  LOG(INFO) << "Code compiled, evaluating.";
-                 return EvaluateExpression(std::move(expression), environment);
+                 return result.evaluate();
                }},
-      CompileString(code));
+      execution_context_->CompileString(code));
 }
 
 NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {

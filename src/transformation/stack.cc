@@ -67,13 +67,13 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const LineSequence& expression_str) {
-  FUTURES_ASSIGN_OR_RETURN(auto compilation_result,
-                           buffer.CompileString(expression_str.ToLazyString()));
-  auto [expression, environment] = std::move(compilation_result);
+  FUTURES_ASSIGN_OR_RETURN(
+      ExecutionContext::CompilationResult compilation_result,
+      buffer.execution_context()->CompileString(expression_str.ToLazyString()));
   buffer.status().Reset();
-  return expression->purity().writes_external_outputs
+  return compilation_result.expression()->purity().writes_external_outputs
              ? futures::Past(Success())
-             : buffer.EvaluateExpression(std::move(expression), environment)
+             : compilation_result.evaluate()
                    .Transform([&buffer](gc::Root<vm::Value> value) {
                      ShowValue(buffer, nullptr, value.ptr().value());
                      return Success();
