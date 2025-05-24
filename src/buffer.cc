@@ -221,7 +221,7 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
                    expr = std::move(compilation_result.first),
                    sub_environment = std::move(compilation_result.second)](
                       EmptyValue) mutable {
-                    return buffer.ptr()
+                    return buffer
                         ->EvaluateExpression(std::move(expr), sub_environment)
                         .Transform([](gc::Root<vm::Value> value) {
                           std::ostringstream oss;
@@ -284,7 +284,7 @@ using namespace afc::vm;
 
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
   gc::Root<MapModeCommands> default_commands =
-      options.editor.default_commands().ptr()->NewChild();
+      options.editor.default_commands()->NewChild();
   gc::Root<MapMode> mode =
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<Environment> environment =
@@ -298,7 +298,7 @@ using namespace afc::vm;
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
           mode.ptr(), environment.ptr(), std::move(status),
           execution_context.ptr()));
-  output.ptr()->Initialize(output.ptr());
+  output->Initialize(output.ptr());
   return output;
 }
 
@@ -329,14 +329,14 @@ class OpenBufferMutableLineSequenceObserver
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
     root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
-        .callback = gc::LockCallback(
-            gc::BindFront(
-                root_this->ptr()->editor().gc_pool(),
-                [](gc::Root<OpenBuffer> buffer) {
-                  buffer.ptr()->MaybeStartUpdatingSyntaxTrees();
-                },
-                buffer_)
-                .ptr())});
+        .callback =
+            gc::LockCallback(gc::BindFront(
+                                 root_this->ptr()->editor().gc_pool(),
+                                 [](gc::Root<OpenBuffer> buffer) {
+                                   buffer->MaybeStartUpdatingSyntaxTrees();
+                                 },
+                                 buffer_)
+                                 .ptr())});
     if (update_disk_state) {
       root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
       if (root_this->ptr()->Read(buffer_variables::persist_state)) {
@@ -351,7 +351,7 @@ class OpenBufferMutableLineSequenceObserver
                     gc::BindFront(
                         root_this->ptr()->editor().gc_pool(),
                         [](gc::Root<OpenBuffer> locked_root_this) {
-                          locked_root_this.ptr()->UpdateBackup();
+                          locked_root_this->UpdateBackup();
                         },
                         root_this->ptr().ToWeakPtr())
                         .ptr())});
@@ -413,8 +413,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                               return VisitPointer(
                                   weak_this.Lock(),
                                   [&](gc::Root<OpenBuffer> root_this) {
-                                    return root_this.ptr()
-                                        ->execution_context()
+                                    return root_this->execution_context()
                                         ->EvaluateFile(state_path);
                                   },
                                   [] {
@@ -752,10 +751,10 @@ void OpenBuffer::UpdateTreeParser() {
             .use_search_paths = false});
       })
       .Transform([](gc::Root<OpenBuffer> dictionary_root) {
-        return dictionary_root.ptr()->WaitForEndOfFile().Transform(
+        return dictionary_root->WaitForEndOfFile().Transform(
             [dictionary_root](EmptyValue) {
-              return dictionary_root.ptr()->editor().thread_pool().Run(
-                  [contents = dictionary_root.ptr()->contents().snapshot()] {
+              return dictionary_root->editor().thread_pool().Run(
+                  [contents = dictionary_root->contents().snapshot()] {
                     return Success(SortedLineSequence(contents));
                   });
             });
@@ -832,7 +831,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                         return VisitPointer(
                             weak_this.Lock(),
                             [delay_seconds](gc::Root<OpenBuffer> root_this) {
-                              return root_this.ptr()->work_queue()->Wait(
+                              return root_this->work_queue()->Wait(
                                   AddSeconds(Now(), delay_seconds));
                             },
                             [&] { return futures::Past(EmptyValue()); });
@@ -1295,7 +1294,7 @@ NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
   return [root_this = ptr_this_->ToRoot()](
              OnceOnlyFunction<void(OpenBuffer&)> callback) {
-    root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
+    root_this->work_queue()->Schedule(WorkQueue::Callback{
         .callback = [root_this, callback = std::move(callback)] mutable {
           std::move(callback)(root_this.ptr().value());
         }});
@@ -1958,8 +1957,8 @@ futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
       .Transform([buffer = NewRoot(),
                   path](FileDescriptor fd) -> futures::Value<PossibleError> {
         LOG(INFO) << path << ": Opened file descriptor: " << fd;
-        return buffer.ptr()->SetInputFiles(fd, std::nullopt, false,
-                                           std::optional<ProcessId>());
+        return buffer->SetInputFiles(fd, std::nullopt, false,
+                                     std::optional<ProcessId>());
       });
 }
 
@@ -2124,7 +2123,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                return VisitPointer(
                    data->source.Lock(),
                    [&](gc::Root<OpenBuffer> buffer) {
-                     auto& editor = buffer.ptr()->editor();
+                     auto& editor = buffer->editor();
                      VLOG(5) << "Checking URL: " << url;
                      if (url.schema().value_or(URL::Schema::kFile) !=
                          URL::Schema::kFile) {
@@ -2173,10 +2172,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                data->source.Lock(),
                                [&](gc::Root<OpenBuffer> locked_buffer) {
                                  if (adjusted_position !=
-                                     locked_buffer.ptr()
-                                         ->contents()
-                                         .AdjustLineColumn(
-                                             locked_buffer.ptr()->position())) {
+                                     locked_buffer->contents().AdjustLineColumn(
+                                         locked_buffer->position())) {
                                    data->output = Error{LazyString{
                                        L"Computation was cancelled."}};
                                    return futures::Past(ICC::kStop);
@@ -2391,14 +2388,13 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 }
 
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
-  buffer.ptr()
-      ->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
+  buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
       .Transform([weak_buffer = buffer.ptr().ToWeakPtr()](
                      std::optional<gc::Root<OpenBuffer>> result) {
         VisitPointer(
             weak_buffer.Lock(),
             [&result](gc::Root<OpenBuffer> locked_buffer) {
-              locked_buffer.ptr()->status().set_context(result);
+              locked_buffer->status().set_context(result);
             },
             [] {});
         return Success();
@@ -2429,10 +2425,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
         cursors, [root_this = ptr_this_->ToRoot(),
                   transformation = std::move(transformation),
                   mode](LineColumn position) {
-          return root_this.ptr()
-              ->Apply(transformation, position, mode)
+          return root_this->Apply(transformation, position, mode)
               .Transform([root_this](transformation::Result result) {
-                root_this.ptr()->UpdateLastAction();
+                root_this->UpdateLastAction();
                 return result.position;
               });
         });
@@ -2442,19 +2437,18 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
         Apply(std::move(transformation), position(), mode)
             .Transform([root_this = ptr_this_->ToRoot()](
                            const transformation::Result& result) {
-              root_this.ptr()->active_cursors().MoveCurrentCursor(
-                  result.position);
-              root_this.ptr()->UpdateLastAction();
+              root_this->active_cursors().MoveCurrentCursor(result.position);
+              root_this->UpdateLastAction();
               return EmptyValue();
             });
   }
   return std::move(transformation_result)
       .value()
       .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
-        if (root_this.ptr()->last_transformation_stack_.empty())
-          root_this.ptr()->undo_state_.CommitCurrent();
+        if (root_this->last_transformation_stack_.empty())
+          root_this->undo_state_.CommitCurrent();
 
-        root_this.ptr()->OnCursorMove();
+        root_this->OnCursorMove();
 
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor
