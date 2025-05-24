@@ -320,8 +320,14 @@ int main(int argc, const char** argv) {
     } else {
       gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
           .editor = editor_state(), .name = InitialCommands{}});
-      buffer_root.ptr()->EvaluateString(commands_to_run);
-      editor_state().buffer_registry().Add(buffer_root.ptr()->name(),
+      std::visit(
+          overload{
+              [](ExecutionContext::CompilationResult result) {
+                result.evaluate();
+              },
+              [](Error errors) { LOG(FATAL) << "Errors: " << errors.read(); }},
+          buffer_root->execution_context()->CompileString(commands_to_run));
+      editor_state().buffer_registry().Add(buffer_root->name(),
                                            buffer_root.ptr().ToWeakPtr());
     }
   }
