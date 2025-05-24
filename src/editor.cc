@@ -325,8 +325,6 @@ EditorState::~EditorState() {
   std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
                         &OpenBuffer::Close);
 
-  // TODO(2025-05-23, trivial): Add operator-> to gc::Root and get rid of the
-  // ptr() bits.
   execution_context()
       ->environment()
       ->Clear();  // We may have loops. This helps break them.
