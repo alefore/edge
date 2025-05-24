@@ -62,10 +62,13 @@ class ExecutionContext {
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       infrastructure::Path path);
-  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
-      language::lazy_string::LazyString code);
 
   enum ErrorHandling { kIgnore, kLogToStatus };
+
+  futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
+      language::lazy_string::LazyString code,
+      ErrorHandling on_compilation_error = kLogToStatus);
+
   language::ValueOrError<CompilationResult> CompileString(
       language::lazy_string::LazyString,
       ErrorHandling error_handling = kLogToStatus);

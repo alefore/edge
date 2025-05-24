@@ -116,17 +116,18 @@ ExecutionContext::CompilationResult::evaluate() const {
 };
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
-    language::lazy_string::LazyString code) {
+    language::lazy_string::LazyString code,
+    ErrorHandling on_compilation_error) {
   return std::visit(
       overload{[](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
-                 // No need to log error here, `CompileString` already does it.
+                 // No need to handle error; `CompileString` already does it.
                  return futures::Past(error);
                },
                [&](ExecutionContext::CompilationResult result) {
                  LOG(INFO) << "Code compiled, evaluating.";
                  return result.evaluate();
                }},
-      CompileString(std::move(code)));
+      CompileString(std::move(code), on_compilation_error));
 }
 
 language::ValueOrError<ExecutionContext::CompilationResult>

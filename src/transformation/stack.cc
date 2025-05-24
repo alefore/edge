@@ -69,7 +69,9 @@ futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const LineSequence& expression_str) {
   FUTURES_ASSIGN_OR_RETURN(
       ExecutionContext::CompilationResult compilation_result,
-      buffer.execution_context()->CompileString(expression_str.ToLazyString()));
+      buffer.execution_context()->CompileString(
+          expression_str.ToLazyString(),
+          ExecutionContext::ErrorHandling::kIgnore));
   buffer.status().Reset();
   return compilation_result.expression()->purity().writes_external_outputs
              ? futures::Past(Success())
@@ -117,7 +119,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
         });
   }
   return input.buffer.execution_context()
-      ->EvaluateString(contents.ToLazyString())
+      ->EvaluateString(contents.ToLazyString(),
+                       ExecutionContext::ErrorHandling::kIgnore)
       .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer,
                   input.delete_buffer.has_value()
