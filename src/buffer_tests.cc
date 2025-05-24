@@ -504,19 +504,16 @@ const bool buffer_reloads_tests_registration = tests::Register(
                        Path{LazyString{L".edge/tests/BufferReloads"}}));
         gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor.value());
         ReloadAndWaitUntilEndOfFile(buffer_root.ptr().value());
-        std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
-                  language::gc::Root<vm::Environment>>
-            compilation =
-                ValueOrDie(buffer_root.ptr()->CompileString(LazyString{L"x"}));
+        ExecutionContext::CompilationResult compilation = ValueOrDie(
+            buffer_root->execution_context()->CompileString(LazyString{L"x"}));
 
         // We deliberately don't wait for the reload to be done.
-        buffer_root.ptr()->Reload();
+        buffer_root->Reload();
 
         futures::ValueOrError<gc::Root<vm::Value>> result =
-            buffer_root.ptr()->EvaluateExpression(std::move(compilation.first),
-                                                  compilation.second);
-        AdvanceUntilValue(buffer_root.ptr()->editor(), result);
-        CHECK(ValueOrDie(std::move(result).Get().value()).ptr()->get_number() ==
+            compilation.evaluate();
+        AdvanceUntilValue(buffer_root->editor(), result);
+        CHECK(ValueOrDie(std::move(result).Get().value())->get_number() ==
               Number::FromInt64(5678));
       }}});
 }  // namespace
