@@ -454,7 +454,7 @@ gc::Root<OpenBuffer> CreateBuffer(
         output->Set(buffer_variables::persist_state, true);
         output->Reload();
         options.editor_state.buffer_registry().Add(output->name(),
-                                                   output.ToWeakPtr());
+                                                   output.ptr().ToWeakPtr());
         return output;
       },
       buffer_options->path);
