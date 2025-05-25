@@ -137,7 +137,7 @@ futures::Value<PossibleError> Save(
       Path immediate_path,
       AugmentError(
           LazyString{L"Buffer can't be saved: Invalid “path” variable"},
-          Path::New(options.buffer.Read(buffer_variables::path))));
+          Path::New(options.buffer->Read(buffer_variables::path))));
 
   futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
 
@@ -153,7 +153,7 @@ futures::Value<PossibleError> Save(
       break;
     case OpenBuffer::Options::SaveType::kBackup:
       path_future =
-          OnError(options.buffer.GetEdgeStateDirectory(), [](Error error) {
+          OnError(options.buffer->GetEdgeStateDirectory(), [](Error error) {
             return futures::Past(
                 AugmentError(LazyString{L"Unable to backup buffer"}, error));
           }).Transform([](Path state_directory) {
@@ -163,36 +163,23 @@ futures::Value<PossibleError> Save(
   }
 
   return std::move(path_future)
-      .Transform([&editor, stat_buffer, options,
-                  trigger_reload_on_buffer_write = options.buffer.Read(
-                      buffer_variables::trigger_reload_on_buffer_write),
-                  persist_state_result = options.buffer.PersistState(),
-                  root_execution_context =
-                      options.buffer.execution_context().ToRoot()](
-                     Path path) mutable {
-        return SaveContentsToFile(path, options.contents_snapshot,
+      .Transform([&editor, stat_buffer, options](Path path) mutable {
+        return SaveContentsToFile(path, options.buffer->contents().snapshot(),
                                   editor.thread_pool(),
-                                  options.file_system_driver.value())
-            .Transform([persist_state_result = std::move(persist_state_result)](
-                           EmptyValue) mutable {
-              return std::move(persist_state_result);
+                                  options.buffer->file_system_driver().value())
+            .Transform([options](EmptyValue) mutable {
+              return options.buffer->PersistState();
             })
-            .Transform([&editor, stat_buffer, options, root_execution_context,
-                        trigger_reload_on_buffer_write, path](EmptyValue) {
+            .Transform([&editor, stat_buffer, options, path](EmptyValue) {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
-                  VisitPointer(
-                      options.status,
-                      [&path](NonNull<std::shared_ptr<Status>> status) {
-                        status->SetInformationText(LineBuilder{
-                            SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
-                            SingleLine{path.read()}}.Build());
-                      },
-                      [] {});
+                  options.buffer->status().SetInformationText(LineBuilder{
+                      SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
+                      SingleLine{path.read()}}.Build());
                   for (const auto& dir : editor.edge_path()) {
-                    root_execution_context->EvaluateFile(Path::Join(
-                        dir, ValueOrDie(Path::New(
-                                 LazyString{L"/hooks/buffer-save.cc"}))));
+                    options.buffer->execution_context()->EvaluateFile(
+                        Path::Join(dir, ValueOrDie(Path::New(LazyString{
+                                            L"/hooks/buffer-save.cc"}))));
                   }
                   stat(path.ToBytes().c_str(), &stat_buffer.value());
                   break;

@@ -110,15 +110,9 @@ class OpenBuffer {
     // Optional function that saves the buffer. If not provided, attempts to
     // save the buffer will fail.
     struct HandleSaveOptions {
-      OpenBuffer& buffer;
-      language::text::LineSequence contents_snapshot;
+      language::gc::Root<OpenBuffer> buffer;
       SaveType save_type = SaveType::kMainFile;
-      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
-          file_system_driver;
-      std::weak_ptr<Status> status;
     };
-    // `this` may be deleted before the future returned by `handle_save` has
-    // received a value.
     std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
         handle_save = nullptr;
 

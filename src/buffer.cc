@@ -1007,13 +1007,8 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
         PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
   LineSequence contents_snapshot = contents().snapshot();
-  futures::Value<PossibleError> output =
-      options_.handle_save(Options::HandleSaveOptions{
-          .buffer = *this,
-          .contents_snapshot = contents_snapshot,
-          .save_type = save_type,
-          .file_system_driver = file_system_driver(),
-          .status = std::weak_ptr<Status>(status_.get_shared())});
+  futures::Value<PossibleError> output = options_.handle_save(
+      Options::HandleSaveOptions{.buffer = NewRoot(), .save_type = save_type});
   if (save_type == OpenBuffer::Options::SaveType::kMainFile)
     output = std::move(output).Transform(
         [&editor = editor(), disk_state = disk_state_, contents_snapshot,
@@ -1123,11 +1118,7 @@ void OpenBuffer::UpdateBackup() {
   log_->Append(LazyString{L"UpdateBackup starts."});
   if (options_.handle_save != nullptr) {
     options_.handle_save(Options::HandleSaveOptions{
-        .buffer = *this,
-        .contents_snapshot = contents().snapshot(),
-        .save_type = Options::SaveType::kBackup,
-        .file_system_driver = file_system_driver(),
-        .status = std::weak_ptr<Status>(status_.get_shared())});
+        .buffer = NewRoot(), .save_type = Options::SaveType::kBackup});
   }
   backup_state_ = DiskState::kCurrent;
 }
