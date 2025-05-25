@@ -4,6 +4,7 @@
 #include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/file_link_mode.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/once_only_function.h"
@@ -24,6 +25,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::Pointer;
+using afc::language::Success;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
@@ -484,7 +486,7 @@ template <typename T>
 void AdvanceUntilValue(EditorState& editor,
                        const futures::Value<T>& future_value) {
   while (!future_value.has_value()) {
-    LOG(INFO) << "Advancing editor work queue.";
+    VLOG(9) << "Advancing editor work queue.";
     editor.work_queue()->Execute();
   }
 }
@@ -496,23 +498,88 @@ void ReloadAndWaitUntilEndOfFile(OpenBuffer& buffer) {
 
 const bool buffer_reloads_tests_registration = tests::Register(
     L"BufferReloads",
-    {{.name = L"Simple", .callback = [] {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
-            Path::Join(GetHomeDirectory(),
-                       Path{LazyString{L".edge/tests/BufferReloads"}}));
-        gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor.value());
-        ReloadAndWaitUntilEndOfFile(buffer_root.ptr().value());
-        ExecutionContext::CompilationResult compilation = ValueOrDie(
-            buffer_root->execution_context()->CompileString(LazyString{L"x"}));
+    {{.name = L"Simple",
+      .callback =
+          [] {
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
+                Path::Join(GetHomeDirectory(),
+                           Path{LazyString{L".edge/tests/BufferReloads"}}));
+            gc::Root<OpenBuffer> buffer_root =
+                NewBufferForTests(editor.value());
+            ReloadAndWaitUntilEndOfFile(buffer_root.ptr().value());
+            ExecutionContext::CompilationResult compilation =
+                ValueOrDie(buffer_root->execution_context()->CompileString(
+                    LazyString{L"x"}));
 
-        // We deliberately don't wait for the reload to be done.
-        buffer_root->Reload();
+            // We deliberately don't wait for the reload to be done.
+            buffer_root->Reload();
 
-        futures::ValueOrError<gc::Root<vm::Value>> result =
-            compilation.evaluate();
-        AdvanceUntilValue(buffer_root->editor(), result);
-        CHECK(ValueOrDie(std::move(result).Get().value())->get_number() ==
-              Number::FromInt64(5678));
+            futures::ValueOrError<gc::Root<vm::Value>> result =
+                compilation.evaluate();
+            AdvanceUntilValue(buffer_root->editor(), result);
+            CHECK(ValueOrDie(std::move(result).Get().value())->get_number() ==
+                  Number::FromInt64(5678));
+          }},
+     {.name = L"CloseBufferDeletes",
+      .callback =
+          [] {
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
+            futures::Value<language::gc::Root<OpenBuffer>> future_buffer =
+                OpenOrCreateFile(OpenFileOptions{
+                    .editor_state = editor.value(),
+                    .name = BufferName{LazyString{L"- test buffer"}},
+                    .path = Path{LazyString{
+                        L"/tmp/edge-test.close-buffer-deletes.txt"}},
+                    .insertion_type = BuffersList::AddBufferType::kIgnore});
+            AdvanceUntilValue(editor.value(), future_buffer);
+            LOG(INFO) << "Buffer registry size (before delete): "
+                      << editor->buffer_registry().buffers().size();
+            std::move(future_buffer)
+                .Transform([&editor](language::gc::Root<OpenBuffer> buffer) {
+                  LOG(INFO) << "File is opened.";
+                  buffer.ptr()->Reload();
+                  buffer.ptr()->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+                  editor->CloseBuffer(buffer.ptr().value());
+                  return Success();
+                });
+            LOG(INFO) << "Full GC collection.";
+            for (size_t i = 0; !editor->buffer_registry().buffers().empty();
+                 i++) {
+              CHECK_LT(i, 1000ul);
+              editor->work_queue()->Execute();
+              editor->gc_pool().FullCollect();
+              std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+          }},
+     {.name = L"CloseBufferDeletesListed", .callback = [] {
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
+        futures::Value<language::gc::Root<OpenBuffer>> future_buffer =
+            OpenOrCreateFile(OpenFileOptions{
+                .editor_state = editor.value(),
+                .name = BufferName{LazyString{L"- test buffer"}},
+                .path = Path{LazyString{
+                    L"/tmp/edge-test.close-buffer-deletes-listed.txt"}},
+                .insertion_type = BuffersList::AddBufferType::kVisit});
+        AdvanceUntilValue(editor.value(), future_buffer);
+        LOG(INFO) << "Buffer registry size (before delete): "
+                  << editor->buffer_registry().buffers().size();
+        std::move(future_buffer)
+            .Transform([&editor](language::gc::Root<OpenBuffer> buffer) {
+              LOG(INFO) << "File is opened.";
+              buffer.ptr()->Reload();
+              buffer.ptr()->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+              editor->CloseBuffer(buffer.ptr().value());
+              return Success();
+            });
+        LOG(INFO) << "Full GC collection.";
+        for (size_t i = 0; !editor->buffer_registry().buffers().empty(); i++) {
+          CHECK_LT(i, 1000ul);
+          editor->work_queue()->Execute();
+          editor->gc_pool().FullCollect();
+          std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
       }}});
 }  // namespace
 }  // namespace afc::editor
