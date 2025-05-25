@@ -525,7 +525,7 @@ const bool buffer_reloads_tests_registration = tests::Register(
           [] {
             NonNull<std::unique_ptr<EditorState>> editor =
                 EditorForTests(std::nullopt);
-            futures::Value<language::gc::Root<OpenBuffer>> future_buffer =
+            futures::Value<gc::Root<OpenBuffer>> future_buffer =
                 OpenOrCreateFile(OpenFileOptions{
                     .editor_state = editor.value(),
                     .name = BufferName{LazyString{L"- test buffer"}},
@@ -535,16 +535,23 @@ const bool buffer_reloads_tests_registration = tests::Register(
             AdvanceUntilValue(editor.value(), future_buffer);
             LOG(INFO) << "Buffer registry size (before delete): "
                       << editor->buffer_registry().buffers().size();
+            std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
             std::move(future_buffer)
-                .Transform([&editor](language::gc::Root<OpenBuffer> buffer) {
+                .Transform([&editor,
+                            &weak_buffer](gc::Root<OpenBuffer> buffer) {
                   LOG(INFO) << "File is opened.";
+                  weak_buffer = buffer.ptr().ToWeakPtr();
                   buffer.ptr()->Reload();
                   buffer.ptr()->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
-                  editor->CloseBuffer(buffer.ptr().value());
                   return Success();
                 });
+
+            CHECK(weak_buffer->Lock().has_value());
+            editor->CloseBuffer(weak_buffer->Lock()->ptr().value());
+
             LOG(INFO) << "Full GC collection.";
-            for (size_t i = 0; !editor->buffer_registry().buffers().empty();
+            for (size_t i = 0; !editor->buffer_registry().buffers().empty() ||
+                               weak_buffer->Lock().has_value();
                  i++) {
               CHECK_LT(i, 1000ul);
               editor->work_queue()->Execute();
@@ -555,7 +562,7 @@ const bool buffer_reloads_tests_registration = tests::Register(
      {.name = L"CloseBufferDeletesListed", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
-        futures::Value<language::gc::Root<OpenBuffer>> future_buffer =
+        futures::Value<gc::Root<OpenBuffer>> future_buffer =
             OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor.value(),
                 .name = BufferName{LazyString{L"- test buffer"}},
@@ -565,16 +572,23 @@ const bool buffer_reloads_tests_registration = tests::Register(
         AdvanceUntilValue(editor.value(), future_buffer);
         LOG(INFO) << "Buffer registry size (before delete): "
                   << editor->buffer_registry().buffers().size();
+        std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
         std::move(future_buffer)
-            .Transform([&editor](language::gc::Root<OpenBuffer> buffer) {
+            .Transform([&editor, &weak_buffer](gc::Root<OpenBuffer> buffer) {
               LOG(INFO) << "File is opened.";
+              weak_buffer = buffer.ptr().ToWeakPtr();
               buffer.ptr()->Reload();
               buffer.ptr()->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
-              editor->CloseBuffer(buffer.ptr().value());
               return Success();
             });
+
+        CHECK(weak_buffer->Lock().has_value());
+        editor->CloseBuffer(weak_buffer->Lock()->ptr().value());
+
         LOG(INFO) << "Full GC collection.";
-        for (size_t i = 0; !editor->buffer_registry().buffers().empty(); i++) {
+        for (size_t i = 0; !editor->buffer_registry().buffers().empty() ||
+                           weak_buffer->Lock().has_value();
+             i++) {
           CHECK_LT(i, 1000ul);
           editor->work_queue()->Execute();
           editor->gc_pool().FullCollect();
