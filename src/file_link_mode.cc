@@ -404,9 +404,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                                      : editor_state.buffer_registry()
                                            .NewAnonymousBufferName();
                         }),
-          .path = buffer_options_path,
-          .survival_behavior =
-              OpenBuffer::Options::SurvivalBehavior::kAllowSilentDeletion});
+          .path = buffer_options_path});
 
   NonNull<std::shared_ptr<struct stat>> stat_buffer;
   auto file_system_driver =

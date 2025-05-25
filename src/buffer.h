@@ -128,13 +128,6 @@ class OpenBuffer {
         log_supplier = [](infrastructure::Path) {
           return futures::Past(language::Success(NewNullLog()));
         };
-
-    enum class SurvivalBehavior {
-      kExplicitCloseRequired,
-      kAllowSilentDeletion
-    };
-    SurvivalBehavior survival_behavior =
-        SurvivalBehavior::kExplicitCloseRequired;
   };
 
   // Calling `New` doesn't load the contents of the buffer; the customer must

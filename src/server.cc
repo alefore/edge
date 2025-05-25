@@ -227,13 +227,11 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
 }
 
 void OpenServerBuffer(EditorState& editor_state, const Path& address) {
-  gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
-      .editor = editor_state,
-      .name = ServerBufferName{address},
-      .path = address,
-      .generate_contents = GenerateContents,
-      .survival_behavior =
-          OpenBuffer::Options::SurvivalBehavior::kExplicitCloseRequired});
+  gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
+      OpenBuffer::Options{.editor = editor_state,
+                          .name = ServerBufferName{address},
+                          .path = address,
+                          .generate_contents = GenerateContents});
   OpenBuffer& buffer = buffer_root.ptr().value();
   buffer.NewCloseFuture().Transform(
       [file_system_driver = buffer.file_system_driver(), address](EmptyValue) {
@@ -257,7 +255,9 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
 
   editor_state.buffer_registry().Add(buffer.name(),
                                      buffer_root.ptr().ToWeakPtr());
-  buffer.Reload();
+  // Why do we add the listener (call to `Transform()`)? To ensure that the
+  // buffer won't be collected before it has processed its input.
+  buffer.Reload().Transform([buffer_root](EmptyValue) { return Success(); });
 }
 
 namespace {
