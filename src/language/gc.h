@@ -520,6 +520,9 @@ class Root {
 
   T* operator->() const { return ptr_.operator->(); }
 
+  T& value() { return ptr_.value(); }
+  const T& value() const { return ptr_.value(); }
+
   Ptr<T>& ptr() { return ptr_; }
   const Ptr<T>& ptr() const { return ptr_; }
 
