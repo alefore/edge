@@ -493,48 +493,52 @@ OpenBuffer::PrepareToClose() {
                             Modifiers::Strength::kNormal
                         ? PersistState()
                         : futures::IgnoreErrors(PersistState()))
-                .Transform([this](EmptyValue)
+                .Transform([root_this = NewRoot()](EmptyValue)
                                -> futures::ValueOrError<PrepareToCloseOutput> {
-                  LOG(INFO) << name() << ": State persisted.";
-                  if (child_pid_.has_value()) {
-                    if (Read(buffer_variables::term_on_close)) {
-                      if (on_exit_handler_.has_value()) {
+                  LOG(INFO) << root_this->name() << ": State persisted.";
+                  if (root_this->child_pid_.has_value()) {
+                    if (root_this->Read(buffer_variables::term_on_close)) {
+                      if (root_this->on_exit_handler_.has_value()) {
                         return futures::Past(Error{
                             LazyString{L"Already waiting for termination."}});
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
-                                << Read(buffer_variables::name);
-                      file_system_driver()->Kill(child_pid_.value(),
-                                                 UnixSignal(SIGHUP));
+                                << root_this->Read(buffer_variables::name);
+                      root_this->file_system_driver()->Kill(
+                          root_this->child_pid_.value(), UnixSignal{SIGHUP});
                       auto future =
                           futures::Future<ValueOrError<PrepareToCloseOutput>>();
-                      on_exit_handler_ =
-                          [this,
+                      root_this->on_exit_handler_ =
+                          [root_this,
                            consumer = std::move(future.consumer)]() mutable {
-                            CHECK(!child_pid_.has_value());
-                            LOG(INFO) << "Subprocess terminated: "
-                                      << Read(buffer_variables::name);
-                            PrepareToClose().SetConsumer(std::move(consumer));
+                            CHECK(!root_this->child_pid_.has_value());
+                            LOG(INFO)
+                                << "Subprocess terminated: "
+                                << root_this->Read(buffer_variables::name);
+                            root_this->PrepareToClose().SetConsumer(
+                                std::move(consumer));
                           };
                       return std::move(future.value);
                     }
-                    CHECK(options_.editor.modifiers().strength >
+                    CHECK(root_this->options_.editor.modifiers().strength >
                           Modifiers::Strength::kNormal);
                   }
-                  if (!dirty() || Read(buffer_variables::allow_dirty_delete))
+                  if (!root_this->dirty() ||
+                      root_this->Read(buffer_variables::allow_dirty_delete))
                     return futures::Past(PrepareToCloseOutput{});
 
-                  LOG(INFO) << name() << ": attempting to save buffer.";
-                  if (Read(buffer_variables::save_on_close))
-                    return Save(Options::SaveType::kMainFile)
-                        .Transform([name = name()](EmptyValue) {
-                          LOG(INFO) << "Buffer saved" << name;
+                  LOG(INFO)
+                      << root_this->name() << ": attempting to save buffer.";
+                  if (root_this->Read(buffer_variables::save_on_close))
+                    return root_this->Save(Options::SaveType::kMainFile)
+                        .Transform([root_this](EmptyValue) {
+                          LOG(INFO) << "Buffer saved" << root_this->name();
                           return Success(PrepareToCloseOutput{});
                         });
 
-                  return Save(Options::SaveType::kBackup)
-                      .Transform([name = name()](EmptyValue) {
-                        LOG(INFO) << "Backup saved" << name;
+                  return root_this->Save(Options::SaveType::kBackup)
+                      .Transform([root_this](EmptyValue) {
+                        LOG(INFO) << "Backup saved" << root_this->name();
                         return Success(PrepareToCloseOutput{
                             .dirty_contents_saved_to_backup = true});
                       });
@@ -759,28 +763,34 @@ void OpenBuffer::UpdateTreeParser() {
       .ConsumeErrors([](Error) {
         return futures::Past(SortedLineSequence(LineSequence()));
       })
-      .Transform([this, root_this = NewRoot()](SortedLineSequence dictionary) {
-        buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
-            .parser_name = OptionalFrom(ParserId::New(NonEmptySingleLine::New(
-                SingleLine::New(Read(buffer_variables::tree_parser))))),
-            .typos_set = MaterializeUnorderedSet(
-                TokenizeBySpaces(
-                    LineSequence::BreakLines(Read(buffer_variables::typos))
-                        .FoldLines()) |
-                std::views::transform(&Token::value)),
-            .language_keywords = MaterializeUnorderedSet(
-                TokenizeBySpaces(LineSequence::BreakLines(
-                                     Read(buffer_variables::language_keywords))
-                                     .FoldLines()) |
-                std::views::transform(&Token::value)),
-            .symbol_characters = Read(buffer_variables::symbol_characters),
-            .identifier_behavior =
-                Read(buffer_variables::identifier_behavior) ==
-                        LazyString{L"color-by-hash"}
-                    ? IdentifierBehavior::kColorByHash
-                    : IdentifierBehavior::kNone,
-            .dictionary = std::move(dictionary)});
-        MaybeStartUpdatingSyntaxTrees();
+      .Transform([root_this = NewRoot()](SortedLineSequence dictionary) {
+        root_this->buffer_syntax_parser_.UpdateParser(
+            BufferSyntaxParser::ParserOptions{
+                .parser_name = OptionalFrom(
+                    ParserId::New(NonEmptySingleLine::New(SingleLine::New(
+                        root_this->Read(buffer_variables::tree_parser))))),
+                .typos_set = MaterializeUnorderedSet(
+                    TokenizeBySpaces(
+                        LineSequence::BreakLines(
+                            root_this->Read(buffer_variables::typos))
+                            .FoldLines()) |
+                    std::views::transform(&Token::value)),
+                .language_keywords = MaterializeUnorderedSet(
+                    TokenizeBySpaces(
+                        LineSequence::BreakLines(
+                            root_this->Read(
+                                buffer_variables::language_keywords))
+                            .FoldLines()) |
+                    std::views::transform(&Token::value)),
+                .symbol_characters =
+                    root_this->Read(buffer_variables::symbol_characters),
+                .identifier_behavior =
+                    root_this->Read(buffer_variables::identifier_behavior) ==
+                            LazyString{L"color-by-hash"}
+                        ? IdentifierBehavior::kColorByHash
+                        : IdentifierBehavior::kNone,
+                .dictionary = std::move(dictionary)});
+        root_this->MaybeStartUpdatingSyntaxTrees();
         return EmptyValue();
       });
 }
@@ -977,25 +987,25 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
               return futures::Past(NewNullLog());
             });
       })
-      .Transform([this, root_this = ptr_this_->ToRoot()](
-                     NonNull<std::unique_ptr<Log>> log) {
-        log_ = std::move(log);
-        switch (reload_state_) {
-          case ReloadState::kDone:
-            LOG(FATAL) << "Invalid reload state! Can't be kDone.";
-            break;
-          case ReloadState::kOngoing:
-            reload_state_ = ReloadState::kDone;
-            break;
-          case ReloadState::kPending:
-            reload_state_ = ReloadState::kDone;
-            SignalEndOfFile();
-            return Reload();
-        }
-        LOG(INFO) << "Reload finished evaluation: " << name();
-        SignalEndOfFile();
-        return futures::Past(Success());
-      });
+      .Transform(
+          [root_this = ptr_this_->ToRoot()](NonNull<std::unique_ptr<Log>> log) {
+            root_this->log_ = std::move(log);
+            switch (root_this->reload_state_) {
+              case ReloadState::kDone:
+                LOG(FATAL) << "Invalid reload state! Can't be kDone.";
+                break;
+              case ReloadState::kOngoing:
+                root_this->reload_state_ = ReloadState::kDone;
+                break;
+              case ReloadState::kPending:
+                root_this->reload_state_ = ReloadState::kDone;
+                root_this->SignalEndOfFile();
+                return root_this->Reload();
+            }
+            LOG(INFO) << "Reload finished evaluation: " << root_this->name();
+            root_this->SignalEndOfFile();
+            return futures::Past(Success());
+          });
 }
 
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
