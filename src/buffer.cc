@@ -1226,6 +1226,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
     const NonNull<std::shared_ptr<Expression>>& expr,
     gc::Root<Environment> environment) {
+  // TODO(2025-05-26, trivial): Replace with a method from execution_context.
   return Evaluate(expr, editor().gc_pool(), environment,
                   [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
                       OnceOnlyFunction<void()> callback) {
@@ -1532,11 +1533,11 @@ void OpenBuffer::DestroyCursor() {
 
 void OpenBuffer::DestroyOtherCursors() {
   CheckPosition();
-  auto position = this->position();
-  CHECK_LE(position, LineColumn(LineNumber(0) + contents_.size()));
+  LineColumn old_position = position();
+  CHECK_LE(old_position, LineColumn(LineNumber(0) + contents_.size()));
   CursorsSet& cursors = active_cursors();
   cursors.clear();
-  cursors.insert(position);
+  cursors.insert(old_position);
   Set(buffer_variables::multiple_cursors, false);
 }
 
@@ -1831,9 +1832,9 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                        LazyString{L":"} + name_suffix},
             .fd = fd.value(),
             .receive_end_of_file =
-                [buffer = NewRoot(), this, &reader,
+                [root_this = NewRoot(), &reader,
                  output_consumer = std::move(output.consumer)] mutable {
-                  RegisterProgress();
+                  root_this->RegisterProgress();
                   // Why make a copy? Because setting `reader` to nullptr erases
                   // us.
                   auto output_consumer_copy = std::move(output_consumer);
@@ -1841,14 +1842,16 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                   std::move(output_consumer_copy)(EmptyValue());
                 },
             .receive_data =
-                [buffer = NewRoot(), this, modifiers](
+                [root_this = NewRoot(), modifiers](
                     LazyString input, std::function<void()> done_callback) {
-                  RegisterProgress();
-                  if (Read(buffer_variables::vm_exec)) {
-                    LOG(INFO) << name() << ": Evaluating VM code: " << input;
-                    execution_context()->EvaluateString(input);
+                  root_this->RegisterProgress();
+                  if (root_this->Read(buffer_variables::vm_exec)) {
+                    LOG(INFO) << root_this->name()
+                              << ": Evaluating VM code: " << input;
+                    root_this->execution_context()->EvaluateString(input);
                   }
-                  file_adapter_->ReceiveInput(std::move(input), modifiers)
+                  root_this->file_adapter_
+                      ->ReceiveInput(std::move(input), modifiers)
                       .Transform([done_callback =
                                       std::move(done_callback)](EmptyValue) {
                         done_callback();
@@ -1862,32 +1865,33 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
       JoinValues(new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
                  new_reader(input_error_fd, LazyString{L"stderr"},
                             {LineModifier::kBold}, fd_error_))
-          .Transform([this,
-                      buffer = NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
-            CHECK(fd_ == nullptr);
-            CHECK(fd_error_ == nullptr);
+          .Transform([root_this =
+                          NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
+            CHECK(root_this->fd_ == nullptr);
+            CHECK(root_this->fd_error_ == nullptr);
             return VisitOptional(
                 [&](ProcessId materialized_child_pid)
                     -> futures::Value<EmptyValue> {
-                  return file_system_driver()
+                  return root_this->file_system_driver()
                       ->WaitPid(materialized_child_pid, 0)
-                      .Transform(
-                          [this, root = NewRoot()](
-                              FileSystemDriver::WaitPidOutput waitpid_output) {
-                            child_exit_status_ = waitpid_output.wstatus;
-                            clock_gettime(0, &time_last_exit_);
+                      .Transform([root_this](FileSystemDriver::WaitPidOutput
+                                                 waitpid_output) {
+                        root_this->child_exit_status_ = waitpid_output.wstatus;
+                        clock_gettime(0, &root_this->time_last_exit_);
 
-                            child_pid_ = std::nullopt;
-                            if (on_exit_handler_.has_value()) {
-                              std::invoke(std::move(on_exit_handler_).value());
-                              on_exit_handler_ = std::nullopt;
-                            }
-                            return futures::Past(Success());
-                          })
+                        root_this->child_pid_ = std::nullopt;
+                        if (root_this->on_exit_handler_.has_value()) {
+                          std::invoke(
+                              std::move(root_this->on_exit_handler_).value());
+                          root_this->on_exit_handler_ = std::nullopt;
+                        }
+                        return futures::Past(Success());
+                      })
                       .ConsumeErrors(
                           [](Error) { return futures::Past(EmptyValue()); });
                 },
-                [] { return futures::Past(EmptyValue()); }, child_pid_);
+                [] { return futures::Past(EmptyValue()); },
+                root_this->child_pid_);
           });
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
@@ -2391,7 +2395,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   }
   return std::move(transformation_result)
       .value()
-      .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
+      .Transform([root_this = NewRoot()](EmptyValue) {
         if (root_this->last_transformation_stack_.empty())
           root_this->undo_state_.CommitCurrent();
 
@@ -2412,6 +2416,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
       undo_state_.Current().get_shared();
 
+  // TODO(2025-05-26, easy): Change the buffer in transformation::Input to be a
+  // root?
   transformation::Input input(transformation_adapter_.value(), *this);
   input.mode = mode;
   input.position = position;
@@ -2428,30 +2434,32 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           << transformation::ToString(transformation);
 
   return transformation::Apply(transformation, std::move(input))
-      .Transform([this, transformation = std::move(transformation), mode,
+      .Transform([root_this = NewRoot(),
+                  transformation = std::move(transformation), mode,
                   undo_stack_weak](transformation::Result result) {
         VLOG(6) << "Got results of transformation: "
                 << transformation::ToString(transformation);
         if (mode == transformation::Input::Mode::kFinal &&
-            Read(buffer_variables::delete_into_paste_buffer)) {
+            root_this->Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
-            editor().buffer_registry().Remove(FuturePasteBuffer{});
+            root_this->editor().buffer_registry().Remove(FuturePasteBuffer{});
           } else if (std::optional<gc::Root<OpenBuffer>> paste_buffer =
-                         editor().buffer_registry().Find(FuturePasteBuffer{});
+                         root_this->editor().buffer_registry().Find(
+                             FuturePasteBuffer{});
                      paste_buffer.has_value()) {
-            editor().buffer_registry().Remove(FuturePasteBuffer{});
+            root_this->editor().buffer_registry().Remove(FuturePasteBuffer{});
             paste_buffer->ptr()->Set(
                 buffer_variables::name,
                 ToSingleLine(BufferName{PasteBuffer{}}).read().read());
-            editor().buffer_registry().Add(PasteBuffer{},
-                                           paste_buffer->ptr().ToWeakPtr());
+            root_this->editor().buffer_registry().Add(
+                PasteBuffer{}, paste_buffer->ptr().ToWeakPtr());
           }
         }
 
         if (result.modified_buffer &&
             mode == transformation::Input::Mode::kFinal) {
-          editor().StartHandlingInterrupts();
-          last_transformation_ = std::move(transformation);
+          root_this->editor().StartHandlingInterrupts();
+          root_this->last_transformation_ = std::move(transformation);
         }
 
         if (auto undo_stack = undo_stack_weak.lock(); undo_stack != nullptr) {
@@ -2459,7 +2467,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
               transformation::Stack{.stack = result.undo_stack->stack});
           *undo_stack = transformation::Stack{
               .stack = {OptimizeBase(std::move(*undo_stack))}};
-          if (result.modified_buffer) undo_state_.SetCurrentModifiedBuffer();
+          if (result.modified_buffer)
+            root_this->undo_state_.SetCurrentModifiedBuffer();
         }
         return result;
       });
@@ -2503,16 +2512,17 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
           .direction = editor().direction(),
           .repetitions = editor().repetitions().value_or(1),
           .callback =
-              [this](transformation::Variant t) {
-                transformation::Input input(transformation_adapter_.value(),
-                                            *this);
-                input.position = position();
+              [root_this = NewRoot()](transformation::Variant t) {
+                transformation::Input input(
+                    root_this->transformation_adapter_.value(),
+                    root_this.ptr().value());
+                input.position = root_this->position();
                 // We've undone the entire changes, so...
-                last_transformation_stack_.clear();
-                undo_state_.AbandonCurrent();
+                root_this->last_transformation_stack_.clear();
+                root_this->undo_state_.AbandonCurrent();
                 return transformation::Apply(t, input);
               }})
-      .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
+      .Transform([root_this = NewRoot()](EmptyValue) {
         StartAdjustingStatusContext(root_this);
         return EmptyValue();
       });
