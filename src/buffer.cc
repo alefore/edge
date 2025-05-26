@@ -404,21 +404,19 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                         ->Stat(state_path)
                         .Transform(
                             [state_path,
-                             weak_this = ptr_this_->ToWeakPtr()](struct stat) {
-                              // TODO(2025-05-23, trivial): Retain the
-                              // execution_context, rather than weak_this.
-                              return VisitPointer(
-                                  weak_this.Lock(),
-                                  [&](gc::Root<OpenBuffer> root_this) {
-                                    return root_this->execution_context()
-                                        ->EvaluateFile(state_path);
+                             execution_context =
+                                 execution_context_.ToWeakPtr()](struct stat) {
+                              return VisitOptional(
+                                  [&](gc::Root<ExecutionContext> context) {
+                                    return context->EvaluateFile(state_path);
                                   },
                                   [] {
                                     return futures::Past(
                                         ValueOrError<gc::Root<Value>>(
                                             Error{LazyString{
                                                 L"Buffer has been deleted."}}));
-                                  });
+                                  },
+                                  execution_context.Lock());
                             });
                   }
                 }},
