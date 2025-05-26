@@ -461,8 +461,7 @@ void ToggleVariable(EditorState& editor_state,
                                                  LazyString{variable->key()}),
                               value.ptr());
                }},
-      NewCppCommand(editor_state,
-                    editor_state.execution_context()->environment(), command));
+      NewCppCommand(editor_state.execution_context().value(), command));
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -485,10 +484,9 @@ void ToggleVariable(EditorState& editor_state,
   VLOG(5) << "Command: " << command;
   map_mode.Add(
       VectorExtendedChar(LazyString{L"v"} + LazyString{variable->key()}),
-      ValueOrDie(NewCppCommand(editor_state,
-                               editor_state.execution_context()->environment(),
-                               command),
-                 L"ToggleVariable<LazyString> Definition")
+      ValueOrDie(
+          NewCppCommand(editor_state.execution_context().value(), command),
+          L"ToggleVariable<LazyString> Definition")
           .ptr());
 }
 
@@ -521,10 +519,9 @@ void ToggleVariable(EditorState& editor_state,
   VLOG(5) << "Command: " << command;
   map_mode.Add(
       VectorExtendedChar(LazyString{L"v"} + LazyString{variable->key()}),
-      ValueOrDie(NewCppCommand(editor_state,
-                               editor_state.execution_context()->environment(),
-                               command),
-                 L"ToggleVariable<int> definition")
+      ValueOrDie(
+          NewCppCommand(editor_state.execution_context().value(), command),
+          L"ToggleVariable<int> definition")
           .ptr());
 }
 

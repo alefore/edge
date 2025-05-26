@@ -60,41 +60,28 @@ ValueOrError<CommandCategory> GetCategoryString(LazyString code) {
 }
 
 class CppCommand : public Command {
-  EditorState& editor_state_;
-  const NonNull<std::shared_ptr<vm::Expression>> expression_;
-  const LazyString code_;
+  const ExecutionContext::CompilationResult compilation_result_;
   const LazyString description_;
   const CommandCategory category_;
-  const gc::Ptr<vm::Environment> environment_;
 
  public:
-  CppCommand(EditorState& editor_state,
-             NonNull<std::unique_ptr<afc::vm::Expression>> expression,
-             LazyString code, CommandCategory category,
-             gc::Ptr<vm::Environment> environment)
-      : editor_state_(editor_state),
-        expression_(std::move(expression)),
-        code_(std::move(code)),
-        description_(ToLazyString(GetDescriptionString(code_))),
-        category_(category),
-        environment_(std::move(environment)) {}
+  CppCommand(ExecutionContext::CompilationResult compilation_result,
+             LazyString code, CommandCategory category)
+      : compilation_result_(std::move(compilation_result)),
+        description_(ToLazyString(GetDescriptionString(code))),
+        category_(category) {}
 
   LazyString Description() const override { return description_; }
   CommandCategory Category() const override { return category_; }
 
   void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
-    Evaluate(expression_, editor_state_.gc_pool(), environment_.ToRoot(),
-             [work_queue = editor_state_.work_queue()](
-                 OnceOnlyFunction<void()> callback) {
-               work_queue->Schedule(
-                   WorkQueue::Callback{.callback = std::move(callback)});
-             });
+    compilation_result_.evaluate();
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {environment_.object_metadata()};
+    return {};
   }
 };
 
@@ -102,14 +89,12 @@ class CppCommand : public Command {
 
 // TODO(2025-05-26, trivial): Change this to receive an ExecutionContext.
 ValueOrError<gc::Root<Command>> NewCppCommand(
-    EditorState& editor_state, gc::Ptr<afc::vm::Environment> environment,
-    const LazyString& code) {
+    ExecutionContext& execution_context, const LazyString& code) {
   ASSIGN_OR_RETURN(CommandCategory category, GetCategoryString(code));
-  ASSIGN_OR_RETURN(
-      NonNull<std::unique_ptr<vm::Expression>> result,
-      vm::CompileString(code, editor_state.gc_pool(), environment.ToRoot()));
-  return editor_state.gc_pool().NewRoot(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result), code, category, environment));
+  ASSIGN_OR_RETURN(ExecutionContext::CompilationResult result,
+                   execution_context.CompileString(code));
+  return execution_context.environment().pool().NewRoot(
+      MakeNonNullUnique<CppCommand>(std::move(result), code, category));
 }
 
 }  // namespace afc::editor
