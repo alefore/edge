@@ -287,7 +287,7 @@ using namespace afc::vm;
   gc::Root<MapMode> mode =
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<Environment> environment =
-      Environment::New(options.editor.environment().ptr());
+      Environment::New(options.editor.execution_context()->environment());
   auto status = MakeNonNullShared<Status>(options.editor.audio_player());
   gc::Root<ExecutionContext> execution_context = ExecutionContext::New(
       environment.ptr(), status.get_shared(), WorkQueue::New(),
@@ -960,8 +960,9 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                  return futures::Past(Success());
                LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
                return futures::IgnoreErrors(
-                   EvaluateExpression(std::move(expression),
-                                      editor().environment())
+                   EvaluateExpression(
+                       std::move(expression),
+                       editor().execution_context()->environment().ToRoot())
                        .Transform([](gc::Root<vm::Value>) -> PossibleError {
                          return Success();
                        }));

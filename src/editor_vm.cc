@@ -502,7 +502,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                   return keys;
                 }),
                 args[2].ptr()->get_string(), std::move(args[3]),
-                editor_arg.environment().ptr());
+                editor_arg.execution_context()->environment());
             return vm::Value::NewVoid(pool);
           })
           .ptr());
@@ -522,7 +522,7 @@ gc::Root<Environment> BuildEditorEnvironment(
             editor_arg.default_commands().ptr()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
                 args[2].ptr()->get_string(), std::move(args[3]),
-                editor_arg.environment().ptr());
+                editor_arg.execution_context()->environment());
             return vm::Value::NewVoid(pool);
           })
           .ptr());

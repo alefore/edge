@@ -217,7 +217,6 @@ class EditorState {
 
   language::gc::Pool& gc_pool();
 
-  language::gc::Root<vm::Environment> environment();
   language::gc::Root<ExecutionContext> execution_context();
 
   infrastructure::Path expand_path(infrastructure::Path path) const;

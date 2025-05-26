@@ -14,7 +14,7 @@ class Command;
 
 language::ValueOrError<language::gc::Root<Command>> NewCppCommand(
     EditorState& editor_state,
-    language::gc::Root<afc::vm::Environment> environment,
+    language::gc::Ptr<afc::vm::Environment> environment,
     const language::lazy_string::LazyString& code);
 }  // namespace afc::editor
 

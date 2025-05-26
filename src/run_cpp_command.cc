@@ -398,7 +398,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   vm::Environment& environment =
       (buffer.has_value() ? buffer->ptr()->environment()
-                          : editor.environment().ptr())
+                          : editor.execution_context()->environment())
           .value();
 
   std::visit(overload{IgnoreErrors{},

@@ -841,11 +841,6 @@ const infrastructure::Path& EditorState::home_directory() const {
 
 language::gc::Pool& EditorState::gc_pool() { return execution_context_.pool(); }
 
-language::gc::Root<vm::Environment> EditorState::environment() {
-  // TODO(2025-05-23, trivial): Consider switching this method to return a Ptr.
-  return execution_context_->environment().ToRoot();
-}
-
 language::gc::Root<ExecutionContext> EditorState::execution_context() {
   return execution_context_;
 }

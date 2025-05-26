@@ -100,15 +100,16 @@ class CppCommand : public Command {
 
 }  // namespace
 
+// TODO(2025-05-26, trivial): Change this to receive an ExecutionContext.
 ValueOrError<gc::Root<Command>> NewCppCommand(
-    EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
+    EditorState& editor_state, gc::Ptr<afc::vm::Environment> environment,
     const LazyString& code) {
   ASSIGN_OR_RETURN(CommandCategory category, GetCategoryString(code));
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<vm::Expression>> result,
-      vm::CompileString(code, editor_state.gc_pool(), environment));
+      vm::CompileString(code, editor_state.gc_pool(), environment.ToRoot()));
   return editor_state.gc_pool().NewRoot(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result), code, category, environment.ptr()));
+      editor_state, std::move(result), code, category, environment));
 }
 
 }  // namespace afc::editor

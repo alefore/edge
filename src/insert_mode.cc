@@ -517,7 +517,7 @@ class InsertMode : public InputReceiver {
         // TODO: Find a way to set `copy_to_paste_buffer` in the
         // transformation.
         std::optional<gc::Root<vm::Value>> callback =
-            options_.editor_state.environment().ptr()->Lookup(
+            options_.editor_state.execution_context()->environment()->Lookup(
                 options_.editor_state.gc_pool(), vm::Namespace(),
                 vm::Identifier{NonEmptySingleLine{
                     SingleLine{LazyString{L"HandleKeyboardControlU"}}}},

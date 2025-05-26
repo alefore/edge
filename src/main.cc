@@ -284,11 +284,11 @@ int main(int argc, const char** argv) {
     screen_curses = std::move(NewScreenCurses().get_unique());
   }
   RegisterScreenType(editor_state(),
-                     editor_state().environment().ptr().value());
+                     editor_state().execution_context()->environment().value());
   VisitPointer(
       screen_curses,
       [](NonNull<std::shared_ptr<Screen>> input_screen_curses) {
-        editor_state().environment().ptr()->Define(
+        editor_state().execution_context()->environment()->Define(
             vm::Identifier{
                 NonEmptySingleLine{SingleLine{LazyString{L"screen"}}}},
             afc::vm::Value::NewObject(editor_state().gc_pool(),
