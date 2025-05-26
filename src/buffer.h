@@ -317,8 +317,8 @@ class OpenBuffer {
     // The file (in disk) doesn't reflect the last changes applied by the user.
     kStale
   };
-  void SetDiskState(DiskState disk_state) { disk_state_.value() = disk_state; }
-  DiskState disk_state() const { return disk_state_.value(); }
+  void SetDiskState(DiskState disk_state) { disk_state_ = disk_state; }
+  DiskState disk_state() const { return disk_state_; }
   // Returns a unique_ptr with the current disk state value. When the pointer is
   // destroyed, restores the state of the buffer to that value. This is useful
   // for customers that want to apply modifications to the buffer that shouldn't
@@ -612,15 +612,10 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<OpenBufferMutableLineSequenceObserver>>
       contents_observer_;
 
-  // Only internally shared (allows OpenBuffer to be deleted while a save
-  // operation is pending; the save operation will generally check if the
-  // contents_ didn't change and conditionally update disk_state_).
-  const language::NonNull<std::shared_ptr<language::text::MutableLineSequence>>
-      contents_;
+  language::text::MutableLineSequence contents_;
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
-  language::NonNull<std::shared_ptr<DiskState>> disk_state_ =
-      language::MakeNonNullShared<DiskState>(DiskState::kCurrent);
+  DiskState disk_state_ = DiskState::kCurrent;
   DiskState backup_state_ = DiskState::kCurrent;
   bool reading_from_parser_ = false;
 
