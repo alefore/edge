@@ -286,17 +286,15 @@ using namespace afc::vm;
       options.editor.default_commands()->NewChild();
   gc::Root<MapMode> mode =
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
-  gc::Root<Environment> environment =
-      Environment::New(options.editor.execution_context()->environment());
   auto status = MakeNonNullShared<Status>(options.editor.audio_player());
   gc::Root<ExecutionContext> execution_context = ExecutionContext::New(
-      environment.ptr(), status.get_shared(), WorkQueue::New(),
+      Environment::New(options.editor.execution_context()->environment()).ptr(),
+      status.get_shared(), WorkQueue::New(),
       MakeNonNullUnique<FileSystemDriver>(options.editor.thread_pool()));
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
-          mode.ptr(), environment.ptr(), std::move(status),
-          execution_context.ptr()));
+          mode.ptr(), std::move(status), execution_context.ptr()));
   output->Initialize(output.ptr());
   return output;
 }
@@ -372,7 +370,6 @@ class OpenBufferMutableLineSequenceObserver
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<InputReceiver> mode,
-                       gc::Ptr<Environment> environment,
                        NonNull<std::shared_ptr<Status>> status,
                        gc::Ptr<ExecutionContext> execution_context)
     : options_(std::move(options)),
@@ -382,7 +379,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
           std::vector<NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
               {contents_observer_,
                cursors_tracker_.NewMutableLineSequenceObserver()}))),
-      environment_(std::move(environment)),
       default_commands_(std::move(default_commands)),
       mode_(std::move(mode)),
       status_(std::move(status)),
@@ -818,11 +814,11 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   UpdateTreeParser();
 
   gc::Root<OpenBuffer> root = NewRoot();
-  environment_->Define(
+  execution_context_->environment()->Define(
       Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"buffer")}},
       VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
 
-  environment_->Define(
+  execution_context_->environment()->Define(
       Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"sleep")}},
       vm::NewCallback(editor().gc_pool(),
                       PurityType{.reads_external_inputs = true},
@@ -953,8 +949,9 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
   }
 
   return VisitPointer(
-             GetOnReloadCallExpression(editor().gc_pool(), environment_.value(),
-                                       ptr_this_.value()),
+             GetOnReloadCallExpression(
+                 editor().gc_pool(), execution_context()->environment().value(),
+                 ptr_this_.value()),
              [this](NonNull<std::unique_ptr<Expression>> expression) {
                if (editor().exit_value().has_value())
                  return futures::Past(Success());

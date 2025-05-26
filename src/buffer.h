@@ -131,7 +131,6 @@ class OpenBuffer {
   OpenBuffer(ConstructorAccessTag, Options options,
              language::gc::Ptr<MapModeCommands> default_commands,
              language::gc::Ptr<InputReceiver> mode,
-             language::gc::Ptr<vm::Environment> environment,
              language::NonNull<std::shared_ptr<Status>> status,
              language::gc::Ptr<ExecutionContext> execution_context);
   ~OpenBuffer();
@@ -622,8 +621,6 @@ class OpenBuffer {
   BufferVariablesInstance variables_;
 
   UndoState undo_state_;
-
-  const language::gc::Ptr<vm::Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
