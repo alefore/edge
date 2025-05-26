@@ -87,7 +87,6 @@ class CppCommand : public Command {
 
 }  // namespace
 
-// TODO(2025-05-26, trivial): Change this to receive an ExecutionContext.
 ValueOrError<gc::Root<Command>> NewCppCommand(
     ExecutionContext& execution_context, const LazyString& code) {
   ASSIGN_OR_RETURN(CommandCategory category, GetCategoryString(code));
