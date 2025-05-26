@@ -57,9 +57,14 @@ class BufferRegistry {
   // dependency from BufferRegistry into OpenBuffer. Ugly.
   const std::function<bool(const OpenBuffer&)> is_dirty_;
 
+  // Calls OpenBuffer::Close. We have to wrap this to avoid a circular depedency
+  // from BufferRegistry into OpenBuffer.
+  const std::function<void(OpenBuffer&)> close_buffer_;
+
  public:
   BufferRegistry(BufferComparePredicate listed_order,
-                 std::function<bool(const OpenBuffer&)> is_dirty);
+                 std::function<bool(const OpenBuffer&)> is_dirty,
+                 std::function<void(OpenBuffer&)> close_buffer);
 
   language::gc::Root<OpenBuffer> MaybeAdd(
       const BufferName& name,

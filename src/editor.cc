@@ -288,7 +288,15 @@ EditorState::EditorState(
       audio_player_(audio_player),
       buffer_registry_(gc_pool_->NewRoot(MakeNonNullUnique<BufferRegistry>(
           GetBufferComparePredicate(Read(editor_variables::buffer_sort_order)),
-          [](const OpenBuffer& b) { return b.dirty(); }))),
+          [](const OpenBuffer& b) { return b.dirty(); },
+          [](OpenBuffer& buffer) {
+            return buffer.PrepareToClose().Transform(
+                [root_buffer =
+                     buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
+                  root_buffer->Close();
+                  return Success();
+                });
+          }))),
       buffer_tree_(buffer_registry_.ptr().value(),
                    MakeNonNullUnique<BuffersListAdapter>(*this)) {
   work_queue()->OnSchedule().Add([shared_data = shared_data_] {
@@ -495,8 +503,10 @@ std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
 void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
                             BuffersList::AddBufferType insertion_type) {
   std::vector<gc::Root<OpenBuffer>> initial_active_buffers = active_buffers();
-  if (insertion_type != BuffersList::AddBufferType::kIgnore)
+  if (insertion_type != BuffersList::AddBufferType::kIgnore) {
+    buffer->Visit();
     buffer_registry().AddListedBuffer(buffer);
+  }
   buffer_tree().AddBuffer(buffer, insertion_type);
   AdjustWidgets();
 

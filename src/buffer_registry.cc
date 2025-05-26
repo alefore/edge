@@ -28,10 +28,13 @@ using afc::language::VisitOptional;
 namespace afc::editor {
 BufferRegistry::BufferRegistry(
     BufferRegistry::BufferComparePredicate listed_order,
-    std::function<bool(const OpenBuffer&)> is_dirty)
+    std::function<bool(const OpenBuffer&)> is_dirty,
+    std::function<void(OpenBuffer&)> close_buffer)
     : data_(Data{.listed_order = std::move(listed_order)}),
-      is_dirty_(std::move(is_dirty)) {
+      is_dirty_(std::move(is_dirty)),
+      close_buffer_(std::move(close_buffer)) {
   CHECK(is_dirty_ != nullptr);
+  CHECK(close_buffer_ != nullptr);
 }
 
 gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
@@ -245,17 +248,8 @@ void BufferRegistry::AdjustListedBuffers(Data& data) {
                 is_dirty_(data.listed_buffers[index].ptr().value())) {
               retained_buffers.push_back(std::move(data.listed_buffers[index]));
             } else {
-              // TODO(2025-05-20, important): Enable the following (or
-              // equivalent) logic: the buffers leaked should be closed! We
-              // can't do that without making BufferRegistry depend on
-              // OpenBuffer, which would create circular dependencies.
-              //
-              // But if we move `Close` logic to the ~OpenBuffer destructor,
-              // this problem goes away. However, that's a bit tricky, because
-              // logic called inside `Close` may want to force the buffer to be
-              // retained further.
-              //
-              // data.listed_buffers[index].ptr()->Close();
+              close_buffer_(data.listed_buffers[index].value());
+              ;
             }
           }
           data.listed_buffers = std::move(retained_buffers);
