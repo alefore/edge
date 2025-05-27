@@ -19,6 +19,7 @@
 #include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
+#include "src/tests/tests.h"
 #include "src/transformation/vm.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/container.h"
@@ -117,21 +118,68 @@ const vm::types::ObjectName
     vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name =
         vm::types::ObjectName{IDENTIFIER_CONSTANT(L"Buffer")};
 
+/* static */
+NonNull<std::shared_ptr<
+    concurrent::Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>
+VMTypeMapper<NonNull<std::shared_ptr<
+    Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::get(Value& value) {
+  return value.get_user_value<
+      concurrent::Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>(
+      object_type_name);
+}
+
+/* static */
+gc::Root<Value> VMTypeMapper<NonNull<
+    std::shared_ptr<Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::
+    New(gc::Pool& pool,
+        NonNull<std::shared_ptr<
+            concurrent::Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>
+            input) {
+  return vm::Value::NewObject(pool, object_type_name, input,
+                              [input] { return Expand(input); });
+}
+
+/* static */ gc::Root<Value> VMTypeMapper<NonNull<
+    std::shared_ptr<Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::
+    New(gc::Pool& pool,
+        NonNull<std::shared_ptr<
+            concurrent::Protected<std::vector<gc::Root<editor::OpenBuffer>>>>>
+            input) {
+  return input->lock([&pool](std::vector<gc::Root<editor::OpenBuffer>> roots) {
+    return VMTypeMapper<NonNull<
+        std::shared_ptr<Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::
+        New(pool, MakeNonNullShared<
+                      Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>(
+                      concurrent::MakeProtected(
+                          language::container::MaterializeVector(
+                              roots | gc::view::Ptr))));
+  });
+}
+
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::object_type_name =
     types::ObjectName{IDENTIFIER_CONSTANT(L"VectorBuffer")};
 
+/* static */ gc::Root<Value> VMTypeMapper<NonNull<
+    std::shared_ptr<Protected<std::vector<gc::Root<editor::OpenBuffer>>>>>>::
+    New(gc::Pool& pool,
+        NonNull<std::shared_ptr<
+            concurrent::Protected<std::vector<gc::Root<editor::OpenBuffer>>>>>
+            input) {
+  return VMTypeMapper<NonNull<std::shared_ptr<
+      Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::New(pool,
+                                                                  std::move(
+                                                                      input));
+}
+
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<gc::Root<editor::OpenBuffer>>>>>>::object_type_name =
     types::ObjectName{IDENTIFIER_CONSTANT(L"VectorBuffer")};
-
 }  // namespace afc::vm
 
 namespace afc::editor {
-
-namespace gc = language::gc;
 namespace {
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
@@ -788,4 +836,63 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   environment.DefineType(buffer_object_type.ptr());
   vm::container::Export<std::vector<gc::Ptr<OpenBuffer>>>(pool, environment);
 }
+namespace {
+bool vector_tests_register = afc::tests::Register(
+    L"VMVectorBuffer",
+    {{.name = L"VectorPtr",
+      .callback =
+          [] {
+            auto vector_buffer = MakeNonNullShared<
+                Protected<std::vector<gc::Ptr<OpenBuffer>>>>();
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
+            std::optional<gc::Root<OpenBuffer>> buffer =
+                NewBufferForTests(editor.value());
+            editor->CloseBuffer(buffer.value().value());
+            gc::WeakPtr<OpenBuffer> weak_buffer = buffer->ptr().ToWeakPtr();
+            vector_buffer->lock()->push_back(buffer->ptr());
+
+            std::optional<gc::Root<vm::Value>> value = vm::VMTypeMapper<NonNull<
+                std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>>::
+                New(editor->gc_pool(), std::move(vector_buffer));
+
+            buffer = std::nullopt;
+            editor->gc_pool().FullCollect();
+            editor->gc_pool().BlockUntilDone();
+            CHECK(weak_buffer.Lock().has_value());
+
+            value = std::nullopt;
+            editor->gc_pool().FullCollect();
+            editor->gc_pool().BlockUntilDone();
+            CHECK(!weak_buffer.Lock().has_value());
+          }},
+     {.name = L"FullEnvironment", .callback = [] {
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
+        std::vector<vm::Environment::LookupResult> factory =
+            editor->execution_context()->environment()->PolyLookup(
+                vm::Namespace{},
+                Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorBuffer")});
+        CHECK_EQ(factory.size(), 1ul);
+        Trampoline trampoline{Trampoline::Options{
+            .pool = editor->gc_pool(),
+            .environment = editor->execution_context()->environment().ToRoot(),
+            .yield_callback = [](language::OnceOnlyFunction<void()>) {
+              LOG(FATAL) << "Unexpected yield.";
+            }}};
+        gc::Root<vm::Value> vector_buffer =
+            ValueOrDie(factory[0]
+                           .value.value()
+                           ->RunFunction({}, trampoline)
+                           .Get()
+                           .value());
+        LOG(INFO) << "Converrt.";
+        NonNull<std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
+            typed_value = vm::VMTypeMapper<NonNull<
+                std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>>::
+                get(vector_buffer.value());
+        LOG(INFO) << "Check size.";
+        CHECK_EQ(typed_value->lock()->size(), 0ul);
+      }}});
+}  // namespace
 }  // namespace afc::editor

@@ -1,7 +1,9 @@
 #include <memory>
+#include <vector>
 
 #include "src/concurrent/protected.h"
 #include "src/language/gc.h"
+#include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/value.h"
@@ -32,11 +34,46 @@ struct VMTypeMapper<language::gc::Root<editor::OpenBuffer>> {
   static const types::ObjectName object_type_name;
 };
 
-// TODO(2024-05-14): There could be leaks here. This should ideally keep only
-// gc::Ptr. But that requires an expand function. We can probably do that by
-// defining a VMTypeMapper for vectors of gc::Ptr<T>.
 template <>
-const types::ObjectName VMTypeMapper<
-    language::NonNull<std::shared_ptr<concurrent::Protected<std::vector<
-        language::gc::Root<editor::OpenBuffer>>>>>>::object_type_name;
+struct VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
+    std::vector<language::gc::Ptr<editor::OpenBuffer>>>>>> {
+  static language::NonNull<std::shared_ptr<concurrent::Protected<
+      std::vector<language::gc::Ptr<editor::OpenBuffer>>>>>
+  get(Value& value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<concurrent::Protected<
+          std::vector<language::gc::Root<editor::OpenBuffer>>>>>
+          input);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<concurrent::Protected<
+          std::vector<language::gc::Ptr<editor::OpenBuffer>>>>>
+          input);
+  static const types::ObjectName object_type_name;
+};
+
+template <>
+struct VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
+    std::vector<language::gc::Root<editor::OpenBuffer>>>>>> {
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<concurrent::Protected<
+          std::vector<language::gc::Root<editor::OpenBuffer>>>>>
+          input);
+  static const types::ObjectName object_type_name;
+};
+
+// TODO(2025-05-27, trivial): This doesn't really belong here. Maybe it should
+// go to src/language/gc.h or similar.
+template <typename V>
+std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+Expand(const language::NonNull<std::shared_ptr<
+           concurrent::Protected<std::vector<language::gc::Ptr<V>>>>>& input) {
+  return input->lock([](const std::vector<language::gc::Ptr<V>>& contents) {
+    return language::container::MaterializeVector(
+        contents | language::gc::view::ObjectMetadata);
+  });
+}
+
 }  // namespace afc::vm
