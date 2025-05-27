@@ -805,8 +805,7 @@ void ExtractTags(string directory) {
   VectorBuffer input_buffers = editor.OpenFile(paths, false);
   internal::Log(log_buffer, "Waiting for EOF (buffers: " +
                                 input_buffers.size().tostring() + ")");
-  input_buffers.ForEach(
-      [](Buffer buffer) -> void { buffer.WaitForEndOfFile(); });
+  input_buffers = WaitForEndOfFile(input_buffers);
 
   internal::Log(log_buffer, "Buffers loaded, filtering.");
   input_buffers = md::SearchOptionsForSection("Tags", 2).filter(input_buffers);
