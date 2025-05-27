@@ -796,8 +796,7 @@ void NDay() { return internal::AddNextDayLink(); }
 auto Expand = internal::ExpandIntoPath;
 
 void ExtractTags(string directory) {
-  Buffer log_buffer = editor.OpenFile("/tmp/tags/log", true);
-  log_buffer.WaitForEndOfFile();
+  Buffer log_buffer = editor.OpenFile("/tmp/tags/log", true).WaitForEndOfFile();
   internal::PrepareOutputBuffer(log_buffer);
   string glob_pattern = directory + "/???.md";
   internal::Log(log_buffer, "Glob: " + glob_pattern);
