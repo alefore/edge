@@ -137,29 +137,6 @@ void RegisterVariableFields(
             .ptr());
   }
 }
-
-// TODO(2025-05-27, trivial): Move to futures?
-// Turns a vector of futures into a future vector (of immediate values).
-//
-// std::vector<future::Value<X>>
-// => future::Value<std::vector<X>>
-template <typename Value>
-futures::Value<std::vector<Value>> UnwrapVectorFuture(
-    NonNull<std::shared_ptr<std::vector<futures::Value<Value>>>> input) {
-  auto output = MakeNonNullShared<std::vector<Value>>();
-  using futures::IterationControlCommand;
-  // TODO(2025-05-27, trivial): Remove need to call `get_shared()` below:
-  return futures::ForEach(
-             input.get_shared(),
-             [output](futures::Value<Value>& future_item) {
-               return std::move(future_item).Transform([output](Value item) {
-                 output->push_back(std::move(item));
-                 return IterationControlCommand::kContinue;
-               });
-             })
-      .Transform(
-          [output](IterationControlCommand) mutable { return output.value(); });
-}
 }  // namespace
 
 gc::Root<Environment> BuildEditorEnvironment(

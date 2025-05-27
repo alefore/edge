@@ -37,6 +37,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/once_only_function.h"
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 
 namespace afc::futures {
 
@@ -395,6 +396,28 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
               return std::tuple{std::move(t0), std::move(t1)};
             });
       });
+}
+
+// Turns a vector of futures into a future vector (of immediate values).
+//
+// std::vector<future::Value<X>>
+// => future::Value<std::vector<X>>
+template <typename Value>
+futures::Value<std::vector<Value>> UnwrapVectorFuture(
+    language::NonNull<std::shared_ptr<std::vector<futures::Value<Value>>>>
+        input) {
+  auto output = language::MakeNonNullShared<std::vector<Value>>();
+  // TODO(2025-05-27, trivial): Remove need to call `get_shared()` below:
+  return futures::ForEach(
+             input.get_shared(),
+             [output](futures::Value<Value>& future_item) {
+               return std::move(future_item).Transform([output](Value item) {
+                 output->push_back(std::move(item));
+                 return IterationControlCommand::kContinue;
+               });
+             })
+      .Transform(
+          [output](IterationControlCommand) mutable { return output.value(); });
 }
 }  // namespace afc::futures
 
