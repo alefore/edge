@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "src/concurrent/protected.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
@@ -15,8 +16,9 @@ class Environment;
 void RegisterStringType(language::gc::Pool& pool, Environment& environment);
 
 template <>
-const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
-    std::vector<language::lazy_string::LazyString>>>>::object_type_name;
+const types::ObjectName
+    VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
+        std::vector<language::lazy_string::LazyString>>>>>::object_type_name;
 
 }  // namespace afc::vm
 
