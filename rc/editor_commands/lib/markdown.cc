@@ -55,10 +55,13 @@ void Pandoc(string launch_browser) {
   });
 }
 
+SearchOptions SearchOptionsForSection(string title, number depth) {
+  return SearchOptions().set_query("^" + "#" * depth + " *" + title);
+}
+
 OptionalRange FindSection(Buffer buffer, string title, number depth) {
-  VectorLineColumn matches = SearchOptions()
-                                 .set_query("^" + "#" * depth + " *" + title)
-                                 .search(buffer);
+  VectorLineColumn matches =
+      SearchOptionsForSection(title, depth).search(buffer);
   if (matches.size() == 0) return OptionalRange();
   LineColumn start = matches.get(0);
   return OptionalRange(

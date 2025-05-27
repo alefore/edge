@@ -811,14 +811,13 @@ void ExtractTags(string directory) {
   internal::Log(log_buffer, "Waiting for EOF.");
   input_buffers.ForEach(
       [](Buffer buffer) -> void { buffer.WaitForEndOfFile(); });
+
   internal::Log(log_buffer, "Buffers loaded, filtering.");
-  input_buffers = input_buffers.filter([](Buffer input) -> bool {
-    if (md::FindSection(input, "Tags", 2).has_value()) return true;
-    input.Close();
-    return false;
-  });
+  input_buffers = md::SearchOptionsForSection("Tags", 2).filter(input_buffers);
+
   internal::Log(log_buffer,
-                "Buffers with tags:" + input_buffers.size().tostring());
+                "Filter done (matches: " + input_buffers.size().tostring() +
+                    "). Extracting.");
 
   Buffer dates_buffer = editor.OpenFile("/tmp/tags/dates", true);
   Buffer languages_buffer = editor.OpenFile("/tmp/tags/languages", true);

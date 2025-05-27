@@ -5,18 +5,22 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/language/overload.h"
 #include "src/search_handler.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 #include "src/vm/types.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::concurrent::MakeProtected;
 using afc::concurrent::Protected;
 using afc::language::EmptyValue;
+using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
@@ -81,6 +85,42 @@ void RegisterSearchOptionsVm(gc::Pool& pool, Environment& environment) {
                                                   buffer_contents));
                   return MakeNonNullShared<Protected<std::vector<LineColumn>>>(
                       MakeProtected(std::move(positions)));
+                });
+          })
+          .ptr());
+
+  using VPB = std::vector<gc::Ptr<OpenBuffer>>;
+  using PVPB = Protected<VPB>;
+  search_options_type.ptr()->AddField(
+      Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"filter")},
+      vm::NewCallback(
+          pool,
+          vm::PurityType{.writes_external_outputs = true,
+                         .reads_external_inputs = true},
+          [](ValueType search_options, NonNull<std::shared_ptr<PVPB>> input) {
+            return search_options->lock(
+                [&](const SearchOptions& search_options_data) {
+                  return MakeNonNullShared<PVPB>(
+                      input->lock([&search_options_data](VPB input_buffers) {
+                        return container::MaterializeVector(
+                            input_buffers |
+                            std::views::filter([&search_options_data](
+                                                   const gc::Ptr<OpenBuffer>&
+                                                       buffer) {
+                              return std::visit(
+                                  overload{
+                                      [](Error) { return false; },
+                                      [&buffer](
+                                          std::vector<LineColumn> positions) {
+                                        if (positions.empty()) return false;
+                                        buffer->set_position(positions.front());
+                                        return true;
+                                      }},
+                                  SearchHandler(Direction::kForwards,
+                                                search_options_data,
+                                                buffer->contents().snapshot()));
+                            }));
+                      }));
                 });
           })
           .ptr());
