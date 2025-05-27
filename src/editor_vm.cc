@@ -137,6 +137,29 @@ void RegisterVariableFields(
             .ptr());
   }
 }
+
+// TODO(2025-05-27, trivial): Move to futures?
+// Turns a vector of futures into a future vector (of immediate values).
+//
+// std::vector<future::Value<X>>
+// => future::Value<std::vector<X>>
+template <typename Value>
+futures::Value<std::vector<Value>> UnwrapVectorFuture(
+    NonNull<std::shared_ptr<std::vector<futures::Value<Value>>>> input) {
+  auto output = MakeNonNullShared<std::vector<Value>>();
+  using futures::IterationControlCommand;
+  // TODO(2025-05-27, trivial): Remove need to call `get_shared()` below:
+  return futures::ForEach(
+             input.get_shared(),
+             [output](futures::Value<Value>& future_item) {
+               return std::move(future_item).Transform([output](Value item) {
+                 output->push_back(std::move(item));
+                 return IterationControlCommand::kContinue;
+               });
+             })
+      .Transform(
+          [output](IterationControlCommand) mutable { return output.value(); });
+}
 }  // namespace
 
 gc::Root<Environment> BuildEditorEnvironment(
@@ -477,6 +500,48 @@ gc::Root<Environment> BuildEditorEnvironment(
                 .path = OptionalFrom(Path::New(path_str)),
                 .insertion_type = visit ? BuffersList::AddBufferType::kVisit
                                         : BuffersList::AddBufferType::kIgnore});
+          })
+          .ptr());
+
+  editor_type.ptr()->AddField(
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"OpenFile"}}}},
+      vm::NewCallback(
+          pool, kPurityTypeUnknown,
+          [](EditorState& editor_arg,
+             NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>>
+                 protected_paths,
+             bool visit)
+              -> futures::Value<NonNull<std::shared_ptr<
+                  Protected<std::vector<gc::Root<OpenBuffer>>>>>> {
+            return protected_paths->lock([&editor_arg, visit](
+                                             std::vector<LazyString> paths) {
+              return UnwrapVectorFuture(
+                         MakeNonNullShared<
+                             std::vector<futures::Value<gc::Root<OpenBuffer>>>>(
+                             container::MaterializeVector(
+                                 paths |
+                                 std::views::transform(
+                                     [&editor_arg, visit](LazyString path)
+                                         -> futures::Value<
+                                             gc::Root<OpenBuffer>> {
+                                       return OpenOrCreateFile(OpenFileOptions{
+                                           .editor_state = editor_arg,
+                                           .path =
+                                               OptionalFrom(Path::New(path)),
+                                           .insertion_type =
+                                               visit ? BuffersList::
+                                                           AddBufferType::kVisit
+                                                     : BuffersList::
+                                                           AddBufferType::
+                                                               kIgnore});
+                                     }))))
+                  .Transform(
+                      [](std::vector<gc::Root<OpenBuffer>> vector_buffer) {
+                        return MakeNonNullShared<
+                            Protected<std::vector<gc::Root<OpenBuffer>>>>(
+                            MakeProtected(std::move(vector_buffer)));
+                      });
+            });
           })
           .ptr());
 
