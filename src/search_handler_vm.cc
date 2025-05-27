@@ -51,7 +51,6 @@ void RegisterSearchOptionsVm(gc::Pool& pool, Environment& environment) {
       vm::NewCallback(pool, vm::kPurityTypePure, [] { return ValueType{}; }));
 
   // The regular expression to search.
-  // Methods for Screen.
   search_options_type.ptr()->AddField(
       Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"set_query")},
       vm::NewCallback(pool, vm::kPurityTypeUnknown,
