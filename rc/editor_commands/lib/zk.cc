@@ -799,16 +799,13 @@ void ExtractTags(string directory) {
   Buffer log_buffer = editor.OpenFile("/tmp/tags/log", true);
   log_buffer.WaitForEndOfFile();
   internal::PrepareOutputBuffer(log_buffer);
-  VectorBuffer input_buffers;
   string glob_pattern = directory + "/???.md";
   internal::Log(log_buffer, "Glob: " + glob_pattern);
   VectorString paths = Glob(glob_pattern);
   internal::Log(log_buffer, "Opening buffers: " + paths.size().tostring());
-  paths.ForEach([](string path) -> void {
-    input_buffers.push_back(editor.OpenFile(path, false));
-  });
-
-  internal::Log(log_buffer, "Waiting for EOF.");
+  VectorBuffer input_buffers = editor.OpenFile(paths, false);
+  internal::Log(log_buffer, "Waiting for EOF (buffers: " +
+                                input_buffers.size().tostring() + ")");
   input_buffers.ForEach(
       [](Buffer buffer) -> void { buffer.WaitForEndOfFile(); });
 
