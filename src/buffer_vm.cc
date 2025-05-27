@@ -121,6 +121,12 @@ template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::object_type_name =
     types::ObjectName{IDENTIFIER_CONSTANT(L"VectorBuffer")};
+
+template <>
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+    Protected<std::vector<gc::Root<editor::OpenBuffer>>>>>>::object_type_name =
+    types::ObjectName{IDENTIFIER_CONSTANT(L"VectorBuffer")};
+
 }  // namespace afc::vm
 
 namespace afc::editor {

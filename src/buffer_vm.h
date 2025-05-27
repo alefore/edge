@@ -1,5 +1,6 @@
 #include <memory>
 
+#include "src/concurrent/protected.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
@@ -35,6 +36,7 @@ struct VMTypeMapper<language::gc::Root<editor::OpenBuffer>> {
 // gc::Ptr. But that requires an expand function. We can probably do that by
 // defining a VMTypeMapper for vectors of gc::Ptr<T>.
 template <>
-const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
-    std::vector<language::gc::Root<editor::OpenBuffer>>>>>::object_type_name;
+const types::ObjectName VMTypeMapper<
+    language::NonNull<std::shared_ptr<concurrent::Protected<std::vector<
+        language::gc::Root<editor::OpenBuffer>>>>>>::object_type_name;
 }  // namespace afc::vm
