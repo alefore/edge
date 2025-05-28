@@ -10,6 +10,7 @@
 #include "src/language/container.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/lowercase.h"
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 #include "src/tests/tests.h"
@@ -26,6 +27,7 @@ using afc::language::Error;
 using afc::language::InsertOrDie;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
@@ -186,21 +188,27 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
                              std::vector<LookupResult>& output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
-    environment->data_.lock([&output, &symbol,
-                             variable_scope](const Data& data) {
-      if (auto it = data.table.find(symbol); it != data.table.end()) {
-        auto view = it->second |
-                    std::views::transform([variable_scope](const auto& entry) {
-                      return LookupResult{
-                          .scope = variable_scope,
-                          .type = entry.first,
-                          .value = entry.second.has_value()
-                                       ? entry.second.value().ToRoot()
-                                       : std::optional<gc::Root<Value>>{}};
-                    });
-        output.insert(output.end(), view.begin(), view.end());
-      }
-    });
+    environment->data_.lock(
+        [&output, &symbol, variable_scope](const Data& data) {
+          if (auto it = data.table.find(symbol); it != data.table.end()) {
+            auto view =
+                it->second |
+                std::views::transform([variable_scope](const auto& entry) {
+                  return LookupResult{
+                      .scope = variable_scope,
+                      .type = entry.first,
+                      .value = std::visit(
+                          overload{[](const gc::Ptr<Value>& value) {
+                                     return std::make_optional(value.ToRoot());
+                                   },
+                                   [](UninitializedValue) {
+                                     return std::optional<gc::Root<Value>>{};
+                                   }},
+                          entry.second)};
+                });
+            output.insert(output.end(), view.begin(), view.end());
+          }
+        });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
@@ -219,14 +227,19 @@ void Environment::CaseInsensitiveLookup(
       SingleLine lower_case_symbol = LowerCase(symbol.read().read());
       for (auto& item : data.table)
         if (LowerCase(item.first.read().read()) == lower_case_symbol)
-          std::ranges::copy(item.second | std::views::values |
-                                std::views::filter(
-                                    &std::optional<gc::Ptr<Value>>::has_value) |
-                                std::views::transform(
-                                    [](std::optional<gc::Ptr<Value>> value) {
-                                      return value.value().ToRoot();
-                                    }),
-                            std::back_inserter(*output));
+          std::ranges::copy(
+              item.second | std::views::values |
+                  std::views::filter(
+                      [](const std::variant<UninitializedValue, gc::Ptr<Value>>&
+                             value) {
+                        return std::holds_alternative<gc::Ptr<Value>>(value);
+                      }) |
+                  std::views::transform(
+                      [](const std::variant<UninitializedValue, gc::Ptr<Value>>&
+                             value) {
+                        return std::get<gc::Ptr<Value>>(value).ToRoot();
+                      }),
+              std::back_inserter(*output));
     });
   }
   // Deliverately ignoring `environment`:
@@ -239,7 +252,7 @@ void Environment::CaseInsensitiveLookup(
 void Environment::DefineUninitialized(const Identifier& symbol,
                                       const Type& type) {
   data_.lock([&symbol, &type](Data& data) {
-    data.table[symbol].insert_or_assign(type, std::nullopt);
+    data.table[symbol].insert_or_assign(type, UninitializedValue{});
   });
 }
 
@@ -285,7 +298,8 @@ void Environment::ForEachType(
 }
 
 void Environment::ForEach(
-    std::function<void(const Identifier&, const std::optional<gc::Ptr<Value>>&)>
+    std::function<void(const Identifier&,
+                       const std::variant<UninitializedValue, gc::Ptr<Value>>&)>
         callback) const {
   if (parent_environment_.has_value())
     (*parent_environment_)->ForEach(callback);
@@ -293,11 +307,12 @@ void Environment::ForEach(
 }
 
 void Environment::ForEachNonRecursive(
-    std::function<void(const Identifier&, const std::optional<gc::Ptr<Value>>&)>
+    std::function<void(const Identifier&,
+                       const std::variant<UninitializedValue, gc::Ptr<Value>>&)>
         callback) const {
   data_.lock([&](const Data& data) {
     for (const auto& symbol_entry : data.table)
-      for (const std::optional<gc::Ptr<Value>>& value :
+      for (const std::variant<UninitializedValue, gc::Ptr<Value>>& value :
            symbol_entry.second | std::views::values) {
         VLOG(5) << "ForEachNonRecursive: Running callback on: "
                 << symbol_entry.first;
@@ -309,17 +324,17 @@ void Environment::ForEachNonRecursive(
 std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 Environment::Expand() const {
   std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-  if (parent_environment().has_value()) {
+  if (parent_environment().has_value())
     output.push_back(parent_environment()->object_metadata());
-  }
   ForEachNonRecursive(
       [&output](const Identifier&,
-                const std::optional<gc::Ptr<Value>>& value_optional) {
-        VisitOptional(
-            [&output](const gc::Ptr<Value>& value) {
-              output.push_back(value.object_metadata());
-            },
-            [] {}, value_optional);
+                const std::variant<UninitializedValue, gc::Ptr<Value>>&
+                    value_optional) {
+        std::visit(overload{[&output](const gc::Ptr<Value>& value) {
+                              output.push_back(value.object_metadata());
+                            },
+                            [](UninitializedValue) {}},
+                   value_optional);
       });
   data_.lock([&output](const Data& data) {
     std::ranges::copy(

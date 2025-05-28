@@ -330,18 +330,21 @@ class HelpCommand : public Command {
 
     environment->ForEach(
         [&output](const vm::Identifier& name,
-                  const std::optional<gc::Ptr<vm::Value>>& value_optional) {
+                  const std::variant<vm::UninitializedValue,
+                                     gc::Ptr<vm::Value>>& value_optional) {
           VLOG(9) << "Variable: " << name;
-          const SingleLine value_str = VisitOptional(
-              [](const gc::Ptr<vm::Value>& value) {
-                std::stringstream value_stream;
-                value_stream << value.value();
-                return SINGLE_LINE_CONSTANT(L"`") +
-                       SingleLine{
-                           LazyString{FromByteString(value_stream.str())}} +
-                       SINGLE_LINE_CONSTANT(L"`");
-              },
-              [] { return SINGLE_LINE_CONSTANT(L"<uninitialized>"); },
+          const SingleLine value_str = std::visit(
+              overload{[](const gc::Ptr<vm::Value>& value) {
+                         std::stringstream value_stream;
+                         value_stream << value.value();
+                         return SINGLE_LINE_CONSTANT(L"`") +
+                                SingleLine{LazyString{
+                                    FromByteString(value_stream.str())}} +
+                                SINGLE_LINE_CONSTANT(L"`");
+                       },
+                       [](vm::UninitializedValue) {
+                         return SINGLE_LINE_CONSTANT(L"<uninitialized>");
+                       }},
               value_optional);
           const static ColumnNumberDelta kPaddingSize{40};
           SingleLine padding{LazyString{name.read().size() > kPaddingSize

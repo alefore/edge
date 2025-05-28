@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/language/gc.h"
+#include "src/language/overload.h"
 #include "src/vm/append_expression.h"
 #include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
@@ -15,6 +16,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
@@ -102,18 +104,20 @@ PossibleError FinishClassDeclaration(
 
   class_environment.ptr()->ForEachNonRecursive(
       [&class_object_type, class_type, &pool](
-          Identifier name,
-          const std::optional<gc::Ptr<Value>>& value_optional) {
-        VisitOptional(
-            [&](const gc::Ptr<Value>& value) {
-              class_object_type.ptr()->AddField(
-                  name,
-                  BuildGetter(pool, class_type, value->type(), name).ptr());
-              class_object_type.ptr()->AddField(
-                  Identifier(SingleLine{LazyString{L"set_"}} + name.read()),
-                  BuildSetter(pool, class_type, value->type(), name).ptr());
-            },
-            [] {}, value_optional);
+          Identifier name, const std::variant<UninitializedValue,
+                                              gc::Ptr<Value>>& value_optional) {
+        std::visit(
+            overload{
+                [&](const gc::Ptr<Value>& value) {
+                  class_object_type.ptr()->AddField(
+                      name,
+                      BuildGetter(pool, class_type, value->type(), name).ptr());
+                  class_object_type.ptr()->AddField(
+                      Identifier(SingleLine{LazyString{L"set_"}} + name.read()),
+                      BuildSetter(pool, class_type, value->type(), name).ptr());
+                },
+                [](UninitializedValue) {}},
+            value_optional);
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   compilation.environment.ptr()->Define(

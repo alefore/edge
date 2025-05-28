@@ -28,15 +28,15 @@ class ObjectName;
 class Namespace
     : public language::GhostType<Namespace, std::vector<Identifier>> {};
 
+struct UninitializedValue {};
+
 class Environment {
   struct ConstructorAccessTag {};
 
   struct Data {
-    // Why are the inner values std::optional<>? Because during compilation, we
-    // register symbols but their values are not yet known; so the symbols start
-    // as std::nullopt.
     std::map<Identifier,
-             std::unordered_map<Type, std::optional<language::gc::Ptr<Value>>>>
+             std::unordered_map<Type, std::variant<UninitializedValue,
+                                                   language::gc::Ptr<Value>>>>
         table;
 
     std::map<Identifier, language::gc::Ptr<Environment>> namespaces;
@@ -80,6 +80,7 @@ class Environment {
   const Type* LookupType(const Identifier& symbol) const;
   void DefineType(language::gc::Ptr<ObjectType> value);
 
+  // TODO(trivial, 2025-05-29): Reuse LookupResult.
   std::optional<language::gc::Root<Value>> Lookup(
       language::gc::Pool& pool, const Namespace& symbol_namespace,
       const Identifier& symbol, Type expected_type) const;
@@ -88,6 +89,7 @@ class Environment {
     enum class VariableScope { kLocal, kGlobal };
     VariableScope scope;
     Type type;
+    // TODO(trivial, 2025-05-29): Change to std::variant.
     std::optional<language::gc::Root<Value>> value;
   };
 
@@ -107,12 +109,14 @@ class Environment {
   void ForEachType(
       std::function<void(const types::ObjectName&, ObjectType&)> callback);
   void ForEach(
-      std::function<void(const Identifier&,
-                         const std::optional<language::gc::Ptr<Value>>&)>
+      std::function<void(
+          const Identifier&,
+          const std::variant<UninitializedValue, language::gc::Ptr<Value>>&)>
           callback) const;
   void ForEachNonRecursive(
-      std::function<void(const Identifier&,
-                         const std::optional<language::gc::Ptr<Value>>&)>
+      std::function<void(
+          const Identifier&,
+          const std::variant<UninitializedValue, language::gc::Ptr<Value>>&)>
           callback) const;
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
