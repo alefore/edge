@@ -32,6 +32,9 @@ class Environment {
   struct ConstructorAccessTag {};
 
   struct Data {
+    // Why are the inner values std::optional<>? Because during compilation, we
+    // register symbols but their values are not yet known; so the symbols start
+    // as std::nullopt.
     std::map<Identifier,
              std::unordered_map<Type, std::optional<language::gc::Ptr<Value>>>>
         table;
