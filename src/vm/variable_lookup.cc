@@ -19,7 +19,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
-using afc::language::VisitPointer;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::vm {
@@ -48,17 +48,17 @@ class VariableLookup : public Expression {
     TRACK_OPERATION(vm_VariableLookup_Evaluate);
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    return futures::Past(VisitPointer(
-        trampoline.environment().ptr()->Lookup(
-            trampoline.pool(), symbol_namespace_, symbol_, type),
-        [](gc::Root<Value> value) {
-          DVLOG(5) << "Variable lookup: " << value.ptr().value();
-          return Success(EvaluationOutput::New(std::move(value)));
+    return futures::Past(VisitOptional(
+        [](Environment::LookupResult lookup_result) {
+          DVLOG(5) << "Variable lookup: " << lookup_result.value->value();
+          return Success(EvaluationOutput::New(lookup_result.value.value()));
         },
-        [this]() {
+        [this] {
           return Error{LazyString{L"Unexpected: variable value is null: "} +
                        ToLazyString(symbol_) + LazyString{L"."}};
-        }));
+        },
+        trampoline.environment().ptr()->Lookup(
+            trampoline.pool(), symbol_namespace_, symbol_, type)));
   }
 };
 

@@ -80,11 +80,6 @@ class Environment {
   const Type* LookupType(const Identifier& symbol) const;
   void DefineType(language::gc::Ptr<ObjectType> value);
 
-  // TODO(trivial, 2025-05-29): Reuse LookupResult.
-  std::optional<language::gc::Root<Value>> Lookup(
-      language::gc::Pool& pool, const Namespace& symbol_namespace,
-      const Identifier& symbol, Type expected_type) const;
-
   struct LookupResult {
     enum class VariableScope { kLocal, kGlobal };
     VariableScope scope;
@@ -92,6 +87,13 @@ class Environment {
     // TODO(trivial, 2025-05-29): Change to std::variant.
     std::optional<language::gc::Root<Value>> value;
   };
+
+  // If a `LookupResult` is returned, its `value` is guaranteed to not be
+  // `std::nullopt`.
+  std::optional<LookupResult> Lookup(language::gc::Pool& pool,
+                                     const Namespace& symbol_namespace,
+                                     const Identifier& symbol,
+                                     Type expected_type) const;
 
   std::vector<LookupResult> PolyLookup(const Namespace& symbol_namespace,
                                        const Identifier& symbol) const;

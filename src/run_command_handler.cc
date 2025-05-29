@@ -252,7 +252,9 @@ futures::Value<PossibleError> GenerateContents(
                      target.Read(buffer_variables::pts), child_pid)
       .Transform([&editor_state, data, &target](EmptyValue) {
         LOG(INFO) << "End of file notification.";
-        if (editor_state.buffer_registry().GetListedBufferIndex(target).has_value()) {
+        if (editor_state.buffer_registry()
+                .GetListedBufferIndex(target)
+                .has_value()) {
           namespace audio = infrastructure::audio;
 
           CHECK(target.child_exit_status().has_value());
@@ -456,19 +458,24 @@ class ForkEditorCommand : public Command {
       // TODO(easy, 2022-05-16): Why is this safe?
       CHECK(original_buffer.has_value());
       static const vm::Namespace kEmptyNamespace;
+      // TODO(trivial, 2025-05-29): Crash with a nicer error if
+      // GetShellPromptContextProgram is undefined.
       NonNull<std::shared_ptr<PromptState>> prompt_state =
           MakeNonNullShared<PromptState>(PromptState{
               .original_buffer = *original_buffer,
               .base_command = std::nullopt,
               .context_command_callback =
-                  original_buffer->ptr()->environment()->Lookup(
-                      pool, kEmptyNamespace,
-                      vm::Identifier{NonEmptySingleLine{SingleLine{
+                  original_buffer->ptr()
+                      ->environment()
+                      ->Lookup(
+                          pool, kEmptyNamespace,
+                          vm::Identifier{NonEmptySingleLine{SingleLine{
 
-                          LazyString{L"GetShellPromptContextProgram"}}}},
-                      vm::types::Function{
-                          .output = vm::Type{vm::types::String{}},
-                          .inputs = {vm::types::String{}}})});
+                              LazyString{L"GetShellPromptContextProgram"}}}},
+                          vm::types::Function{
+                              .output = vm::Type{vm::types::String{}},
+                              .inputs = {vm::types::String{}}})
+                      ->value.value()});
 
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       LineBuilder prompt;

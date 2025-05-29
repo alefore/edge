@@ -211,17 +211,17 @@ void RedrawScreens(const CommandLineValues& args,
   for (OpenBuffer& buffer :
        editor_state().buffer_registry().BuffersWithScreen() | gc::view::Value) {
     static const afc::vm::Namespace kEmptyNamespace;
-    std::optional<gc::Root<afc::vm::Value>> value =
+    std::optional<afc::vm::Environment::LookupResult> value =
         buffer.environment()->Lookup(
             editor_state().gc_pool(), kEmptyNamespace,
             vm::Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"screen")},
             GetScreenVmType());
     if (!value.has_value() ||
-        value.value().ptr()->type() != afc::vm::Type{GetScreenVmType()})
+        (*value->value)->type() != afc::vm::Type{GetScreenVmType()})
       continue;
     if (auto buffer_screen =
             afc::vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::get(
-                value.value().ptr().value());
+                (*value->value).value());
         &buffer_screen.value() != screen_curses) {
       LOG(INFO) << "Remote screen for buffer: " << buffer.name();
       terminal->Display(editor_state(), buffer_screen.value(),

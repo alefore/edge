@@ -516,7 +516,7 @@ class InsertMode : public InputReceiver {
         StartNewInsertion();
         // TODO: Find a way to set `copy_to_paste_buffer` in the
         // transformation.
-        std::optional<gc::Root<vm::Value>> callback =
+        std::optional<vm::Environment::LookupResult> callback =
             options_.editor_state.execution_context()->environment()->Lookup(
                 options_.editor_state.gc_pool(), vm::Namespace(),
                 vm::Identifier{NonEmptySingleLine{
@@ -532,7 +532,7 @@ class InsertMode : public InputReceiver {
             buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
               NonNull<std::unique_ptr<vm::Expression>> expression =
                   vm::NewFunctionCall(
-                      vm::NewConstantExpression(callback.value()),
+                      vm::NewConstantExpression(*callback->value),
                       {vm::NewConstantExpression(
                           {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
                               buffer.editor().gc_pool(), buffer.NewRoot())})});

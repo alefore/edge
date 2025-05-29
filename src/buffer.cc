@@ -904,9 +904,9 @@ namespace {
 std::unique_ptr<vm::Expression> GetOnReloadCallExpression(
     gc::Pool& pool, Environment& environment, gc::Ptr<OpenBuffer> buffer) {
   return VisitOptional(
-      [&](language::gc::Root<Value> procedure) {
+      [&](Environment::LookupResult procedure) {
         return vm::NewFunctionCall(
-                   vm::NewConstantExpression(std::move(procedure)),
+                   vm::NewConstantExpression(*procedure.value),
                    {vm::NewConstantExpression(
                        vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::New(pool,
                                                                   buffer))})

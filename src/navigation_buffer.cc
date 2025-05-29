@@ -142,11 +142,12 @@ futures::Value<PossibleError> GenerateContents(
           .EscapedRepresentation());
   static const vm::Namespace kEmptyNamespace;
   size_t depth = 3ul;
-  if (std::optional<gc::Root<vm::Value>> depth_value =
+  if (std::optional<vm::Environment::LookupResult> depth_value =
           target.environment()->Lookup(editor_state.gc_pool(), kEmptyNamespace,
                                        kDepthSymbol, vm::types::Number{});
       depth_value.has_value()) {
-    FUTURES_ASSIGN_OR_RETURN(depth, depth_value->ptr()->get_number().ToSizeT());
+    FUTURES_ASSIGN_OR_RETURN(depth,
+                             (*depth_value->value)->get_number().ToSizeT());
   }
   DisplayTree(source->ptr().value(), depth, tree.value(), SingleLine{}, target);
   return futures::Past(Success());
