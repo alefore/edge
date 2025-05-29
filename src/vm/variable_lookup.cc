@@ -50,8 +50,10 @@ class VariableLookup : public Expression {
     // DVLOG(5) << "Look up symbol: " << symbol_;
     return futures::Past(VisitOptional(
         [](Environment::LookupResult lookup_result) {
-          DVLOG(5) << "Variable lookup: " << lookup_result.value->value();
-          return Success(EvaluationOutput::New(lookup_result.value.value()));
+          DVLOG(5) << "Variable lookup: "
+                   << std::get<gc::Root<Value>>(lookup_result.value).value();
+          return Success(EvaluationOutput::New(
+              std::get<gc::Root<Value>>(lookup_result.value)));
         },
         [this] {
           return Error{LazyString{L"Unexpected: variable value is null: "} +

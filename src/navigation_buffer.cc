@@ -147,7 +147,9 @@ futures::Value<PossibleError> GenerateContents(
                                        kDepthSymbol, vm::types::Number{});
       depth_value.has_value()) {
     FUTURES_ASSIGN_OR_RETURN(depth,
-                             (*depth_value->value)->get_number().ToSizeT());
+                             std::get<gc::Root<vm::Value>>(depth_value->value)
+                                 ->get_number()
+                                 .ToSizeT());
   }
   DisplayTree(source->ptr().value(), depth, tree.value(), SingleLine{}, target);
   return futures::Past(Success());

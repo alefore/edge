@@ -164,11 +164,14 @@ std::optional<Environment::LookupResult> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
   for (LookupResult lookup_result : PolyLookup(symbol_namespace, symbol))
-    if (lookup_result.value.has_value())
+    if (gc::Root<Value>* root_value =
+            std::get_if<gc::Root<Value>>(&lookup_result.value);
+        root_value != nullptr)
       if (auto callback = GetImplicitPromotion(
-              lookup_result.value->ptr()->type(), expected_type);
+              std::get<gc::Root<Value>>(lookup_result.value)->type(),
+              expected_type);
           callback != nullptr) {
-        gc::Root<Value> output_value = callback(pool, *lookup_result.value);
+        gc::Root<Value> output_value = callback(pool, *root_value);
         return LookupResult{.scope = lookup_result.scope,
                             .type = output_value->type(),
                             .value = output_value};
@@ -190,27 +193,30 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
                              std::vector<LookupResult>& output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
-    environment->data_.lock(
-        [&output, &symbol, variable_scope](const Data& data) {
-          if (auto it = data.table.find(symbol); it != data.table.end()) {
-            auto view =
-                it->second |
-                std::views::transform([variable_scope](const auto& entry) {
-                  return LookupResult{
-                      .scope = variable_scope,
-                      .type = entry.first,
-                      .value = std::visit(
-                          overload{[](const gc::Ptr<Value>& value) {
-                                     return std::make_optional(value.ToRoot());
-                                   },
-                                   [](UninitializedValue) {
-                                     return std::optional<gc::Root<Value>>{};
-                                   }},
-                          entry.second)};
-                });
-            output.insert(output.end(), view.begin(), view.end());
-          }
-        });
+    environment->data_.lock([&output, &symbol,
+                             variable_scope](const Data& data) {
+      if (auto it = data.table.find(symbol); it != data.table.end()) {
+        auto view = it->second |
+                    std::views::transform([variable_scope](const auto& entry) {
+                      return LookupResult{
+                          .scope = variable_scope,
+                          .type = entry.first,
+                          .value = std::visit(
+                              overload{[](const gc::Ptr<Value>& value)
+                                           -> std::variant<UninitializedValue,
+                                                           gc::Root<Value>> {
+                                         return value.ToRoot();
+                                       },
+                                       [](UninitializedValue)
+                                           -> std::variant<UninitializedValue,
+                                                           gc::Root<Value>> {
+                                         return UninitializedValue{};
+                                       }},
+                              entry.second)};
+                    });
+        output.insert(output.end(), view.begin(), view.end());
+      }
+    });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
@@ -400,15 +406,17 @@ const bool environment_tests_registration = tests::Register(
                std::vector<Environment::LookupResult> output =
                    child->ptr()->PolyLookup(Namespace{}, id);
                CHECK_EQ(output.size(), 1ul);
-               CHECK_EQ(output.at(0).value->ptr()->get_string(),
-                        LazyString{L"bar"});
+               CHECK_EQ(
+                   std::get<gc::Root<Value>>(output.at(0).value)->get_string(),
+                   LazyString{L"bar"});
 
                child = std::nullopt;
                pool.FullCollect();
                pool.BlockUntilDone();
                CHECK_EQ(pool.count_objects(), 1ul);
-               CHECK_EQ(output.at(0).value->ptr()->get_string(),
-                        LazyString{L"bar"});
+               CHECK_EQ(
+                   std::get<gc::Root<Value>>(output.at(0).value)->get_string(),
+                   LazyString{L"bar"});
 
                output.clear();
                pool.FullCollect();

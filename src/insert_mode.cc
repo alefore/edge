@@ -532,7 +532,8 @@ class InsertMode : public InputReceiver {
             buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
               NonNull<std::unique_ptr<vm::Expression>> expression =
                   vm::NewFunctionCall(
-                      vm::NewConstantExpression(*callback->value),
+                      vm::NewConstantExpression(
+                          std::get<gc::Root<vm::Value>>(callback->value)),
                       {vm::NewConstantExpression(
                           {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
                               buffer.editor().gc_pool(), buffer.NewRoot())})});

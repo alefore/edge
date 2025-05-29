@@ -84,12 +84,11 @@ class Environment {
     enum class VariableScope { kLocal, kGlobal };
     VariableScope scope;
     Type type;
-    // TODO(trivial, 2025-05-29): Change to std::variant.
-    std::optional<language::gc::Root<Value>> value;
+    std::variant<UninitializedValue, language::gc::Root<Value>> value;
   };
 
-  // If a `LookupResult` is returned, its `value` is guaranteed to not be
-  // `std::nullopt`.
+  // If a `LookupResult` is returned, its `value` is guaranteed to be
+  // `gc::Root<Value>` (i.e., never returns an `UninitializedValue`).
   std::optional<LookupResult> Lookup(language::gc::Pool& pool,
                                      const Namespace& symbol_namespace,
                                      const Identifier& symbol,

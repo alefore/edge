@@ -906,7 +906,8 @@ std::unique_ptr<vm::Expression> GetOnReloadCallExpression(
   return VisitOptional(
       [&](Environment::LookupResult procedure) {
         return vm::NewFunctionCall(
-                   vm::NewConstantExpression(*procedure.value),
+                   vm::NewConstantExpression(
+                       std::get<gc::Root<Value>>(procedure.value)),
                    {vm::NewConstantExpression(
                        vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::New(pool,
                                                                   buffer))})

@@ -905,8 +905,7 @@ bool vector_tests_register = afc::tests::Register(
               LOG(FATAL) << "Unexpected yield.";
             }}};
         gc::Root<vm::Value> vector_buffer =
-            ValueOrDie(factory[0]
-                           .value.value()
+            ValueOrDie(std::get<gc::Root<vm::Value>>(factory[0].value)
                            ->RunFunction({}, trampoline)
                            .Get()
                            .value());

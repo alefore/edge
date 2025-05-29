@@ -72,16 +72,17 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
             Instance::Read(class_type, args[0]);
         static const vm::Namespace empty_namespace;
         return futures::Past(VisitOptional(
-            [](Environment::LookupResult value) {
-              return Success(std::move(value.value.value()));
+            [](Environment::LookupResult value)
+                -> ValueOrError<gc::Root<Value>> {
+              return Success(std::get<gc::Root<Value>>(value.value));
             },
-            [&]() {
+            [&] -> ValueOrError<gc::Root<vm::Value>> {
               return Error{
                   LazyString{L"Unexpected: variable value is null: "} +
                   QuoteExpr(language::lazy_string::ToSingleLine(field_name))};
             },
-            environment.ptr()->Lookup(pool, empty_namespace, field_name,
-                                      field_type)));
+            environment->Lookup(pool, empty_namespace, field_name,
+                                field_type)));
       });
 }
 }  // namespace

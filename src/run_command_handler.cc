@@ -464,7 +464,7 @@ class ForkEditorCommand : public Command {
           MakeNonNullShared<PromptState>(PromptState{
               .original_buffer = *original_buffer,
               .base_command = std::nullopt,
-              .context_command_callback =
+              .context_command_callback = std::get<gc::Root<vm::Value>>(
                   original_buffer->ptr()
                       ->environment()
                       ->Lookup(
@@ -475,7 +475,7 @@ class ForkEditorCommand : public Command {
                           vm::types::Function{
                               .output = vm::Type{vm::types::String{}},
                               .inputs = {vm::types::String{}}})
-                      ->value.value()});
+                      ->value)});
 
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       LineBuilder prompt;
