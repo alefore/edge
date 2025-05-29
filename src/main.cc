@@ -213,7 +213,7 @@ void RedrawScreens(const CommandLineValues& args,
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<afc::vm::Environment::LookupResult> value =
         buffer.environment()->Lookup(
-            editor_state().gc_pool(), kEmptyNamespace,
+            kEmptyNamespace,
             vm::Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"screen")},
             GetScreenVmType());
     if (!value.has_value() ||

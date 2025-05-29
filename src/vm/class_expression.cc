@@ -65,8 +65,8 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                             Identifier field_name) {
   return Value::NewFunction(
       pool, PurityType{}, field_type, {class_type},
-      [&pool, class_type, field_name, field_type](
-          std::vector<gc::Root<Value>> args, Trampoline&) {
+      [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
+                                           Trampoline&) {
         CHECK_EQ(args.size(), 1u);
         gc::Root<vm::Environment> environment =
             Instance::Read(class_type, args[0]);
@@ -81,8 +81,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                   LazyString{L"Unexpected: variable value is null: "} +
                   QuoteExpr(language::lazy_string::ToSingleLine(field_name))};
             },
-            environment->Lookup(pool, empty_namespace, field_name,
-                                field_type)));
+            environment->Lookup(empty_namespace, field_name, field_type)));
       });
 }
 }  // namespace

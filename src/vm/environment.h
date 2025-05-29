@@ -89,8 +89,7 @@ class Environment {
 
   // If a `LookupResult` is returned, its `value` is guaranteed to be
   // `gc::Root<Value>` (i.e., never returns an `UninitializedValue`).
-  std::optional<LookupResult> Lookup(language::gc::Pool& pool,
-                                     const Namespace& symbol_namespace,
+  std::optional<LookupResult> Lookup(const Namespace& symbol_namespace,
                                      const Identifier& symbol,
                                      Type expected_type) const;
 

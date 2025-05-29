@@ -451,7 +451,6 @@ class ForkEditorCommand : public Command {
   }
 
   void ProcessInput(ExtendedChar) override {
-    gc::Pool& pool = editor_state_.gc_pool();
     if (editor_state_.structure() == Structure::kChar) {
       std::optional<gc::Root<OpenBuffer>> original_buffer =
           editor_state_.current_buffer();
@@ -468,10 +467,8 @@ class ForkEditorCommand : public Command {
                   original_buffer->ptr()
                       ->environment()
                       ->Lookup(
-                          pool, kEmptyNamespace,
-                          vm::Identifier{NonEmptySingleLine{SingleLine{
-
-                              LazyString{L"GetShellPromptContextProgram"}}}},
+                          kEmptyNamespace,
+                          IDENTIFIER_CONSTANT(L"GetShellPromptContextProgram"),
                           vm::types::Function{
                               .output = vm::Type{vm::types::String{}},
                               .inputs = {vm::types::String{}}})

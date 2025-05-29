@@ -161,7 +161,7 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 }
 
 std::optional<Environment::LookupResult> Environment::Lookup(
-    gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
+    const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
   for (LookupResult lookup_result : PolyLookup(symbol_namespace, symbol))
     if (gc::Root<Value>* root_value =
@@ -171,7 +171,7 @@ std::optional<Environment::LookupResult> Environment::Lookup(
               std::get<gc::Root<Value>>(lookup_result.value)->type(),
               expected_type);
           callback != nullptr) {
-        gc::Root<Value> output_value = callback(pool, *root_value);
+        gc::Root<Value> output_value = callback(*root_value);
         return LookupResult{.scope = lookup_result.scope,
                             .type = output_value->type(),
                             .value = output_value};

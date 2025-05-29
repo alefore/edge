@@ -102,12 +102,8 @@ futures::ValueOrError<gc::Root<Value>> Evaluate(
                  });
 }
 
-using PromotionCallback =
-    std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>;
-
-PromotionCallback GetImplicitPromotion(Type original, Type desired) {
-  if (original == desired)
-    return [](gc::Pool&, gc::Root<Value> value) { return value; };
+ImplicitPromotionCallback GetImplicitPromotion(Type original, Type desired) {
+  if (original == desired) return [](gc::Root<Value> value) { return value; };
 
   types::Function* original_function = std::get_if<types::Function>(&original);
   types::Function* desired_function = std::get_if<types::Function>(&desired);
@@ -116,11 +112,11 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
       original_function->inputs.size() != desired_function->inputs.size())
     return nullptr;
 
-  PromotionCallback output_callback = GetImplicitPromotion(
+  ImplicitPromotionCallback output_callback = GetImplicitPromotion(
       original_function->output.get(), desired_function->output.get());
   if (output_callback == nullptr) return nullptr;
 
-  std::vector<PromotionCallback> inputs_callbacks;
+  std::vector<ImplicitPromotionCallback> inputs_callbacks;
   for (size_t i = 0; i < original_function->inputs.size(); i++) {
     // Undo the promotion: we deliberately swap the order of desired and
     // original parameters for the function arguments.
@@ -140,12 +136,11 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
     return nullptr;
 
   return [output_callback, inputs_callbacks,
-          purity = desired_function->function_purity](gc::Pool& pool,
-                                                      gc::Root<Value> value) {
+          purity = desired_function->function_purity](gc::Root<Value> value) {
     const types::Function& value_function_type =
         std::get<types::Function>(value.ptr()->type());
     return Value::NewFunction(
-        pool, purity, value_function_type.output.get(),
+        value.pool(), purity, value_function_type.output.get(),
         value_function_type.inputs,
         std::bind_front(
             [output_callback, inputs_callbacks](
@@ -154,17 +149,15 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
                 Trampoline& trampoline) {
               CHECK_EQ(inputs_callbacks.size(), arguments.size());
               for (size_t i = 0; i < arguments.size(); ++i) {
-                arguments[i] = inputs_callbacks[i](trampoline.pool(),
-                                                   std::move(arguments[i]));
+                arguments[i] = inputs_callbacks[i](std::move(arguments[i]));
               }
               return original_callback.ptr()
                   ->RunFunction(std::move(arguments), trampoline)
-                  .Transform([output_callback, &pool = trampoline.pool()](
-                                 gc::Root<Value> output) {
-                    return Success(output_callback(pool, std::move(output)));
+                  .Transform([output_callback](gc::Root<Value> output) {
+                    return Success(output_callback(std::move(output)));
                   });
             },
-            std::move(value)));
+            value));
   };
 }
 }  // namespace afc::vm

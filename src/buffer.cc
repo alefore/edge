@@ -915,8 +915,7 @@ std::unique_ptr<vm::Expression> GetOnReloadCallExpression(
       },
       [] -> std::unique_ptr<vm::Expression> { return nullptr; },
       environment.Lookup(
-          pool, Namespace{},
-          Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"OnReload")},
+          Namespace{}, Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"OnReload")},
           vm::types::Function{
               .output = vm::Type{vm::types::Void{}},
               .inputs = {

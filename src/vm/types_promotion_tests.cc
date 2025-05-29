@@ -12,9 +12,6 @@ using afc::math::numbers::Number;
 
 namespace afc::vm {
 namespace {
-using PromotionCallback =
-    std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>;
-
 const bool tests_registration = tests::Register(
     L"GetImplicitPromotion",
     {
@@ -28,11 +25,11 @@ const bool tests_registration = tests::Register(
          .callback =
              [] {
                gc::Pool pool({});
-               PromotionCallback callback =
+               ImplicitPromotionCallback callback =
                    GetImplicitPromotion(types::Number{}, types::Number{});
                CHECK(callback != nullptr);
                gc::Root<Value> output =
-                   callback(pool, Value::NewNumber(pool, Number::FromInt64(5)));
+                   callback(Value::NewNumber(pool, Number::FromInt64(5)));
                ValueOrError<std::wstring> output_str =
                    output.ptr()->get_number().ToString(2);
                LOG(INFO) << "Output str: " << output_str;
@@ -59,12 +56,12 @@ const bool tests_registration = tests::Register(
                                    .inputs = inputs},
                    types::Function{.output = Type{types::Number{}},
                                    .inputs = inputs})(
-                   pool, vm::NewCallback(pool, PurityType{},
-                                         [](std::wstring s, bool b) {
-                                           CHECK(s == L"alejo");
-                                           CHECK_EQ(b, true);
-                                           return Number::FromInt64(4);
-                                         }));
+                   vm::NewCallback(pool, PurityType{},
+                                   [](std::wstring s, bool b) {
+                                     CHECK(s == L"alejo");
+                                     CHECK_EQ(b, true);
+                                     return Number::FromInt64(4);
+                                   }));
                Trampoline trampoline(Trampoline::Options{
                    .pool = pool,
                    .environment = NewDefaultEnvironment(pool),

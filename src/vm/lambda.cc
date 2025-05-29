@@ -38,9 +38,8 @@ class LambdaExpression : public Expression {
       return Error{LazyString{L"Found multiple return types: "} +
                    TypesToString(deduced_types)};
     }
-    std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
-        promotion_function =
-            GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
+    ImplicitPromotionCallback promotion_function =
+        GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
       return Error{LazyString{L"Expected a return type of "} +
                    ToQuotedSingleLine(expected_return_type) +
@@ -57,8 +56,7 @@ class LambdaExpression : public Expression {
       Type type,
       NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body,
-      std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
-          promotion_function)
+      ImplicitPromotionCallback promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
@@ -76,7 +74,6 @@ class LambdaExpression : public Expression {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
     return futures::Past(Success(EvaluationOutput::New(promotion_function(
-        trampoline.pool(),
         BuildValue(trampoline.pool(), trampoline.environment())))));
   }
 
@@ -104,8 +101,8 @@ class LambdaExpression : public Expression {
                   [original_trampoline, &trampoline, body,
                    promotion_function](EvaluationOutput body_output) mutable {
                     trampoline = std::move(original_trampoline);
-                    return Success(promotion_function(
-                        trampoline.pool(), std::move(body_output.value)));
+                    return Success(
+                        promotion_function(std::move(body_output.value)));
                   });
         },
         [parent_environment] {
@@ -118,8 +115,7 @@ class LambdaExpression : public Expression {
   Type type_;
   const NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names_;
   const NonNull<std::shared_ptr<Expression>> body_;
-  const std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
-      promotion_function_;
+  const ImplicitPromotionCallback promotion_function_;
 };
 }  // namespace
 

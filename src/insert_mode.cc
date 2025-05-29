@@ -518,7 +518,7 @@ class InsertMode : public InputReceiver {
         // transformation.
         std::optional<vm::Environment::LookupResult> callback =
             options_.editor_state.execution_context()->environment()->Lookup(
-                options_.editor_state.gc_pool(), vm::Namespace(),
+                vm::Namespace(),
                 vm::Identifier{NonEmptySingleLine{
                     SingleLine{LazyString{L"HandleKeyboardControlU"}}}},
                 vm::types::Function{

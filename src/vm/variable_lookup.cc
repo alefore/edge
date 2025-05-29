@@ -59,8 +59,8 @@ class VariableLookup : public Expression {
           return Error{LazyString{L"Unexpected: variable value is null: "} +
                        ToLazyString(symbol_) + LazyString{L"."}};
         },
-        trampoline.environment().ptr()->Lookup(
-            trampoline.pool(), symbol_namespace_, symbol_, type)));
+        trampoline.environment().ptr()->Lookup(symbol_namespace_, symbol_,
+                                               type)));
   }
 };
 

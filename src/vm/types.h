@@ -39,7 +39,7 @@ const Identifier& IdentifierAuto();
 const Identifier& IdentifierInclude();
 
 #define IDENTIFIER_CONSTANT(x) \
-  Identifier { NON_EMPTY_SINGLE_LINE_CONSTANT(x) }
+  vm::Identifier { NON_EMPTY_SINGLE_LINE_CONSTANT(x) }
 
 class ObjectType;
 

@@ -143,8 +143,8 @@ futures::Value<PossibleError> GenerateContents(
   static const vm::Namespace kEmptyNamespace;
   size_t depth = 3ul;
   if (std::optional<vm::Environment::LookupResult> depth_value =
-          target.environment()->Lookup(editor_state.gc_pool(), kEmptyNamespace,
-                                       kDepthSymbol, vm::types::Number{});
+          target.environment()->Lookup(kEmptyNamespace, kDepthSymbol,
+                                       vm::types::Number{});
       depth_value.has_value()) {
     FUTURES_ASSIGN_OR_RETURN(depth,
                              std::get<gc::Root<vm::Value>>(depth_value->value)

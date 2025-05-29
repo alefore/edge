@@ -125,8 +125,8 @@ futures::ValueOrError<language::gc::Root<Value>> Evaluate(
 
 // If a value of `original` type can be promoted implicitly to a value of
 // `desired` type, returns a function that executes the promotion.
-std::function<language::gc::Root<Value>(language::gc::Pool&,
-                                        language::gc::Root<Value>)>
-GetImplicitPromotion(Type original, Type desired);
+using ImplicitPromotionCallback =
+    std::function<language::gc::Root<Value>(language::gc::Root<Value>)>;
+ImplicitPromotionCallback GetImplicitPromotion(Type original, Type desired);
 }  // namespace afc::vm
 #endif
