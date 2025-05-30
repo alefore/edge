@@ -7,6 +7,7 @@
 #include <ranges>
 #include <set>
 #include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -132,6 +133,19 @@ auto MaterializeSet(auto&& view) {
 auto MaterializeUnorderedSet(auto&& view) {
   return Materialize<std::unordered_set<std::decay_t<decltype(*view.begin())>>>(
       std::move(view));
+}
+
+template <typename View>
+decltype(auto) MaterializeUnorderedMap(View&& view) {
+  using Pair = std::decay_t<decltype(*view.begin())>;
+  static_assert(std::is_same_v<Pair, std::pair<typename Pair::first_type,
+                                               typename Pair::second_type>>,
+                "View must contain std::pair<K, V> elements");
+
+  using MapKey = std::decay_t<typename Pair::first_type>;
+  using MapValue = std::decay_t<typename Pair::second_type>;
+  return Materialize<std::unordered_map<MapKey, MapValue>>(
+      std::forward<View>(view));
 }
 
 auto MaterializeList(auto&& view) {
