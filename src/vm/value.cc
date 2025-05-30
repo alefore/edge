@@ -113,7 +113,9 @@ bool Value::IsSymbol() const {
   return std::holds_alternative<types::Symbol>(type_);
 }
 bool Value::IsFunction() const {
-  return std::holds_alternative<types::Function>(type_);
+  if (!std::holds_alternative<types::Function>(type_)) return false;
+  CHECK(std::holds_alternative<Callback>(value_));
+  return true;
 }
 bool Value::IsObject() const {
   return std::holds_alternative<types::ObjectName>(type_);
