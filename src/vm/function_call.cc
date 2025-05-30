@@ -130,6 +130,7 @@ class FunctionCall : public Expression {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
+          DVLOG(6) << "Is function: " << callback.value->IsFunction();
           CHECK(callback.value.ptr()->IsFunction());
           return CaptureArgs(trampoline, args,
                              MakeNonNullShared<std::vector<gc::Root<Value>>>(),
@@ -148,9 +149,9 @@ class FunctionCall : public Expression {
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
              << " of " << args->size();
     if (values->size() == args->size()) {
-      DVLOG(4) << "No more parameters, performing function call.";
-      return callback.ptr()
-          ->RunFunction(std::move(values.value()), trampoline)
+      DVLOG(4) << "No more parameters, performing function call: "
+               << callback.ptr().value();
+      return callback->RunFunction(std::move(values.value()), trampoline)
           .Transform([](gc::Root<Value> return_value) {
             DVLOG(5) << "Function call consumer gets value: "
                      << return_value.ptr().value();
