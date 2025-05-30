@@ -388,6 +388,24 @@ class Ptr {
     Protect();
   }
 
+  Ptr(const Ptr& other)
+      : value_(other.value_), object_metadata_(other.object_metadata_) {
+    Protect();
+  }
+
+  Ptr(Ptr&& other)
+      : value_(std::move(other.value_)),
+        object_metadata_(std::move(other.object_metadata_)) {
+    Protect();
+  }
+
+  Ptr& operator=(const Ptr& other) {
+    value_ = other.value_;
+    object_metadata_ = other.object_metadata_;
+    Protect();
+    return *this;
+  }
+
   template <typename U>
   Ptr<T>& operator=(const Ptr<U>& other) {
     value_ = other.value_;
