@@ -66,12 +66,9 @@ void EnvironmentIdentifierTable::erase(const Type& type) { table_.erase(type); }
 
 void EnvironmentIdentifierTable::clear() { table_.clear(); }
 
-// TODO(2025-05-29, trivial): Declare container::MaterializeUnorderedMap and use
-// it here.
 std::unordered_map<Type, std::variant<UninitializedValue, gc::Root<Value>>>
 EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
-  return container::Materialize<std::unordered_map<
-      Type, std::variant<UninitializedValue, gc::Root<Value>>>>(
+  return container::MaterializeUnorderedMap(
       table_ |
       std::views::transform([](const std::pair<const Type&,
                                                std::variant<UninitializedValue,
