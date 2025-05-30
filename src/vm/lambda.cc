@@ -151,13 +151,11 @@ std::unique_ptr<UserFunction> UserFunction::New(
 
   if (name.has_value()) {
     output->name = name.value();
-    compilation.environment.ptr()->Define(
-        name.value(), Value::New(compilation.pool, output->type));
+    compilation.environment->DefineUninitialized(name.value(), output->type);
   }
   compilation.environment = Environment::New(compilation.environment.ptr());
   for (const std::pair<Type, Identifier>& arg : *args)
-    compilation.environment.ptr()->Define(
-        arg.second, Value::New(compilation.pool, arg.first));
+    compilation.environment->DefineUninitialized(arg.second, arg.first);
   return output;
 }
 
