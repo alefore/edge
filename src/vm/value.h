@@ -30,6 +30,7 @@ class Value {
     friend Value;
   };
 
+  // TODO(2025-05-30, trivial): We could remove this? Nothing seems to use it.
   language::gc::Pool& pool_;
 
   Type type_;
@@ -47,6 +48,10 @@ class Value {
  public:
   explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t);
 
+  // TODO(2025-05-30, trivial?): This should be deleted. Make it impossible
+  // to build uninitialized objects. The other static factory methods should
+  // call a constructor that receives the values for `value_` and
+  // `expand_callback_` (and `pool_` and `type_`).
   static language::gc::Root<Value> New(language::gc::Pool& pool, const Type&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
