@@ -30,19 +30,51 @@ class Namespace
 
 struct UninitializedValue {};
 
+class Environment;
+
+// TODO(2025-05-28, trivial): Wrap table_ in a `Protected<>` block.
+class EnvironmentIdentifierTable {
+  std::unordered_map<Type,
+                     std::variant<UninitializedValue, language::gc::Ptr<Value>>>
+      table_;
+
+ public:
+  struct ConstructorAccessTag {
+   private:
+    explicit ConstructorAccessTag() = default;
+    friend Environment;
+  };
+
+  EnvironmentIdentifierTable(ConstructorAccessTag);
+  EnvironmentIdentifierTable(const EnvironmentIdentifierTable&) = delete;
+  EnvironmentIdentifierTable(EnvironmentIdentifierTable&&) = delete;
+
+  void insert_or_assign(
+      const Type& type,
+      std::variant<UninitializedValue, language::gc::Ptr<Value>> value);
+  void erase(const Type& type);
+  void clear();
+
+  std::unordered_map<
+      Type, std::variant<UninitializedValue, language::gc::Root<Value>>>
+  GetMapTypeVariantRootValue() const;
+
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const;
+};
+
 class Environment {
   struct ConstructorAccessTag {};
 
   struct Data {
-    std::map<Identifier,
-             std::unordered_map<Type, std::variant<UninitializedValue,
-                                                   language::gc::Ptr<Value>>>>
-        table;
+    std::map<Identifier, language::gc::Ptr<EnvironmentIdentifierTable>> table;
 
     std::map<Identifier, language::gc::Ptr<Environment>> namespaces;
   };
 
   std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
+
+  language::gc::Pool& pool_;
 
   concurrent::Protected<Data> data_;
 
@@ -60,7 +92,7 @@ class Environment {
   static language::gc::Root<Environment> New(
       language::gc::Ptr<Environment> parent_environment);
 
-  explicit Environment(ConstructorAccessTag);
+  explicit Environment(ConstructorAccessTag, language::gc::Pool& pool);
   explicit Environment(ConstructorAccessTag,
                        language::gc::Ptr<Environment> parent_environment);
 
@@ -123,6 +155,10 @@ class Environment {
   Expand() const;
 
  private:
+  static EnvironmentIdentifierTable& GetOrCreateTable(language::gc::Pool& pool,
+                                                      Data& data,
+                                                      const Identifier& symbol);
+
   void PolyLookup(const Namespace& symbol_namespace, const Identifier& symbol,
                   LookupResult::VariableScope variable_scope,
                   std::vector<LookupResult>& output) const;

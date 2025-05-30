@@ -49,6 +49,64 @@ const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<Protected<std::set<int>>>>>::object_type_name =
     types::ObjectName{Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SetInt")}};
 
+EnvironmentIdentifierTable::EnvironmentIdentifierTable(ConstructorAccessTag) {}
+
+void EnvironmentIdentifierTable::insert_or_assign(
+    const Type& type, std::variant<UninitializedValue, gc::Ptr<Value>> value) {
+  std::visit(overload{[&type](const gc::Ptr<Value>& ptr_value) {
+                        CHECK(ptr_value->type() == type);
+                        DVLOG(6) << "Inserting: " << ptr_value.value();
+                      },
+                      [](UninitializedValue) {}},
+             value);
+  table_.insert_or_assign(type, std::move(value));
+}
+
+void EnvironmentIdentifierTable::erase(const Type& type) { table_.erase(type); }
+
+void EnvironmentIdentifierTable::clear() { table_.clear(); }
+
+// TODO(2025-05-29, trivial): Declare container::MaterializeUnorderedMap and use
+// it here.
+std::unordered_map<Type, std::variant<UninitializedValue, gc::Root<Value>>>
+EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
+  return container::Materialize<std::unordered_map<
+      Type, std::variant<UninitializedValue, gc::Root<Value>>>>(
+      table_ |
+      std::views::transform([](const std::pair<const Type&,
+                                               std::variant<UninitializedValue,
+                                                            gc::Ptr<Value>>>&
+                                   entry) {
+        return std::make_pair(
+            entry.first,
+            std::visit(
+                overload{
+                    [](const gc::Ptr<Value>& value)
+                        -> std::variant<UninitializedValue, gc::Root<Value>> {
+                      return value.ToRoot();
+                    },
+                    [](UninitializedValue)
+                        -> std::variant<UninitializedValue, gc::Root<Value>> {
+                      return UninitializedValue{};
+                    }},
+                entry.second));
+      }));
+}
+
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
+EnvironmentIdentifierTable::Expand() const {
+  return container::MaterializeVector(
+      table_ | std::views::values |
+      std::views::filter(
+          [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
+            return std::holds_alternative<gc::Ptr<Value>>(entry);
+          }) |
+      std::views::transform(
+          [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
+            return std::get<gc::Ptr<Value>>(entry).object_metadata();
+          }));
+}
+
 // TODO(easy, 2022-12-03): Get rid of this? Now that we have GC, shouldn't be
 // needed.
 void Environment::Clear() {
@@ -56,8 +114,7 @@ void Environment::Clear() {
   data_.lock([](Data& data) { data.table.clear(); });
 }
 
-std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
-    const {
+std::optional<gc::Ptr<Environment>> Environment::parent_environment() const {
   return parent_environment_;
 }
 
@@ -91,23 +148,24 @@ const Type* Environment::LookupType(const Identifier& symbol) const {
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
-/* static */ language::gc::Root<Environment> Environment::New(
-    language::gc::Pool& pool) {
-  return pool.NewRoot(MakeNonNullUnique<Environment>(ConstructorAccessTag()));
+/* static */ gc::Root<Environment> Environment::New(gc::Pool& pool) {
+  return pool.NewRoot(
+      MakeNonNullUnique<Environment>(ConstructorAccessTag{}, pool));
 }
 
-/* static */ language::gc::Root<Environment> Environment::New(
-    language::gc::Ptr<Environment> parent_environment) {
+/* static */ gc::Root<Environment> Environment::New(
+    gc::Ptr<Environment> parent_environment) {
   gc::Pool& pool = parent_environment.pool();
   return pool.NewRoot(MakeNonNullUnique<Environment>(
       ConstructorAccessTag(), std::move(parent_environment)));
 }
 
-Environment::Environment(ConstructorAccessTag) {}
+Environment::Environment(ConstructorAccessTag, gc::Pool& pool) : pool_(pool) {}
 
 Environment::Environment(ConstructorAccessTag,
                          gc::Ptr<Environment> parent_environment)
-    : parent_environment_(std::move(parent_environment)) {}
+    : pool_(parent_environment.pool()),
+      parent_environment_(std::move(parent_environment)) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Ptr<Environment> parent, Identifier name) {
@@ -163,6 +221,7 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 std::optional<Environment::LookupResult> Environment::Lookup(
     const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
+  VLOG(5) << "Lookup: " << symbol;
   for (LookupResult lookup_result : PolyLookup(symbol_namespace, symbol))
     if (gc::Root<Value>* root_value =
             std::get_if<gc::Root<Value>>(&lookup_result.value);
@@ -193,30 +252,23 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
                              std::vector<LookupResult>& output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
-    environment->data_.lock([&output, &symbol,
-                             variable_scope](const Data& data) {
-      if (auto it = data.table.find(symbol); it != data.table.end()) {
-        auto view = it->second |
-                    std::views::transform([variable_scope](const auto& entry) {
-                      return LookupResult{
-                          .scope = variable_scope,
-                          .type = entry.first,
-                          .value = std::visit(
-                              overload{[](const gc::Ptr<Value>& value)
-                                           -> std::variant<UninitializedValue,
-                                                           gc::Root<Value>> {
-                                         return value.ToRoot();
-                                       },
-                                       [](UninitializedValue)
-                                           -> std::variant<UninitializedValue,
-                                                           gc::Root<Value>> {
-                                         return UninitializedValue{};
-                                       }},
-                              entry.second)};
-                    });
-        output.insert(output.end(), view.begin(), view.end());
-      }
-    });
+    environment->data_.lock(
+        [&output, &symbol, variable_scope](const Data& data) {
+          if (auto it = data.table.find(symbol); it != data.table.end()) {
+            std::ranges::copy(
+                it->second->GetMapTypeVariantRootValue() |
+                    std::views::transform(
+                        [variable_scope](
+                            std::pair<Type, std::variant<UninitializedValue,
+                                                         gc::Root<Value>>>
+                                entry) {
+                          return LookupResult{.scope = variable_scope,
+                                              .type = std::move(entry.first),
+                                              .value = std::move(entry.second)};
+                        }),
+                std::back_inserter(output));
+          }
+        });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
@@ -236,16 +288,16 @@ void Environment::CaseInsensitiveLookup(
       for (auto& item : data.table)
         if (LowerCase(item.first.read().read()) == lower_case_symbol)
           std::ranges::copy(
-              item.second | std::views::values |
+              item.second->GetMapTypeVariantRootValue() | std::views::values |
                   std::views::filter(
-                      [](const std::variant<UninitializedValue, gc::Ptr<Value>>&
-                             value) {
-                        return std::holds_alternative<gc::Ptr<Value>>(value);
+                      [](const std::variant<UninitializedValue,
+                                            gc::Root<Value>>& value) {
+                        return std::holds_alternative<gc::Root<Value>>(value);
                       }) |
                   std::views::transform(
-                      [](const std::variant<UninitializedValue, gc::Ptr<Value>>&
+                      [](std::variant<UninitializedValue, gc::Root<Value>>
                              value) {
-                        return std::get<gc::Ptr<Value>>(value).ToRoot();
+                        return std::get<gc::Root<Value>>(std::move(value));
                       }),
               std::back_inserter(*output));
     });
@@ -259,27 +311,31 @@ void Environment::CaseInsensitiveLookup(
 
 void Environment::DefineUninitialized(const Identifier& symbol,
                                       const Type& type) {
-  data_.lock([&symbol, &type](Data& data) {
-    data.table[symbol].insert_or_assign(type, UninitializedValue{});
+  data_.lock([&pool = pool_, &symbol, &type](Data& data) {
+    GetOrCreateTable(pool, data, symbol)
+        .insert_or_assign(type, UninitializedValue{});
   });
 }
 
 void Environment::Define(const Identifier& symbol, gc::Root<Value> value) {
-  Type type = value.ptr()->type();
-  data_.lock([&](Data& data) {
-    data.table[symbol].insert_or_assign(type, value.ptr());
+  data_.lock([&pool = pool_, &symbol, &value](Data& data) {
+    DVLOG(6) << symbol << ": Define";
+    DVLOG(7) << symbol << ": Define with value: " << value.ptr().value();
+    GetOrCreateTable(pool, data, symbol)
+        .insert_or_assign(value->type(), value.ptr());
   });
 }
 
 void Environment::Assign(const Identifier& symbol, gc::Root<Value> value) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end()) {
-      it->second.insert_or_assign(value.ptr()->type(), value.ptr());
+      it->second->insert_or_assign(value->type(), value.ptr());
     } else {
-      // TODO: Show the symbol.
       CHECK(parent_environment_.has_value())
           << "Environment::parent_environment_ is nullptr while trying to "
-             "assign a new value to a symbol `...`. This likely means that the "
+             "assign a new value to a symbol `"
+          << symbol
+          << "`. This likely means that the "
              "symbol is undefined (which the caller should have validated as "
              "part of the compilation process).";
       (*parent_environment_)->Assign(symbol, std::move(value));
@@ -290,7 +346,7 @@ void Environment::Assign(const Identifier& symbol, gc::Root<Value> value) {
 void Environment::Remove(const Identifier& symbol, Type type) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end())
-      it->second.erase(type);
+      it->second->erase(type);
   });
 }
 
@@ -320,33 +376,53 @@ void Environment::ForEachNonRecursive(
         callback) const {
   data_.lock([&](const Data& data) {
     for (const auto& symbol_entry : data.table)
-      for (const std::variant<UninitializedValue, gc::Ptr<Value>>& value :
-           symbol_entry.second | std::views::values) {
-        VLOG(5) << "ForEachNonRecursive: Running callback on: "
-                << symbol_entry.first;
-        callback(symbol_entry.first, value);
-      }
+      std::ranges::for_each(
+          symbol_entry.second->GetMapTypeVariantRootValue() |
+              std::views::values,
+          [&callback, &identifier = symbol_entry.first](
+              std::variant<UninitializedValue, gc::Root<Value>> value) {
+            VLOG(5) << "ForEachNonRecursive: Running callback on: "
+                    << identifier;
+            callback(identifier,
+                     std::visit(overload{[](gc::Root<Value> root)
+                                             -> std::variant<UninitializedValue,
+                                                             gc::Ptr<Value>> {
+                                           return root.ptr();
+                                         },
+                                         [](UninitializedValue)
+                                             -> std::variant<UninitializedValue,
+                                                             gc::Ptr<Value>> {
+                                           return UninitializedValue{};
+                                         }},
+                                value));
+          });
   });
 }
 
-std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-Environment::Expand() const {
-  std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+EnvironmentIdentifierTable& Environment::GetOrCreateTable(
+    gc::Pool& pool, Environment::Data& data, const Identifier& symbol) {
+  if (auto it = data.table.find(symbol); it != data.table.end())
+    return it->second.value();
+  return data.table
+      .insert(std::make_pair(
+          symbol,
+          pool.NewRoot(MakeNonNullUnique<EnvironmentIdentifierTable>(
+                           EnvironmentIdentifierTable::ConstructorAccessTag{}))
+              .ptr()))
+      .first->second.value();
+}
+
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Environment::Expand()
+    const {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   if (parent_environment().has_value())
     output.push_back(parent_environment()->object_metadata());
-  ForEachNonRecursive(
-      [&output](const Identifier&,
-                const std::variant<UninitializedValue, gc::Ptr<Value>>&
-                    value_optional) {
-        std::visit(overload{[&output](const gc::Ptr<Value>& value) {
-                              output.push_back(value.object_metadata());
-                            },
-                            [](UninitializedValue) {}},
-                   value_optional);
-      });
   data_.lock([&output](const Data& data) {
     std::ranges::copy(
         data.namespaces | std::views::values | gc::view::ObjectMetadata,
+        std::back_inserter(output));
+    std::ranges::copy(
+        data.table | std::views::values | gc::view::ObjectMetadata,
         std::back_inserter(output));
   });
 
@@ -392,16 +468,16 @@ const bool environment_tests_registration = tests::Register(
                parent->ptr()->DefineUninitialized(id, types::String{});
                parent->ptr()->Assign(
                    id, Value::NewString(pool, LazyString{L"bar"}));
-               CHECK_EQ(pool.count_objects(), 2ul);
+               CHECK_EQ(pool.count_objects(), 3ul);
 
                std::optional<gc::Root<Environment>> child =
                    Environment::New(parent->ptr());
-               CHECK_EQ(pool.count_objects(), 3ul);
+               CHECK_EQ(pool.count_objects(), 4ul);
 
                parent = std::nullopt;
                pool.FullCollect();
                pool.BlockUntilDone();
-               CHECK_EQ(pool.count_objects(), 3ul);
+               CHECK_EQ(pool.count_objects(), 4ul);
 
                std::vector<Environment::LookupResult> output =
                    child->ptr()->PolyLookup(Namespace{}, id);
