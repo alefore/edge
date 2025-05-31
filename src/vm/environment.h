@@ -32,11 +32,10 @@ struct UninitializedValue {};
 
 class Environment;
 
-// TODO(2025-05-28, trivial): Wrap table_ in a `Protected<>` block.
 class EnvironmentIdentifierTable {
-  std::unordered_map<Type,
-                     std::variant<UninitializedValue, language::gc::Ptr<Value>>>
-      table_;
+  using Table = std::unordered_map<
+      Type, std::variant<UninitializedValue, language::gc::Ptr<Value>>>;
+  concurrent::Protected<Table> table_;
 
  public:
   struct ConstructorAccessTag {

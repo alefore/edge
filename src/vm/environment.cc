@@ -59,49 +59,59 @@ void EnvironmentIdentifierTable::insert_or_assign(
                       },
                       [](UninitializedValue) {}},
              value);
-  table_.insert_or_assign(type, std::move(value));
+  table_.lock([&type, &value](Table& table) {
+    table.insert_or_assign(type, std::move(value));
+  });
 }
 
-void EnvironmentIdentifierTable::erase(const Type& type) { table_.erase(type); }
+void EnvironmentIdentifierTable::erase(const Type& type) {
+  table_.lock([&type](Table& table) { table.erase(type); });
+}
 
-void EnvironmentIdentifierTable::clear() { table_.clear(); }
+void EnvironmentIdentifierTable::clear() {
+  table_.lock([](Table& table) { table.clear(); });
+}
 
 std::unordered_map<Type, std::variant<UninitializedValue, gc::Root<Value>>>
 EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
-  return container::MaterializeUnorderedMap(
-      table_ |
-      std::views::transform([](const std::pair<const Type&,
-                                               std::variant<UninitializedValue,
+  return table_.lock([](const Table& table) {
+    return container::MaterializeUnorderedMap(
+        table |
+        std::views::transform([](const std::pair<
+                                  const Type&, std::variant<UninitializedValue,
                                                             gc::Ptr<Value>>>&
-                                   entry) {
-        return std::make_pair(
-            entry.first,
-            std::visit(
-                overload{
-                    [](const gc::Ptr<Value>& value)
-                        -> std::variant<UninitializedValue, gc::Root<Value>> {
-                      return value.ToRoot();
-                    },
-                    [](UninitializedValue)
-                        -> std::variant<UninitializedValue, gc::Root<Value>> {
-                      return UninitializedValue{};
-                    }},
-                entry.second));
-      }));
+                                     entry) {
+          return std::make_pair(
+              entry.first,
+              std::visit(
+                  overload{
+                      [](const gc::Ptr<Value>& value)
+                          -> std::variant<UninitializedValue, gc::Root<Value>> {
+                        return value.ToRoot();
+                      },
+                      [](UninitializedValue)
+                          -> std::variant<UninitializedValue, gc::Root<Value>> {
+                        return UninitializedValue{};
+                      }},
+                  entry.second));
+        }));
+  });
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 EnvironmentIdentifierTable::Expand() const {
-  return container::MaterializeVector(
-      table_ | std::views::values |
-      std::views::filter(
-          [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
-            return std::holds_alternative<gc::Ptr<Value>>(entry);
-          }) |
-      std::views::transform(
-          [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
-            return std::get<gc::Ptr<Value>>(entry).object_metadata();
-          }));
+  return table_.lock([](const Table& table) {
+    return container::MaterializeVector(
+        table | std::views::values |
+        std::views::filter(
+            [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
+              return std::holds_alternative<gc::Ptr<Value>>(entry);
+            }) |
+        std::views::transform(
+            [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
+              return std::get<gc::Ptr<Value>>(entry).object_metadata();
+            }));
+  });
 }
 
 // TODO(easy, 2022-12-03): Get rid of this? Now that we have GC, shouldn't be
