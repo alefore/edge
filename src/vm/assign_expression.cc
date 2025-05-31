@@ -17,6 +17,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
+using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 
@@ -83,30 +84,24 @@ class AssignExpression : public Expression {
 };
 }  // namespace
 
-std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
-                                            Identifier type, Identifier symbol,
-                                            std::optional<Type> default_type) {
+ValueOrError<Type> DefineUninitializedVariable(
+    Environment& environment, Identifier type, Identifier symbol,
+    std::optional<Type> default_type) {
   Type type_def;
   if (type == IdentifierAuto()) {
-    if (default_type == std::nullopt) {
-      compilation.AddError(Error{LazyString{L"Unable to deduce type."}});
-      return std::nullopt;
-    }
+    if (default_type == std::nullopt)
+      return Error{LazyString{L"Unable to deduce type."}};
     type_def = default_type.value();
-  } else {
-    auto type_ptr = compilation.environment.ptr()->LookupType(type);
-    if (type_ptr == nullptr) {
-      compilation.AddError(
-          Error{LazyString{L"Unknown type: "} +
-                QuoteExpr(language::lazy_string::ToSingleLine(type)) +
-                LazyString{L" for symbol "} +
-                QuoteExpr(language::lazy_string::ToSingleLine(symbol)) +
-                LazyString{L"."}});
-      return std::nullopt;
-    }
+  } else if (auto type_ptr = environment.LookupType(type); type_ptr != nullptr)
     type_def = *type_ptr;
+  else {
+    return Error{LazyString{L"Unknown type: "} +
+                 QuoteExpr(language::lazy_string::ToSingleLine(type)) +
+                 LazyString{L" for symbol "} +
+                 QuoteExpr(language::lazy_string::ToSingleLine(symbol)) +
+                 LazyString{L"."}};
   }
-  compilation.environment.ptr()->DefineUninitialized(symbol, type_def);
+  environment.DefineUninitialized(symbol, type_def);
   return type_def;
 }
 
@@ -125,14 +120,18 @@ std::unique_ptr<Expression> NewDefineExpression(
     }
     default_type = *types.cbegin();
   }
-  std::optional<Type> vmtype =
-      NewDefineTypeExpression(compilation, type, symbol, default_type);
-  if (vmtype == std::nullopt) return nullptr;
-  if (!value->SupportsType(*vmtype)) {
+  ValueOrError<Type> vmtype = DefineUninitializedVariable(
+      compilation.environment.value(), type, symbol, default_type);
+  if (IsError(vmtype)) {
+    compilation.AddError(std::get<Error>(vmtype));
+    return nullptr;
+  }
+  if (!value->SupportsType(std::get<Type>(vmtype))) {
     compilation.AddError(
         Error{LazyString{L"Unable to assign a value to a variable of type "} +
-              ToQuotedSingleLine(*vmtype) + LazyString{L". Value types: "} +
-              TypesToString(value->Types()) + LazyString{L"."}});
+              ToQuotedSingleLine(std::get<Type>(vmtype)) +
+              LazyString{L". Value types: "} + TypesToString(value->Types()) +
+              LazyString{L"."}});
     return nullptr;
   }
   return std::make_unique<AssignExpression>(
@@ -186,5 +185,4 @@ std::unique_ptr<Expression> NewAssignExpression(
             return value->SupportsType(lookup_result.type);
           }));
 }
-
 }  // namespace afc::vm

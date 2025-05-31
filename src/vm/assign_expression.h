@@ -5,17 +5,19 @@
 #include <optional>
 #include <string>
 
+#include "src/language/error/value_or_error.h"
 #include "src/vm/types.h"
 
 namespace afc::vm {
 
 struct Compilation;
 class Expression;
+class Environment;
 
 // Declares a new variable of a given type.
-std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
-                                            Identifier type, Identifier symbol,
-                                            std::optional<Type> default_type);
+language::ValueOrError<Type> DefineUninitializedVariable(
+    Environment&, Identifier type, Identifier symbol,
+    std::optional<Type> default_type);
 
 // Declares a new variable of a given type and gives it an initial value.
 std::unique_ptr<Expression> NewDefineExpression(

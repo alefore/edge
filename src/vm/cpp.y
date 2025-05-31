@@ -241,17 +241,21 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
     OUT = nullptr;
   } else {
     CHECK(func->name.has_value());
-    std::optional<Type> result = NewDefineTypeExpression(
-        *compilation,
-        Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
-        *func->name, func->type);
-    if (result == std::nullopt) {
-      OUT = nullptr;
-      func->Abort(*compilation);
-    } else {
-      OUT = NewVoidExpression(compilation->pool).get_unique().release();
-      func->Done(*compilation);
-    }
+    std::visit(
+        overload{
+            [&](Type) {
+              OUT = NewVoidExpression(compilation->pool).get_unique().release();
+              func->Done(*compilation);
+            },
+            [&](Error error) {
+              compilation->AddError(error);
+              OUT = nullptr;
+              func->Abort(*compilation);
+            }},
+        DefineUninitializedVariable(
+            compilation->environment.value(),
+            Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
+            *func->name, func->type));
   }
 }
 
