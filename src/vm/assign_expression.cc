@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/language/gc_view.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/vm/compilation.h"
 #include "src/vm/environment.h"
@@ -16,6 +17,7 @@ namespace container = afc::language::container;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -111,33 +113,38 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (value == nullptr) return nullptr;
   std::optional<Type> default_type;
   if (type == IdentifierAuto()) {
-    auto types = value->Types();
-    if (types.size() != 1) {
+    if (auto types = value->Types(); types.size() == 1)
+      default_type = *types.cbegin();
+    else {
       compilation.AddError(
           Error{LazyString{L"Unable to deduce type for symbol: `"} +
                 ToLazyString(symbol) + LazyString{L"`."}});
       return nullptr;
     }
-    default_type = *types.cbegin();
   }
-  ValueOrError<Type> vmtype = DefineUninitializedVariable(
-      compilation.environment.value(), type, symbol, default_type);
-  if (IsError(vmtype)) {
-    compilation.AddError(std::get<Error>(vmtype));
-    return nullptr;
-  }
-  if (!value->SupportsType(std::get<Type>(vmtype))) {
-    compilation.AddError(
-        Error{LazyString{L"Unable to assign a value to a variable of type "} +
-              ToQuotedSingleLine(std::get<Type>(vmtype)) +
-              LazyString{L". Value types: "} + TypesToString(value->Types()) +
-              LazyString{L"."}});
-    return nullptr;
-  }
-  return std::make_unique<AssignExpression>(
-      AssignExpression::AssignmentType::kDefine, std::move(symbol),
-      PurityType{.writes_local_variables = true},
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+  return std::visit(
+      overload{
+          [&](Type final_type) -> std::unique_ptr<Expression> {
+            if (!value->SupportsType(final_type)) {
+              compilation.AddError(Error{
+                  LazyString{
+                      L"Unable to assign a value to a variable of type "} +
+                  ToQuotedSingleLine(final_type) +
+                  LazyString{L". Value types: "} +
+                  TypesToString(value->Types()) + LazyString{L"."}});
+              return nullptr;
+            }
+            return std::make_unique<AssignExpression>(
+                AssignExpression::AssignmentType::kDefine, std::move(symbol),
+                PurityType{.writes_local_variables = true},
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+          },
+          [&](Error error) -> std::unique_ptr<Expression> {
+            compilation.AddError(error);
+            return nullptr;
+          }},
+      DefineUninitializedVariable(compilation.environment.value(), type, symbol,
+                                  default_type));
 }
 
 std::unique_ptr<Expression> NewAssignExpression(
