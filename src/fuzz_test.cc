@@ -66,32 +66,33 @@ int main(int, char** argv) {
   std::cout << "Seed: " << seed << std::endl;
   srand(seed);
   auto audio_player = afc::infrastructure::audio::NewNullPlayer();
-  EditorState editor_state(CommandLineValues(), audio_player.value());
-  SendInput(&editor_state, L"i");
-  editor_state.ProcessInput({ControlChar::kEscape});
+  auto editor_state =
+      EditorState::New(CommandLineValues(), audio_player.value());
+  SendInput(&editor_state.value(), L"i");
+  editor_state->ProcessInput({ControlChar::kEscape});
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {
     LOG(INFO) << "Iteration: " << i;
     if (NextRandom() % 3 == 0) {
-      SendInput(&editor_state, std::to_wstring(1 + NextRandom() % 5));
+      SendInput(&editor_state.value(), std::to_wstring(1 + NextRandom() % 5));
     }
     unsigned int value = NextRandom();
     switch (value % 29) {
       case 0:
-        SendInput(&editor_state, L"h");
+        SendInput(&editor_state.value(), L"h");
         break;
 
       case 1:
-        SendInput(&editor_state, L"j");
+        SendInput(&editor_state.value(), L"j");
         break;
 
       case 2:
         VLOG(5) << "Command: k";
-        SendInput(&editor_state, L"k");
+        SendInput(&editor_state.value(), L"k");
         break;
 
       case 3:
         VLOG(5) << "Command: l";
-        SendInput(&editor_state, L"l");
+        SendInput(&editor_state.value(), L"l");
         break;
 
       case 4: {
@@ -99,130 +100,130 @@ int main(int, char** argv) {
             L" ",   L"{", L"}",    L"(",  L")", L"\n+",       L"\n-",
             L"\n@", L"*", L"blah", L"\n", L"a", L"1234567890"};
         auto s = strings[NextRandom() % strings.size()];
-        SendInput(&editor_state, L"i" + s);
+        SendInput(&editor_state.value(), L"i" + s);
         VLOG(5) << "String was: [" << s << "]";
-        editor_state.ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::kEscape});
       } break;
 
       case 5:
-        SendInput(&editor_state, L"d");
-        RandomModifiers(&editor_state);
-        SendInput(&editor_state, L"\n");
+        SendInput(&editor_state.value(), L"d");
+        RandomModifiers(&editor_state.value());
+        SendInput(&editor_state.value(), L"\n");
         break;
 
       case 6:
-        SendInput(&editor_state, L"u");
+        SendInput(&editor_state.value(), L"u");
         break;
 
       case 7:
-        SendInput(&editor_state, L".");
+        SendInput(&editor_state.value(), L".");
         break;
 
       case 8:
-        SendInput(&editor_state, L"p");
+        SendInput(&editor_state.value(), L"p");
         break;
 
       case 9:
-        SendInput(&editor_state, L"+");
+        SendInput(&editor_state.value(), L"+");
         break;
 
       case 10:
-        SendInput(&editor_state, L"-");
+        SendInput(&editor_state.value(), L"-");
         break;
 
       case 11:
-        SendInput(&editor_state, L"_");
+        SendInput(&editor_state.value(), L"_");
         break;
 
       case 12:
-        SendInput(&editor_state, L"=");
+        SendInput(&editor_state.value(), L"=");
         break;
 
       case 13: {
         int times = NextRandom() % 5;
         VLOG(5) << "Command: i BACKSPACES: " << times;
-        SendInput(&editor_state, L"i");
+        SendInput(&editor_state.value(), L"i");
         for (int j = 0; j < times; j++) {
-          editor_state.ProcessInput({ControlChar::kBackspace});
+          editor_state->ProcessInput({ControlChar::kBackspace});
         }
         VLOG(5) << "Escape.";
-        editor_state.ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::kEscape});
       } break;
 
       case 14:
-        SendInput(&editor_state, L"g");
+        SendInput(&editor_state.value(), L"g");
         break;
 
       case 15:
         VLOG(5) << "Command: ~";
-        SendInput(&editor_state, L"~");
-        RandomModifiers(&editor_state);
-        SendInput(&editor_state, L"\n");
+        SendInput(&editor_state.value(), L"~");
+        RandomModifiers(&editor_state.value());
+        SendInput(&editor_state.value(), L"\n");
         break;
 
       case 16:
-        SendInput(&editor_state, L"/blah.*5");
+        SendInput(&editor_state.value(), L"/blah.*5");
         break;
 
       case 17:
-        SendInput(&editor_state, L"\n");
+        SendInput(&editor_state.value(), L"\n");
         break;
 
       case 18:
-        SendInput(&editor_state, L"al");
+        SendInput(&editor_state.value(), L"al");
         break;
 
       case 19:
-        SendInput(&editor_state, L"b");
+        SendInput(&editor_state.value(), L"b");
         break;
 
       case 20:
-        SendInput(&editor_state, L"ar");
+        SendInput(&editor_state.value(), L"ar");
         break;
 
       case 21:
-        editor_state.ProcessInput({ControlChar::kEscape});
-        editor_state.ProcessInput({ControlChar::kEscape});
-        SendInput(&editor_state, L"afdate\n");
+        editor_state->ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::kEscape});
+        SendInput(&editor_state.value(), L"afdate\n");
         break;
 
       case 22:
-        editor_state.ProcessInput({ControlChar::kEscape});
-        editor_state.ProcessInput({ControlChar::kEscape});
-        SendInput(&editor_state, L"afcat\n");
+        editor_state->ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::kEscape});
+        SendInput(&editor_state.value(), L"afcat\n");
         break;
 
       case 23:
-        SendInput(&editor_state, L"ae\n");
+        SendInput(&editor_state.value(), L"ae\n");
         break;
 
       case 24:
-        SendInput(&editor_state, L"fa");
+        SendInput(&editor_state.value(), L"fa");
         break;
 
       case 25:
-        SendInput(&editor_state, L"f5");
+        SendInput(&editor_state.value(), L"f5");
         break;
 
       case 26:
-        SendInput(&editor_state, L"vf");
-        SendInput(&editor_state, L"erg");
+        SendInput(&editor_state.value(), L"vf");
+        SendInput(&editor_state.value(), L"erg");
         break;
 
       case 27:
-        SendInput(&editor_state, L"vp");
+        SendInput(&editor_state.value(), L"vp");
         break;
 
       case 28: {
         std::vector<std::wstring> parsers = {L"cpp", L"markdown", L"diff"};
         auto parser = parsers[NextRandom() % parsers.size()];
-        SendInput(&editor_state, L"avtree_parser\n" + parser + L"\n");
+        SendInput(&editor_state.value(), L"avtree_parser\n" + parser + L"\n");
       } break;
 
       default:
         CHECK(false) << "Ugh: " << value % 24;
     }
-    auto cursors = editor_state.current_buffer()->ptr()->active_cursors();
+    auto cursors = editor_state->current_buffer()->ptr()->active_cursors();
     if (cursors.size() > 50) {
       std::vector<LineColumn> positions;
       auto it = cursors.begin();
@@ -230,8 +231,8 @@ int main(int, char** argv) {
         positions.push_back(*it);
         ++it;
       }
-      editor_state.current_buffer()->ptr()->set_active_cursors({});
-      editor_state.current_buffer()->ptr()->set_active_cursors(positions);
+      editor_state->current_buffer()->ptr()->set_active_cursors({});
+      editor_state->current_buffer()->ptr()->set_active_cursors(positions);
     }
   }
 

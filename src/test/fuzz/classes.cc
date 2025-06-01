@@ -21,8 +21,11 @@ extern "C" {
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/tests/fuzz.h"
 
+using afc::language::NonNull;
 using afc::language::text::MutableLineSequence;
+
 using namespace afc::editor;
+
 namespace gc = afc::language::gc;
 namespace fuzz = afc::tests::fuzz;
 
@@ -34,10 +37,11 @@ int main(int argc, char** argv) {
   std::unique_ptr<fuzz::FuzzTestable> fuzz_testable;
   std::string class_name(argv[1]);
   auto audio_player = afc::infrastructure::audio::NewNullPlayer();
-  EditorState editor(CommandLineValues(), audio_player.value());
+  NonNull<std::unique_ptr<EditorState>> editor =
+      EditorState::New(CommandLineValues(), audio_player.value());
   OpenBuffer::Options options{
-      .editor = editor,
-      .name = editor.buffer_registry().NewAnonymousBufferName()};
+      .editor = editor.value(),
+      .name = editor->buffer_registry().NewAnonymousBufferName()};
   gc::Root<OpenBuffer> buffer = OpenBuffer::New(options);
   if (class_name == "MutableLineSequence") {
     fuzz_testable = std::make_unique<MutableLineSequence>();
