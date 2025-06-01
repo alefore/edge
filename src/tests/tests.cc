@@ -57,7 +57,8 @@ void Run(std::vector<std::wstring> tests_filter) {
     for (const auto& test : tests) {
       if (tests_filter_set.empty() ||
           tests_filter_set.find(name + L"." + test.name) !=
-              tests_filter_set.end()) {
+              tests_filter_set.end() ||
+          tests_filter_set.find(name) != tests_filter_set.end()) {
         executions++;
         if (!printed_group_name)
           std::cerr << "## Group: " << name << std::endl << std::endl;
