@@ -34,6 +34,8 @@ struct Compilation {
 
   std::vector<language::Error> errors_ = {};
 
+  std::vector<StackFrameHeader> stack_headers_ = {};
+
  public:
   size_t numbers_precision = 5;
 
@@ -57,6 +59,11 @@ struct Compilation {
   Compilation& operator=(const Compilation&) = delete;
 
   void AddError(language::Error error);
+
+  void PushStackFrameHeader(StackFrameHeader);
+  void PopStackFrameHeader();
+  std::optional<std::reference_wrapper<StackFrameHeader>>
+  CurrentStackFrameHeader();
 
   template <typename T>
   language::ValueOrError<T> RegisterErrors(language::ValueOrError<T> value) {

@@ -84,6 +84,45 @@ class AssignExpression : public Expression {
             });
   }
 };
+
+class StackFrameAssign : public Expression {
+  const size_t index_;
+  NonNull<std::shared_ptr<Expression>> value_expression_;
+
+ public:
+  StackFrameAssign(size_t index,
+                   NonNull<std::unique_ptr<Expression>> value_expression)
+      : index_(index), value_expression_(std::move(value_expression)) {}
+
+  std::vector<Type> Types() override { return value_expression_->Types(); }
+  std::unordered_set<Type> ReturnTypes() const override {
+    return value_expression_->ReturnTypes();
+  }
+
+  PurityType purity() override {
+    return PurityType{.writes_local_variables = true};
+  }
+
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
+                                                   const Type& type) override {
+    return trampoline.Bounce(value_expression_, type)
+        .Transform([&trampoline, index = index_](EvaluationOutput value_output)
+                       -> language::ValueOrError<EvaluationOutput> {
+          switch (value_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+              return Success(std::move(value_output));
+            case EvaluationOutput::OutputType::kContinue:
+              trampoline.stack().current_frame().get(index) =
+                  value_output.value.ptr();
+              return Success(
+                  EvaluationOutput::New(std::move(value_output.value)));
+          }
+          language::Error error{LazyString{L"Unhandled OutputType case."}};
+          LOG(FATAL) << error;
+          return error;
+        });
+  }
+};
 }  // namespace
 
 ValueOrError<Type> DefineUninitializedVariable(
@@ -151,6 +190,26 @@ std::unique_ptr<Expression> NewAssignExpression(
     Compilation& compilation, Identifier symbol,
     std::unique_ptr<Expression> value) {
   if (value == nullptr) return nullptr;
+
+  if (std::optional<std::reference_wrapper<StackFrameHeader>> header =
+          compilation.CurrentStackFrameHeader();
+      header.has_value())
+    if (std::optional<std::pair<size_t, Type>> argument_data =
+            header->get().Find(symbol);
+        argument_data.has_value()) {
+      if (value->SupportsType(argument_data->second)) {
+        return std::make_unique<StackFrameAssign>(
+            argument_data->first,
+            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+      } else {
+        compilation.AddError(Error{
+            LazyString{L"Unable to assign a value to an argument of type "} +
+            ToQuotedSingleLine(argument_data->second) +
+            LazyString{L". Type found: "} + TypesToString(value->Types())});
+        return nullptr;
+      }
+    }
+
   static const vm::Namespace kEmptyNamespace;
   std::vector<Environment::LookupResult> variables =
       compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol);

@@ -12,6 +12,7 @@
 #include "src/language/gc.h"
 #include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
+#include "src/vm/stack.h"
 #include "src/vm/types.h"
 
 namespace afc::vm {
@@ -20,6 +21,20 @@ struct EvaluationOutput;
 class Expression;
 
 class Trampoline {
+  // We keep it by pointer (rather than by ref) to enable the assignment
+  // operator.
+  language::NonNull<language::gc::Pool*> pool_;
+  std::list<std::wstring> namespace_;
+  // Remove `environment_`. Expressions shouldn't be accessing the environment
+  // at runtime but, instead, should hold pointers that they obtain during
+  // compilation. Of course that requires us to significantly extend
+  // Environment.
+  language::gc::Root<Environment> environment_;
+  language::gc::Root<Stack> stack_;
+
+  std::function<void(language::OnceOnlyFunction<void()>)> yield_callback_;
+  size_t jumps_ = 0;
+
  public:
   struct Options {
     language::gc::Pool& pool;
@@ -32,6 +47,8 @@ class Trampoline {
   void SetEnvironment(language::gc::Root<Environment> environment);
   const language::gc::Root<Environment>& environment() const;
 
+  Stack& stack();
+
   // Expression can be deleted as soon as this returns (even before a value is
   // given to the returned future).
   //
@@ -42,16 +59,6 @@ class Trampoline {
       Type expression_type);
 
   language::gc::Pool& pool() const;
-
- private:
-  // We keep it by pointer (rather than by ref) to enable the assignment
-  // operator.
-  language::NonNull<language::gc::Pool*> pool_;
-  std::list<std::wstring> namespace_;
-  language::gc::Root<Environment> environment_;
-
-  std::function<void(language::OnceOnlyFunction<void()>)> yield_callback_;
-  size_t jumps_ = 0;
 };
 
 class Expression {

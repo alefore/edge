@@ -64,6 +64,28 @@ class VariableLookup : public Expression {
   }
 };
 
+class StackFrameLookup : public Expression {
+  const size_t index_;
+  const Type type_;
+  const Identifier identifier_;
+
+ public:
+  StackFrameLookup(size_t index, Type type, Identifier identifier)
+      : index_(index), type_(type), identifier_(identifier) {}
+  std::vector<Type> Types() override { return {type_}; }
+  std::unordered_set<Type> ReturnTypes() const override { return {}; }
+
+  PurityType purity() override { return PurityType{}; }
+
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
+                                                   const Type& type) override {
+    TRACK_OPERATION(vm_StackFrameLookup_Evaluate);
+    CHECK(type == type_);
+    return futures::Past(Success(EvaluationOutput::New(
+        trampoline.stack().current_frame().get(index_).ToRoot())));
+  }
+};
+
 }  // namespace
 
 std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
@@ -74,6 +96,15 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
   symbols.pop_back();
   Namespace symbol_namespace(
       std::vector<Identifier>(symbols.begin(), symbols.end()));
+
+  if (std::optional<std::reference_wrapper<StackFrameHeader>> header =
+          compilation.CurrentStackFrameHeader();
+      header.has_value() && symbol_namespace.empty())
+    if (std::optional<std::pair<size_t, Type>> argument_data =
+            header->get().Find(symbol);
+        argument_data.has_value())
+      return std::make_unique<StackFrameLookup>(argument_data->first,
+                                                argument_data->second, symbol);
 
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know

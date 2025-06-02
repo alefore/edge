@@ -409,6 +409,8 @@ src/vm/filter_similar_names.cc \
 src/vm/filter_similar_names.h \
 src/vm/if_expression.cc \
 src/vm/return_expression.cc \
+src/vm/stack.cc \
+src/vm/stack.h \
 src/vm/types_promotion_tests.cc \
 src/vm/while_expression.cc \
 src/vm/constant_expression.cc \

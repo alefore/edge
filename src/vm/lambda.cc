@@ -4,6 +4,7 @@
 
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc_view.h"
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
@@ -88,21 +89,27 @@ class LambdaExpression : public Expression {
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
+          auto original_trampoline = trampoline;
+          trampoline.stack().Push(
+              StackFrame::New(trampoline.pool(), container::MaterializeVector(
+                                                     args | gc::view::Ptr))
+                  .ptr());
           gc::Root<Environment> environment =
               Environment::New(parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
             environment.ptr()->Define(argument_names->at(i),
                                       std::move(args.at(i)));
           }
-          auto original_trampoline = trampoline;
           trampoline.SetEnvironment(environment);
           return trampoline.Bounce(body, body->Types()[0])
               .Transform(
                   [original_trampoline, &trampoline, body,
                    promotion_function](EvaluationOutput body_output) mutable {
+                    gc::Root<Value> promoted_value =
+                        promotion_function(std::move(body_output.value));
+                    trampoline.stack().Pop();
                     trampoline = std::move(original_trampoline);
-                    return Success(
-                        promotion_function(std::move(body_output.value)));
+                    return Success(promoted_value);
                   });
         },
         [parent_environment] {
@@ -139,24 +146,33 @@ std::unique_ptr<UserFunction> UserFunction::New(
           std::views::transform(
               [](const std::pair<Type, Identifier>& a) { return a.first; }))};
 
-  auto output = std::make_unique<UserFunction>(UserFunction{
-      .name = std::nullopt,
-      .type = std::move(function_type),
-      .argument_names = MakeNonNullShared<std::vector<Identifier>>(
+  return std::make_unique<UserFunction>(compilation, name,
+                                        std::move(function_type), *args);
+}
+
+UserFunction::UserFunction(Compilation& compilation,
+                           std::optional<Identifier> name, Type type,
+                           std::vector<std::pair<Type, Identifier>> args)
+    : compilation_(compilation),
+      name_(std::move(name)),
+      type_(type),
+      argument_names_(MakeNonNullShared<std::vector<Identifier>>(
           container::MaterializeVector(
-              *args |
+              args |
               std::views::transform([](const std::pair<Type, Identifier>& a) {
                 return a.second;
-              })))});
-
-  if (name.has_value()) {
-    output->name = name.value();
-    compilation.environment->DefineUninitialized(name.value(), output->type);
-  }
-  compilation.environment = Environment::New(compilation.environment.ptr());
-  for (const std::pair<Type, Identifier>& arg : *args)
+              })))) {
+  if (name_.has_value())
+    compilation_.environment->DefineUninitialized(name_.value(), type_);
+  compilation_.environment = Environment::New(compilation_.environment.ptr());
+  for (const std::pair<Type, Identifier>& arg : args)
     compilation.environment->DefineUninitialized(arg.second, arg.first);
-  return output;
+  compilation.PushStackFrameHeader(
+      StackFrameHeader{container::MaterializeVector(
+          args |
+          std::views::transform([](const std::pair<Type, Identifier>& data) {
+            return std::pair{data.second, data.first};
+          }))});
 }
 
 gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
@@ -168,40 +184,34 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
 }
 
 ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
-    Compilation& compilation, NonNull<std::unique_ptr<Expression>> body) {
+    NonNull<std::unique_ptr<Expression>> body) {
   DECLARE_OR_RETURN(
       NonNull<std::unique_ptr<LambdaExpression>> expression,
-      LambdaExpression::New(std::move(type), std::move(argument_names),
-                            std::move(body)));
-  gc::Root<Environment> environment = compilation.environment;
-  compilation.environment = GetOrCreateParentEnvironment(compilation);
-  return expression->BuildValue(compilation.pool, std::move(environment));
+      LambdaExpression::New(type_, argument_names_, std::move(body)));
+  return expression->BuildValue(compilation_.pool, compilation_.environment);
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>>
-UserFunction::BuildExpression(Compilation& compilation,
-                              NonNull<std::unique_ptr<Expression>> body) {
-  // We ignore the environment used during the compilation. Instead, each time
-  // the expression is evaluated, it will use the environment from the
-  // trampoline, correctly receiving the actual values in that environment.
-  compilation.environment = GetOrCreateParentEnvironment(compilation);
+UserFunction::BuildExpression(NonNull<std::unique_ptr<Expression>> body) {
   // We can't just return the result of LambdaExpression::New; that's a
   // ValueOrError<LambdaExpression>. We need to explicitly convert it to a
   // ValueOrError<Expression>.
   DECLARE_OR_RETURN(
       NonNull<std::unique_ptr<LambdaExpression>> expression,
-      LambdaExpression::New(std::move(type), std::move(argument_names),
-                            std::move(body)));
+      LambdaExpression::New(type_, argument_names_, std::move(body)));
   return expression;
 }
 
-void UserFunction::Abort(Compilation& compilation) {
-  Done(compilation);
-  if (name.has_value())
-    compilation.environment.ptr()->Remove(name.value(), type);
+void UserFunction::Abort() {
+  if (name_.has_value())
+    compilation_.environment.ptr()->Remove(name_.value(), type_);
 }
 
-void UserFunction::Done(Compilation& compilation) {
-  compilation.environment = GetOrCreateParentEnvironment(compilation);
+const std::optional<Identifier>& UserFunction::name() const { return name_; }
+const Type& UserFunction::type() const { return type_; }
+
+UserFunction::~UserFunction() {
+  compilation_.environment = GetOrCreateParentEnvironment(compilation_);
+  compilation_.PopStackFrameHeader();
 }
 }  // namespace afc::vm

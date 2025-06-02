@@ -6,6 +6,7 @@
 
 #include "src/language/container.h"
 #include "src/language/error/view.h"
+#include "src/language/gc_view.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -151,10 +152,16 @@ class FunctionCall : public Expression {
     if (values->size() == args->size()) {
       DVLOG(4) << "No more parameters, performing function call: "
                << callback.ptr().value();
+      trampoline.stack().Push(
+          StackFrame::New(
+              trampoline.pool(),
+              container::MaterializeVector(values.value() | gc::view::Ptr))
+              .ptr());
       return callback->RunFunction(std::move(values.value()), trampoline)
-          .Transform([](gc::Root<Value> return_value) {
+          .Transform([&trampoline](gc::Root<Value> return_value) {
             DVLOG(5) << "Function call consumer gets value: "
                      << return_value.ptr().value();
+            trampoline.stack().Pop();
             return futures::Past(
                 Success(EvaluationOutput::New(std::move(return_value))));
           });

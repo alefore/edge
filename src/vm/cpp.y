@@ -132,20 +132,17 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (func == nullptr) {
     // Pass.
   } else if (body == nullptr) {
-    // Compilation of the body failed. We should try to restore the environment.
-    func->Abort(*compilation);
+    func->Abort();
   } else {
     std::visit(
         overload{
-            IgnoreErrors{},
+            [&](Error) { func->Abort(); },
             [&](gc::Root<Value> value) {
-              CHECK(func->name.has_value());
-              compilation->environment.ptr()->Define(
-                  Identifier(func->name.value()), std::move(value));
+              compilation->environment->parent_environment().value()->Define(
+                  Identifier(func->name().value()), std::move(value));
               OUT = NewVoidExpression(compilation->pool).get_unique().release();
             }},
         compilation->RegisterErrors(func->BuildValue(
-            *compilation,
             NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body)))));
   }
 }
@@ -240,22 +237,20 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   if (func == nullptr) {
     OUT = nullptr;
   } else {
-    CHECK(func->name.has_value());
     std::visit(
         overload{
             [&](Type) {
               OUT = NewVoidExpression(compilation->pool).get_unique().release();
-              func->Done(*compilation);
             },
             [&](Error error) {
               compilation->AddError(error);
               OUT = nullptr;
-              func->Abort(*compilation);
+              func->Abort();
             }},
         DefineUninitializedVariable(
             compilation->environment.value(),
             Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
-            *func->name, func->type));
+            *func->name(), func->type()));
   }
 }
 
@@ -439,15 +434,15 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
   if (func == nullptr) {
     // Pass.
   } else if (body == nullptr) {
-    func->Abort(*compilation);
+    func->Abort();
   } else {
     std::visit(overload{IgnoreErrors{},
                         [&](NonNull<std::unique_ptr<Expression>> value) {
                           OUT = value.release().get();
                         }},
                compilation->RegisterErrors(func->BuildExpression(
-                   *compilation, NonNull<std::unique_ptr<Expression>>::Unsafe(
-                                     std::move(body)))));
+                   NonNull<std::unique_ptr<Expression>>::Unsafe(
+                       std::move(body)))));
   }
 }
 

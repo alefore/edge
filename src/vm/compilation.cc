@@ -16,6 +16,21 @@ Compilation::Compilation(gc::Pool& input_pool,
                          gc::Root<Environment> input_environment)
     : pool(input_pool), environment(std::move(input_environment)) {}
 
+void Compilation::PushStackFrameHeader(StackFrameHeader header) {
+  stack_headers_.push_back(std::move(header));
+}
+
+void Compilation::PopStackFrameHeader() {
+  CHECK(!stack_headers_.empty());
+  stack_headers_.pop_back();
+}
+
+std::optional<std::reference_wrapper<StackFrameHeader>>
+Compilation::CurrentStackFrameHeader() {
+  if (stack_headers_.empty()) return std::nullopt;
+  return std::ref(stack_headers_.back());
+}
+
 void Compilation::AddError(Error error) {
   LOG(INFO) << "Compilation error: " << error;
   LazyString prefix;

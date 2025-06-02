@@ -13,26 +13,37 @@ namespace afc::vm {
 // Temporary type used during compilation of a function expression. On `New`,
 // receives parameters from the function's declaration. These are used on
 // `Build` once the body of the expression becomes known.
-struct UserFunction {
+class UserFunction {
+ private:
+  Compilation& compilation_;
+  std::optional<Identifier> name_;
+  Type type_;
+  language::NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names_;
+
+ public:
   static std::unique_ptr<UserFunction> New(
       Compilation& compilation, Identifier return_type,
       std::optional<Identifier> name,
       std::unique_ptr<std::vector<std::pair<Type, Identifier>>> args);
 
+  UserFunction(Compilation& compilation, std::optional<Identifier> name,
+               Type type, std::vector<std::pair<Type, Identifier>> args);
+  ~UserFunction();
+
+  UserFunction(const UserFunction&) = delete;
+  UserFunction(UserFunction&&) = delete;
+
   language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-  BuildExpression(Compilation& compilation,
-                  language::NonNull<std::unique_ptr<Expression>> body);
+  BuildExpression(language::NonNull<std::unique_ptr<Expression>> body);
 
   // It is the caller's responsibility to register errors.
   language::ValueOrError<language::gc::Root<Value>> BuildValue(
-      Compilation& compilation,
       language::NonNull<std::unique_ptr<Expression>> body);
-  void Abort(Compilation& compilation);
-  void Done(Compilation& compilation);
 
-  std::optional<Identifier> name;
-  Type type;
-  language::NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names;
+  void Abort();
+
+  const std::optional<Identifier>& name() const;
+  const Type& type() const;
 };
 }  // namespace afc::vm
 

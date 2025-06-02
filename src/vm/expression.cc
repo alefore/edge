@@ -21,6 +21,7 @@ using ::operator<<;
 Trampoline::Trampoline(Options options)
     : pool_(NonNull<gc::Pool*>::AddressOf(options.pool)),
       environment_(std::move(options.environment)),
+      stack_(Stack::New(pool_.value())),
       yield_callback_(std::move(options.yield_callback)) {}
 
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
@@ -51,6 +52,8 @@ void Trampoline::SetEnvironment(gc::Root<Environment> environment) {
 const gc::Root<Environment>& Trampoline::environment() const {
   return environment_;
 }
+
+Stack& Trampoline::stack() { return stack_.value(); }
 
 gc::Pool& Trampoline::pool() const { return pool_.value(); }
 
