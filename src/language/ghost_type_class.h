@@ -420,9 +420,6 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   friend std::wstring to_wstring<External, Internal, Validator>(
       const GhostType<External, Internal, Validator>& obj);
 };
-}  // namespace afc::language
-#include "src/language/error/value_or_error.h"
-namespace afc::language {
 
 template <typename External, typename Internal, typename Validator>
 auto operator+(const GhostType<External, Internal, Validator>& lhs,
