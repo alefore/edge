@@ -1,7 +1,6 @@
 #ifndef __AFC_LANGUAGE_LAZY_STRING_COLUMN_NUMBER_H__
 #define __AFC_LANGUAGE_LAZY_STRING_COLUMN_NUMBER_H__
 
-#include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type_class.h"
 
 namespace afc::language::lazy_string {
