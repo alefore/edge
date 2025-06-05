@@ -37,7 +37,7 @@ std::vector<LazyString> SplitAt(LazyString input, wchar_t separator) {
               input.Substring(start.value(), next - start.value()));
           return next + ColumnNumberDelta{1};
         },
-        [&] -> std::optional<ColumnNumber> {
+        [&]() -> std::optional<ColumnNumber> {
           output.push_back(input.Substring(start.value()));
           return std::nullopt;
         },
