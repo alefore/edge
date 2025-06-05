@@ -2,7 +2,6 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/lowercase.h"
 
 namespace afc::language::lazy_string {
 /* static */ language::PossibleError SingleLineValidator::Validate(
