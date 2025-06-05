@@ -5,6 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:ghost_type",
+        "//src/language:ghost_type_class",
         "//src/language:overload",
         "//src/language:safe_types",
         "//src/language:wstring",

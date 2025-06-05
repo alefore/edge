@@ -16,8 +16,10 @@ cc_library(
     hdrs = ["command_line.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":dirname",
         "//src/language:wstring",
         "//src/language/error:value_or_error",
+        "//src/language/lazy_string:single_line",
         "//src/tests",
     ],
 )
@@ -74,5 +76,6 @@ cc_library(
     deps = [
         "//src/concurrent:protected",
         "//src/infrastructure:time",
+        "//src/language:safe_types",
     ],
 )

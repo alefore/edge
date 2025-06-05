@@ -12,8 +12,15 @@ cc_library(
     deps = [
         ":overload",
         ":safe_types",
-        "//src/infrastructure:time",
         "//src/tests",
+    ],
+)
+
+cc_library(
+    name = "const_tree_benchmarks",
+    srcs = ["const_tree_benchmarks"],
+    deps = [
+        ":const_tree",
         "//src/tests:benchmarks",
     ],
 )
@@ -65,6 +72,12 @@ cc_library(
 )
 
 cc_library(
+    name = "ghost_type_class",
+    hdrs = ["ghost_type_class.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "hash",
     srcs = ["hash.cc"],
     hdrs = ["hash.h"],
@@ -112,6 +125,6 @@ cc_library(
     hdrs = ["wstring.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_google_glog//:glog",
+        "@glog",
     ],
 )

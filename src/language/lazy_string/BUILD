@@ -19,6 +19,15 @@ cc_library(
 )
 
 cc_library(
+    name = "column_number",
+    hdrs = ["column_number.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/language:ghost_type_class",
+    ],
+)
+
+cc_library(
     name = "lazy_string",
     srcs = [
         "functional.cc",
@@ -30,6 +39,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        ":column_number",
         "//src/infrastructure:tracker",
         "//src/language:const_tree",
         "//src/language:ghost_type",
@@ -46,6 +56,17 @@ cc_library(
     deps = [
         ":char_buffer",
         ":lazy_string",
+    ],
+)
+
+cc_library(
+    name = "single_line",
+    srcs = ["single_line.cc"],
+    hdrs = ["single_line.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lazy_string",
+        "//src/language/error:value_or_error",
     ],
 )
 

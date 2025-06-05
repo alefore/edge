@@ -6,7 +6,9 @@ cc_library(
     deps = [
         "//src/infrastructure:time",
         "//src/language:container",
+        "//src/language:ghost_type_class",
         "//src/language:wstring",
+        "//src/language/lazy_string:single_line",
     ],
 )
 
