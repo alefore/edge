@@ -3,6 +3,8 @@
 #include "src/buffer_vm.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/file_tags.h"
+#include "src/flashcard.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/extended_char_vm.h"
@@ -623,6 +625,8 @@ gc::Root<Environment> BuildEditorEnvironment(
   language::text::RangeRegister(pool, value);
   vm::RegisterFileSystemFunctions(pool, std::move(file_system_driver),
                                   environment.ptr().value());
+  RegisterFlashcard(pool, environment.ptr().value());
+  RegisterFileTags(pool, environment.ptr().value());
   return environment;
 }
 }  // namespace afc::editor

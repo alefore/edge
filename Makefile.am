@@ -96,6 +96,8 @@ src/fragments.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
+src/file_tags.cc \
+src/file_tags.h \
 src/find_mode.cc \
 src/futures/futures.cc \
 src/futures/futures.h \
@@ -281,6 +283,8 @@ src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
 src/repeat_mode.cc \
+src/flashcard.cc \
+src/flashcard.h \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
 src/run_cpp_command.h \

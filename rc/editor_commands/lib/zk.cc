@@ -9,6 +9,7 @@
 // * ln - Create a new entry based on the title under the cursor.
 // * Expand - Generate an article.
 
+#include "../buffer_output.cc"
 #include "markdown.cc"
 #include "paths.cc"
 #include "strings.cc"
@@ -614,38 +615,23 @@ void AddNextDayLink() {
   });
 }
 
-void PrepareOutputBuffer(Buffer buffer) {
-  buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
-  buffer.ApplyTransformation(
-      DeleteTransformationBuilder()
-          // TODO: Add `set_buffer` and use that?
-          .set_modifiers(Modifiers().set_line().set_repetitions(9999999))
-          .build());
-}
-
-void Log(Buffer log, string text) {
-  log.ApplyTransformation(
-      InsertTransformationBuilder()
-          .set_text(Now().format("%F %T") + ": " + text + "\n")
-          .build());
-}
-
 void ReceiveDateTags(Buffer output, Buffer input_buffer, string input_date,
                      string input_reminder_frequency,
                      string input_reminder_advance) {
-  Log(output, input_buffer.path() + ": " + input_date + ", " +
-                  input_reminder_frequency + ", " + input_reminder_advance +
-                  " // " + input_buffer.line(0));
+  OutputBufferLog(output, input_buffer.path() + ": " + input_date + ", " +
+                              input_reminder_frequency + ", " +
+                              input_reminder_advance + " // " +
+                              input_buffer.line(0));
 }
 
 void ReceiveLanguageTags(Buffer output, string input_typo,
                          string input_synonym) {
-  Log(output, input_typo + ", " + input_synonym);
+  OutputBufferLog(output, input_typo + ", " + input_synonym);
 }
 
 void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
                  Buffer input_buffer) {
-  Log(log, "Processing:" + input_buffer.name());
+  OutputBufferLog(log, "Processing:" + input_buffer.name());
   OptionalRange optional_range = md::FindSection(input_buffer, "Tags", 2);
   if (!optional_range.has_value()) return;
   number line = optional_range.value().begin().line() + 1;
@@ -679,9 +665,9 @@ void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
         else if (tag == "language-synonyms")
           input_language_synonyms = value;
         else if (tag != "")
-          Log(log, "Invalid tag: " + tag + ", value: " + value);
+          OutputBufferLog(log, "Invalid tag: " + tag + ", value: " + value);
       } else {
-        Log(log, "Unable to parse line: " + contents);
+        OutputBufferLog(log, "Unable to parse line: " + contents);
       }
     }
   }
@@ -796,26 +782,12 @@ void NDay() { return internal::AddNextDayLink(); }
 auto Expand = internal::ExpandIntoPath;
 
 void ExtractTags(string directory) {
-  Buffer log_buffer = editor.OpenFile("/tmp/tags/log", true).WaitForEndOfFile();
-  internal::PrepareOutputBuffer(log_buffer);
-  string glob_pattern = directory + "/???.md";
-  internal::Log(log_buffer, "Glob: " + glob_pattern);
-  VectorString paths = Glob(glob_pattern);
-  internal::Log(log_buffer, "Opening buffers: " + paths.size().tostring());
-  VectorBuffer input_buffers = editor.OpenFile(paths, false);
-  internal::Log(log_buffer, "Waiting for EOF (buffers: " +
-                                input_buffers.size().tostring() + ")");
-  input_buffers = WaitForEndOfFile(input_buffers);
+  Buffer log_buffer = OutputBuffer("/tmp/tags/log");
+  VectorBuffer input_buffers =
+      LoadTagsFromGlob(directory + "/???.md", log_buffer);
 
-  internal::Log(log_buffer, "Buffers loaded, filtering.");
-  input_buffers = md::SearchOptionsForSection("Tags", 2).filter(input_buffers);
-
-  internal::Log(log_buffer,
-                "Filter done (matches: " + input_buffers.size().tostring() +
-                    "). Extracting.");
-
-  Buffer dates_buffer = editor.OpenFile("/tmp/tags/dates", true);
-  Buffer languages_buffer = editor.OpenFile("/tmp/tags/languages", true);
+  Buffer dates_buffer = OutputBuffer("/tmp/tags/dates");
+  Buffer languages_buffer = OutputBuffer("/tmp/tags/languages");
   input_buffers.ForEach([](Buffer buffer) -> void {
     internal::ProcessTags(log_buffer, dates_buffer, languages_buffer, buffer);
   });

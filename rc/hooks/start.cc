@@ -1,4 +1,5 @@
 #include "../editor_commands/camelcase.cc"
+#include "../editor_commands/flashcard.cc"
 #include "../editor_commands/fold-next-line.cc"
 #include "../editor_commands/git.cc"
 #include "../editor_commands/header.cc"
