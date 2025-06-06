@@ -7,7 +7,7 @@
 //     const types::ObjectName
 //     VMTypeMapper<NonNull<std::shared_ptr<Protected<std::vector<MyType>>>>>
 //         ::object_type_name =
-//         types::ObjectName(L"VectorMyType");
+//         types::ObjectName(IDENTIFIER_CONSTANT(L"VectorMyType"));
 //
 // Then initialize it in an environment:
 //
