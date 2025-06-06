@@ -19,6 +19,8 @@ StringType TrimLeft(StringType source,
                               .value_or(ColumnNumber(0) + source.size()));
 }
 
+// Returns a copy with all left and right space characters removed.
+//
 // StringType is expected to be either LazyString or SingleLine.
 template <typename StringType>
 StringType Trim(StringType in,
