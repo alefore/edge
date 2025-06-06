@@ -909,7 +909,7 @@ bool vector_tests_register = afc::tests::Register(
                            ->RunFunction({}, trampoline)
                            .Get()
                            .value());
-        LOG(INFO) << "Converrt.";
+        LOG(INFO) << "Convert.";
         NonNull<std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
             typed_value = vm::VMTypeMapper<NonNull<
                 std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>>::
