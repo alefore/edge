@@ -106,6 +106,10 @@ class ObservableValue : public Observable {
     observers_.Add(std::move(observer));
   }
 
+  futures::Value<EmptyValue> NewFuture() const {
+    return observers_.NewFuture();
+  }
+
  private:
   std::optional<Value> value_;
   Observers observers_;
