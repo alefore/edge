@@ -40,7 +40,8 @@ class FileTags {
 
  private:
   static language::ValueOrError<TagsMap> LoadTags(
-      const language::text::LineSequence& contents);
+      const language::text::LineSequence& contents,
+      language::text::LineNumber tags_position);
 };
 
 void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment);

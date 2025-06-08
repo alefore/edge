@@ -6,6 +6,7 @@
 #include "src/buffer_vm.h"
 #include "src/concurrent/protected.h"
 #include "src/file_link_mode.h"
+#include "src/file_tags.h"
 #include "src/language/container.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
@@ -13,6 +14,8 @@
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 #include "src/math/numbers.h"
 #include "src/vm/container.h"
 #include "src/vm/types.h"
@@ -41,6 +44,11 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 using afc::math::numbers::Number;
 
 namespace afc::editor {
@@ -78,32 +86,77 @@ ValueOrError<Path> BuildReviewLogPath(Path buffer, SingleLine answer) {
 
 class FlashcardReviewLog {
   gc::Ptr<OpenBuffer> review_buffer_;
+  FileTags file_tags_;
 
  public:
   static futures::ValueOrError<gc::Root<FlashcardReviewLog>> New(
-      EditorState& editor, Path review_log_path) {
+      EditorState& editor, Path review_log_path, SingleLine answer) {
     return OpenOrCreateFile(
                OpenFileOptions{
                    .editor_state = editor,
                    .path = review_log_path,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
-        .Transform([](gc::Root<OpenBuffer> buffer) {
-          return buffer->WaitForEndOfFile().Transform([buffer](EmptyValue) {
-            return buffer->editor().gc_pool().NewRoot(
-                MakeNonNullUnique<FlashcardReviewLog>(buffer.ptr()));
-          });
+        .Transform([answer](gc::Root<OpenBuffer> buffer) {
+          buffer->Set(buffer_variables::save_on_close, true);
+          return buffer->WaitForEndOfFile().Transform(
+              [buffer, answer](
+                  EmptyValue) -> ValueOrError<gc::Root<FlashcardReviewLog>> {
+                DECLARE_OR_RETURN(
+                    FileTags file_tags,
+                    std::visit(
+                        overload{
+                            [](FileTags file_tags) -> ValueOrError<FileTags> {
+                              return file_tags;
+                            },
+                            [buffer,
+                             answer](Error error) -> ValueOrError<FileTags> {
+                              if (buffer->contents().snapshot() ==
+                                  LineSequence{}) {
+                                buffer->InsertInPosition(
+                                    DefaultReviewLogBufferContents(answer),
+                                    LineColumn{}, std::nullopt);
+                                return FileTags{buffer.ptr(), {}};
+                              } else {
+                                Error augmented_error = AugmentError(
+                                    buffer->Read(buffer_variables::path) +
+                                        LazyString{L": Unable to parse "
+                                                   L"non-empty file"},
+                                    error);
+                                LOG(INFO) << augmented_error;
+                                return augmented_error;
+                              }
+                            }},
+                        FileTags::New(buffer.ptr())));
+                return buffer->editor().gc_pool().NewRoot(
+                    MakeNonNullUnique<FlashcardReviewLog>(
+                        buffer.ptr(), std::move(file_tags)));
+              });
         });
     return futures::Past(Error{LazyString{L"Unimplemented"}});
   }
 
-  FlashcardReviewLog(gc::Ptr<OpenBuffer> review_buffer)
-      : review_buffer_(std::move(review_buffer)) {}
+  FlashcardReviewLog(gc::Ptr<OpenBuffer> review_buffer, FileTags file_tags)
+      : review_buffer_(std::move(review_buffer)),
+        file_tags_(std::move(file_tags)) {}
 
   gc::Ptr<OpenBuffer> buffer() { return review_buffer_; }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
     return {review_buffer_.object_metadata()};
+  }
+
+ private:
+  static LineSequence DefaultReviewLogBufferContents(SingleLine answer) {
+    MutableLineSequence output;
+    output.AppendToLine(LineNumber{},
+                        Line{SINGLE_LINE_CONSTANT(L"# Flashcard review log")});
+    output.push_back(L"");
+    output.push_back(L"## Tags");
+    output.push_back(L"");
+    output.push_back(Line{SINGLE_LINE_CONSTANT(L"Answer: ") + answer});
+    output.push_back(L"");
+    return output.snapshot();
   }
 };
 
@@ -140,7 +193,7 @@ class Flashcard {
 
     return Flashcard(
         std::move(buffer), answer, tokens[1].value.read(),
-        FlashcardReviewLog::New(buffer->editor(), review_log_path));
+        FlashcardReviewLog::New(buffer->editor(), review_log_path, answer));
   }
 
   Flashcard(

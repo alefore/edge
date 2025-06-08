@@ -42,6 +42,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::StartsWith;
 using afc::language::lazy_string::Trim;
+using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
@@ -49,7 +50,21 @@ using afc::math::numbers::Number;
 
 namespace afc::editor {
 /* static */ ValueOrError<FileTags> FileTags::New(gc::Ptr<OpenBuffer> buffer) {
-  DECLARE_OR_RETURN(auto tags, LoadTags(buffer->contents().snapshot()));
+  LineSequence contents = buffer->contents().snapshot();
+  DECLARE_OR_RETURN(
+      LineColumn tags_start,
+      GetNextMatch(Direction::kForwards,
+                   SearchOptions{
+                       .search_query = SINGLE_LINE_CONSTANT(L"## Tags"),
+                       .required_positions = 1,
+                       .case_sensitive = true,
+                   },
+                   contents));
+  LineNumber tags_start_line = tags_start.line + LineNumberDelta{1};
+  while (tags_start_line <= contents.EndLine() &&
+         contents.at(tags_start_line).empty())
+    ++tags_start_line;
+  DECLARE_OR_RETURN(TagsMap tags, LoadTags(contents, tags_start_line));
   return FileTags(buffer, tags);
 }
 
@@ -73,24 +88,15 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
 }
 
 /* static */ ValueOrError<FileTags::TagsMap> FileTags::LoadTags(
-    const LineSequence& contents) {
-  DECLARE_OR_RETURN(
-      language::text::LineColumn tags_start,
-      GetNextMatch(Direction::kForwards,
-                   SearchOptions{
-                       .search_query = SINGLE_LINE_CONSTANT(L"## Tags"),
-                       .required_positions = 1,
-                       .case_sensitive = true,
-                   },
-                   contents));
-
+    const LineSequence& contents, LineNumber tags_start_line) {
   TagsMap output;
-  LineNumber line_number = tags_start.line + LineNumberDelta{1};
+
   std::vector<Error> errors;
-  while (line_number <= contents.EndLine() &&
-         !StartsWith(contents.at(line_number).contents(), LazyString{L"#"})) {
-    SingleLine line = contents.at(line_number).contents();
-    ++line_number;
+  while (
+      tags_start_line <= contents.EndLine() &&
+      !StartsWith(contents.at(tags_start_line).contents(), LazyString{L"#"})) {
+    SingleLine line = contents.at(tags_start_line).contents();
+    ++tags_start_line;
     if (!line.empty())
       VisitOptional(
           [&output, &line](ColumnNumber colon) {
