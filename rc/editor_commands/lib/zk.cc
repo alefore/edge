@@ -9,6 +9,7 @@
 // * ln - Create a new entry based on the title under the cursor.
 // * Expand - Generate an article.
 
+#include "../buffer_load.cc"
 #include "../buffer_output.cc"
 #include "markdown.cc"
 #include "paths.cc"
@@ -630,54 +631,23 @@ void ReceiveLanguageTags(Buffer output, string input_typo,
 }
 
 void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
-                 Buffer input_buffer) {
-  OutputBufferLog(log, "Processing:" + input_buffer.name());
-  OptionalRange optional_range = md::FindSection(input_buffer, "Tags", 2);
-  if (!optional_range.has_value()) return;
-  number line = optional_range.value().begin().line() + 1;
+                 FileTags input) {
+  OutputBufferLog(log, "Processing:" + input.buffer().name());
 
-  string input_date;
-  string input_reminder_frequency;
-  string input_reminder_advance;
-
-  string input_language_typo;
-  string input_language_synonyms;
-
-  while (line < optional_range.value().end().line()) {
-    string contents = input_buffer.line(line);
-    line++;
-    if (contents != "") {
-      string tag;
-      string value;
-      number colon = contents.find_first_of(":", 0);
-      if (colon > -1) {
-        tag = contents.substr(0, colon).tolower();
-        colon++;
-        value = SkipSpaces(contents.substr(colon, contents.size() - colon));
-        if (tag == "reminder-frequency")
-          input_reminder_frequency = value;
-        else if (tag == "date")
-          input_date = value;
-        else if (tag == "reminder-advance")
-          input_reminder_advance = value;
-        else if (tag == "language-typo")
-          input_language_typo = value;
-        else if (tag == "language-synonyms")
-          input_language_synonyms = value;
-        else if (tag != "")
-          OutputBufferLog(log, "Invalid tag: " + tag + ", value: " + value);
-      } else {
-        OutputBufferLog(log, "Unable to parse line: " + contents);
-      }
-    }
+  if (!input.get("date").empty()) {
+    ReceiveDateTags(output_dates, input.buffer(),
+                    input.get_first("date").value(),
+                    input.get_first("reminder-frequency").value_or(""),
+                    input.get_first("reminder-advance").value_or(""));
   }
 
-  if (input_date != "")
-    ReceiveDateTags(output_dates, input_buffer, input_date,
-                    input_reminder_frequency, input_reminder_advance);
-  if (input_language_typo != "" || input_language_synonyms != "")
-    ReceiveLanguageTags(output_languages, input_language_typo,
-                        input_language_synonyms);
+  OptionalString input_language_typo = input.get_first("language-typo");
+  OptionalString input_language_synonyms = input.get_first("language-synonyms");
+  if (input_language_typo.has_value() || input_language_synonyms.has_value())
+    ReceiveLanguageTags(output_languages, input_language_typo.value_or(""),
+                        input_language_synonyms.value_or(""));
+
+  // TODO(2025-06-08, trivial): Warn of invalid tags!
 }
 }  // namespace internal
 
@@ -783,13 +753,13 @@ auto Expand = internal::ExpandIntoPath;
 
 void ExtractTags(string directory) {
   Buffer log_buffer = OutputBuffer("/tmp/tags/log");
-  VectorBuffer input_buffers =
-      LoadTagsFromGlob(directory + "/???.md", log_buffer);
-
   Buffer dates_buffer = OutputBuffer("/tmp/tags/dates");
   Buffer languages_buffer = OutputBuffer("/tmp/tags/languages");
-  input_buffers.ForEach([](Buffer buffer) -> void {
-    internal::ProcessTags(log_buffer, dates_buffer, languages_buffer, buffer);
-  });
+
+  LoadFileTagsFromGlob(directory + "/???.md", log_buffer)
+      .ForEach([](FileTags file_tags) -> void {
+        internal::ProcessTags(log_buffer, dates_buffer, languages_buffer,
+                              file_tags);
+      });
 }
 }  // namespace zettelkasten
