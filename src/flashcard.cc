@@ -5,10 +5,13 @@
 #include "src/buffer.h"
 #include "src/buffer_vm.h"
 #include "src/concurrent/protected.h"
+#include "src/file_link_mode.h"
 #include "src/language/container.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/observers.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 #include "src/vm/container.h"
@@ -19,11 +22,20 @@ namespace gc = afc::language::gc;
 
 using afc::concurrent::MakeProtected;
 using afc::concurrent::Protected;
+using afc::infrastructure::AbsolutePath;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::ObservableValue;
+using afc::language::overload;
+using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -32,17 +44,78 @@ using afc::language::lazy_string::TokenizeBySpaces;
 using afc::math::numbers::Number;
 
 namespace afc::editor {
-class Flashcard {
- private:
-  gc::Ptr<OpenBuffer> buffer_;
+namespace {
+template <typename StringType>
+uint64_t fnv1a(const StringType& text) {
+  constexpr std::uint64_t FNV_OFFSET_BASIS = 14695981039346656037ull;
+  constexpr std::uint64_t FNV_PRIME = 1099511628211ull;
+  uint64_t hash = FNV_OFFSET_BASIS;
+  ForEachColumn(text, [&hash](ColumnNumber, wchar_t c) {
+    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&c);
+    for (std::size_t j = 0; j < sizeof(wchar_t); ++j) {
+      hash ^= static_cast<std::uint64_t>(bytes[j]);
+      hash *= FNV_PRIME;
+    }
+  });
+  return hash;
+}
 
-  // Must be between 0 and 1.
-  //
-  // TODO(trivial, 2025-06-06): Use a GhostType?
-  math::numbers::Number predicted_recall_score = Number::FromSizeT(0ul);
+ValueOrError<Path> BuildReviewLogPath(Path buffer, SingleLine answer) {
+  DECLARE_OR_RETURN(Path buffer_dirname, buffer.Dirname());
+  DECLARE_OR_RETURN(Path buffer_basename, buffer.Basename());
+  DECLARE_OR_RETURN(
+      Path review_log_basename,
+      Path::New(buffer_basename.read() + NonEmptySingleLine{fnv1a(answer)}));
+  return Path::Join(
+      buffer_dirname,
+      Path::Join(PathComponent::FromString(L".reviews"), review_log_basename));
+}
+}  // namespace
+
+class FlashcardReviewLog {
+  gc::Ptr<OpenBuffer> review_buffer_;
+
+ public:
+  static futures::ValueOrError<gc::Root<FlashcardReviewLog>> New(
+      EditorState& editor, Path review_log_path) {
+    return OpenOrCreateFile(
+               OpenFileOptions{
+                   .editor_state = editor,
+                   .path = review_log_path,
+                   .insertion_type = BuffersList::AddBufferType::kIgnore,
+                   .use_search_paths = false})
+        .Transform([](gc::Root<OpenBuffer> buffer) {
+          return buffer->WaitForEndOfFile().Transform([buffer](EmptyValue) {
+            return buffer->editor().gc_pool().NewRoot(
+                MakeNonNullUnique<FlashcardReviewLog>(buffer.ptr()));
+          });
+        });
+    return futures::Past(Error{LazyString{L"Unimplemented"}});
+  }
+
+  FlashcardReviewLog(gc::Ptr<OpenBuffer> review_buffer)
+      : review_buffer_(std::move(review_buffer)) {}
+
+  gc::Ptr<OpenBuffer> buffer() { return review_buffer_; }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    return {review_buffer_.object_metadata()};
+  }
+};
+
+class Flashcard {
+  gc::Ptr<OpenBuffer> buffer_;
 
   SingleLine answer_;
   SingleLine hint_;
+
+  // This should ideally be a futures::Value; however, we can't properly
+  // propagate the Root -> Ptr value without a very brief period of time where
+  // the GC system may think that the object is unreachable (after the root has
+  // been destroyed but before the ptr has been installed here).
+  NonNull<std::shared_ptr<
+      ObservableValue<ValueOrError<gc::Ptr<FlashcardReviewLog>>>>>
+      review_log_;
 
  public:
   static ValueOrError<Flashcard> New(gc::Ptr<OpenBuffer> buffer,
@@ -55,19 +128,57 @@ class Flashcard {
           LazyString{L": Invalid flashcard data (expected 2 tokens, found "} +
           NonEmptySingleLine{tokens.size()} + LazyString{L")."}};
 
-    return Flashcard(std::move(buffer), tokens[0].value.read(),
-                     tokens[1].value.read());
+    SingleLine answer = tokens[0].value.read();
+    DECLARE_OR_RETURN(Path buffer_path,
+                      AbsolutePath::New(buffer->Read(buffer_variables::path)));
+    DECLARE_OR_RETURN(Path review_log_path,
+                      BuildReviewLogPath(buffer_path, answer));
+
+    return Flashcard(
+        std::move(buffer), answer, tokens[1].value.read(),
+        FlashcardReviewLog::New(buffer->editor(), review_log_path));
   }
 
-  Flashcard(gc::Ptr<OpenBuffer> buffer, SingleLine answer, SingleLine hint)
+  Flashcard(
+      gc::Ptr<OpenBuffer> buffer, SingleLine answer, SingleLine hint,
+      futures::ValueOrError<gc::Root<FlashcardReviewLog>> future_review_log)
       : buffer_(std::move(buffer)),
         answer_(std::move(answer).read()),
-        hint_(std::move(hint).read()) {}
+        hint_(std::move(hint).read()) {
+    std::move(future_review_log)
+        .Transform([output = review_log_](gc::Root<FlashcardReviewLog> input) {
+          output->Set(input.ptr());
+          return futures::Past(Success());
+        })
+        .ConsumeErrors([output = review_log_](Error error) {
+          output->Set(ValueOrError<gc::Ptr<FlashcardReviewLog>>(error));
+          return futures::Past(EmptyValue{});
+        });
+  }
 
   const gc::Ptr<OpenBuffer>& buffer() const { return buffer_; }
+  SingleLine answer() { return answer_; }
+  SingleLine hint() { return hint_; }
+
+  futures::ValueOrError<gc::Ptr<FlashcardReviewLog>> review_log() {
+    return review_log_->NewFuture().Transform(
+        [input = review_log_](EmptyValue) {
+          return futures::Past(input->Get().value());
+        });
+  }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return {buffer_.object_metadata()};
+    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output = {
+        buffer_.object_metadata()};
+    if (std::optional<ValueOrError<gc::Ptr<FlashcardReviewLog>>> optional_log =
+            review_log_->Get();
+        optional_log.has_value())
+      std::visit(overload{IgnoreErrors{},
+                          [&output](gc::Ptr<FlashcardReviewLog> log) {
+                            output.push_back(log.object_metadata());
+                          }},
+                 optional_log.value());
+    return output;
   }
 };
 }  // namespace afc::editor
@@ -110,52 +221,34 @@ void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
                         return flashcard->buffer().ToRoot();
                       })
           .ptr());
-#if 0
   flashcard_object_type->AddField(
-      IDENTIFIER_CONSTANT(L"set_buffer"),
-      vm::NewCallback(pool, vm::kPurityTypeUnknown,
-                      [](NonNull<std::shared_ptr<Flashcard>> flashcard,
-                         gc::Ptr<OpenBuffer> buffer) {
-                        flashcard->buffer = buffer;
-                        return flashcard;
-                      })
-          .ptr());
-  flashcard_object_type->AddField(
-      IDENTIFIER_CONSTANT(L"predicted_recall_score"),
+      IDENTIFIER_CONSTANT(L"hint"),
       vm::NewCallback(pool, vm::kPurityTypePure,
                       [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
-                        return flashcard->predicted_recall_score;
+                        return ToLazyString(flashcard->hint());
                       })
           .ptr());
+
   flashcard_object_type->AddField(
-      IDENTIFIER_CONSTANT(L"set_predicted_recall_score"),
-      vm::NewCallback(
-          pool, vm::kPurityTypePure,
-          [](NonNull<std::shared_ptr<Flashcard>> flashcard, Number value)
-              -> ValueOrError<NonNull<std::shared_ptr<Flashcard>>> {
-            if (value < Number::FromSizeT(0) || value > Number::FromSizeT(1))
-              return Error{LazyString{L"Invalid recall score."}};
-            flashcard->predicted_recall_score = value;
-            return flashcard;
-          })
-          .ptr());
-  flashcard_object_type->AddField(
-      IDENTIFIER_CONSTANT(L"source"),
+      IDENTIFIER_CONSTANT(L"answer"),
       vm::NewCallback(pool, vm::kPurityTypePure,
                       [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
-                        return flashcard->source;
+                        return ToLazyString(flashcard->answer());
                       })
           .ptr());
+
   flashcard_object_type->AddField(
-      IDENTIFIER_CONSTANT(L"set_source"),
-      vm::NewCallback(
-          pool, vm::kPurityTypeUnknown,
-          [](NonNull<std::shared_ptr<Flashcard>> flashcard, LazyString source) {
-            flashcard->source = source;
-            return flashcard;
-          })
+      IDENTIFIER_CONSTANT(L"review_buffer"),
+      vm::NewCallback(pool, vm::kPurityTypePure,
+                      [](NonNull<std::shared_ptr<Flashcard>> flashcard)
+                          -> futures::ValueOrError<gc::Ptr<OpenBuffer>> {
+                        return flashcard->review_log().Transform(
+                            [](const gc::Ptr<FlashcardReviewLog>& log) {
+                              return futures::Past(Success(log->buffer()));
+                            });
+                      })
           .ptr());
-#endif
+
   vm::container::Export<std::vector<NonNull<std::shared_ptr<Flashcard>>>>(
       pool, environment);
 
