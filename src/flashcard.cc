@@ -116,7 +116,7 @@ class FlashcardReviewLog {
                                 buffer->InsertInPosition(
                                     DefaultReviewLogBufferContents(answer),
                                     LineColumn{}, std::nullopt);
-                                return FileTags{buffer.ptr(), {}};
+                                return FileTags::New(buffer.ptr());
                               } else {
                                 Error augmented_error = AugmentError(
                                     buffer->Read(buffer_variables::path) +
@@ -133,7 +133,6 @@ class FlashcardReviewLog {
                         buffer.ptr(), std::move(file_tags)));
               });
         });
-    return futures::Past(Error{LazyString{L"Unimplemented"}});
   }
 
   FlashcardReviewLog(gc::Ptr<OpenBuffer> review_buffer, FileTags file_tags)

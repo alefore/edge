@@ -13,8 +13,13 @@
 #include "src/vm/environment.h"
 
 namespace afc::editor {
+// TODO(2025-06-08, trivial): Use private ConstructorAccessTag, force
+// construction through a gc::Pool (to ensure no problems with gc::Ptr).
 class FileTags {
   language::gc::Ptr<OpenBuffer> buffer_;
+
+  language::text::LineNumber start_line_;
+  language::text::LineNumber end_line_;
 
   // TODO(2025-06-06, trivial): Use NonEmptySingleLine for the key.
   using TagsMap =
@@ -23,11 +28,18 @@ class FileTags {
                    std::vector<language::lazy_string::LazyString>>>>>;
   TagsMap tags_ = {};
 
+  struct LoadTagsOutput {
+    language::text::LineNumber end_line;
+    TagsMap tags_map;
+  };
+
  public:
   static language::ValueOrError<FileTags> New(
       language::gc::Ptr<OpenBuffer> buffer);
 
-  FileTags(language::gc::Ptr<OpenBuffer> buffer, TagsMap tags);
+  FileTags(language::gc::Ptr<OpenBuffer> buffer,
+           language::text::LineNumber start_line,
+           LoadTagsOutput load_tags_output);
 
   language::NonNull<std::shared_ptr<
       concurrent::Protected<std::vector<language::lazy_string::LazyString>>>>
@@ -39,7 +51,7 @@ class FileTags {
   Expand() const;
 
  private:
-  static language::ValueOrError<TagsMap> LoadTags(
+  static language::ValueOrError<LoadTagsOutput> LoadTags(
       const language::text::LineSequence& contents,
       language::text::LineNumber tags_position);
 };

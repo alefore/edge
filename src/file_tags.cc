@@ -64,12 +64,17 @@ namespace afc::editor {
   while (tags_start_line <= contents.EndLine() &&
          contents.at(tags_start_line).empty())
     ++tags_start_line;
-  DECLARE_OR_RETURN(TagsMap tags, LoadTags(contents, tags_start_line));
-  return FileTags(buffer, tags);
+  DECLARE_OR_RETURN(LoadTagsOutput load_tags_output,
+                    LoadTags(contents, tags_start_line));
+  return FileTags(buffer, tags_start_line, std::move(load_tags_output));
 }
 
-FileTags::FileTags(gc::Ptr<OpenBuffer> buffer, TagsMap tags)
-    : buffer_(std::move(buffer)), tags_(std::move(tags)) {}
+FileTags::FileTags(gc::Ptr<OpenBuffer> buffer, LineNumber start_line,
+                   LoadTagsOutput load_tags_output)
+    : buffer_(std::move(buffer)),
+      start_line_(start_line),
+      end_line_(load_tags_output.end_line),
+      tags_(std::move(load_tags_output).tags_map) {}
 
 NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
     LazyString tag_name) {
@@ -87,16 +92,16 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
   return {buffer_.object_metadata()};
 }
 
-/* static */ ValueOrError<FileTags::TagsMap> FileTags::LoadTags(
-    const LineSequence& contents, LineNumber tags_start_line) {
-  TagsMap output;
+/* static */ ValueOrError<FileTags::LoadTagsOutput> FileTags::LoadTags(
+    const LineSequence& contents, const LineNumber tags_start_line) {
+  LoadTagsOutput output;
 
+  LineNumber line_number = tags_start_line;
   std::vector<Error> errors;
-  while (
-      tags_start_line <= contents.EndLine() &&
-      !StartsWith(contents.at(tags_start_line).contents(), LazyString{L"#"})) {
-    SingleLine line = contents.at(tags_start_line).contents();
-    ++tags_start_line;
+  while (line_number <= contents.EndLine() &&
+         !StartsWith(contents.at(line_number).contents(), LazyString{L"#"})) {
+    SingleLine line = contents.at(line_number).contents();
+    ++line_number;
     if (!line.empty())
       VisitOptional(
           [&output, &line](ColumnNumber colon) {
@@ -105,10 +110,11 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
             colon += ColumnNumberDelta{1};
             SingleLine value = Trim(line.Substring(colon), {L' '});
             DVLOG(5) << "Found tag: " << tag << ": " << value;
-            if (auto it = output.find(ToLazyString(tag)); it != output.end())
+            if (auto it = output.tags_map.find(ToLazyString(tag));
+                it != output.tags_map.end())
               it->second->lock()->push_back(ToLazyString(value));
             else
-              output.insert(std::pair(
+              output.tags_map.insert(std::pair(
                   ToLazyString(tag),
                   MakeNonNullShared<Protected<std::vector<LazyString>>>(
                       MakeProtected(
@@ -120,6 +126,11 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
           },
           FindFirstOf(line, {L':'}));
   }
+
+  output.end_line = line_number;
+  while (output.end_line > tags_start_line &&
+         contents.at(output.end_line).empty())
+    --output.end_line;
 
   if (errors.empty()) return output;
   return MergeErrors(errors, L", ");
