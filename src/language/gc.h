@@ -486,6 +486,11 @@ class Ptr {
 };
 
 template <typename T>
+bool operator==(const Ptr<T>& a, const Ptr<T>& b) {
+  return &a.value() == &b.value();
+}
+
+template <typename T>
 class WeakPtr {
  public:
   WeakPtr() = default;
@@ -562,7 +567,7 @@ class Root {
 
 template <typename T>
 bool operator==(const Root<T>& a, const Root<T>& b) {
-  return &a.ptr().value() == &b.ptr().value();
+  return a.ptr() == b.ptr();
 }
 
 template <typename T>
