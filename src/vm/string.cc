@@ -12,6 +12,7 @@
 #include "src/vm/environment.h"
 #include "src/vm/escape.h"
 #include "src/vm/expression.h"
+#include "src/vm/optional.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
@@ -39,13 +40,17 @@ namespace gc = language::gc;
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<Protected<std::vector<LazyString>>>>>::object_type_name =
-    types::ObjectName{
-        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorString")}};
+    types::ObjectName{IDENTIFIER_CONSTANT(L"VectorString")};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<Protected<std::set<LazyString>>>>>::object_type_name =
-    types::ObjectName{Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SetString")}};
+    types::ObjectName{IDENTIFIER_CONSTANT(L"SetString")};
+
+template <>
+const types::ObjectName VMTypeMapper<
+    NonNull<std::shared_ptr<std::optional<LazyString>>>>::object_type_name =
+    types::ObjectName{IDENTIFIER_CONSTANT(L"OptionalString")};
 
 template <typename Callable>
 void AddMethod(const Identifier& name, language::gc::Pool& pool,
@@ -166,5 +171,6 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
 
   container::Export<std::vector<LazyString>>(pool, environment);
   container::Export<std::set<LazyString>>(pool, environment);
+  vm::optional::Export<LazyString>(pool, environment);
 }
 }  // namespace afc::vm
