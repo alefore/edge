@@ -5,7 +5,7 @@
 namespace flashcards {
 namespace internal {}  // namespace internal
 
-VectorFileTags PickFlashcards(string reviews_directory) {
+VectorFlashcard PickFlashcards(string reviews_directory) {
   string cloze_tag = "cloze";
   Buffer log_buffer = OutputBuffer("/tmp/reviews/log");
   VectorFileTags buffers =
@@ -22,6 +22,6 @@ VectorFileTags PickFlashcards(string reviews_directory) {
     });
   });
   OutputBufferLog(log_buffer, "Flashcards: " + output.size().tostring());
-  return buffers;
+  return output;
 }
 }  // namespace flashcards
