@@ -20,6 +20,10 @@ const types::ObjectName
     VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
         std::vector<language::lazy_string::LazyString>>>>>::object_type_name;
 
+template <>
+const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
+    std::optional<language::lazy_string::LazyString>>>>::object_type_name;
+
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_STRING_H__
