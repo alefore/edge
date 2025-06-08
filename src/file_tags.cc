@@ -48,86 +48,77 @@ using afc::language::text::LineSequence;
 using afc::math::numbers::Number;
 
 namespace afc::editor {
-class FileTags {
-  gc::Ptr<OpenBuffer> buffer_;
+/* static */ ValueOrError<FileTags> FileTags::New(gc::Ptr<OpenBuffer> buffer) {
+  DECLARE_OR_RETURN(auto tags, LoadTags(buffer->contents().snapshot()));
+  return FileTags(buffer, tags);
+}
 
-  // TODO(2025-06-06, trivial): Use NonEmptySingleLine for the key.
-  using TagsMap =
-      std::map<LazyString,
-               NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>>>;
-  TagsMap tags_ = {};
+FileTags::FileTags(gc::Ptr<OpenBuffer> buffer, TagsMap tags)
+    : buffer_(std::move(buffer)), tags_(std::move(tags)) {}
 
- public:
-  static ValueOrError<FileTags> New(gc::Ptr<OpenBuffer> buffer) {
-    DECLARE_OR_RETURN(auto tags, LoadTags(buffer->contents().snapshot()));
-    return FileTags(buffer, tags);
+NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
+    LazyString tag_name) {
+  if (auto it = tags_.find(tag_name); it != tags_.end()) return it->second;
+  static const auto kEmptyValues =
+      MakeNonNullShared<Protected<std::vector<LazyString>>>(
+          MakeProtected(std::vector<LazyString>{}));
+  return kEmptyValues;
+}
+
+const gc::Ptr<OpenBuffer>& FileTags::buffer() const { return buffer_; }
+
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
+    const {
+  return {buffer_.object_metadata()};
+}
+
+/* static */ ValueOrError<FileTags::TagsMap> FileTags::LoadTags(
+    const LineSequence& contents) {
+  DECLARE_OR_RETURN(
+      language::text::LineColumn tags_start,
+      GetNextMatch(Direction::kForwards,
+                   SearchOptions{
+                       .search_query = SINGLE_LINE_CONSTANT(L"## Tags"),
+                       .required_positions = 1,
+                       .case_sensitive = true,
+                   },
+                   contents));
+
+  TagsMap output;
+  LineNumber line_number = tags_start.line + LineNumberDelta{1};
+  std::vector<Error> errors;
+  while (line_number <= contents.EndLine() &&
+         !StartsWith(contents.at(line_number).contents(), LazyString{L"#"})) {
+    SingleLine line = contents.at(line_number).contents();
+    ++line_number;
+    if (!line.empty())
+      VisitOptional(
+          [&output, &line](ColumnNumber colon) {
+            SingleLine tag =
+                LowerCase(line.Substring(ColumnNumber{}, colon.ToDelta()));
+            colon += ColumnNumberDelta{1};
+            SingleLine value = Trim(line.Substring(colon), {L' '});
+            DVLOG(5) << "Found tag: " << tag << ": " << value;
+            if (auto it = output.find(ToLazyString(tag)); it != output.end())
+              it->second->lock()->push_back(ToLazyString(value));
+            else
+              output.insert(std::pair(
+                  ToLazyString(tag),
+                  MakeNonNullShared<Protected<std::vector<LazyString>>>(
+                      MakeProtected(
+                          std::vector<LazyString>{ToLazyString(value)}))));
+          },
+          [&errors, &line] {
+            errors.push_back(
+                Error(LazyString{L"Unable to parse line: "} + line));
+          },
+          FindFirstOf(line, {L':'}));
   }
 
-  FileTags(gc::Ptr<OpenBuffer> buffer, TagsMap tags)
-      : buffer_(std::move(buffer)), tags_(std::move(tags)) {}
+  if (errors.empty()) return output;
+  return MergeErrors(errors, L", ");
+}
 
-  NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> Find(
-      LazyString tag_name) {
-    if (auto it = tags_.find(tag_name); it != tags_.end()) return it->second;
-    static const auto kEmptyValues =
-        MakeNonNullShared<Protected<std::vector<LazyString>>>(
-            MakeProtected(std::vector<LazyString>{}));
-    return kEmptyValues;
-  }
-
-  const gc::Ptr<OpenBuffer>& buffer() const { return buffer_; }
-
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return {buffer_.object_metadata()};
-  }
-
- private:
-  static ValueOrError<TagsMap> LoadTags(const LineSequence& contents) {
-    DECLARE_OR_RETURN(
-        language::text::LineColumn tags_start,
-        GetNextMatch(Direction::kForwards,
-                     SearchOptions{
-                         .search_query = SINGLE_LINE_CONSTANT(L"## Tags"),
-                         .required_positions = 1,
-                         .case_sensitive = true,
-                     },
-                     contents));
-
-    TagsMap output;
-    LineNumber line_number = tags_start.line + LineNumberDelta{1};
-    std::vector<Error> errors;
-    while (line_number <= contents.EndLine() &&
-           !StartsWith(contents.at(line_number).contents(), LazyString{L"#"})) {
-      SingleLine line = contents.at(line_number).contents();
-      ++line_number;
-      if (!line.empty())
-        VisitOptional(
-            [&output, &line](ColumnNumber colon) {
-              SingleLine tag =
-                  LowerCase(line.Substring(ColumnNumber{}, colon.ToDelta()));
-              colon += ColumnNumberDelta{1};
-              SingleLine value = Trim(line.Substring(colon), {L' '});
-              DVLOG(5) << "Found tag: " << tag << ": " << value;
-              if (auto it = output.find(ToLazyString(tag)); it != output.end())
-                it->second->lock()->push_back(ToLazyString(value));
-              else
-                output.insert(std::pair(
-                    ToLazyString(tag),
-                    MakeNonNullShared<Protected<std::vector<LazyString>>>(
-                        MakeProtected(
-                            std::vector<LazyString>{ToLazyString(value)}))));
-            },
-            [&errors, &line] {
-              errors.push_back(
-                  Error(LazyString{L"Unable to parse line: "} + line));
-            },
-            FindFirstOf(line, {L':'}));
-    }
-
-    if (errors.empty()) return output;
-    return MergeErrors(errors, L", ");
-  }
-};
 }  // namespace afc::editor
 
 namespace afc::vm {
