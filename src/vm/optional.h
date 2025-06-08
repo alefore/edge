@@ -21,17 +21,17 @@ namespace afc::vm::optional {
 // `NonNull<std::shared_ptr<std::optional<MyType>>>` type in your module:
 //
 //     template <>
-//     const types::ObjectType
+//     const types::ObjectName
 //     VMTypeMapper<NonNull<std::shared_ptr<std::optional<MyType>>>>
 //         ::object_type_name =
-//         types::ObjectName(L"OptionalMyType");
+//         types::ObjectName{IDENTIFIER_CONSTANT(L"OptionalMyType")};
 //
 // You'll probably want to surface it in header files (if you expect to define
 // functions that receive this type).
 //
 // Then initialize it in an environment:
 //
-//     vm::optional::Export<MyType>::Export(&environment);
+//     vm::optional::Export<MyType>(pool, environment);
 template <typename T>
 void Export(language::gc::Pool& pool, Environment& environment) {
   using FullType = language::NonNull<std::shared_ptr<std::optional<T>>>;
@@ -55,16 +55,12 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                                language::MakeNonNullShared<std::optional<T>>());
                          }));
   object_type.ptr()->AddField(
-      Identifier{language::lazy_string::NonEmptySingleLine{
-          language::lazy_string::SingleLine{
-              language::lazy_string::LazyString{L"has_value"}}}},
+      IDENTIFIER_CONSTANT(L"has_value"),
       vm::NewCallback(pool, kPurityTypePure, [](FullType v) {
         return v->has_value();
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier{language::lazy_string::NonEmptySingleLine{
-          language::lazy_string::SingleLine{
-              language::lazy_string::LazyString{L"value"}}}},
+      IDENTIFIER_CONSTANT(L"value"),
       vm::NewCallback(pool, kPurityTypePure,
                       [](FullType v) -> language::ValueOrError<T> {
                         if (v->has_value()) return v->value();
@@ -74,16 +70,17 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                       })
           .ptr());
   object_type.ptr()->AddField(
-      Identifier{language::lazy_string::NonEmptySingleLine{
-          language::lazy_string::SingleLine{
-              language::lazy_string::LazyString{L"reset"}}}},
+      IDENTIFIER_CONSTANT(L"value_or"),
+      vm::NewCallback(pool, kPurityTypePure, [](FullType v, T t) -> T {
+        return v->value_or(t);
+      }).ptr());
+  object_type.ptr()->AddField(
+      IDENTIFIER_CONSTANT(L"reset"),
       vm::NewCallback(pool, kPurityTypeUnknown, [](FullType v) {
         v.value() = std::nullopt;
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier{language::lazy_string::NonEmptySingleLine{
-          language::lazy_string::SingleLine{
-              language::lazy_string::LazyString{L"set"}}}},
+      IDENTIFIER_CONSTANT(L"set"),
       vm::NewCallback(pool, kPurityTypeUnknown, [](FullType o, T t) {
         o.value() = std::move(t);
       }).ptr());
