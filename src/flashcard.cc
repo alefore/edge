@@ -45,6 +45,7 @@ using afc::math::numbers::Number;
 
 namespace afc::editor {
 namespace {
+// TODO(trivial, 2025-06-08): Move to //src/language/lazy_string.
 template <typename StringType>
 uint64_t fnv1a(const StringType& text) {
   constexpr std::uint64_t FNV_OFFSET_BASIS = 14695981039346656037ull;
@@ -62,13 +63,16 @@ uint64_t fnv1a(const StringType& text) {
 
 ValueOrError<Path> BuildReviewLogPath(Path buffer, SingleLine answer) {
   DECLARE_OR_RETURN(Path buffer_dirname, buffer.Dirname());
-  DECLARE_OR_RETURN(Path buffer_basename, buffer.Basename());
+  DECLARE_OR_RETURN(PathComponent buffer_basename, buffer.Basename());
+  DECLARE_OR_RETURN(PathComponent buffer_basename_without_extension,
+                    buffer_basename.remove_extension());
   DECLARE_OR_RETURN(
-      Path review_log_basename,
-      Path::New(buffer_basename.read() + NonEmptySingleLine{fnv1a(answer)}));
-  return Path::Join(
-      buffer_dirname,
-      Path::Join(PathComponent::FromString(L".reviews"), review_log_basename));
+      PathComponent path_from_hash,
+      PathComponent::New(ToLazyString(NonEmptySingleLine{fnv1a(answer)})));
+  return Path::Join(buffer_dirname,
+                    Path::Join(PathComponent::FromString(L".reviews"),
+                               Path::Join(buffer_basename_without_extension,
+                                          path_from_hash)));
 }
 }  // namespace
 
