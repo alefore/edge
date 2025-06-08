@@ -18,6 +18,7 @@
 #include "src/math/numbers.h"
 #include "src/search_handler.h"
 #include "src/vm/container.h"
+#include "src/vm/string.h"
 #include "src/vm/types.h"
 
 namespace container = afc::language::container;
@@ -182,6 +183,20 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(pool, vm::kPurityTypePure,
                       [](NonNull<std::shared_ptr<FileTags>> file_tags,
                          LazyString tag) { return file_tags->Find(tag); })
+          .ptr());
+  file_tags_object_type->AddField(
+      IDENTIFIER_CONSTANT(L"get_first"),
+      vm::NewCallback(
+          pool, vm::kPurityTypePure,
+          [](NonNull<std::shared_ptr<FileTags>> file_tags, LazyString tag) {
+            return file_tags->Find(tag)->lock(
+                [](const std::vector<LazyString>& values) {
+                  return MakeNonNullShared<std::optional<LazyString>>(
+                      values.empty()
+                          ? std::optional<LazyString>()
+                          : std::optional<LazyString>(values.front()));
+                });
+          })
           .ptr());
 
   vm::container::Export<std::vector<NonNull<std::shared_ptr<FileTags>>>>(
