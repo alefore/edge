@@ -12,6 +12,7 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/lazy_value.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
@@ -31,6 +32,7 @@ using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
+using afc::language::LazyValue;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -38,6 +40,7 @@ using afc::language::ObservableValue;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
@@ -160,7 +163,16 @@ class FlashcardReviewLog {
 };
 
 class Flashcard {
+  // TODO(2025-06-09, trivial): MAke this `const`?
   gc::Ptr<OpenBuffer> buffer_;
+
+  // LazyValue<> objects only retain a gc::Ptr<> (rather than gc::Root<>) to the
+  // objects they create. However, they must ensure that the pointers are
+  // exposes through `Expand` to the pool before releasing the roots. We use
+  // object_metadata_ for that purpose.
+  NonNull<std::shared_ptr<
+      Protected<std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>>>>
+      object_metadata_;
 
   SingleLine answer_;
   SingleLine hint_;
@@ -172,6 +184,8 @@ class Flashcard {
   NonNull<std::shared_ptr<
       ObservableValue<ValueOrError<gc::Ptr<FlashcardReviewLog>>>>>
       review_log_;
+
+  LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>> card_front_buffer_;
 
  public:
   static ValueOrError<Flashcard> New(gc::Ptr<OpenBuffer> buffer,
@@ -200,7 +214,32 @@ class Flashcard {
       futures::ValueOrError<gc::Root<FlashcardReviewLog>> future_review_log)
       : buffer_(std::move(buffer)),
         answer_(std::move(answer).read()),
-        hint_(std::move(hint).read()) {
+        hint_(std::move(hint).read()),
+        card_front_buffer_([&editor = buffer_->editor(),
+                            protected_object_metadata = object_metadata_,
+                            contents = buffer_->contents().snapshot()] {
+          LOG(INFO) << "Starting computation of card front.";
+          return futures::ListenableValue(OpenAnonymousBuffer(editor).Transform(
+              [&editor, protected_object_metadata,
+               contents](gc::Root<OpenBuffer> output_buffer) {
+                output_buffer->InsertInPosition(
+                    LineSequence::WithLine(
+                        Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
+                        contents,
+                    LineColumn{}, std::nullopt);
+                protected_object_metadata->lock(
+                    [&output_buffer](
+                        std::vector<
+                            NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
+                            object_metadata) {
+                      object_metadata.push_back(
+                          output_buffer.ptr().object_metadata());
+                    });
+                editor.AddBuffer(output_buffer,
+                                 BuffersList::AddBufferType::kVisit);
+                return output_buffer.ptr();
+              }));
+        }) {
     std::move(future_review_log)
         .Transform([output = review_log_](gc::Root<FlashcardReviewLog> input) {
           output->Set(input.ptr());
@@ -216,6 +255,10 @@ class Flashcard {
   SingleLine answer() { return answer_; }
   SingleLine hint() { return hint_; }
 
+  futures::ListenableValue<gc::Ptr<OpenBuffer>> card_front_buffer() const {
+    return card_front_buffer_.get();
+  }
+
   futures::ValueOrError<gc::Ptr<FlashcardReviewLog>> review_log() {
     return review_log_->NewFuture().Transform(
         [input = review_log_](EmptyValue) {
@@ -224,8 +267,9 @@ class Flashcard {
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output = {
-        buffer_.object_metadata()};
+    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
+        *object_metadata_->lock();
+    output.push_back(buffer_.object_metadata());
     if (std::optional<ValueOrError<gc::Ptr<FlashcardReviewLog>>> optional_log =
             review_log_->Get();
         optional_log.has_value())
@@ -302,6 +346,14 @@ void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
                             [](const gc::Ptr<FlashcardReviewLog>& log) {
                               return futures::Past(Success(log->buffer()));
                             });
+                      })
+          .ptr());
+
+  flashcard_object_type->AddField(
+      IDENTIFIER_CONSTANT(L"card_front_buffer"),
+      vm::NewCallback(pool, vm::kPurityTypePure,
+                      [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
+                        return flashcard->card_front_buffer().ToFuture();
                       })
           .ptr());
 
