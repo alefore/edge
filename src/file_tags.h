@@ -15,6 +15,8 @@
 namespace afc::editor {
 // TODO(2025-06-08, trivial): Use private ConstructorAccessTag, force
 // construction through a gc::Pool (to ensure no problems with gc::Ptr).
+//
+// TODO(2025-06-08, trivial): Make this class thread-safe.
 class FileTags {
   language::gc::Ptr<OpenBuffer> buffer_;
 
@@ -47,6 +49,9 @@ class FileTags {
 
   const language::gc::Ptr<OpenBuffer>& buffer() const;
 
+  void Add(language::lazy_string::SingleLine name,
+           language::lazy_string::SingleLine value);
+
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 
@@ -54,6 +59,10 @@ class FileTags {
   static language::ValueOrError<LoadTagsOutput> LoadTags(
       const language::text::LineSequence& contents,
       language::text::LineNumber tags_position);
+
+  static void AddTag(language::lazy_string::SingleLine name,
+                     language::lazy_string::SingleLine value,
+                     TagsMap& output_tags_map);
 };
 
 void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment);

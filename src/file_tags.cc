@@ -42,6 +42,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::StartsWith;
 using afc::language::lazy_string::Trim;
+using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -87,6 +88,18 @@ NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
 
 const gc::Ptr<OpenBuffer>& FileTags::buffer() const { return buffer_; }
 
+void FileTags::Add(language::lazy_string::SingleLine name,
+                   language::lazy_string::SingleLine value) {
+  // TODO(2025-06-08, trivial): Consider saving it right away? Or maybe the best
+  // would be to schedule that it gets saved in two seconds, to coallesce saves?
+  // Obviously, handling redundant schedules.
+  buffer_->InsertInPosition(
+      LineSequence::WithLine(Line{name + SINGLE_LINE_CONSTANT(L": ") + value}),
+      LineColumn{end_line_}, std::nullopt);
+  ++end_line_;
+  AddTag(name, value, tags_);
+}
+
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
     const {
   return {buffer_.object_metadata()};
@@ -110,15 +123,7 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
             colon += ColumnNumberDelta{1};
             SingleLine value = Trim(line.Substring(colon), {L' '});
             DVLOG(5) << "Found tag: " << tag << ": " << value;
-            if (auto it = output.tags_map.find(ToLazyString(tag));
-                it != output.tags_map.end())
-              it->second->lock()->push_back(ToLazyString(value));
-            else
-              output.tags_map.insert(std::pair(
-                  ToLazyString(tag),
-                  MakeNonNullShared<Protected<std::vector<LazyString>>>(
-                      MakeProtected(
-                          std::vector<LazyString>{ToLazyString(value)}))));
+            AddTag(tag, value, output.tags_map);
           },
           [&errors, &line] {
             errors.push_back(
@@ -136,6 +141,18 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
   return MergeErrors(errors, L", ");
 }
 
+/* static */
+void FileTags::AddTag(SingleLine name, SingleLine value,
+                      TagsMap& output_tags_map) {
+  if (auto it = output_tags_map.find(ToLazyString(name));
+      it != output_tags_map.end())
+    it->second->lock()->push_back(ToLazyString(value));
+  else
+    output_tags_map.insert(std::pair(
+        ToLazyString(name),
+        MakeNonNullShared<Protected<std::vector<LazyString>>>(
+            MakeProtected(std::vector<LazyString>{ToLazyString(value)}))));
+}
 }  // namespace afc::editor
 
 namespace afc::vm {
@@ -255,4 +272,8 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
                 });
           }));
 }
+
+// TODO(2025-06-08, trivial): Add unit tests for FileTags for various unusual
+// conditions (such as empty tags, multiple empty lines, errors)...
+
 }  // namespace afc::editor
