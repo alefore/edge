@@ -134,7 +134,7 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
 
   output.end_line = line_number;
   while (output.end_line > tags_start_line &&
-         contents.at(output.end_line).empty())
+         contents.at(output.end_line - LineNumberDelta{1}).empty())
     --output.end_line;
 
   if (errors.empty()) return output;
