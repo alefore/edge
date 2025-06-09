@@ -106,6 +106,8 @@ class ObservableValue : public Observable {
     observers_.Add(std::move(observer));
   }
 
+  // The future returned ignores previous calls to Set (i.e., only gets notified
+  // on the next call).
   futures::Value<EmptyValue> NewFuture() const {
     return observers_.NewFuture();
   }
