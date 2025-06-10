@@ -3,9 +3,12 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/once_only_function.h"
 #include "src/status.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/function_call.h"
 #include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::FileSystemDriver;
@@ -14,6 +17,9 @@ using afc::language::IgnoreErrors;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::ToLazyString;
@@ -116,8 +122,7 @@ ExecutionContext::CompilationResult::evaluate() const {
 };
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
-    language::lazy_string::LazyString code,
-    ErrorHandling on_compilation_error) {
+    LazyString code, ErrorHandling on_compilation_error) {
   return std::visit(
       overload{[](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
                  // No need to handle error; `CompileString` already does it.
@@ -130,26 +135,58 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
       CompileString(std::move(code), on_compilation_error));
 }
 
-language::ValueOrError<ExecutionContext::CompilationResult>
-ExecutionContext::CompileString(language::lazy_string::LazyString code,
-                                ErrorHandling error_handling) {
+ValueOrError<ExecutionContext::CompilationResult>
+ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
   TRACK_OPERATION(ExecutionContext_CompileString);
   gc::Root<vm::Environment> sub_environment =
       vm::Environment::New(environment_);
   return std::visit(
       overload{[sub_environment, work_queue = work_queue()](
                    NonNull<std::shared_ptr<vm::Expression>> expression)
-                   -> language::ValueOrError<CompilationResult> {
+                   -> ValueOrError<CompilationResult> {
                  return CompilationResult(std::move(expression),
                                           sub_environment, work_queue);
                },
                [weak_status = status_, error_handling](
-                   Error error) -> language::ValueOrError<CompilationResult> {
+                   Error error) -> ValueOrError<CompilationResult> {
                  return RegisterCompilationError(
                      weak_status, LazyString{L"🐜Compilation error"}, error,
                      error_handling);
                }},
       afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
+}
+
+ValueOrError<ExecutionContext::CompilationResult>
+ExecutionContext::FunctionCall(const vm::Identifier& function_name,
+                               std::vector<gc::Ptr<vm::Value>> arguments) {
+  return VisitOptional(
+      [&](vm::Environment::LookupResult procedure) {
+        return Success(CompilationResult(
+            vm::NewFunctionCall(
+                vm::NewConstantExpression(
+                    std::get<gc::Root<vm::Value>>(procedure.value)),
+                container::MaterializeVector(
+                    std::move(arguments) |
+                    std::views::transform(
+                        [](gc::Ptr<vm::Value> value)
+                            -> NonNull<std::shared_ptr<vm::Expression>> {
+                          return vm::NewConstantExpression(value.ToRoot());
+                        }))),
+            environment_.ToRoot(), work_queue()));
+      },
+      [&function_name] {
+        return Error{ToLazyString(function_name) +
+                     LazyString{L": Function not found"}};
+      },
+      environment_->Lookup(
+          vm::Namespace{}, function_name,
+          vm::types::Function{
+              .output = vm::Type{vm::types::Void{}},
+              .inputs = container::MaterializeVector(
+                  arguments |
+                  std::views::transform([](const gc::Ptr<vm::Value>& arg) {
+                    return arg->type();
+                  }))}));
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>

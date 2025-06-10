@@ -73,6 +73,12 @@ class ExecutionContext {
       language::lazy_string::LazyString,
       ErrorHandling error_handling = kLogToStatus);
 
+  // Returns an function that, when run, is equivalent to running a given vm
+  // function with some arguments.
+  language::ValueOrError<CompilationResult> FunctionCall(
+      const vm::Identifier& function_name,
+      std::vector<language::gc::Ptr<vm::Value>> arguments);
+
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 };
