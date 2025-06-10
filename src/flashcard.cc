@@ -7,6 +7,7 @@
 #include "src/concurrent/protected.h"
 #include "src/file_link_mode.h"
 #include "src/file_tags.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/container.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
@@ -15,6 +16,8 @@
 #include "src/language/lazy_value.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 #include "src/math/numbers.h"
@@ -29,6 +32,8 @@ using afc::concurrent::Protected;
 using afc::infrastructure::AbsolutePath;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -48,6 +53,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
@@ -162,14 +168,47 @@ class FlashcardReviewLog {
   }
 };
 
+LineSequence PrepareCardFrontContents(LineSequence original, SingleLine answer,
+                                      SingleLine hint) {
+  LOG(INFO) << "Preparing card front contents.";
+  bool found_end_marker = false;
+  return original.Map([&](Line input_line) {
+    SingleLine input = input_line.contents();
+    static const std::unordered_set<SingleLine> end_markers = {
+        SINGLE_LINE_CONSTANT(L"## Related"), SINGLE_LINE_CONSTANT(L"## Tags")};
+    if (found_end_marker || end_markers.contains(input)) {
+      found_end_marker = true;
+      return Line{};
+    }
+
+    LineBuilder output;
+    // This is quite inefficient… maybe we should optimize it.
+    for (ColumnNumber index; index.ToDelta() < input.size(); ++index) {
+      if (StartsWith(input.Substring(index), answer)) {
+        output.AppendString(hint, LineModifierSet{LineModifier::kCyan});
+        index += answer.size();
+      } else
+        output.AppendCharacter(input.get(index), {});
+    }
+    LOG(INFO) << "Finished building.";
+    return std::move(output).Build();
+  });
+}
+
 class Flashcard {
   // TODO(2025-06-09, trivial): MAke this `const`?
   gc::Ptr<OpenBuffer> buffer_;
 
   // LazyValue<> objects only retain a gc::Ptr<> (rather than gc::Root<>) to the
   // objects they create. However, they must ensure that the pointers are
-  // exposes through `Expand` to the pool before releasing the roots. We use
-  // object_metadata_ for that purpose.
+  // exposed through `Expand` to the pool *before releasing the roots*. We use
+  // object_metadata_ for that purpose. Otherwise, if Expand checked directly on
+  // the LazyValue instances, there would be a race (the root is already
+  // deleted, but the LazyValue doesn't yet return its Ptr).
+  //
+  // TODO(easy, 2025-06-10): Add another version of the LazyValue<> that lets
+  // the factory directly store the value before it returns, to avoid this race.
+  // Then simplify this code accordingly.
   NonNull<std::shared_ptr<
       Protected<std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>>>>
       object_metadata_;
@@ -181,6 +220,9 @@ class Flashcard {
   // propagate the Root -> Ptr value without a very brief period of time where
   // the GC system may think that the object is unreachable (after the root has
   // been destroyed but before the ptr has been installed here).
+  //
+  // TODO(2025-06-10, easy): Convert to LazyValue same as card_front_buffer_
+  // (use object_metadata_).
   NonNull<std::shared_ptr<
       ObservableValue<ValueOrError<gc::Ptr<FlashcardReviewLog>>>>>
       review_log_;
@@ -204,9 +246,9 @@ class Flashcard {
     DECLARE_OR_RETURN(Path review_log_path,
                       BuildReviewLogPath(buffer_path, answer));
 
-    return Flashcard(
-        std::move(buffer), answer, tokens[1].value.read(),
-        FlashcardReviewLog::New(buffer->editor(), review_log_path, answer));
+    EditorState& editor = buffer->editor();
+    return Flashcard{std::move(buffer), answer, tokens[1].value.read(),
+                     FlashcardReviewLog::New(editor, review_log_path, answer)};
   }
 
   Flashcard(
@@ -215,17 +257,27 @@ class Flashcard {
       : buffer_(std::move(buffer)),
         answer_(std::move(answer).read()),
         hint_(std::move(hint).read()),
+        // TODO(2025-06-10): Figure out why the heck we can't just capture
+        // `this` here (and the necessary object_metadata_ field in the nested
+        // lambda). This ought to work! That must mean that the Flashcard
+        // instance is getting deallocated /before/ the lazy-value starts
+        // running … but that shouldn't be possible.
         card_front_buffer_([&editor = buffer_->editor(),
-                            protected_object_metadata = object_metadata_,
-                            contents = buffer_->contents().snapshot()] {
+                            original_contents = buffer_->contents().snapshot(),
+                            answer = answer_, hint = hint_,
+                            protected_object_metadata = object_metadata_] {
           LOG(INFO) << "Starting computation of card front.";
+          LineSequence card_contents =
+              PrepareCardFrontContents(original_contents, answer, hint);
+          LOG(INFO) << "Open anonymous buffer.";
           return futures::ListenableValue(OpenAnonymousBuffer(editor).Transform(
-              [&editor, protected_object_metadata,
-               contents](gc::Root<OpenBuffer> output_buffer) {
+              [card_contents,
+               protected_object_metadata](gc::Root<OpenBuffer> output_buffer) {
+                LOG(INFO) << "Received anonymous buffer.";
                 output_buffer->InsertInPosition(
                     LineSequence::WithLine(
                         Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
-                        contents,
+                        card_contents,
                     LineColumn{}, std::nullopt);
                 protected_object_metadata->lock(
                     [&output_buffer](
@@ -235,8 +287,8 @@ class Flashcard {
                       object_metadata.push_back(
                           output_buffer.ptr().object_metadata());
                     });
-                editor.AddBuffer(output_buffer,
-                                 BuffersList::AddBufferType::kVisit);
+                output_buffer->editor().AddBuffer(
+                    output_buffer, BuffersList::AddBufferType::kVisit);
                 return output_buffer.ptr();
               }));
         }) {
@@ -267,6 +319,7 @@ class Flashcard {
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    LOG(INFO) << "Expanding object.";
     std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
         *object_metadata_->lock();
     output.push_back(buffer_.object_metadata());
@@ -278,6 +331,7 @@ class Flashcard {
                             output.push_back(log.object_metadata());
                           }},
                  optional_log.value());
+    LOG(INFO) << "Links: " << output.size();
     return output;
   }
 };
@@ -285,21 +339,94 @@ class Flashcard {
 
 namespace afc::vm {
 template <>
-const types::ObjectName VMTypeMapper<
-    NonNull<std::shared_ptr<editor::Flashcard>>>::object_type_name =
-    types::ObjectName{IDENTIFIER_CONSTANT(L"Flashcard")};
+struct VMTypeMapper<gc::Ptr<editor::Flashcard>> {
+  static gc::Ptr<editor::Flashcard> get(Value& value) {
+    return value.get_user_value<gc::Ptr<editor::Flashcard>>(object_type_name)
+        .value();
+  }
+
+  static gc::Root<Value> New(gc::Pool& pool, gc::Ptr<editor::Flashcard> value) {
+    auto shared_value = MakeNonNullShared<gc::Ptr<editor::Flashcard>>(value);
+    return vm::Value::NewObject(
+        pool, object_type_name, shared_value, [shared_value] {
+          return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
+              {shared_value->object_metadata()}};
+        });
+  }
+
+  static gc::Root<Value> New(gc::Pool& pool,
+                             gc::Root<editor::Flashcard> value) {
+    return New(pool, value.ptr());
+  }
+
+  static const types::ObjectName object_type_name;
+};
+
+template <>
+const types::ObjectName
+    VMTypeMapper<gc::Ptr<editor::Flashcard>>::object_type_name =
+        types::ObjectName{IDENTIFIER_CONSTANT(L"Flashcard")};
+
+template <>
+struct VMTypeMapper<gc::Root<editor::Flashcard>> {
+  static gc::Root<Value> New(gc::Pool& pool,
+                             gc::Root<editor::Flashcard> value) {
+    return VMTypeMapper<gc::Ptr<editor::Flashcard>>::New(pool,
+                                                         std::move(value));
+  }
+  static const types::ObjectName object_type_name;
+};
+
+template <>
+const types::ObjectName
+    VMTypeMapper<gc::Root<editor::Flashcard>>::object_type_name =
+        types::ObjectName{IDENTIFIER_CONSTANT(L"Flashcard")};
+
+template <>
+struct VMTypeMapper<NonNull<
+    std::shared_ptr<Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>> {
+  static NonNull<
+      std::shared_ptr<Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>
+  get(Value& value) {
+    return value
+        .get_user_value<Protected<std::vector<gc::Ptr<editor::Flashcard>>>>(
+            object_type_name);
+  }
+  static gc::Root<Value> New(
+      gc::Pool& pool,
+      NonNull<
+          std::shared_ptr<Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>
+          input) {
+    return vm::Value::NewObject(pool, object_type_name, input,
+                                [input] { return Expand(input); });
+  }
+
+  static gc::Root<Value> New(
+      gc::Pool& pool,
+      NonNull<
+          std::shared_ptr<Protected<std::vector<gc::Root<editor::Flashcard>>>>>
+          input) {
+    return input->lock([&pool](std::vector<gc::Root<editor::Flashcard>> roots) {
+      return VMTypeMapper<NonNull<std::shared_ptr<
+          Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>>::
+          New(pool, MakeNonNullShared<
+                        Protected<std::vector<gc::Ptr<editor::Flashcard>>>>(
+                        MakeProtected(language::container::MaterializeVector(
+                            roots | gc::view::Ptr))));
+    });
+  }
+  static const types::ObjectName object_type_name;
+};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
-    Protected<std::vector<NonNull<std::shared_ptr<editor::Flashcard>>>>>>>::
-    object_type_name =
-        types::ObjectName(IDENTIFIER_CONSTANT(L"VectorFlashcard"));
+    Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>>::object_type_name =
+    types::ObjectName(IDENTIFIER_CONSTANT(L"VectorFlashcard"));
 }  // namespace afc::vm
 namespace afc::editor {
-void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
+void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
   gc::Root<vm::ObjectType> flashcard_object_type = vm::ObjectType::New(
-      pool,
-      vm::VMTypeMapper<NonNull<std::shared_ptr<Flashcard>>>::object_type_name);
+      pool, vm::VMTypeMapper<gc::Ptr<Flashcard>>::object_type_name);
 
   environment.DefineType(flashcard_object_type.ptr());
 
@@ -307,24 +434,24 @@ void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
       IDENTIFIER_CONSTANT(L"Flashcard"),
       vm::NewCallback(pool, vm::kPurityTypePure,
                       [&pool](gc::Ptr<OpenBuffer> buffer, LazyString value)
-                          -> ValueOrError<NonNull<std::shared_ptr<Flashcard>>> {
+                          -> ValueOrError<gc::Root<Flashcard>> {
                         DECLARE_OR_RETURN(Flashcard flashcard,
                                           Flashcard::New(buffer, value));
-                        return MakeNonNullShared<Flashcard>(
-                            std::move(flashcard));
+                        return pool.NewRoot(
+                            MakeNonNullUnique<Flashcard>(std::move(flashcard)));
                       }));
 
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"buffer"),
       vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
+                      [](gc::Ptr<Flashcard> flashcard) {
                         return flashcard->buffer().ToRoot();
                       })
           .ptr());
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"hint"),
       vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
+                      [](gc::Ptr<Flashcard> flashcard) {
                         return ToLazyString(flashcard->hint());
                       })
           .ptr());
@@ -332,7 +459,7 @@ void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"answer"),
       vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
+                      [](gc::Ptr<Flashcard> flashcard) {
                         return ToLazyString(flashcard->answer());
                       })
           .ptr());
@@ -340,7 +467,7 @@ void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"review_buffer"),
       vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<Flashcard>> flashcard)
+                      [](gc::Ptr<Flashcard> flashcard)
                           -> futures::ValueOrError<gc::Ptr<OpenBuffer>> {
                         return flashcard->review_log().Transform(
                             [](const gc::Ptr<FlashcardReviewLog>& log) {
@@ -352,13 +479,12 @@ void RegisterFlashcard(language::gc::Pool& pool, vm::Environment& environment) {
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"card_front_buffer"),
       vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<Flashcard>> flashcard) {
+                      [](gc::Ptr<Flashcard> flashcard) {
                         return flashcard->card_front_buffer().ToFuture();
                       })
           .ptr());
 
-  vm::container::Export<std::vector<NonNull<std::shared_ptr<Flashcard>>>>(
-      pool, environment);
+  vm::container::Export<std::vector<gc::Ptr<Flashcard>>>(pool, environment);
 
 #if 0
   environment.Define(
