@@ -196,6 +196,8 @@ LineSequence PrepareCardFrontContents(LineSequence original, SingleLine answer,
 }
 
 class Flashcard {
+  struct ConstructorAccessTag {};
+
   // TODO(2025-06-09, trivial): MAke this `const`?
   gc::Ptr<OpenBuffer> buffer_;
 
@@ -230,8 +232,8 @@ class Flashcard {
   LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>> card_front_buffer_;
 
  public:
-  static ValueOrError<Flashcard> New(gc::Ptr<OpenBuffer> buffer,
-                                     LazyString tag_value) {
+  static ValueOrError<gc::Root<Flashcard>> New(gc::Ptr<OpenBuffer> buffer,
+                                               LazyString tag_value) {
     DECLARE_OR_RETURN(SingleLine tag_value_line, SingleLine::New(tag_value));
     std::vector<Token> tokens = TokenizeBySpaces(tag_value_line);
     if (tokens.size() != 2)
@@ -247,12 +249,15 @@ class Flashcard {
                       BuildReviewLogPath(buffer_path, answer));
 
     EditorState& editor = buffer->editor();
-    return Flashcard{std::move(buffer), answer, tokens[1].value.read(),
-                     FlashcardReviewLog::New(editor, review_log_path, answer)};
+    return editor.gc_pool().NewRoot(MakeNonNullUnique<Flashcard>(
+        ConstructorAccessTag{}, std::move(buffer), answer,
+        tokens[1].value.read(),
+        FlashcardReviewLog::New(editor, review_log_path, answer)));
   }
 
   Flashcard(
-      gc::Ptr<OpenBuffer> buffer, SingleLine answer, SingleLine hint,
+      ConstructorAccessTag, gc::Ptr<OpenBuffer> buffer, SingleLine answer,
+      SingleLine hint,
       futures::ValueOrError<gc::Root<FlashcardReviewLog>> future_review_log)
       : buffer_(std::move(buffer)),
         answer_(std::move(answer).read()),
@@ -302,6 +307,11 @@ class Flashcard {
           return futures::Past(EmptyValue{});
         });
   }
+
+  Flashcard(const Flashcard&) = delete;
+  Flashcard(Flashcard&&) = delete;
+  Flashcard& operator=(const Flashcard&) = delete;
+  Flashcard& operator=(Flashcard&&) = delete;
 
   const gc::Ptr<OpenBuffer>& buffer() const { return buffer_; }
   SingleLine answer() { return answer_; }
@@ -435,10 +445,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(pool, vm::kPurityTypePure,
                       [&pool](gc::Ptr<OpenBuffer> buffer, LazyString value)
                           -> ValueOrError<gc::Root<Flashcard>> {
-                        DECLARE_OR_RETURN(Flashcard flashcard,
-                                          Flashcard::New(buffer, value));
-                        return pool.NewRoot(
-                            MakeNonNullUnique<Flashcard>(std::move(flashcard)));
+                        return Flashcard::New(buffer, value);
                       }));
 
   flashcard_object_type->AddField(
