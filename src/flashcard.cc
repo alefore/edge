@@ -260,6 +260,12 @@ class Flashcard {
       SingleLine hint,
       futures::ValueOrError<gc::Root<FlashcardReviewLog>> future_review_log)
       : buffer_(std::move(buffer)),
+        object_metadata_(
+            MakeNonNullShared<Protected<
+                std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>>>(
+                MakeProtected(
+                    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
+                        buffer_.object_metadata()}))),
         answer_(std::move(answer).read()),
         hint_(std::move(hint).read()),
         card_front_buffer_([this] {
@@ -272,6 +278,8 @@ class Flashcard {
                               protected_object_metadata = object_metadata_](
                                  gc::Root<OpenBuffer> output_buffer) {
                     LOG(INFO) << "Received anonymous buffer.";
+                    output_buffer->Set(buffer_variables::allow_dirty_delete,
+                                       true);
                     output_buffer->InsertInPosition(
                         LineSequence::WithLine(
                             Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
@@ -322,10 +330,8 @@ class Flashcard {
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    LOG(INFO) << "Expanding object.";
     std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
         *object_metadata_->lock();
-    output.push_back(buffer_.object_metadata());
     if (std::optional<ValueOrError<gc::Ptr<FlashcardReviewLog>>> optional_log =
             review_log_->Get();
         optional_log.has_value())
@@ -334,7 +340,6 @@ class Flashcard {
                             output.push_back(log.object_metadata());
                           }},
                  optional_log.value());
-    LOG(INFO) << "Links: " << output.size();
     return output;
   }
 };
