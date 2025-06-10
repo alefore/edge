@@ -36,6 +36,7 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::GetValueOrNullOpt;
 using afc::language::IgnoreErrors;
 using afc::language::LazyValue;
 using afc::language::MakeNonNullShared;
@@ -60,6 +61,32 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::math::numbers::Number;
 
+namespace afc::vm {
+// TODO(trivial, 2025-06-10): This probably should be moved to a central
+// location and redundant logic in src/buffer_vm.cc should be deduplicated
+// against it.
+template <typename T>
+struct VMTypeMapper<gc::Ptr<T>> {
+  static gc::Ptr<T> get(Value& value) {
+    return value.get_user_value<gc::Ptr<T>>(object_type_name).value();
+  }
+
+  static gc::Root<Value> New(gc::Pool& pool, gc::Ptr<T> value) {
+    auto shared_value = MakeNonNullShared<gc::Ptr<T>>(value);
+    return vm::Value::NewObject(
+        pool, object_type_name, shared_value, [shared_value] {
+          return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
+              {shared_value->object_metadata()}};
+        });
+  }
+
+  static gc::Root<Value> New(gc::Pool& pool, gc::Root<T> value) {
+    return New(pool, value.ptr());
+  }
+
+  static const types::ObjectName object_type_name;
+};
+}  // namespace afc::vm
 namespace afc::editor {
 namespace {
 // TODO(trivial, 2025-06-08): Move to //src/language/lazy_string.
@@ -150,6 +177,11 @@ class FlashcardReviewLog {
 
   gc::Ptr<OpenBuffer> buffer() { return review_buffer_; }
 
+  enum class Score { kFail, kHard, kGood, kEasy };
+  void SetScore(Score) {
+    // TODO(2025-06-10, easy): Implement: propagate value to file_tags_.
+  }
+
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
     return {review_buffer_.object_metadata()};
   }
@@ -234,6 +266,8 @@ class Flashcard {
   const LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>>
       card_back_buffer_;
 
+  gc::WeakPtr<Flashcard> ptr_this_;
+
  public:
   static ValueOrError<gc::Root<Flashcard>> New(gc::Ptr<OpenBuffer> buffer,
                                                LazyString tag_value) {
@@ -252,10 +286,13 @@ class Flashcard {
                       BuildReviewLogPath(buffer_path, answer));
 
     EditorState& editor = buffer->editor();
-    return editor.gc_pool().NewRoot(MakeNonNullUnique<Flashcard>(
-        ConstructorAccessTag{}, std::move(buffer), answer,
-        tokens[1].value.read(),
-        FlashcardReviewLog::New(editor, review_log_path, answer)));
+    gc::Root<Flashcard> output =
+        editor.gc_pool().NewRoot(MakeNonNullUnique<Flashcard>(
+            ConstructorAccessTag{}, std::move(buffer), answer,
+            tokens[1].value.read(),
+            FlashcardReviewLog::New(editor, review_log_path, answer)));
+    output->ptr_this_ = output.ptr().ToWeakPtr();
+    return output;
   }
 
   Flashcard(
@@ -326,7 +363,8 @@ class Flashcard {
   enum class CardType { kFront, kBack };
   futures::ListenableValue<gc::Ptr<OpenBuffer>> PrepareCardBuffer(
       CardType card_type) {
-    LOG(INFO) << "Starting computation of card.";
+    LOG(INFO) << "Starting computation of card: "
+              << (card_type == CardType::kFront ? "front" : "back");
     static const SingleLine kPadding = SINGLE_LINE_CONSTANT(L"  ");
     LineSequence card_contents = PrepareCardContents(
         buffer_->contents().snapshot(), answer_,
@@ -334,16 +372,40 @@ class Flashcard {
                                       : answer_);
     return futures::ListenableValue(
         OpenAnonymousBuffer(buffer_->editor())
-            .Transform([card_contents,
-                        protected_object_metadata = object_metadata_](
-                           gc::Root<OpenBuffer> output_buffer) {
+            .Transform([card_type, card_contents,
+                        protected_object_metadata = object_metadata_,
+                        weak_this =
+                            ptr_this_](gc::Root<OpenBuffer> output_buffer) {
               LOG(INFO) << "Received anonymous buffer.";
               output_buffer->Set(buffer_variables::allow_dirty_delete, true);
+              output_buffer->Set(buffer_variables::persist_state, false);
               output_buffer->InsertInPosition(
                   LineSequence::WithLine(
                       Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
                       card_contents,
                   LineColumn{}, std::nullopt);
+              VisitOptional(
+                  [&](gc::Root<Flashcard> root_this) {
+                    std::visit(
+                        overload{
+                            [](Error error) { LOG(INFO) << error; },
+                            [](ExecutionContext::CompilationResult result) {
+                              result.evaluate();
+                            }},
+                        output_buffer->execution_context()->FunctionCall(
+                            card_type == CardType::kFront
+                                ? IDENTIFIER_CONSTANT(
+                                      L"ConfigureFrontCardBuffer")
+                                : IDENTIFIER_CONSTANT(
+                                      L"ConfigureBackCardBuffer"),
+                            {vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
+                                 output_buffer.pool(), output_buffer.ptr())
+                                 .ptr(),
+                             vm::VMTypeMapper<gc::Ptr<Flashcard>>::New(
+                                 output_buffer.pool(), root_this.ptr())
+                                 .ptr()}));
+                  },
+                  [] {}, weak_this.Lock());
               protected_object_metadata->lock(
                   [&output_buffer](
                       std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
@@ -360,30 +422,6 @@ class Flashcard {
 }  // namespace afc::editor
 
 namespace afc::vm {
-template <>
-struct VMTypeMapper<gc::Ptr<editor::Flashcard>> {
-  static gc::Ptr<editor::Flashcard> get(Value& value) {
-    return value.get_user_value<gc::Ptr<editor::Flashcard>>(object_type_name)
-        .value();
-  }
-
-  static gc::Root<Value> New(gc::Pool& pool, gc::Ptr<editor::Flashcard> value) {
-    auto shared_value = MakeNonNullShared<gc::Ptr<editor::Flashcard>>(value);
-    return vm::Value::NewObject(
-        pool, object_type_name, shared_value, [shared_value] {
-          return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
-              {shared_value->object_metadata()}};
-        });
-  }
-
-  static gc::Root<Value> New(gc::Pool& pool,
-                             gc::Root<editor::Flashcard> value) {
-    return New(pool, value.ptr());
-  }
-
-  static const types::ObjectName object_type_name;
-};
-
 template <>
 const types::ObjectName
     VMTypeMapper<gc::Ptr<editor::Flashcard>>::object_type_name =
@@ -481,6 +519,35 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                       [](gc::Ptr<Flashcard> flashcard) {
                         return ToLazyString(flashcard->answer());
                       })
+          .ptr());
+
+  flashcard_object_type->AddField(
+      IDENTIFIER_CONSTANT(L"SetScore"),
+      vm::NewCallback(
+          pool, vm::kPurityTypePure,
+          [](gc::Ptr<Flashcard> flashcard,
+             LazyString score_str) -> futures::ValueOrError<EmptyValue> {
+            static const std::unordered_map<LazyString,
+                                            FlashcardReviewLog::Score>
+                scores = {
+                    {LazyString{L"fail"}, FlashcardReviewLog::Score::kFail},
+                    {LazyString{L"hard"}, FlashcardReviewLog::Score::kHard},
+                    {LazyString{L"good"}, FlashcardReviewLog::Score::kGood},
+                    {LazyString{L"easy"}, FlashcardReviewLog::Score::kEasy}};
+            return VisitOptional(
+                [flashcard](FlashcardReviewLog::Score score) {
+                  return flashcard->review_log().Transform(
+                      [score](const gc::Ptr<FlashcardReviewLog>& log) {
+                        log->SetScore(score);
+                        return futures::Past(Success());
+                      });
+                },
+                [&] {
+                  return futures::Past(
+                      Error{LazyString{L"Invalid score: "} + score_str});
+                },
+                GetValueOrNullOpt(scores, score_str));
+          })
           .ptr());
 
   flashcard_object_type->AddField(
