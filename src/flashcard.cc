@@ -198,8 +198,7 @@ LineSequence PrepareCardFrontContents(LineSequence original, SingleLine answer,
 class Flashcard {
   struct ConstructorAccessTag {};
 
-  // TODO(2025-06-09, trivial): MAke this `const`?
-  gc::Ptr<OpenBuffer> buffer_;
+  const gc::Ptr<OpenBuffer> buffer_;
 
   // LazyValue<> objects only retain a gc::Ptr<> (rather than gc::Root<>) to the
   // objects they create. However, they must ensure that the pointers are
@@ -215,8 +214,8 @@ class Flashcard {
       Protected<std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>>>>
       object_metadata_;
 
-  SingleLine answer_;
-  SingleLine hint_;
+  const SingleLine answer_;
+  const SingleLine hint_;
 
   // This should ideally be a futures::Value; however, we can't properly
   // propagate the Root -> Ptr value without a very brief period of time where
@@ -225,11 +224,12 @@ class Flashcard {
   //
   // TODO(2025-06-10, easy): Convert to LazyValue same as card_front_buffer_
   // (use object_metadata_).
-  NonNull<std::shared_ptr<
+  const NonNull<std::shared_ptr<
       ObservableValue<ValueOrError<gc::Ptr<FlashcardReviewLog>>>>>
       review_log_;
 
-  LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>> card_front_buffer_;
+  const LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>>
+      card_front_buffer_;
 
  public:
   static ValueOrError<gc::Root<Flashcard>> New(gc::Ptr<OpenBuffer> buffer,
