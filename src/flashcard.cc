@@ -168,9 +168,9 @@ class FlashcardReviewLog {
   }
 };
 
-LineSequence PrepareCardFrontContents(LineSequence original, SingleLine answer,
-                                      SingleLine hint) {
-  LOG(INFO) << "Preparing card front contents.";
+LineSequence PrepareCardContents(LineSequence original, SingleLine answer,
+                                 SingleLine answer_cover) {
+  LOG(INFO) << "Preparing card contents.";
   bool found_end_marker = false;
   return original.Map([&](Line input_line) {
     SingleLine input = input_line.contents();
@@ -185,7 +185,9 @@ LineSequence PrepareCardFrontContents(LineSequence original, SingleLine answer,
     // This is quite inefficient… maybe we should optimize it.
     for (ColumnNumber index; index.ToDelta() < input.size(); ++index) {
       if (StartsWith(input.Substring(index), answer)) {
-        output.AppendString(hint, LineModifierSet{LineModifier::kCyan});
+        output.AppendString(
+            answer_cover,
+            LineModifierSet{LineModifier::kCyan, LineModifier::kReverse});
         index += answer.size();
       } else
         output.AppendCharacter(input.get(index), {});
@@ -229,6 +231,9 @@ class Flashcard {
   const LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>>
       card_front_buffer_;
 
+  const LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>>
+      card_back_buffer_;
+
  public:
   static ValueOrError<gc::Root<Flashcard>> New(gc::Ptr<OpenBuffer> buffer,
                                                LazyString tag_value) {
@@ -268,8 +273,7 @@ class Flashcard {
         hint_(std::move(hint).read()),
         review_log_(futures::ListenableValue(
             std::move(future_review_log)
-                .Transform([output = review_log_,
-                            protected_object_metadata = object_metadata_](
+                .Transform([protected_object_metadata = object_metadata_](
                                gc::Root<FlashcardReviewLog> input) {
                   protected_object_metadata->lock(
                       [&input](std::vector<
@@ -287,36 +291,10 @@ class Flashcard {
                       InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>{
                           error});
                 }))),
-        card_front_buffer_([this] {
-          LOG(INFO) << "Starting computation of card front.";
-          LineSequence card_contents = PrepareCardFrontContents(
-              buffer_->contents().snapshot(), answer_, hint_);
-          return futures::ListenableValue(
-              OpenAnonymousBuffer(buffer_->editor())
-                  .Transform([card_contents,
-                              protected_object_metadata = object_metadata_](
-                                 gc::Root<OpenBuffer> output_buffer) {
-                    LOG(INFO) << "Received anonymous buffer.";
-                    output_buffer->Set(buffer_variables::allow_dirty_delete,
-                                       true);
-                    output_buffer->InsertInPosition(
-                        LineSequence::WithLine(
-                            Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
-                            card_contents,
-                        LineColumn{}, std::nullopt);
-                    protected_object_metadata->lock(
-                        [&output_buffer](
-                            std::vector<
-                                NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
-                                object_metadata) {
-                          object_metadata.push_back(
-                              output_buffer.ptr().object_metadata());
-                        });
-                    output_buffer->editor().AddBuffer(
-                        output_buffer, BuffersList::AddBufferType::kVisit);
-                    return output_buffer.ptr();
-                  }));
-        }) {}
+        card_front_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
+                                           CardType::kFront)),
+        card_back_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
+                                          CardType::kBack)) {}
 
   Flashcard(const Flashcard&) = delete;
   Flashcard(Flashcard&&) = delete;
@@ -331,6 +309,10 @@ class Flashcard {
     return card_front_buffer_.get();
   }
 
+  futures::ListenableValue<gc::Ptr<OpenBuffer>> card_back_buffer() const {
+    return card_back_buffer_.get();
+  }
+
   futures::ValueOrError<gc::Ptr<FlashcardReviewLog>> review_log() {
     return review_log_.ToFuture().Transform(
         [](auto value) { return std::move(value.value_or_error); });
@@ -338,6 +320,41 @@ class Flashcard {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
     return *object_metadata_->lock();
+  }
+
+ private:
+  enum class CardType { kFront, kBack };
+  futures::ListenableValue<gc::Ptr<OpenBuffer>> PrepareCardBuffer(
+      CardType card_type) {
+    LOG(INFO) << "Starting computation of card.";
+    static const SingleLine kPadding = SINGLE_LINE_CONSTANT(L"  ");
+    LineSequence card_contents = PrepareCardContents(
+        buffer_->contents().snapshot(), answer_,
+        card_type == CardType::kFront ? (kPadding + hint_ + kPadding)
+                                      : answer_);
+    return futures::ListenableValue(
+        OpenAnonymousBuffer(buffer_->editor())
+            .Transform([card_contents,
+                        protected_object_metadata = object_metadata_](
+                           gc::Root<OpenBuffer> output_buffer) {
+              LOG(INFO) << "Received anonymous buffer.";
+              output_buffer->Set(buffer_variables::allow_dirty_delete, true);
+              output_buffer->InsertInPosition(
+                  LineSequence::WithLine(
+                      Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
+                      card_contents,
+                  LineColumn{}, std::nullopt);
+              protected_object_metadata->lock(
+                  [&output_buffer](
+                      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
+                          object_metadata) {
+                    object_metadata.push_back(
+                        output_buffer.ptr().object_metadata());
+                  });
+              output_buffer->editor().AddBuffer(
+                  output_buffer, BuffersList::AddBufferType::kVisit);
+              return output_buffer.ptr();
+            }));
   }
 };
 }  // namespace afc::editor
@@ -483,6 +500,14 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(pool, vm::kPurityTypePure,
                       [](gc::Ptr<Flashcard> flashcard) {
                         return flashcard->card_front_buffer().ToFuture();
+                      })
+          .ptr());
+
+  flashcard_object_type->AddField(
+      IDENTIFIER_CONSTANT(L"card_back_buffer"),
+      vm::NewCallback(pool, vm::kPurityTypePure,
+                      [](gc::Ptr<Flashcard> flashcard) {
+                        return flashcard->card_back_buffer().ToFuture();
                       })
           .ptr());
 
