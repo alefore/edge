@@ -206,10 +206,6 @@ class Flashcard {
   // object_metadata_ for that purpose. Otherwise, if Expand checked directly on
   // the LazyValue instances, there would be a race (the root is already
   // deleted, but the LazyValue doesn't yet return its Ptr).
-  //
-  // TODO(easy, 2025-06-10): Add another version of the LazyValue<> that lets
-  // the factory directly store the value before it returns, to avoid this race.
-  // Then simplify this code accordingly.
   NonNull<std::shared_ptr<
       Protected<std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>>>>
       object_metadata_;
@@ -217,15 +213,17 @@ class Flashcard {
   const SingleLine answer_;
   const SingleLine hint_;
 
-  // This should ideally be a futures::Value; however, we can't properly
-  // propagate the Root -> Ptr value without a very brief period of time where
-  // the GC system may think that the object is unreachable (after the root has
-  // been destroyed but before the ptr has been installed here).
+  // futures::Value has specially handling of ValueOrError which gets in our
+  // way, so we wrap it to disable that.
   //
-  // TODO(2025-06-10, easy): Convert to LazyValue same as card_front_buffer_
-  // (use object_metadata_).
-  const NonNull<std::shared_ptr<
-      ObservableValue<ValueOrError<gc::Ptr<FlashcardReviewLog>>>>>
+  // TODO(2025-06-10, easy): Find a better way to make it possible to create a
+  // ListenableValue<ValueOrError<T>> directly.
+  template <typename T>
+  struct InternalValueOrErrorWrapper {
+    ValueOrError<T> value_or_error;
+  };
+  const futures::ListenableValue<
+      InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>>
       review_log_;
 
   const LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>>
@@ -268,6 +266,27 @@ class Flashcard {
                         buffer_.object_metadata()}))),
         answer_(std::move(answer).read()),
         hint_(std::move(hint).read()),
+        review_log_(futures::ListenableValue(
+            std::move(future_review_log)
+                .Transform([output = review_log_,
+                            protected_object_metadata = object_metadata_](
+                               gc::Root<FlashcardReviewLog> input) {
+                  protected_object_metadata->lock(
+                      [&input](std::vector<
+                               NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
+                                   object_metadata) {
+                        object_metadata.push_back(
+                            input.ptr().object_metadata());
+                      });
+                  return futures::Past(Success(
+                      InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>{
+                          .value_or_error = input.ptr()}));
+                })
+                .ConsumeErrors([](Error error) {
+                  return futures::Past(
+                      InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>{
+                          error});
+                }))),
         card_front_buffer_([this] {
           LOG(INFO) << "Starting computation of card front.";
           LineSequence card_contents = PrepareCardFrontContents(
@@ -297,17 +316,7 @@ class Flashcard {
                         output_buffer, BuffersList::AddBufferType::kVisit);
                     return output_buffer.ptr();
                   }));
-        }) {
-    std::move(future_review_log)
-        .Transform([output = review_log_](gc::Root<FlashcardReviewLog> input) {
-          output->Set(input.ptr());
-          return futures::Past(Success());
-        })
-        .ConsumeErrors([output = review_log_](Error error) {
-          output->Set(ValueOrError<gc::Ptr<FlashcardReviewLog>>(error));
-          return futures::Past(EmptyValue{});
-        });
-  }
+        }) {}
 
   Flashcard(const Flashcard&) = delete;
   Flashcard(Flashcard&&) = delete;
@@ -323,24 +332,12 @@ class Flashcard {
   }
 
   futures::ValueOrError<gc::Ptr<FlashcardReviewLog>> review_log() {
-    return review_log_->NewFuture().Transform(
-        [input = review_log_](EmptyValue) {
-          return futures::Past(input->Get().value());
-        });
+    return review_log_.ToFuture().Transform(
+        [](auto value) { return std::move(value.value_or_error); });
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
-        *object_metadata_->lock();
-    if (std::optional<ValueOrError<gc::Ptr<FlashcardReviewLog>>> optional_log =
-            review_log_->Get();
-        optional_log.has_value())
-      std::visit(overload{IgnoreErrors{},
-                          [&output](gc::Ptr<FlashcardReviewLog> log) {
-                            output.push_back(log.object_metadata());
-                          }},
-                 optional_log.value());
-    return output;
+    return *object_metadata_->lock();
   }
 };
 }  // namespace afc::editor
