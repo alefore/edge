@@ -900,29 +900,6 @@ void OpenBuffer::AppendLines(
   }
 }
 
-namespace {
-std::unique_ptr<vm::Expression> GetOnReloadCallExpression(
-    gc::Pool& pool, Environment& environment, gc::Ptr<OpenBuffer> buffer) {
-  return VisitOptional(
-      [&](Environment::LookupResult procedure) {
-        return vm::NewFunctionCall(
-                   vm::NewConstantExpression(
-                       std::get<gc::Root<Value>>(procedure.value)),
-                   {vm::NewConstantExpression(
-                       vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::New(pool,
-                                                                  buffer))})
-            .get_unique();
-      },
-      [] -> std::unique_ptr<vm::Expression> { return nullptr; },
-      environment.Lookup(
-          Namespace{}, Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"OnReload")},
-          vm::types::Function{
-              .output = vm::Type{vm::types::Void{}},
-              .inputs = {
-                  vm::GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()}}));
-}
-}  // namespace
-
 futures::Value<PossibleError> OpenBuffer::Reload() {
   LOG(INFO) << name() << ": Reload starts.";
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
@@ -948,26 +925,29 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
           LazyString{L"Reload is already in progress and new one scheduled."}});
   }
 
-  return VisitPointer(
-             GetOnReloadCallExpression(
-                 editor().gc_pool(), execution_context()->environment().value(),
-                 ptr_this_.value()),
-             [this](NonNull<std::unique_ptr<Expression>> expression) {
-               if (editor().exit_value().has_value())
-                 return futures::Past(Success());
-               LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-               return futures::IgnoreErrors(
-                   EvaluateExpression(
-                       std::move(expression),
-                       editor().execution_context()->environment().ToRoot())
-                       .Transform([](gc::Root<vm::Value>) -> PossibleError {
-                         return Success();
-                       }));
-             },
-             [] {
-               LOG(INFO) << "No OnReload handler found.";
-               return futures::Past(EmptyValue{});
-             })
+  return std::visit(
+             overload{
+                 [this](
+                     ExecutionContext::CompilationResult compilation_result) {
+                   if (editor().exit_value().has_value())
+                     return futures::Past(Success());
+                   LOG(INFO)
+                       << "Starting reload: " << Read(buffer_variables::name);
+                   return futures::IgnoreErrors(
+                       compilation_result.evaluate().Transform(
+                           [](gc::Root<vm::Value>) -> PossibleError {
+                             return Success();
+                           }));
+                 },
+                 [](Error error) {
+                   LOG(INFO) << "OnReload handler: " << error;
+                   return futures::Past(Success());
+                 }},
+             execution_context()->FunctionCall(
+                 IDENTIFIER_CONSTANT(L"OnReload"),
+                 {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(ptr_this_->pool(),
+                                                         ptr_this_.value())
+                      .ptr()}))
       .Transform([this](EmptyValue) {
         if (Read(buffer_variables::clear_on_reload)) {
           ClearContents();
