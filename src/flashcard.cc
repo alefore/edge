@@ -262,40 +262,33 @@ class Flashcard {
       : buffer_(std::move(buffer)),
         answer_(std::move(answer).read()),
         hint_(std::move(hint).read()),
-        // TODO(2025-06-10): Figure out why the heck we can't just capture
-        // `this` here (and the necessary object_metadata_ field in the nested
-        // lambda). This ought to work! That must mean that the Flashcard
-        // instance is getting deallocated /before/ the lazy-value starts
-        // running … but that shouldn't be possible.
-        card_front_buffer_([&editor = buffer_->editor(),
-                            original_contents = buffer_->contents().snapshot(),
-                            answer = answer_, hint = hint_,
-                            protected_object_metadata = object_metadata_] {
+        card_front_buffer_([this] {
           LOG(INFO) << "Starting computation of card front.";
-          LineSequence card_contents =
-              PrepareCardFrontContents(original_contents, answer, hint);
-          LOG(INFO) << "Open anonymous buffer.";
-          return futures::ListenableValue(OpenAnonymousBuffer(editor).Transform(
-              [card_contents,
-               protected_object_metadata](gc::Root<OpenBuffer> output_buffer) {
-                LOG(INFO) << "Received anonymous buffer.";
-                output_buffer->InsertInPosition(
-                    LineSequence::WithLine(
-                        Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
-                        card_contents,
-                    LineColumn{}, std::nullopt);
-                protected_object_metadata->lock(
-                    [&output_buffer](
-                        std::vector<
-                            NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
-                            object_metadata) {
-                      object_metadata.push_back(
-                          output_buffer.ptr().object_metadata());
-                    });
-                output_buffer->editor().AddBuffer(
-                    output_buffer, BuffersList::AddBufferType::kVisit);
-                return output_buffer.ptr();
-              }));
+          LineSequence card_contents = PrepareCardFrontContents(
+              buffer_->contents().snapshot(), answer_, hint_);
+          return futures::ListenableValue(
+              OpenAnonymousBuffer(buffer_->editor())
+                  .Transform([card_contents,
+                              protected_object_metadata = object_metadata_](
+                                 gc::Root<OpenBuffer> output_buffer) {
+                    LOG(INFO) << "Received anonymous buffer.";
+                    output_buffer->InsertInPosition(
+                        LineSequence::WithLine(
+                            Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
+                            card_contents,
+                        LineColumn{}, std::nullopt);
+                    protected_object_metadata->lock(
+                        [&output_buffer](
+                            std::vector<
+                                NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
+                                object_metadata) {
+                          object_metadata.push_back(
+                              output_buffer.ptr().object_metadata());
+                        });
+                    output_buffer->editor().AddBuffer(
+                        output_buffer, BuffersList::AddBufferType::kVisit);
+                    return output_buffer.ptr();
+                  }));
         }) {
     std::move(future_review_log)
         .Transform([output = review_log_](gc::Root<FlashcardReviewLog> input) {
