@@ -43,20 +43,23 @@ void ConfigureFrontCardBuffer(Buffer buffer, Flashcard card) {
   });
 }
 
+// TODO(trivial, 2025-06-11): Expose a `Score` enum class somehow, rather than
+// passing strings. If there's a mismatch, it should be detected at compile
+// time.
 void ConfigureBackCardBuffer(Buffer buffer, Flashcard card) {
   buffer.AddBinding("1", "Flashcard: Failed", []() -> void {
     flashcards::internal::SetScoreAndClose(buffer, card, "fail");
   });
   buffer.AddBinding("2", "Flashcard: Hard", []() -> void {
-    flashcards::internal::SetScoreAndClose(buffer, card, "fail");
+    flashcards::internal::SetScoreAndClose(buffer, card, "hard");
   });
   buffer.AddBinding("3", "Flashcard: Good", []() -> void {
-    flashcards::internal::SetScoreAndClose(buffer, card, "fail");
+    flashcards::internal::SetScoreAndClose(buffer, card, "good");
   });
   buffer.AddBinding("4", "Flashcard: Easy", []() -> void {
-    flashcards::internal::SetScoreAndClose(buffer, card, "fail");
+    flashcards::internal::SetScoreAndClose(buffer, card, "easy");
   });
   buffer.AddBinding(" ", "Flashcard: Good", []() -> void {
-    flashcards::internal::SetScoreAndClose(buffer, card, "fail");
+    flashcards::internal::SetScoreAndClose(buffer, card, "good");
   });
 }
