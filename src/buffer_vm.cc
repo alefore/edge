@@ -21,6 +21,7 @@
 #include "src/parse_tree.h"
 #include "src/tests/tests.h"
 #include "src/transformation/vm.h"
+#include "src/vm/callbacks_gc.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/container.h"
 #include "src/vm/function_call.h"
@@ -77,36 +78,10 @@ using afc::vm::PurityType;
 using afc::vm::Trampoline;
 
 namespace afc::vm {
-struct BufferWrapper {
-  const gc::Ptr<editor::OpenBuffer> buffer;
-};
-
-gc::Ptr<editor::OpenBuffer> vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::get(
-    Value& value) {
-  BufferWrapper wrapper =
-      value.get_user_value<BufferWrapper>(object_type_name).value();
-  return wrapper.buffer;
-}
-
-/* static */ gc::Root<vm::Value> VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
-    gc::Pool& pool, gc::Ptr<editor::OpenBuffer> value) {
-  return vm::Value::NewObject(
-      pool, object_type_name,
-      MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value}),
-      [object_metadata = value.object_metadata()] {
-        return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
-            {object_metadata}};
-      });
-}
-
-/* static */ gc::Root<vm::Value> VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
-    gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
-  return New(pool, value.ptr());
-}
-
+template <>
 const vm::types::ObjectName
-    vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::object_type_name =
-        vm::types::ObjectName{IDENTIFIER_CONSTANT(L"Buffer")};
+    vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::object_type_name{
+        IDENTIFIER_CONSTANT(L"Buffer")};
 
 /* static */ gc::Root<vm::Value>
 VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(

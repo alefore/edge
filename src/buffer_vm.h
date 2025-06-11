@@ -6,6 +6,7 @@
 #include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
+#include "src/vm/callbacks_gc.h"
 #include "src/vm/value.h"
 
 namespace afc::vm {
@@ -17,16 +18,6 @@ class OpenBuffer;
 void DefineBufferType(language::gc::Pool& pool, vm::Environment& environment);
 }  // namespace afc::editor
 namespace afc::vm {
-template <>
-struct VMTypeMapper<language::gc::Ptr<editor::OpenBuffer>> {
-  static language::gc::Ptr<editor::OpenBuffer> get(Value& value);
-  static language::gc::Root<Value> New(
-      language::gc::Pool& pool, language::gc::Root<editor::OpenBuffer> value);
-  static language::gc::Root<Value> New(
-      language::gc::Pool& pool, language::gc::Ptr<editor::OpenBuffer> value);
-  static const types::ObjectName object_type_name;
-};
-
 template <>
 struct VMTypeMapper<language::gc::Root<editor::OpenBuffer>> {
   static language::gc::Root<Value> New(
