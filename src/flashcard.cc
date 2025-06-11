@@ -8,6 +8,8 @@
 #include "src/file_link_mode.h"
 #include "src/file_tags.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/infrastructure/time.h"
+#include "src/infrastructure/time_human.h"
 #include "src/language/container.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
@@ -31,6 +33,8 @@ namespace gc = afc::language::gc;
 using afc::concurrent::MakeProtected;
 using afc::concurrent::Protected;
 using afc::infrastructure::AbsolutePath;
+using afc::infrastructure::HumanReadableDate;
+using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::screen::LineModifier;
@@ -153,8 +157,18 @@ class FlashcardReviewLog {
   gc::Ptr<OpenBuffer> buffer() { return review_buffer_; }
 
   enum class Score { kFail, kHard, kGood, kEasy };
-  void SetScore(Score) {
-    // TODO(2025-06-10, easy): Implement: propagate value to file_tags_.
+  ValueOrError<EmptyValue> SetScore(Score score) {
+    static const std::unordered_map<Score, NonEmptySingleLine> score_strs = {
+        {Score::kFail, NON_EMPTY_SINGLE_LINE_CONSTANT(L"fail")},
+        {Score::kHard, NON_EMPTY_SINGLE_LINE_CONSTANT(L"hard")},
+        {Score::kGood, NON_EMPTY_SINGLE_LINE_CONSTANT(L"good")},
+        {Score::kEasy, NON_EMPTY_SINGLE_LINE_CONSTANT(L"easy")}};
+    CHECK(score_strs.contains(score));
+    static const auto kSeparator = NON_EMPTY_SINGLE_LINE_CONSTANT(L" ");
+    ASSIGN_OR_RETURN(NonEmptySingleLine date, HumanReadableDate(Now()));
+    file_tags_.Add(SINGLE_LINE_CONSTANT(L"Cloze"),
+                   (date + kSeparator + score_strs.find(score)->second).read());
+    return Success();
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
@@ -199,7 +213,6 @@ LineSequence PrepareCardContents(LineSequence original, SingleLine answer,
       } else
         output.AppendCharacter(input.get(index), {});
     }
-    LOG(INFO) << "Finished building.";
     return std::move(output).Build();
   });
 }
@@ -499,7 +512,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"SetScore"),
       vm::NewCallback(
-          pool, vm::kPurityTypePure,
+          pool, vm::kPurityTypeUnknown,
           [](gc::Ptr<Flashcard> flashcard,
              LazyString score_str) -> futures::ValueOrError<EmptyValue> {
             static const std::unordered_map<LazyString,
@@ -518,8 +531,10 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                       });
                 },
                 [&] {
-                  return futures::Past(
-                      Error{LazyString{L"Invalid score: "} + score_str});
+                  Error error{LazyString{L"Invalid flashcard score: "} +
+                              score_str};
+                  LOG(ERROR) << error;
+                  return futures::Past(error);
                 },
                 GetValueOrNullOpt(scores, score_str));
           })
@@ -539,7 +554,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
 
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"card_front_buffer"),
-      vm::NewCallback(pool, vm::kPurityTypePure,
+      vm::NewCallback(pool, vm::kPurityTypeUnknown,
                       [](gc::Ptr<Flashcard> flashcard) {
                         return flashcard->card_front_buffer().ToFuture();
                       })
@@ -547,7 +562,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
 
   flashcard_object_type->AddField(
       IDENTIFIER_CONSTANT(L"card_back_buffer"),
-      vm::NewCallback(pool, vm::kPurityTypePure,
+      vm::NewCallback(pool, vm::kPurityTypeUnknown,
                       [](gc::Ptr<Flashcard> flashcard) {
                         return flashcard->card_back_buffer().ToFuture();
                       })
