@@ -399,8 +399,8 @@ class Flashcard {
 namespace afc::vm {
 template <>
 const types::ObjectName
-    VMTypeMapper<gc::Ptr<editor::Flashcard>>::object_type_name =
-        types::ObjectName{IDENTIFIER_CONSTANT(L"Flashcard")};
+    VMTypeMapper<gc::Ptr<editor::Flashcard>>::object_type_name{
+        IDENTIFIER_CONSTANT(L"Flashcard")};
 
 template <>
 struct VMTypeMapper<gc::Root<editor::Flashcard>> {
