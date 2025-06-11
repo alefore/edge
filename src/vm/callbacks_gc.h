@@ -1,5 +1,12 @@
 // Extends //src/vm/callbacks.h with templated support for language::gc::Ptr
 // values.
+//
+// Customers should just do this (in their CC file):
+//
+//     template <>
+//     const types::ObjectName
+//         VMTypeMapper<gc::Ptr<MyType>>::object_type_name{
+//             IDENTIFIER_CONSTANT(L"MyType")};
 
 #ifndef __AFC_VM_PUBLIC_CALLBACKS_GC_H__
 #define __AFC_VM_PUBLIC_CALLBACKS_GC_H__
