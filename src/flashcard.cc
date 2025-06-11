@@ -21,6 +21,7 @@
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 #include "src/math/numbers.h"
+#include "src/vm/callbacks_gc.h"
 #include "src/vm/container.h"
 #include "src/vm/types.h"
 
@@ -61,32 +62,6 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::math::numbers::Number;
 
-namespace afc::vm {
-// TODO(trivial, 2025-06-10): This probably should be moved to a central
-// location and redundant logic in src/buffer_vm.cc should be deduplicated
-// against it.
-template <typename T>
-struct VMTypeMapper<gc::Ptr<T>> {
-  static gc::Ptr<T> get(Value& value) {
-    return value.get_user_value<gc::Ptr<T>>(object_type_name).value();
-  }
-
-  static gc::Root<Value> New(gc::Pool& pool, gc::Ptr<T> value) {
-    auto shared_value = MakeNonNullShared<gc::Ptr<T>>(value);
-    return vm::Value::NewObject(
-        pool, object_type_name, shared_value, [shared_value] {
-          return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>{
-              {shared_value->object_metadata()}};
-        });
-  }
-
-  static gc::Root<Value> New(gc::Pool& pool, gc::Root<T> value) {
-    return New(pool, value.ptr());
-  }
-
-  static const types::ObjectName object_type_name;
-};
-}  // namespace afc::vm
 namespace afc::editor {
 namespace {
 // TODO(trivial, 2025-06-08): Move to //src/language/lazy_string.

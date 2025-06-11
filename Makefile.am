@@ -384,6 +384,8 @@ src/variables.h \
 src/vm/container.h \
 src/vm/optional.h \
 src/vm/callbacks.cc \
+src/vm/callbacks.h \
+src/vm/callbacks_gc.h \
 src/vm/default_environment.cc \
 src/vm/default_environment.h \
 src/vm/escape.cc \
