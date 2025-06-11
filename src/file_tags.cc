@@ -93,8 +93,10 @@ void FileTags::Add(language::lazy_string::SingleLine name,
   // TODO(2025-06-08, trivial): Consider saving it right away? Or maybe the best
   // would be to schedule that it gets saved in two seconds, to coallesce saves?
   // Obviously, handling redundant schedules.
+  const Line line_to_add{name + SINGLE_LINE_CONSTANT(L": ") + value};
+  LOG(INFO) << buffer_->name() << ": Adding line: " << line_to_add;
   buffer_->InsertInPosition(
-      LineSequence::WithLine(Line{name + SINGLE_LINE_CONSTANT(L": ") + value}),
+      LineSequence::WithLine(line_to_add) + LineSequence{},
       LineColumn{end_line_}, std::nullopt);
   ++end_line_;
   AddTag(name, value, tags_);
