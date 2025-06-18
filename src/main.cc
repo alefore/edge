@@ -235,6 +235,11 @@ void RedrawScreens(const CommandLineValues& args,
 int main(int argc, const char** argv) {
   using namespace afc::editor;
 
+  if (FLAGS_log_dir.empty()) {
+    const char* tmp_dir = getenv("TMPDIR");
+    FLAGS_log_dir = (tmp_dir != nullptr && *tmp_dir != '\0') ? tmp_dir : "/tmp";
+  }
+
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
 
