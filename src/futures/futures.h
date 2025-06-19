@@ -388,7 +388,8 @@ Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
 template <typename T0, typename T1>
 futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
                                               futures::Value<T1> f1) {
-  auto shared_f1 = MakeNonNullShared<futures::Value<T1>>(std::move(f1));
+  auto shared_f1 =
+      language::MakeNonNullShared<futures::Value<T1>>(std::move(f1));
   return std::move(f0).Transform(
       [shared_f1 = std::move(shared_f1)](T0 t0) mutable {
         return std::move(shared_f1.value())
