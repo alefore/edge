@@ -133,8 +133,8 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   line_column_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
-        return std::to_wstring(line_column.line.read()) + L", " +
-               std::to_wstring(line_column.column.read());
+        return NonEmptySingleLine{line_column.line.read()} + LazyString{L", "} +
+               NonEmptySingleLine{line_column.column.read()};
       }).ptr());
 
   environment.DefineType(line_column_type.ptr());
@@ -168,8 +168,9 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
   line_column_delta_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
       NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
-        return std::to_wstring(line_column_delta.line.read()) + L", " +
-               std::to_wstring(line_column_delta.column.read());
+        return NonEmptySingleLine{line_column_delta.line.read()} +
+               LazyString{L", "} +
+               NonEmptySingleLine{line_column_delta.column.read()};
       }).ptr());
 
   environment.DefineType(line_column_delta_type.ptr());
