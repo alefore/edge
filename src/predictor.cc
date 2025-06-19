@@ -635,30 +635,27 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 }
 
 Predictor ComposePredictors(Predictor a, Predictor b) {
-  // TODO(easy, 2023-12-04): Use JoinValues instead. That would allow them to
-  // execute concurrently.
   return [a, b](PredictorInput input) {
-    return a(PredictorInput{.editor = input.editor,
-                            .input = input.input,
-                            .input_column = input.input_column,
-                            .source_buffers = input.source_buffers,
-                            .progress_channel = input.progress_channel,
-                            .abort_value = input.abort_value})
-        .Transform([input, b](PredictorOutput a_output) {
-          return b({.editor = input.editor,
-                    .input = input.input,
-                    .input_column = input.input_column,
-                    .source_buffers = input.source_buffers,
-                    .progress_channel = input.progress_channel,
-                    .abort_value = input.abort_value})
-              .Transform([input, a_output](PredictorOutput b_output) {
-                TRACK_OPERATION(ComposePredictors_Sorting);
-                SortedLineSequenceUniqueLines merged_contents(
-                    a_output.contents, b_output.contents);
-                return PredictorOutput(
-                    {.contents = std::move(merged_contents)});
-              });
-        });
+    return JoinValues(
+               a(PredictorInput{.editor = input.editor,
+                                .input = input.input,
+                                .input_column = input.input_column,
+                                .source_buffers = input.source_buffers,
+                                .progress_channel = input.progress_channel,
+                                .abort_value = input.abort_value}),
+               b(PredictorInput{.editor = input.editor,
+                                .input = input.input,
+                                .input_column = input.input_column,
+                                .source_buffers = input.source_buffers,
+                                .progress_channel = input.progress_channel,
+                                .abort_value = input.abort_value}))
+        .Transform(
+            [input](std::tuple<PredictorOutput, PredictorOutput> outputs) {
+              TRACK_OPERATION(ComposePredictors_Sorting);
+              return PredictorOutput{.contents = SortedLineSequenceUniqueLines(
+                                         std::get<0>(outputs).contents,
+                                         std::get<1>(outputs).contents)};
+            });
   };
 }
 
