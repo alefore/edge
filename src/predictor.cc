@@ -652,9 +652,9 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
                     .progress_channel = input.progress_channel,
                     .abort_value = input.abort_value})
               .Transform([input, a_output](PredictorOutput b_output) {
+                TRACK_OPERATION(ComposePredictors_Sorting);
                 SortedLineSequenceUniqueLines merged_contents(
                     a_output.contents, b_output.contents);
-                TRACK_OPERATION(ComposePredictors_Sorting);
                 return PredictorOutput(
                     {.contents = std::move(merged_contents)});
               });
