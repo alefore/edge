@@ -381,6 +381,16 @@ EdgeVariable<bool>* const view_center_lines =
              L"`paste_mode` is true.")
          .Build();
 
+EdgeVariable<bool>* const flow_mode =
+    &BoolStruct()
+         ->Add()
+         .Name(L"flow_mode")
+         .Description(
+             L"If true, enables flow mode, hiding all information except the last "
+             L"few lines to encourage continuous writing.")
+         .DefaultValue(false)
+         .Build();
+
 EdgeStruct<LazyString>* StringStruct() {
   static EdgeStruct<LazyString>* output = new EdgeStruct<LazyString>();
   return output;
