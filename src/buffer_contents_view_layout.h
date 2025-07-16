@@ -49,6 +49,8 @@ struct BufferContentsViewLayout {
       kNoFlickering,  // Prefer to reduce flickering across re-draws.
     };
     LayoutGoal layout_goal = LayoutGoal::kNoFlickering;
+
+    bool flow_mode = false;
   };
   static BufferContentsViewLayout Get(Input input);
 

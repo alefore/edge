@@ -391,7 +391,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .layout_goal =
           input.buffer_display_data.content_lines() != buffer.lines_size()
               ? BufferContentsViewLayout::Input::LayoutGoal::kVisibility
-              : BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering};
+              : BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering,
+      .flow_mode = buffer.Read(buffer_variables::flow_mode)};
 
   input.buffer_display_data.set_content_lines(buffer.lines_size());
   CHECK_EQ(input.buffer_display_data.content_lines(), buffer.lines_size());
