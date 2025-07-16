@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.68])
-AC_INIT([Edge], [0.0], [alefore@gmail.com])
+AC_PREREQ([2.72])
+AC_INIT([Edge],[0.0],[alefore@gmail.com])
 LT_INIT
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/buffer.h])
