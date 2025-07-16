@@ -742,7 +742,76 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK_EQ(output.view_start,
                                LineColumn(LineNumber(15), ColumnNumber(4)));
 #endif
-                    })});
+                    }),
+           new_test(L"FlowMode_CursorAtLine0",
+                    [&](auto options) {
+                      options.flow_mode = true;
+                      options.active_position = LineColumn{};
+                      options.lines_shown = LineNumberDelta{10};
+                      auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges.size(), 1ul);
+                      CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{}));
+                    }),
+           new_test(
+               L"FlowMode_CursorAtLine1",
+               [&](auto options) {
+                 options.flow_mode = true;
+                 options.active_position = LineColumn(LineNumber(1));
+                 options.lines_shown = LineNumberDelta{10};
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 2ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{0}}));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn{LineNumber{1}}));
+               }),
+           new_test(
+               L"FlowMode_CursorAtLine2",
+               [&](auto options) {
+                 options.flow_mode = true;
+                 options.active_position = LineColumn{LineNumber{2}};
+                 options.lines_shown = LineNumberDelta{10};
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 3ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{0}}));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn{LineNumber{1}}));
+                 CHECK_EQ(ranges[2], RangeToLineEnd(LineColumn{LineNumber{2}}));
+               }),
+           new_test(
+               L"FlowMode_CursorAtLine2EndOfLine",
+               [&](auto options) {
+                 options.flow_mode = true;
+                 options.active_position =
+                     LineColumn{LineNumber{2}, ColumnNumber{100}};
+                 options.lines_shown = LineNumberDelta{10};
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 3ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{0}}));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn{LineNumber{1}}));
+                 CHECK_EQ(ranges[2], RangeToLineEnd(LineColumn{LineNumber{2}}));
+               }),
+           new_test(
+               L"FlowMode_CursorAtLine6_Show3Lines",
+               [&](auto options) {
+                 options.flow_mode = true;
+                 options.active_position = LineColumn{LineNumber{6}};
+                 options.lines_shown = LineNumberDelta{10};
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 3ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{4}}));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn{LineNumber{5}}));
+                 CHECK_EQ(ranges[2], RangeToLineEnd(LineColumn{LineNumber{6}}));
+               }),
+           new_test(
+               L"FlowMode_CursorAtLine4_Show3LinesFromStart",
+               [&](auto options) {
+                 options.flow_mode = true;
+                 options.active_position = LineColumn(LineNumber{4});
+                 options.lines_shown = LineNumberDelta{10};
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 3ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{2}}));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn{LineNumber{3}}));
+                 CHECK_EQ(ranges[2], RangeToLineEnd(LineColumn{LineNumber{4}}));
+               })});
     }());
 }  // namespace
 }  // namespace afc::editor
