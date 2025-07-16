@@ -826,8 +826,8 @@ const BufferWidget& BuffersList::GetActiveLeaf() const {
 
 namespace {
 struct Layout {
-  size_t buffers_per_line;
-  LineNumberDelta lines;
+  size_t buffers_per_line = 0;
+  LineNumberDelta lines = LineNumberDelta{0};
 };
 
 Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
@@ -940,8 +940,12 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
   auto buffers = buffer_registry_.LockListedBuffers(
       [](std::vector<gc::Root<OpenBuffer>> output) { return output; });
 
-  Layout layout = BuffersPerLine(options.size.line / 2, options.size.column,
-                                 buffers.size());
+  const Layout layout =
+      (active_buffer().has_value() &&
+       active_buffer().value().ptr()->Read(buffer_variables::flow_mode))
+          ? Layout{}
+          : BuffersPerLine(options.size.line / 2, options.size.column,
+                           buffers.size());
   VLOG(1) << "Buffers list lines: " << layout.lines
           << ", size: " << buffers.size()
           << ", size column: " << options.size.column;
