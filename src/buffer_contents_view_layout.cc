@@ -250,6 +250,12 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
   CHECK_GE(options.lines_shown, LineNumberDelta());
   CHECK_GE(options.status_lines, LineNumberDelta());
   CHECK_LE(options.status_lines, options.lines_shown);
+
+  if (options.flow_mode && options.active_position.has_value()) {
+    options.margin_lines = LineNumberDelta{2};
+    options.begin = LineColumn(options.active_position->line);
+  }
+
   if (options.active_position.has_value()) {
     options.active_position->line =
         std::min(options.active_position->line, options.contents.EndLine());
@@ -268,9 +274,13 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
 
   DVLOG(4) << "Initial line: " << options.begin.line;
   std::list<LineRange> output_ranges;
+  const LineNumber end_line =
+      options.active_position.has_value() && options.flow_mode
+          ? options.active_position->line
+          : options.contents.EndLine();
   for (LineNumber line = options.begin.line;
        LineNumberDelta(output_ranges.size()) < options.lines_shown &&
-       line <= options.contents.EndLine();
+       line <= end_line;
        ++line) {
     std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
     if (line == options.begin.line)
