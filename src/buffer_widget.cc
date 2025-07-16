@@ -328,18 +328,21 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer.Read(buffer_variables::name);
   LineWithCursor::Generator::Vector status_lines;
-  switch (input.status_behavior) {
-    case BufferOutputProducerInput::StatusBehavior::kShow:
-      status_lines = StatusOutput(
-          {.status = buffer.status(),
-           .buffer = &buffer,
-           .modifiers = buffer.editor().modifiers(),
-           .size = LineColumnDelta(input.output_producer_options.size.line / 4,
-                                   input.output_producer_options.size.column)});
-      break;
-    case BufferOutputProducerInput::StatusBehavior::kIgnore:
-      break;
-  }
+  if (!buffer.Read(buffer_variables::flow_mode) ||
+      buffer.status().GetType() == Status::Type::kPrompt)
+    switch (input.status_behavior) {
+      case BufferOutputProducerInput::StatusBehavior::kShow:
+        status_lines =
+            StatusOutput({.status = buffer.status(),
+                          .buffer = &buffer,
+                          .modifiers = buffer.editor().modifiers(),
+                          .size = LineColumnDelta(
+                              input.output_producer_options.size.line / 4,
+                              input.output_producer_options.size.column)});
+        break;
+      case BufferOutputProducerInput::StatusBehavior::kIgnore:
+        break;
+    }
 
   input.buffer_display_data.view_size().Set(LineColumnDelta(
       input.output_producer_options.size.line - status_lines.size(),
