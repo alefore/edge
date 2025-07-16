@@ -398,7 +398,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   CHECK_EQ(input.buffer_display_data.content_lines(), buffer.lines_size());
 
   if (auto w = ColumnNumberDelta(buffer.Read(buffer_variables::line_width));
-      !buffer.Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
+      !buffer.Read(buffer_variables::paste_mode) &&
+      !buffer.Read(buffer_variables::flow_mode) && w > ColumnNumberDelta(1)) {
     buffer_contents_window_input.columns_shown =
         std::min(buffer_contents_window_input.columns_shown, w);
   }
