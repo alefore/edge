@@ -143,7 +143,8 @@ LineWithCursor::Generator::Vector LinesSpanView(
         }};
   }
 
-  if (buffer.Read(buffer_variables::view_center_lines)) {
+  if (buffer.Read(buffer_variables::view_center_lines) ||
+      buffer.Read(buffer_variables::flow_mode)) {
     const ColumnNumberDelta width = output_producer_options.size.column;
     for (LineWithCursor::Generator& line : buffer_output.lines) {
       line = {
