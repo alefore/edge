@@ -15,6 +15,7 @@
 #include "src/language/container.h"
 #include "src/language/hash.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
@@ -247,6 +248,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     std::optional<const Line> line_contents = buffer.LineAt(line);
     std::optional<gc::Root<InputReceiver>> editor_keyboard_redirect =
         buffer.editor().keyboard_redirect();
+
     LineWithCursor::Generator generator =
         LineWithCursor::Generator::New(language::CaptureAndHash(
             [](ColumnNumberDelta size_columns,
@@ -255,9 +257,16 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                WithHash<std::optional<const Line>> line_contents_with_hash,
                BufferContentsViewLayout::Line screen_line_inner,
                bool atomic_lines, bool multiple_cursors, LineColumn position,
-               EditorMode::CursorMode cursor_mode) {
+               EditorMode::CursorMode cursor_mode,
+               std::optional<LineModifier> line_modifier_to_apply) {
               LineWithCursor::ViewOptions options{
-                  .line = *line_contents_with_hash.value,
+                  .line = line_modifier_to_apply.has_value()
+                              ? LineBuilder{line_contents_with_hash.value
+                                                ->contents(),
+                                            LineModifierSet{
+                                                line_modifier_to_apply.value()}}
+                                    .Build()
+                              : *line_contents_with_hash.value,
                   .initial_column = screen_line_inner.range.begin_column(),
                   .width = size_columns,
                   .input_width = screen_line_inner.range.end_column() -
@@ -314,7 +323,11 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             (editor_keyboard_redirect.has_value()
                  ? editor_keyboard_redirect->ptr().value()
                  : buffer.mode())
-                .cursor_mode()));
+                .cursor_mode(),
+            buffer.Read(buffer_variables::flow_mode) &&
+                    line != buffer.position().line
+                ? std::optional<LineModifier>(LineModifier::kDim)
+                : std::nullopt));
 
     if (&current_tree != root.get().get() &&
         screen_line.range.line() >= current_tree.range().begin().line &&
