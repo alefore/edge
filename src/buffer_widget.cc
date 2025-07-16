@@ -123,11 +123,13 @@ LineWithCursor::Generator::Vector LinesSpanView(
          .width = ColumnNumberDelta(1)});
   }
 
-  LineWithCursor::Generator::Vector line_numbers =
-      LineNumberOutput(buffer, screen_lines);
-  ++columns_vector.index_active;
-  columns_vector.push_back(
-      {.lines = line_numbers, .width = line_numbers.width});
+  if (!buffer.Read(buffer_variables::flow_mode)) {
+    LineWithCursor::Generator::Vector line_numbers =
+        LineNumberOutput(buffer, screen_lines);
+    ++columns_vector.index_active;
+    columns_vector.push_back(
+        {.lines = line_numbers, .width = line_numbers.width});
+  }
 
   if (sections_count > 1 && !buffer_output.empty() &&
       buffer_output.size() > LineNumberDelta(3)) {
@@ -177,14 +179,16 @@ LineWithCursor::Generator::Vector LinesSpanView(
          .width = ColumnNumberDelta(1)});
   }
 
-  NonNull<std::shared_ptr<const ParseTree>> zoomed_out_tree =
-      buffer.current_zoomed_out_parse_tree(
-          std::min(output_producer_options.size.line,
-                   LineNumberDelta(screen_lines.size())));
-  columns_vector.push_back(BufferMetadataOutput(
-      BufferMetadataOutputOptions{.buffer = buffer,
-                                  .screen_lines = screen_lines,
-                                  .zoomed_out_tree = zoomed_out_tree.value()}));
+  if (!buffer.Read(buffer_variables::flow_mode)) {
+    NonNull<std::shared_ptr<const ParseTree>> zoomed_out_tree =
+        buffer.current_zoomed_out_parse_tree(
+            std::min(output_producer_options.size.line,
+                     LineNumberDelta(screen_lines.size())));
+    columns_vector.push_back(BufferMetadataOutput(BufferMetadataOutputOptions{
+        .buffer = buffer,
+        .screen_lines = screen_lines,
+        .zoomed_out_tree = zoomed_out_tree.value()}));
+  }
   return OutputFromColumnsVector(std::move(columns_vector));
 }
 
@@ -364,10 +368,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
           buffer.Read(buffer_variables::symbol_characters)),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),
-      .columns_shown =
-          input.output_producer_options.size.column -
-          (paste_mode ? ColumnNumberDelta(0)
-                      : LineNumberOutputWidth(buffer.lines_size())),
+      .columns_shown = input.output_producer_options.size.column -
+                       (paste_mode || buffer.Read(buffer_variables::flow_mode)
+                            ? ColumnNumberDelta(0)
+                            : LineNumberOutputWidth(buffer.lines_size())),
       .begin = input.view_start,
       .margin_lines =
           ((buffer.child_pid() == std::nullopt && buffer.fd() != nullptr) ||
