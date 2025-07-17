@@ -18,6 +18,8 @@
 #include "src/tests/tests.h"
 #include "src/widget.h"
 
+using ::operator<<;
+
 namespace container = afc::language::container;
 
 using afc::infrastructure::screen::CursorsSet;
@@ -211,8 +213,9 @@ std::list<LineRange> AdjustToHonorMargin(
     return std::max(
         std::max(LineNumberDelta(0),
                  options.margin_lines - position_line->ToDelta()),
-        options.layout_goal ==
-                BufferContentsViewLayout::Input::LayoutGoal::kVisibility
+        (options.layout_goal ==
+             BufferContentsViewLayout::Input::LayoutGoal::kVisibility &&
+         !options.flow_mode)
             ? options.lines_shown - LineNumberDelta(output.size())
             : LineNumberDelta(0));
   };
@@ -242,6 +245,36 @@ std::optional<LineNumberDelta> GetCursorIndex(
     return LineNumberDelta(std::get<0>(*it));
   return std::nullopt;
 }
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const BufferContentsViewLayout::Input::LayoutGoal& layout_goal) {
+  switch (layout_goal) {
+    case BufferContentsViewLayout::Input::LayoutGoal::kVisibility:
+      os << "LayoutGoal::kVisibility";
+      break;
+    case BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering:
+      os << "LayoutGoal::kNoFlickering";
+      break;
+  }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const BufferContentsViewLayout::Input& s) {
+  os << "[BufferContentsViewLayout::Input: contents size: " << s.contents.size()
+     << ", active_position: " << s.active_position.has_value()
+     << ", active cursors: " << s.active_cursors.size()
+     << ", line_wrap_style: " << s.line_wrap_style
+     << ", symbol_characters size: " << s.symbol_characters.size()
+     << ", lines_shown: " << s.lines_shown
+     << ", status_lines: " << s.status_lines
+     << ", columns_shown: " << s.columns_shown << ", begin: " << s.begin
+     << ", margin_lines: " << s.margin_lines
+     << ", layout_goal: " << s.layout_goal << ", flow_mode: " << s.flow_mode
+     << "]";
+  return os;
+}
 }  // namespace
 
 /* static */
@@ -251,10 +284,9 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
   CHECK_GE(options.status_lines, LineNumberDelta());
   CHECK_LE(options.status_lines, options.lines_shown);
 
-  if (options.flow_mode && options.active_position.has_value()) {
-    options.margin_lines = LineNumberDelta{2};
-    options.begin = LineColumn(options.active_position->line);
-  }
+  DVLOG(5) << "BufferContentsViewLayout: " << options;
+
+  if (options.flow_mode) options.margin_lines = LineNumberDelta{2};
 
   if (options.active_position.has_value()) {
     options.active_position->line =
@@ -262,6 +294,8 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
     options.active_position->column = std::min(
         options.active_position->column,
         options.contents.at(options.active_position->line).EndColumn());
+    if (options.flow_mode)
+      options.begin = LineColumn(options.active_position->line);
     options.begin =
         std::max(std::min(options.begin, *options.active_position),
                  LineColumn(options.active_position->line.MinusHandlingOverflow(
@@ -794,6 +828,20 @@ const bool buffer_contents_view_layout_tests_registration =
                  options.flow_mode = true;
                  options.active_position = LineColumn{LineNumber{6}};
                  options.lines_shown = LineNumberDelta{10};
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 3ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{4}}));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn{LineNumber{5}}));
+                 CHECK_EQ(ranges[2], RangeToLineEnd(LineColumn{LineNumber{6}}));
+               }),
+           new_test(
+               L"FlowMode_LayoutGoalVisibility",
+               [&](auto options) {
+                 options.flow_mode = true;
+                 options.active_position = LineColumn{LineNumber{6}};
+                 options.lines_shown = LineNumberDelta{10};
+                 options.layout_goal =
+                     BufferContentsViewLayout::Input::LayoutGoal::kVisibility;
                  auto ranges = get_ranges(options);
                  CHECK_EQ(ranges.size(), 3ul);
                  CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{4}}));
