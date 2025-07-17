@@ -177,6 +177,19 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       }}});
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const LineWrapStyle& line_wrap_style) {
+  switch (line_wrap_style) {
+    case LineWrapStyle::kBreakWords:
+      os << "LineWrapStyle::kBreakWords";
+      break;
+    case LineWrapStyle::kContentBased:
+      os << "LineWrapStyle::kContentBase";
+      break;
+  }
+  return os;
+}
+
 std::list<ColumnRange> BreakLineForOutput(
     const Line& line, ColumnNumberDelta screen_positions,
     LineWrapStyle line_wrap_style,

@@ -9,6 +9,9 @@
 
 namespace afc::editor {
 enum class LineWrapStyle { kBreakWords, kContentBased };
+std::ostream& operator<<(std::ostream& os,
+                         const LineWrapStyle& line_wrap_style);
+
 struct ColumnRange {
   language::lazy_string::ColumnNumber begin;
   language::lazy_string::ColumnNumber end;
