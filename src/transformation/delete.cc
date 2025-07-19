@@ -126,15 +126,14 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
     if (!first_line_contents.has_value()) first_line_contents = line_contents;
   }
   if (observers.empty()) return;
-  // TODO(easy, 2022-06-05): Get rid of ToString.
-  std::wstring details = observers.size() == 1
-                             ? first_line_contents->ToString()
-                             : L" files: " + std::to_wstring(observers.size());
+  SingleLine details = observers.size() == 1
+                           ? first_line_contents->contents()
+                           : SINGLE_LINE_CONSTANT(L" files: ") +
+                                 NonEmptySingleLine(observers.size()).read();
   Prompt(PromptOptions{
       .editor_state = buffer.editor(),
-      .prompt = LineBuilder{SingleLine{LazyString{L"unlink "}} +
-                            SingleLine{LazyString{details}} +
-                            SingleLine{LazyString{L"? [yes/no] "}}}
+      .prompt = LineBuilder{SINGLE_LINE_CONSTANT(L"unlink ") + details +
+                            SINGLE_LINE_CONSTANT(L"? [yes/no] ")}
                     .Build(),
       .history_file =
           HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"confirmation")},
@@ -296,10 +295,10 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           NonEmptySingleLine{SingleLine{LazyString{L"set_line_end_behavior"}}}},
       vm::NewCallback(
           pool, PurityType{.writes_external_outputs = true},
-          [](NonNull<std::shared_ptr<Delete>> options, std::wstring value) {
-            if (value == L"stop") {
+          [](NonNull<std::shared_ptr<Delete>> options, LazyString value) {
+            if (value == LazyString{L"stop"}) {
               options->line_end_behavior = Delete::LineEndBehavior::kStop;
-            } else if (value == L"delete") {
+            } else if (value == LazyString{L"delete"}) {
               options->line_end_behavior = Delete::LineEndBehavior::kDelete;
             }
             return options;
