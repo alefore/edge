@@ -20,7 +20,7 @@ void RegisterNumberFunctions(gc::Pool& pool, Environment& environment) {
   number_type.ptr()->AddField(
       Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"tostring")},
       NewCallback(pool, kPurityTypePure, [](Number value) {
-        return futures::Past(value.ToString(5));
+        return futures::Past(LazyString{value.ToString(5)});
       }).ptr());
   environment.DefineType(number_type.ptr());
 
