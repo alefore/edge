@@ -57,8 +57,8 @@ const bool tests_registration = tests::Register(
                    types::Function{.output = Type{types::Number{}},
                                    .inputs = inputs})(
                    vm::NewCallback(pool, PurityType{},
-                                   [](std::wstring s, bool b) {
-                                     CHECK(s == L"alejo");
+                                   [](LazyString s, bool b) {
+                                     CHECK_EQ(s, LazyString{L"alejo"});
                                      CHECK_EQ(b, true);
                                      return Number::FromInt64(4);
                                    }));
