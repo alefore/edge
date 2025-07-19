@@ -32,23 +32,24 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   RegisterTimeType(pool, environment_value);
   gc::Root<ObjectType> bool_type = ObjectType::New(pool, types::Bool{});
   bool_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
+      IDENTIFIER_CONSTANT(L"tostring"),
       NewCallback(pool, kPurityTypePure,
-                  std::function<std::wstring(bool)>(
-                      [](bool v) { return v ? L"true" : L"false"; }))
+                  std::function<LazyString(bool)>([](bool v) {
+                    return v ? LazyString{L"true"} : LazyString{L"false"};
+                  }))
           .ptr());
   environment_value.DefineType(bool_type.ptr());
 
   gc::Root<ObjectType> number_type = ObjectType::New(pool, types::Number{});
   number_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"tostring"}}}},
+      IDENTIFIER_CONSTANT(L"tostring"),
       NewCallback(pool, kPurityTypePure, [](Number value) {
-        return futures::Past(value.ToString(5));
+        return futures::Past(LazyString{value.ToString(5)});
       }).ptr());
   environment_value.DefineType(number_type.ptr());
 
   environment_value.Define(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Error"}}}},
+      IDENTIFIER_CONSTANT(L"Error"),
       NewCallback(pool, kPurityTypePure, [](LazyString description) {
         return futures::Past(PossibleError(Error{description}));
       }));
