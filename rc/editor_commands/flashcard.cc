@@ -133,10 +133,10 @@ string Validate() {
 
 // Computes the number of days in which the user will repeat the flashcard in
 // the ideal scenario.
-number CurrentIdealIntervalDays(Flashcard card) {
+number CurrentIdealIntervalDays(FileTags review_tags) {
   // Expected to contain a sorted list of strings of the form "YYYY-MM-DD
   // SCORE", where "SCORE" is one of {"fail", "easy", "good", "hard"}.
-  VectorString reviews = FileTags(card.review_buffer()).get("Cloze");
+  VectorString reviews = review_tags.get("Cloze");
 
   if (reviews.size() <= 1) return 1;
 
@@ -147,11 +147,69 @@ number CurrentIdealIntervalDays(Flashcard card) {
     string date = value.substr(0, space);
     if (previous_date != "") {
       interval = AdjustInterval(Days(previous_date, date), interval,
-                                value.substr(space + 1));
+                                value.substr(space + 1, value.size()));
     }
     previous_date = date;
   });
   return interval;
+}
+
+number DaysUntilNextReview(Flashcard card) {
+  FileTags review_tags = FileTags(card.review_buffer());
+  VectorString reviews = review_tags.get("Cloze");
+  if (reviews.empty()) {
+    return 0;  // No previous reviews, so it's due now.
+  }
+
+  number ideal_interval = CurrentIdealIntervalDays(review_tags);
+  string last_review_line = reviews.get(reviews.size() - 1);
+  number days_elapsed =
+      Days(last_review_line.substr(0, last_review_line.find_first_of(" ", 0)),
+           Today());
+  return ideal_interval - days_elapsed;
+}
+
+void ReviewFlashcards(string directory, number cards_count) {
+  VectorFlashcard all_flashcards = PickFlashcards(directory);
+
+  VectorFlashcard reviewable_cards =
+      all_flashcards.filter([](Flashcard card) -> bool {
+        FileTags review_tags = FileTags(card.review_buffer());
+        VectorString reviews = review_tags.get("Cloze");
+        if (reviews.empty()) {
+          return true;
+        }
+        string last_review_line = reviews.get(reviews.size() - 1);
+        string last_review_date =
+            last_review_line.substr(0, last_review_line.find_first_of(" ", 0));
+        return last_review_date != Today();
+      });
+
+  for (number i = 0; i < cards_count; i++) {
+    if (reviewable_cards.empty()) return;
+
+    Flashcard most_urgent_card = reviewable_cards.get(0);
+    number min_days = DaysUntilNextReview(most_urgent_card);
+
+    for (number j = 1; j < reviewable_cards.size(); j++) {
+      Flashcard current_card = reviewable_cards.get(j);
+      number current_days = DaysUntilNextReview(current_card);
+      if (current_days < min_days) {
+        min_days = current_days;
+        most_urgent_card = current_card;
+      }
+    }
+
+    most_urgent_card.card_front_buffer();
+
+    Buffer buffer_to_remove = most_urgent_card.review_buffer();
+    reviewable_cards = reviewable_cards.filter([](Flashcard card) -> bool {
+      // TODO(2025-07-20, easy): The VM language should allow us to compare
+      // objects directly, probably using pointer comparison. Then we shouldn't
+      // need this hack of comparing the paths.
+      return card.review_buffer().path() != buffer_to_remove.path();
+    });
+  }
 }
 }  // namespace flashcards
 
@@ -159,8 +217,6 @@ number CurrentIdealIntervalDays(Flashcard card) {
 // That requires improving src/flashcard.cc to find it there, which requires
 // improving src/execution_context.h to be able to handle namespaces.
 void ConfigureFrontCardBuffer(Buffer buffer, Flashcard card) {
-  buffer.ApplyTransformation(
-      InsertTransformationBuilder().set_text("Front").build());
   buffer.AddBinding(" ", "Flashcard: Show answer", []() -> void {
     buffer.Close();
     card.card_back_buffer();
