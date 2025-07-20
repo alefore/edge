@@ -705,8 +705,16 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
                   })))
               .release();
   } else if (a->IsBool() && b->IsBool()) {
-    // TODO(2025-07-20): Implement.
-    LOG(FATAL) << "Unimplemented!";
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_bool, const Value& b_bool) {
+                    return Value::NewBool(
+                        pool, a_bool.get_bool() == b_bool.get_bool());
+                  })))
+              .release();
   } else if (a->Types().front() == b->Types().front()
              && std::holds_alternative<types::ObjectName>(a->Types().front())) {
     // TODO(2025-07-20): Allow objects of the same object type to be compared.
