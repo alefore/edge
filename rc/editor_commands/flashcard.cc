@@ -33,22 +33,102 @@ VectorFlashcard PickFlashcards(string reviews_directory) {
 
 number AdjustInterval(number days_elapsed, number days_ideal,
                       string difficulty) {
-  // When the actual and ideal interval are the same *and* the score is "good",
-  // the next ideal interval grows by this amount.
-  number kIntervalGrowthStep = 2;
-  number kMaximumIntervalGrowthStep = 5;
+  if (difficulty == "fail") {
+    number new_interval = days_ideal * 0.1;
+    return new_interval > 1 ? new_interval : 1;
+  }
 
-  // TODO(easy, 2025-07-20): Compute the factor as a function of:
-  //
-  // - The relationship between days_elapsed and days_ideal. If elapsed is
-  // larger, grow the factor more significantly (as elapsed / ideal goes to
-  // infinity, factor should go to kMaximumIntervalGrowthStep).
-  //
-  // - The difficulty (fail should probably reset the interval to 10%? easy
-  // should make the interval grow faster, hard slower).
-  number factor = 2;
+  number kIntervalGrowthStep = 2.0;
+  number kMaximumIntervalGrowthStep = 5.0;
+  number E = 2.71828;  // Euler's number
+
+  number difficulty_factor;
+  if (difficulty == "easy") {
+    difficulty_factor = 1.3;
+  } else if (difficulty == "good") {
+    difficulty_factor = 1.0;
+  } else {  // hard
+    difficulty_factor = 0.7;
+  }
+
+  number base_growth = kIntervalGrowthStep * difficulty_factor;
+
+  number time_ratio = 1.0;
+  if (days_ideal > 0) {
+    time_ratio = days_elapsed / days_ideal;
+  }
+
+  number factor;
+  if (time_ratio >= 1) {
+    number excess_ratio = time_ratio - 1;
+    // The bonus approaches (kMaximumIntervalGrowthStep - base_growth) as the
+    // excess_ratio increases. The use of log ensures that the approach is
+    // gradual.
+    number bonus = (kMaximumIntervalGrowthStep - base_growth) *
+                   (1 - 1 / log(excess_ratio + E));
+    factor = base_growth + bonus;
+  } else {
+    // When reviewed early, the growth is penalized.
+    // The growth factor is linearly interpolated between 1 (no growth) and
+    // base_growth. time_ratio = 0 -> factor = 1. time_ratio = 1 -> factor =
+    // base_growth.
+    factor = 1 + (base_growth - 1) * time_ratio;
+  }
+
+  // Final sanity checks on the factor.
+  if (factor > kMaximumIntervalGrowthStep) {
+    factor = kMaximumIntervalGrowthStep;
+  }
+  if (factor < 1) {
+    factor = 1;
+  }
 
   return days_ideal * factor;
+}
+
+string TestAdjustInterval(number days_elapsed, number days_ideal,
+                          string difficulty, number expected_min,
+                          number expected_max) {
+  number result = AdjustInterval(days_elapsed, days_ideal, difficulty);
+  if (result >= expected_min && result <= expected_max) {
+    return "";
+  }
+  return "Test failed: AdjustInterval(" + days_elapsed.tostring() + ", " +
+         days_ideal.tostring() + ", " + difficulty +
+         "). Expected result between " + expected_min.tostring() + " and " +
+         expected_max.tostring() + ", but got " + result.tostring() + ". ";
+}
+
+string Validate() {
+  string errors;
+
+  // Test case 1: Difficulty "fail"
+  errors += TestAdjustInterval(10, 100, "fail", 10, 10);
+  errors += TestAdjustInterval(1000, 1000, "fail", 100, 100);
+  errors += TestAdjustInterval(10, 5, "fail", 1, 1);
+
+  // Test case 2: Difficulty "good", ideal == elapsed
+  errors += TestAdjustInterval(10, 10, "good", 19.9, 20.1);
+
+  // Test case 3: Difficulty "good", elapsed > ideal
+  errors += TestAdjustInterval(20, 10, "good", 27.1, 27.2);
+
+  // Test case 4: Difficulty "good", elapsed < ideal
+  errors += TestAdjustInterval(5, 10, "good", 14.9, 15.1);
+
+  // Test case 5: Difficulty "easy", ideal == elapsed
+  errors += TestAdjustInterval(10, 10, "easy", 25.9, 26.1);
+
+  // Test case 6: Difficulty "hard", ideal == elapsed
+  errors += TestAdjustInterval(10, 10, "hard", 13.9, 14.1);
+
+  // Test case 7: Maximum growth
+  errors += TestAdjustInterval(1000, 10, "good", 43.5, 43.6);
+
+  // Test case 8: Zero values
+  errors += TestAdjustInterval(0, 10, "good", 9.9, 10.1);
+
+  return errors;
 }
 
 // Computes the number of days in which the user will repeat the flashcard in
@@ -67,7 +147,7 @@ number CurrentIdealIntervalDays(Flashcard card) {
     string date = value.substr(0, space);
     if (previous_date != "") {
       interval = AdjustInterval(Days(previous_date, date), interval,
-                                value.substr(space, value.size()));
+                                value.substr(space + 1));
     }
     previous_date = date;
   });
