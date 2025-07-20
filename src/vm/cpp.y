@@ -704,6 +704,15 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
                         pool, a_value.get_number() == b_value.get_number());
                   })))
               .release();
+  } else if (a->IsBool() && b->IsBool()) {
+    // TODO(2025-07-20): Implement.
+    LOG(FATAL) << "Unimplemented!";
+  } else if (a->Types().front() == b->Types().front()
+             && std::holds_alternative<types::ObjectName>(a->Types().front())) {
+    // TODO(2025-07-20): Allow objects of the same object type to be compared.
+    // They should be considered equal if they have the same pointer.
+    // See src/vm/value.have for `Value::get_user_value`.
+    LOG(FATAL) << "Unimplemented!";
   } else {
     compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
                                 TypesToString(a->Types()) +
