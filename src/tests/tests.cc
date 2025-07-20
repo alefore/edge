@@ -1,10 +1,14 @@
 #include "src/tests/tests.h"
 
 #include <glog/logging.h>
+#include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <cerrno>
+#include <cstring>
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -20,6 +24,25 @@ namespace {
 std::unordered_map<std::wstring, std::vector<Test>>* tests_map() {
   static std::unordered_map<std::wstring, std::vector<Test>> output;
   return &output;
+}
+
+// Maximum length for the process name visible in 'ps', including null
+// terminator.
+const size_t kMaxCommLength = 15;
+
+std::string GetTruncatedProcessName(const std::wstring& group_name,
+                                    const std::wstring& test_name) {
+  if (test_name.length() >= kMaxCommLength)
+    return std::string(test_name.begin(), test_name.begin() + kMaxCommLength);
+
+  if (std::wstring full_name = group_name + L"." + test_name;
+      full_name.length() <= kMaxCommLength)
+    return std::string(full_name.begin(), full_name.end());
+
+  const std::wstring suffix = L"." + test_name;
+  const std::wstring output =
+      group_name.substr(0, kMaxCommLength - suffix.length()) + suffix;
+  return std::string(output.begin(), output.end());
 }
 
 struct TestInfoToSchedule {
@@ -59,6 +82,16 @@ pid_t ForkTest(const TestInfoToSchedule& info) {
   // Child process: execute the test callback
   LOG(INFO) << "Child process: starting callback for " << info.group_name
             << L"." << info.test_name;
+
+  // Set process name for easier debugging with 'ps'
+  std::string process_name =
+      GetTruncatedProcessName(info.group_name, info.test_name);
+
+  if (prctl(PR_SET_NAME, process_name.c_str(), 0, 0, 0) == -1) {
+    LOG(WARNING) << "Failed to set process name for test '" << process_name
+                 << "': " << std::strerror(errno);
+  }
+
   for (size_t i = 0; i < info.test.runs; ++i) info.test.callback();
   exit(0);  // Child process exits successfully after completing its task
 }
@@ -72,6 +105,81 @@ bool Register(std::wstring name, std::vector<Test> tests) {
   InsertOrDie(*tests_map(), {name, std::move(tests)});
   return true;
 }
+
+const bool kRegisterProcessNameTruncationTests = afc::tests::Register(
+    L"ProcessNameTruncationTests",
+    {
+        {.name = L"ShortName",
+         .callback =
+             []() {
+               CHECK_EQ("Group.Test",
+                        GetTruncatedProcessName(L"Group", L"Test"));
+             }},
+        {.name = L"LongGroupName",
+         .callback =
+             []() {
+               CHECK_EQ("LongGroupN.Test",
+                        GetTruncatedProcessName(L"LongGroupName", L"Test"));
+             }},
+        {.name = L"LongTestName",
+         .callback =
+             []() {
+               CHECK_EQ(
+                   "LongTestNameToo",
+                   GetTruncatedProcessName(L"Group", L"LongTestNameTooLong"));
+             }},
+        {.name = L"LongBothNames",
+         .callback =
+             []() {
+               CHECK_EQ("Ve.LongTestName",
+                        GetTruncatedProcessName(L"VeryLongGroupName",
+                                                L"LongTestName"));
+             }},
+        {.name = L"JustGroup",
+         .callback =
+             []() {
+               CHECK_EQ("JustGroup.",
+                        GetTruncatedProcessName(L"JustGroup", L""));
+             }},
+        {.name = L"JustTest",
+         .callback =
+             []() {
+               CHECK_EQ(".JustTest", GetTruncatedProcessName(L"", L"JustTest"));
+             }},
+        {.name = L"EmptyNames",
+         .callback =
+             []() { CHECK_EQ(".", GetTruncatedProcessName(L"", L"")); }},
+        {.name = L"TestNameUnderKMaxCommLength",
+         .callback =
+             []() {
+               CHECK_EQ("G.1234567890123",
+                        GetTruncatedProcessName(L"Group", L"1234567890123"));
+             }},
+        {.name = L"TestNameAlmostKMaxCommLength",
+         .callback =
+             []() {
+               CHECK_EQ(".12345678901234",
+                        GetTruncatedProcessName(L"Group", L"12345678901234"));
+             }},
+        {.name = L"TestNameExactlyKMaxCommLength",
+         .callback =
+             []() {
+               CHECK_EQ("123456789012345",
+                        GetTruncatedProcessName(L"Group", L"123456789012345"));
+             }},
+        {.name = L"GroupOnlyExactlyKMaxCommLength",
+         .callback =
+             []() {
+               CHECK_EQ("12345678901234.",
+                        GetTruncatedProcessName(L"123456789012345", L""));
+             }},
+        {.name = L"GroupOnlyExceedsKMaxCommLength",
+         .callback =
+             []() {
+               CHECK_EQ("12345678901234.",
+                        GetTruncatedProcessName(L"1234567890123456", L""));
+             }},
+    });
 
 void Run(std::vector<std::wstring> tests_filter) {
   std::cerr << "# Test Groups" << std::endl << std::endl;
