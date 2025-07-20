@@ -1,0 +1,3 @@
+We'd like this codebase to generally avoid `auto` and, instead, fully spell out types.
+
+The only exception to that are in cases where spelling out the types would add significant complexity, such as in templated functions where the type may vary depending on template parameters.

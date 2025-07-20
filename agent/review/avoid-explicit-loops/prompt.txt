@@ -1,0 +1,3 @@
+We prefer to avoid explicit `for` and `while` loops when possible: in cases where the cycle can be reduced to a simple operation such as "for all elements in this container" or "filter elements" or "find the first element with a property".
+
+In those cases, we should use the functions in src/language/container.h or the C++23 view/ranges functions (such as `std::views::transform`).
