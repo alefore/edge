@@ -204,10 +204,7 @@ void ReviewFlashcards(string directory, number cards_count) {
 
     Buffer buffer_to_remove = most_urgent_card.review_buffer();
     reviewable_cards = reviewable_cards.filter([](Flashcard card) -> bool {
-      // TODO(2025-07-20, easy): The VM language should allow us to compare
-      // objects directly, probably using pointer comparison. Then we shouldn't
-      // need this hack of comparing the paths.
-      return card.review_buffer().path() != buffer_to_remove.path();
+      return card.review_buffer() != buffer_to_remove;
     });
   }
 }
