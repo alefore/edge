@@ -392,6 +392,8 @@ src/vm/escape.cc \
 src/vm/escape.h \
 src/vm/expression.cc \
 src/vm/expression.h \
+src/vm/expression_equality.cc \
+src/vm/expression_equality.h \
 src/vm/lambda.cc \
 src/vm/lambda.h \
 src/vm/natural.cc \

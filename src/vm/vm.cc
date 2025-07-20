@@ -28,6 +28,7 @@
 #include "src/vm/constant_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
+#include "src/vm/expression_equality.h"
 #include "src/vm/function_call.h"
 #include "src/vm/if_expression.h"
 #include "src/vm/lambda.h"

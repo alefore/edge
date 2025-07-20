@@ -675,108 +675,16 @@ expr(OUT) ::= NOT expr(A). {
 }
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
-
-  if (a == nullptr || b == nullptr) {
-    OUT = nullptr;
-  } else if (a->IsString() && b->IsString()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-                  types::Bool{},
-                  [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
-                    return Value::NewBool(
-                        pool, a_str.get_string() == b_str.get_string());
-                  })))
-              .release();
-  } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-                  types::Bool{},
-                  [precision = compilation->numbers_precision](
-                      gc::Pool& pool, const Value& a_value,
-                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    return Value::NewBool(
-                        pool, a_value.get_number() == b_value.get_number());
-                  })))
-              .release();
-  } else if (a->IsBool() && b->IsBool()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-                  types::Bool{},
-                  [](gc::Pool& pool, const Value& a_bool, const Value& b_bool) {
-                    return Value::NewBool(
-                        pool, a_bool.get_bool() == b_bool.get_bool());
-                  })))
-              .release();
-  } else if (a->Types().front() == b->Types().front()
-             && std::holds_alternative<types::ObjectName>(a->Types().front())) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-                  types::Bool{},
-                  [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
-                    return Value::NewBool(
-                        pool, a_value.get_user_value<void>(a_value.type()).get_shared() ==
-                              b_value.get_user_value<void>(b_value.type()).get_shared());
-                  })))
-              .release();
-  } else {
-    compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
-                                TypesToString(a->Types()) +
-                                LazyString{L" == "} +
-                                TypesToString(b->Types()) +
-                                LazyString{L"."}});
-    OUT = nullptr;
-  }
+  OUT = ExpressionEquals(*compilation, std::unique_ptr<Expression>(A),
+                         std::unique_ptr<Expression>(B)).release();
 }
 
 expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
-
-  if (a == nullptr || b == nullptr) {
-    OUT = nullptr;
-  } else if (a->IsString() && b->IsString()) {
-    OUT =
-        ToUniquePtr(
-            compilation->RegisterErrors(BinaryOperator::New(
-                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-                types::Bool{},
-                [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
-                  return Value::NewBool(
-                      pool, a_value.get_string() != b_value.get_string());
-                })))
+  OUT = NewNegateExpressionBool(
+            *compilation,
+            ExpressionEquals(*compilation, std::unique_ptr<Expression>(A),
+                             std::unique_ptr<Expression>(B)))
             .release();
-  } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-                  types::Bool{},
-                  [precision = compilation->numbers_precision](
-                      gc::Pool& pool, const Value& a_value,
-                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    return Value::NewBool(
-                        pool, a_value.get_number() != b_value.get_number());
-                  })))
-              .release();
-  } else {
-    compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
-                                TypesToString(a->Types()) +
-                                LazyString{L" == "} +
-                                TypesToString(b->Types()) +
-                                LazyString{L"."}});
-    OUT = nullptr;
-  }
 }
 
 expr(OUT) ::= expr(A) LESS_THAN expr(B). {
