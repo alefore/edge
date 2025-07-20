@@ -1,5 +1,6 @@
 #include "buffer_load.cc"
 #include "buffer_output.cc"
+#include "lib/dates.cc"
 #include "lib/markdown.cc"
 
 namespace flashcards {
@@ -28,6 +29,49 @@ VectorFlashcard PickFlashcards(string reviews_directory) {
   });
   OutputBufferLog(log_buffer, "Flashcards: " + output.size().tostring());
   return output;
+}
+
+number AdjustInterval(number days_elapsed, number days_ideal,
+                      string difficulty) {
+  // When the actual and ideal interval are the same *and* the score is "good",
+  // the next ideal interval grows by this amount.
+  number kIntervalGrowthStep = 2;
+  number kMaximumIntervalGrowthStep = 5;
+
+  // TODO(easy, 2025-07-20): Compute the factor as a function of:
+  //
+  // - The relationship between days_elapsed and days_ideal. If elapsed is
+  // larger, grow the factor more significantly (as elapsed / ideal goes to
+  // infinity, factor should go to kMaximumIntervalGrowthStep).
+  //
+  // - The difficulty (fail should probably reset the interval to 10%? easy
+  // should make the interval grow faster, hard slower).
+  number factor = 2;
+
+  return days_ideal * factor;
+}
+
+// Computes the number of days in which the user will repeat the flashcard in
+// the ideal scenario.
+number CurrentIdealIntervalDays(Flashcard card) {
+  // Expected to contain a sorted list of strings of the form "YYYY-MM-DD
+  // SCORE", where "SCORE" is one of {"fail", "easy", "good", "hard"}.
+  VectorString reviews = FileTags(card.review_buffer()).get("Cloze");
+
+  if (reviews.size() <= 1) return 1;
+
+  number interval = 1;
+  string previous_date = "";
+  reviews.ForEach([](string value) -> void {
+    number space = value.find_first_of(" ", 0);
+    string date = value.substr(0, space);
+    if (previous_date != "") {
+      interval = AdjustInterval(Days(previous_date, date), interval,
+                                value.substr(space, value.size()));
+    }
+    previous_date = date;
+  });
+  return interval;
 }
 }  // namespace flashcards
 
