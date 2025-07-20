@@ -717,10 +717,17 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
               .release();
   } else if (a->Types().front() == b->Types().front()
              && std::holds_alternative<types::ObjectName>(a->Types().front())) {
-    // TODO(2025-07-20): Allow objects of the same object type to be compared.
-    // They should be considered equal if they have the same pointer.
-    // See src/vm/value.have for `Value::get_user_value`.
-    LOG(FATAL) << "Unimplemented!";
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
+                    return Value::NewBool(
+                        pool, a_value.get_user_value<void>(a_value.type()).get_shared() ==
+                              b_value.get_user_value<void>(b_value.type()).get_shared());
+                  })))
+              .release();
   } else {
     compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
                                 TypesToString(a->Types()) +
