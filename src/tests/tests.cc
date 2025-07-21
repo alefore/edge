@@ -308,6 +308,10 @@ void ForkAndWaitForFailure(std::function<void()> callable) {
   if (child_pid == -1) LOG(FATAL) << "Fork failed.";
 
   if (child_pid == 0) {
+    // Close stdout and stderr to avoid polluting the parent's output with our
+    // stack traces.
+    close(1);
+    close(2);
     LOG(INFO) << "Child process: starting callback for ForkAndWaitForFailure.";
     callable();
     LOG(INFO) << "Child process didn't crash; will exit successfully.";
