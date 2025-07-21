@@ -79,7 +79,8 @@ FileTags::FileTags(gc::Ptr<OpenBuffer> buffer, LineNumber start_line,
 
 NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
     LazyString tag_name) {
-  if (auto it = tags_.find(tag_name); it != tags_.end()) return it->second;
+  if (auto it = tags_.find(LowerCase(tag_name)); it != tags_.end())
+    return it->second;
   static const auto kEmptyValues =
       MakeNonNullShared<Protected<std::vector<LazyString>>>(
           MakeProtected(std::vector<LazyString>{}));
