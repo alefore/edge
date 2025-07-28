@@ -11,9 +11,8 @@ void SetScoreAndClose(Buffer buffer, Flashcard card, string score) {
 }
 }  // namespace internal
 
-VectorFlashcard PickFlashcards(string reviews_directory) {
+VectorFlashcard PickFlashcards(Buffer log_buffer, string reviews_directory) {
   string cloze_tag = "cloze";
-  Buffer log_buffer = OutputBuffer("/tmp/reviews/log");
   VectorFileTags buffers =
       LoadFileTagsFromGlob(reviews_directory + "/???.md", log_buffer)
           .filter([](FileTags tags) -> bool {
@@ -144,10 +143,15 @@ number CurrentIdealIntervalDays(FileTags review_tags) {
   string previous_date = "";
   reviews.ForEach([](string value) -> void {
     number space = value.find_first_of(" ", 0);
+    if (space == -1) {
+      interval = 0;
+      return;
+    }
     string date = value.substr(0, space);
     if (previous_date != "") {
-      interval = AdjustInterval(Days(previous_date, date), interval,
-                                value.substr(space + 1, value.size()));
+      interval =
+          AdjustInterval(Days(previous_date, date), interval,
+                         value.substr(space + 1, value.size() - (space + 1)));
     }
     previous_date = date;
   });
@@ -158,7 +162,7 @@ number DaysUntilNextReview(Flashcard card) {
   FileTags review_tags = FileTags(card.review_buffer());
   VectorString reviews = review_tags.get("Cloze");
   if (reviews.empty()) {
-    return 0;  // No previous reviews, so it's due now.
+    return 0.01;  // No previous reviews, so it's due now.
   }
 
   number ideal_interval = CurrentIdealIntervalDays(review_tags);
@@ -170,7 +174,8 @@ number DaysUntilNextReview(Flashcard card) {
 }
 
 void ReviewFlashcards(string directory, number cards_count) {
-  VectorFlashcard all_flashcards = PickFlashcards(directory);
+  Buffer log_buffer = OutputBuffer("/tmp/reviews/log");
+  VectorFlashcard all_flashcards = PickFlashcards(log_buffer, directory);
 
   VectorFlashcard reviewable_cards =
       all_flashcards.filter([](Flashcard card) -> bool {
@@ -199,6 +204,13 @@ void ReviewFlashcards(string directory, number cards_count) {
         most_urgent_card = current_card;
       }
     }
+
+    OutputBufferLog(log_buffer,
+                    most_urgent_card.buffer().name() +
+                        "Days left for review: " + min_days.tostring());
+    FileTags review_tags = FileTags(most_urgent_card.review_buffer());
+    OutputBufferLog(log_buffer, "Cloze tags: " +
+                                    review_tags.get("Cloze").size().tostring());
 
     most_urgent_card.card_front_buffer();
 
