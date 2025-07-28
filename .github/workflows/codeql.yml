@@ -33,7 +33,7 @@ jobs:
         languages: ${{ matrix.language }}
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libtool libltdl-dev make g++ libncursesw6 libncurses-dev
+      run: sudo apt-get update && sudo apt-get install -y autoconf libtool libltdl-dev make g++ libncursesw6 libncurses-dev
 
     - run: |
         echo "Run, Build Application using script"
