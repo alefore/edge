@@ -200,46 +200,46 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
       .initial_value = LineProcessorOutput(SingleLine{}),
       .value = futures::Past(LineProcessorOutput(SingleLine{}))};
   return std::visit(
-      overload{[&](ExecutionContext::CompilationResult compilation_result)
-                   -> ValueOrError<LineProcessorOutputFuture> {
-                 LineProcessorOutputFuture output{
-                     .initial_value = LineProcessorOutput(
-                         SINGLE_LINE_CONSTANT(L"C++: ") +
-                         vm::TypesToString(
-                             compilation_result.expression()->Types())),
-                     .value = futures::Future<LineProcessorOutput>().value};
-                 if (!compilation_result.expression()
-                          ->purity()
-                          .writes_external_outputs) {
-                   output.initial_value =
-                       LineProcessorOutput(output.initial_value.read() +
-                                           SINGLE_LINE_CONSTANT(L" ..."));
-                   if (compilation_result.expression()->Types() ==
-                       std::vector<vm::Type>({vm::types::Void{}}))
-                     return kEmptyOutput;
-                   output.value = buffer.work_queue()->Wait(Now()).Transform(
-                       [compilation_result =
-                            std::move(compilation_result)](EmptyValue) mutable {
-                         return compilation_result.evaluate()
-                             .Transform([](gc::Root<vm::Value> value) {
-                               std::ostringstream oss;
-                               oss << value.ptr().value();
-                               return LineProcessorOutput::New(SingleLine::New(
-                                   LazyString{FromByteString(oss.str())}));
-                             })
-                             .ConsumeErrors([](Error error) {
-                               return futures::Past(LineProcessorOutput(
-                                   SINGLE_LINE_CONSTANT(L"E: ") +
-                                   LineSequence::BreakLines(error.read())
-                                       .FoldLines()));
-                             });
-                       });
-                 }
-                 return output;
-               },
-               [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
-                 return error;
-               }},
+      overload{
+          [&](gc::Root<ExecutionContext::CompilationResult> compilation_result)
+              -> ValueOrError<LineProcessorOutputFuture> {
+            LineProcessorOutputFuture output{
+                .initial_value = LineProcessorOutput(
+                    SINGLE_LINE_CONSTANT(L"C++: ") +
+                    vm::TypesToString(
+                        compilation_result->expression()->Types())),
+                .value = futures::Future<LineProcessorOutput>().value};
+            if (!compilation_result->expression()
+                     ->purity()
+                     .writes_external_outputs) {
+              output.initial_value = LineProcessorOutput(
+                  output.initial_value.read() + SINGLE_LINE_CONSTANT(L" ..."));
+              if (compilation_result->expression()->Types() ==
+                  std::vector<vm::Type>({vm::types::Void{}}))
+                return kEmptyOutput;
+              output.value = buffer.work_queue()->Wait(Now()).Transform(
+                  [compilation_result =
+                       std::move(compilation_result)](EmptyValue) mutable {
+                    return compilation_result->evaluate()
+                        .Transform([](gc::Root<vm::Value> value) {
+                          std::ostringstream oss;
+                          oss << value.ptr().value();
+                          return LineProcessorOutput::New(SingleLine::New(
+                              LazyString{FromByteString(oss.str())}));
+                        })
+                        .ConsumeErrors([](Error error) {
+                          return futures::Past(LineProcessorOutput(
+                              SINGLE_LINE_CONSTANT(L"E: ") +
+                              LineSequence::BreakLines(error.read())
+                                  .FoldLines()));
+                        });
+                  });
+            }
+            return output;
+          },
+          [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
+            return error;
+          }},
       buffer.execution_context()->CompileString(
           input.read(), ExecutionContext::ErrorHandling::kIgnore));
 }
@@ -926,23 +926,22 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
   }
 
   return std::visit(
-             overload{
-                 [this](
-                     ExecutionContext::CompilationResult compilation_result) {
-                   if (editor().exit_value().has_value())
-                     return futures::Past(Success());
-                   LOG(INFO)
-                       << "Starting reload: " << Read(buffer_variables::name);
-                   return futures::IgnoreErrors(
-                       compilation_result.evaluate().Transform(
-                           [](gc::Root<vm::Value>) -> PossibleError {
-                             return Success();
-                           }));
-                 },
-                 [](Error error) {
-                   LOG(INFO) << "OnReload handler: " << error;
-                   return futures::Past(Success());
-                 }},
+             overload{[this](gc::Root<ExecutionContext::CompilationResult>
+                                 compilation_result) {
+                        if (editor().exit_value().has_value())
+                          return futures::Past(Success());
+                        LOG(INFO) << "Starting reload: "
+                                  << Read(buffer_variables::name);
+                        return futures::IgnoreErrors(
+                            compilation_result->evaluate().Transform(
+                                [](gc::Root<vm::Value>) -> PossibleError {
+                                  return Success();
+                                }));
+                      },
+                      [](Error error) {
+                        LOG(INFO) << "OnReload handler: " << error;
+                        return futures::Past(Success());
+                      }},
              execution_context()->FunctionCall(
                  IDENTIFIER_CONSTANT(L"OnReload"),
                  {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(ptr_this_->pool(),

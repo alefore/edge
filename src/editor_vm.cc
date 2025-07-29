@@ -541,7 +541,7 @@ gc::Root<Environment> BuildEditorEnvironment(
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            editor_arg.default_commands().ptr()->Add(
+            editor_arg.default_commands()->Add(
                 VMTypeMapper<VSP>::get(args[1].ptr().value())->lock([](V keys) {
                   return keys;
                 }),
@@ -563,7 +563,7 @@ gc::Root<Environment> BuildEditorEnvironment(
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            editor_arg.default_commands().ptr()->Add(
+            editor_arg.default_commands()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
                 args[2].ptr()->get_string(), std::move(args[3]).ptr(),
                 editor_arg.execution_context()->environment());

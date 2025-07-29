@@ -285,7 +285,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                   });
 
                   LOG(INFO) << "Start evaluation.";
-                  return compilation_result.evaluate();
+                  return compilation_result->evaluate();
                 }();
             while (!future_value.Get().has_value())
               editor->work_queue()->Execute();
@@ -507,7 +507,7 @@ const bool buffer_reloads_tests_registration = tests::Register(
             gc::Root<OpenBuffer> buffer_root =
                 NewBufferForTests(editor.value());
             ReloadAndWaitUntilEndOfFile(buffer_root.ptr().value());
-            ExecutionContext::CompilationResult compilation =
+            gc::Root<ExecutionContext::CompilationResult> compilation =
                 ValueOrDie(buffer_root->execution_context()->CompileString(
                     LazyString{L"x"}));
 
@@ -515,7 +515,7 @@ const bool buffer_reloads_tests_registration = tests::Register(
             buffer_root->Reload();
 
             futures::ValueOrError<gc::Root<vm::Value>> result =
-                compilation.evaluate();
+                compilation->evaluate();
             AdvanceUntilValue(buffer_root->editor(), result);
             CHECK(ValueOrDie(std::move(result).Get().value())->get_number() ==
                   Number::FromInt64(5678));

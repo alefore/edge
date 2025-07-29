@@ -29,19 +29,32 @@ class ExecutionContext {
 
  public:
   class CompilationResult {
+    struct ConstructorAccessTag {};
+
     language::NonNull<std::shared_ptr<vm::Expression>> expression_;
-    language::gc::Root<vm::Environment> environment_;
+    language::gc::Ptr<vm::Environment> environment_;
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
    public:
     CompilationResult(
+        ConstructorAccessTag,
         language::NonNull<std::shared_ptr<vm::Expression>> expression,
-        language::gc::Root<vm::Environment> environment,
+        language::gc::Ptr<vm::Environment> environment,
+        language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue);
+
+    static language::gc::Root<CompilationResult> New(
+        language::NonNull<std::shared_ptr<vm::Expression>> expression,
+        language::gc::Ptr<vm::Environment> environment,
         language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue);
 
     const language::NonNull<std::shared_ptr<vm::Expression>>& expression()
         const;
+
     futures::ValueOrError<language::gc::Root<vm::Value>> evaluate() const;
+
+    std::vector<
+        language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+    Expand() const;
   };
 
   static language::gc::Root<ExecutionContext> New(
@@ -69,13 +82,13 @@ class ExecutionContext {
       language::lazy_string::LazyString code,
       ErrorHandling on_compilation_error = kLogToStatus);
 
-  language::ValueOrError<CompilationResult> CompileString(
+  language::ValueOrError<language::gc::Root<CompilationResult>> CompileString(
       language::lazy_string::LazyString,
       ErrorHandling error_handling = kLogToStatus);
 
   // Returns an function that, when run, is equivalent to running a given vm
   // function with some arguments.
-  language::ValueOrError<CompilationResult> FunctionCall(
+  language::ValueOrError<language::gc::Root<CompilationResult>> FunctionCall(
       const vm::Identifier& function_name,
       std::vector<language::gc::Ptr<vm::Value>> arguments);
 

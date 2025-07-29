@@ -60,12 +60,12 @@ ValueOrError<CommandCategory> GetCategoryString(LazyString code) {
 }
 
 class CppCommand : public Command {
-  const ExecutionContext::CompilationResult compilation_result_;
+  const gc::Ptr<ExecutionContext::CompilationResult> compilation_result_;
   const LazyString description_;
   const CommandCategory category_;
 
  public:
-  CppCommand(ExecutionContext::CompilationResult compilation_result,
+  CppCommand(gc::Ptr<ExecutionContext::CompilationResult> compilation_result,
              LazyString code, CommandCategory category)
       : compilation_result_(std::move(compilation_result)),
         description_(ToLazyString(GetDescriptionString(code))),
@@ -76,12 +76,12 @@ class CppCommand : public Command {
 
   void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
-    compilation_result_.evaluate();
+    compilation_result_->evaluate();
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    return {compilation_result_.object_metadata()};
   }
 };
 
@@ -90,10 +90,10 @@ class CppCommand : public Command {
 ValueOrError<gc::Root<Command>> NewCppCommand(
     ExecutionContext& execution_context, const LazyString& code) {
   ASSIGN_OR_RETURN(CommandCategory category, GetCategoryString(code));
-  ASSIGN_OR_RETURN(ExecutionContext::CompilationResult result,
+  ASSIGN_OR_RETURN(gc::Root<ExecutionContext::CompilationResult> result,
                    execution_context.CompileString(code));
   return execution_context.environment().pool().NewRoot(
-      MakeNonNullUnique<CppCommand>(std::move(result), code, category));
+      MakeNonNullUnique<CppCommand>(std::move(result).ptr(), code, category));
 }
 
 }  // namespace afc::editor

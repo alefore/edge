@@ -331,25 +331,26 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
         LineModifierSet modifiers;
         return std::visit(
             overload{
-                [&](ExecutionContext::CompilationResult compilation_result) {
+                [&](gc::Root<ExecutionContext::CompilationResult>
+                        compilation_result) {
                   modifiers.insert(LineModifier::kCyan);
                   progress_channel->Push(ProgressInformation{
                       .values = {
                           {VersionPropertyKey{
                                NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")},
                            vm::TypesToString(
-                               compilation_result.expression()->Types())}}});
+                               compilation_result->expression()->Types())}}});
                   ColorizePromptOptions output;
                   MaybePushTokenAndModifiers(line, modifiers, output.tokens);
-                  if (compilation_result.expression()->Types() ==
+                  if (compilation_result->expression()->Types() ==
                       std::vector<vm::Type>({vm::types::Void{}}))
                     return futures::Past(output);
 
-                  if (compilation_result.expression()
+                  if (compilation_result->expression()
                           ->purity()
                           .writes_external_outputs)
                     return futures::Past(output);
-                  return compilation_result.evaluate()
+                  return compilation_result->evaluate()
                       .Transform([progress_channel](gc::Root<vm::Value> value) {
                         std::ostringstream oss;
                         oss << value.ptr().value();

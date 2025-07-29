@@ -222,7 +222,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                    EditorForTests(std::nullopt);
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
-               editor->default_commands().ptr()->Add(
+               editor->default_commands()->Add(
                    {L'X'}, LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
                                    [&executed]() { executed = true; })
@@ -241,7 +241,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
                LOG(INFO) << "Adding handler.";
-               editor->default_commands().ptr()->Add(
+               editor->default_commands()->Add(
                    {L'A', ControlChar::kPageDown},
                    LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,

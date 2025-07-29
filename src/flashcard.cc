@@ -377,9 +377,8 @@ class Flashcard {
                     std::visit(
                         overload{
                             [](Error error) { LOG(INFO) << error; },
-                            [](ExecutionContext::CompilationResult result) {
-                              result.evaluate();
-                            }},
+                            [](gc::Root<ExecutionContext::CompilationResult>
+                                   result) { result->evaluate(); }},
                         output_buffer->execution_context()->FunctionCall(
                             card_type == CardType::kFront
                                 ? IDENTIFIER_CONSTANT(

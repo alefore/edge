@@ -99,12 +99,23 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
 }
 
 ExecutionContext::CompilationResult::CompilationResult(
-    language::NonNull<std::shared_ptr<vm::Expression>> expression,
-    language::gc::Root<vm::Environment> environment,
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue)
+    ConstructorAccessTag, NonNull<std::shared_ptr<vm::Expression>> expression,
+    gc::Ptr<vm::Environment> environment,
+    NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue)
     : expression_(std::move(expression)),
       environment_(std::move(environment)),
       work_queue_(std::move(work_queue)) {}
+
+/* static */ gc::Root<ExecutionContext::CompilationResult>
+ExecutionContext::CompilationResult::New(
+    NonNull<std::shared_ptr<vm::Expression>> expression,
+    gc::Ptr<vm::Environment> environment,
+    NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue) {
+  return environment.pool().NewRoot(
+      MakeNonNullUnique<ExecutionContext::CompilationResult>(
+          ConstructorAccessTag{}, std::move(expression), std::move(environment),
+          std::move(work_queue)));
+}
 
 const language::NonNull<std::shared_ptr<vm::Expression>>&
 ExecutionContext::CompilationResult::expression() const {
@@ -113,13 +124,18 @@ ExecutionContext::CompilationResult::expression() const {
 
 futures::ValueOrError<gc::Root<vm::Value>>
 ExecutionContext::CompilationResult::evaluate() const {
-  return Evaluate(expression_, environment_.pool(), environment_,
+  return Evaluate(expression_, environment_.pool(), environment_.ToRoot(),
                   [work_queue = work_queue_](OnceOnlyFunction<void()> resume) {
                     LOG(INFO) << "Evaluation of code yields.";
                     work_queue->Schedule(
                         WorkQueue::Callback{.callback = std::move(resume)});
                   });
 };
+
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
+ExecutionContext::CompilationResult::Expand() const {
+  return {environment_.object_metadata()};
+}
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
     LazyString code, ErrorHandling on_compilation_error) {
@@ -128,14 +144,14 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
                  // No need to handle error; `CompileString` already does it.
                  return futures::Past(error);
                },
-               [&](ExecutionContext::CompilationResult result) {
+               [&](gc::Root<ExecutionContext::CompilationResult> result) {
                  LOG(INFO) << "Code compiled, evaluating.";
-                 return result.evaluate();
+                 return result->evaluate();
                }},
       CompileString(std::move(code), on_compilation_error));
 }
 
-ValueOrError<ExecutionContext::CompilationResult>
+ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
 ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
   TRACK_OPERATION(ExecutionContext_CompileString);
   gc::Root<vm::Environment> sub_environment =
@@ -143,12 +159,12 @@ ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
   return std::visit(
       overload{[sub_environment, work_queue = work_queue()](
                    NonNull<std::shared_ptr<vm::Expression>> expression)
-                   -> ValueOrError<CompilationResult> {
-                 return CompilationResult(std::move(expression),
-                                          sub_environment, work_queue);
+                   -> ValueOrError<gc::Root<CompilationResult>> {
+                 return CompilationResult::New(
+                     std::move(expression), sub_environment.ptr(), work_queue);
                },
                [weak_status = status_, error_handling](
-                   Error error) -> ValueOrError<CompilationResult> {
+                   Error error) -> ValueOrError<gc::Root<CompilationResult>> {
                  return RegisterCompilationError(
                      weak_status, LazyString{L"🐜Compilation error"}, error,
                      error_handling);
@@ -156,12 +172,12 @@ ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
       afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
 }
 
-ValueOrError<ExecutionContext::CompilationResult>
+ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
 ExecutionContext::FunctionCall(const vm::Identifier& function_name,
                                std::vector<gc::Ptr<vm::Value>> arguments) {
   return VisitOptional(
       [&](vm::Environment::LookupResult procedure) {
-        return Success(CompilationResult(
+        return Success(CompilationResult::New(
             vm::NewFunctionCall(
                 vm::NewConstantExpression(
                     std::get<gc::Root<vm::Value>>(procedure.value)),
@@ -172,7 +188,7 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
                             -> NonNull<std::shared_ptr<vm::Expression>> {
                           return vm::NewConstantExpression(value.ToRoot());
                         }))),
-            environment_.ToRoot(), work_queue()));
+            environment_, work_queue()));
       },
       [&function_name] {
         return Error{ToLazyString(function_name) +

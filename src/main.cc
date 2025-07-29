@@ -328,8 +328,8 @@ int main(int argc, const char** argv) {
           .editor = editor_state(), .name = InitialCommands{}});
       std::visit(
           overload{
-              [](ExecutionContext::CompilationResult result) {
-                result.evaluate();
+              [](gc::Root<ExecutionContext::CompilationResult> result) {
+                result->evaluate();
               },
               [](Error errors) { LOG(FATAL) << "Errors: " << errors.read(); }},
           buffer_root->execution_context()->CompileString(commands_to_run));
