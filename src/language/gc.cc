@@ -1,6 +1,10 @@
 #include "src/language/gc.h"
 
+#include <cxxabi.h>
+
 #include <cmath>
+#include <memory>
+#include <string>
 #include <utility>
 
 extern "C" {
@@ -39,6 +43,43 @@ void PushAndClean(std::list<ObjectMetadataBag>& container,
                   ObjectMetadataBag item) {
   container.push_back(std::move(item));
   EraseIf(container, [](const ObjectMetadataBag& l) { return l.empty(); });
+}
+
+std::string Demangle(const char* symbol) {
+  // A raw symbol from backtrace_symbols looks like:
+  //   /path/to/binary(mangled_name+offset) [address]
+  // This function extracts and demangles 'mangled_name'.
+  const std::string symbol_str(symbol);
+
+  // Find the parenthesis and plus sign that enclose the mangled name.
+  size_t open_paren = symbol_str.find('(');
+  size_t plus_sign = symbol_str.find('+');
+
+  // We can only demangle if we have a mangled name.
+  // If the symbol name is missing, plus_sign will be right after open_paren.
+  if (open_paren == std::string::npos || plus_sign == std::string::npos ||
+      plus_sign <= open_paren + 1) {
+    return symbol_str;  // Return original string if no name found.
+  }
+
+  std::string mangled_name =
+      symbol_str.substr(open_paren + 1, plus_sign - (open_paren + 1));
+
+  int status = 0;
+  // The abi::__cxa_demangle function allocates memory that we must free.
+  std::unique_ptr<char, void (*)(void*)> demangled_name(
+      abi::__cxa_demangle(mangled_name.c_str(), nullptr, nullptr, &status),
+      std::free);
+
+  // If demangling was successful, reconstruct the string with the pretty name.
+  if (status == 0 && demangled_name) {
+    std::string prefix = symbol_str.substr(0, open_paren + 1);
+    std::string suffix = symbol_str.substr(plus_sign);
+    return prefix + demangled_name.get() + suffix;
+  }
+
+  // If demangling fails, just return the original string.
+  return symbol_str;
 }
 }  // namespace
 
@@ -99,14 +140,14 @@ Pool::~Pool() {
   data_.lock([](const Data& data) {
     CHECK(data.expansion_schedule.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
-    // CHECK(roots_list.empty());
+    // CHECK(data.roots_list.empty());
   });
   if (root_backtrace_.has_value()) {
     size_t shown = 0;
     root_backtrace_->ForEachSerial([&shown](const Backtrace& trace) {
       VLOG(9) << "backtrace():";
       for (size_t i = 0; trace.get()[i] != nullptr; i++)
-        VLOG(9) << "  " << trace.get()[i];
+        VLOG(9) << "  " << Demangle(trace.get()[i]);
       shown++;
     });
     CHECK_EQ(shown, 0ul);
