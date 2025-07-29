@@ -173,25 +173,36 @@ number DaysUntilNextReview(Flashcard card) {
   return ideal_interval - days_elapsed;
 }
 
-void ReviewFlashcards(string directory, number cards_count) {
+void ReviewFlashcards(string directory, number cards_count, bool review) {
   Buffer log_buffer = OutputBuffer("/tmp/reviews/log");
   VectorFlashcard all_flashcards = PickFlashcards(log_buffer, directory);
 
+  OutputBufferLog(log_buffer,
+                  "All flashcards: " + all_flashcards.size().tostring());
   VectorFlashcard reviewable_cards =
       all_flashcards.filter([](Flashcard card) -> bool {
         FileTags review_tags = FileTags(card.review_buffer());
         VectorString reviews = review_tags.get("Cloze");
         if (reviews.empty()) {
+          OutputBufferLog(log_buffer,
+                          "No reviews: " + card.review_buffer().path());
           return true;
         }
         string last_review_line = reviews.get(reviews.size() - 1);
         string last_review_date =
             last_review_line.substr(0, last_review_line.find_first_of(" ", 0));
+        OutputBufferLog(log_buffer, card.review_buffer().path() +
+                                        ": last review: " + last_review_date);
         return last_review_date != Today();
       });
+  OutputBufferLog(log_buffer, "Reviewable flashcards: " +
+                                  reviewable_cards.size().tostring());
 
   for (number i = 0; i < cards_count; i++) {
-    if (reviewable_cards.empty()) return;
+    if (reviewable_cards.empty()) {
+      OutputBufferLog(log_buffer, "No reviewable cards left.");
+      return;
+    }
 
     Flashcard most_urgent_card = reviewable_cards.get(0);
     number min_days = DaysUntilNextReview(most_urgent_card);
@@ -212,11 +223,12 @@ void ReviewFlashcards(string directory, number cards_count) {
     OutputBufferLog(log_buffer, "Cloze tags: " +
                                     review_tags.get("Cloze").size().tostring());
 
-    most_urgent_card.card_front_buffer();
+    if (review) most_urgent_card.card_front_buffer();
 
     Buffer buffer_to_remove = most_urgent_card.review_buffer();
+    OutputBufferLog(log_buffer, "Removing card: " + buffer_to_remove.path());
     reviewable_cards = reviewable_cards.filter([](Flashcard card) -> bool {
-      return card.review_buffer() != buffer_to_remove;
+      return card.review_buffer().path() != buffer_to_remove.path();
     });
   }
 }
