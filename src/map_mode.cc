@@ -121,9 +121,9 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
 }
 
 void MapModeCommands::Add(std::vector<ExtendedChar> name,
-                          LazyString description, gc::Root<Value> value,
+                          LazyString description, gc::Ptr<Value> value,
                           gc::Ptr<vm::Environment> environment) {
-  const auto& value_type = std::get<vm::types::Function>(value.ptr()->type());
+  const auto& value_type = std::get<vm::types::Function>(value->type());
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
   CHECK(value_type.inputs.empty()) << "Definition has multiple inputs.";
   Add(name,
@@ -146,7 +146,7 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
                           WorkQueue::Callback{.callback = std::move(callback)});
                     });
               },
-              environment.ToWeakPtr(), value.ptr())
+              environment.ToWeakPtr(), value)
               .ptr(),
           description)
           .ptr());
@@ -225,7 +225,8 @@ const bool map_mode_commands_tests_registration = tests::Register(
                editor->default_commands().ptr()->Add(
                    {L'X'}, LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
-                                   [&executed]() { executed = true; }),
+                                   [&executed]() { executed = true; })
+                       .ptr(),
                    editor->execution_context()->environment());
                CHECK(!executed);
                // editor->gc_pool().FullCollect();
@@ -247,7 +248,8 @@ const bool map_mode_commands_tests_registration = tests::Register(
                                    [&executed]() {
                                      LOG(INFO) << "Executed!";
                                      executed = true;
-                                   }),
+                                   })
+                       .ptr(),
                    editor->execution_context()->environment());
                CHECK(!executed);
                LOG(INFO) << "Feeding.";

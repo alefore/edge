@@ -653,7 +653,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                     args[0].ptr().value());
             buffer->default_commands()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
-                args[2].ptr()->get_string(), std::move(args[3]),
+                args[2].ptr()->get_string(), std::move(args[3]).ptr(),
                 buffer->environment());
             return vm::Value::NewVoid(pool);
           })

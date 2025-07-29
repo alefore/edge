@@ -545,7 +545,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                 VMTypeMapper<VSP>::get(args[1].ptr().value())->lock([](V keys) {
                   return keys;
                 }),
-                args[2].ptr()->get_string(), std::move(args[3]),
+                args[2].ptr()->get_string(), std::move(args[3]).ptr(),
                 editor_arg.execution_context()->environment());
             return vm::Value::NewVoid(pool);
           })
@@ -565,7 +565,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             editor_arg.default_commands().ptr()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
-                args[2].ptr()->get_string(), std::move(args[3]),
+                args[2].ptr()->get_string(), std::move(args[3]).ptr(),
                 editor_arg.execution_context()->environment());
             return vm::Value::NewVoid(pool);
           })
