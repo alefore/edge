@@ -47,6 +47,9 @@ class BinaryOperator : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& evaluation,
                                                    const Type& type) override;
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override;
+
  private:
   const language::NonNull<std::shared_ptr<Expression>> a_;
   const language::NonNull<std::shared_ptr<Expression>> b_;

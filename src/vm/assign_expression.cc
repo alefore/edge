@@ -83,6 +83,10 @@ class AssignExpression : public Expression {
               return error;
             });
   }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
 };
 
 class StackFrameAssign : public Expression {
@@ -121,6 +125,10 @@ class StackFrameAssign : public Expression {
           LOG(FATAL) << error;
           return error;
         });
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+    return {};
   }
 };
 }  // namespace

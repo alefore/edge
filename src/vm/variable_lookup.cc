@@ -62,6 +62,10 @@ class VariableLookup : public Expression {
         trampoline.environment().ptr()->Lookup(symbol_namespace_, symbol_,
                                                type)));
   }
+
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
 };
 
 class StackFrameLookup : public Expression {
@@ -83,6 +87,10 @@ class StackFrameLookup : public Expression {
     CHECK(type == type_);
     return futures::Past(Success(EvaluationOutput::New(
         trampoline.stack().current_frame().get(index_).ToRoot())));
+  }
+
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
   }
 };
 

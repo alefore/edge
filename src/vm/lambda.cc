@@ -118,6 +118,10 @@ class LambdaExpression : public Expression {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   Type type_;
   const NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names_;

@@ -49,6 +49,10 @@ class NamespaceExpression : public Expression {
                    });
   }
 
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   const Namespace namespace_;
   const NonNull<std::shared_ptr<Expression>> body_;

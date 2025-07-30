@@ -32,6 +32,10 @@ class ConstantExpression : public Expression {
     return futures::Past(EvaluationOutput::New(value_));
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   const gc::Root<Value> value_;
 };

@@ -53,6 +53,10 @@ class LogicalExpression : public Expression {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   const bool identity_;
   const NonNull<std::shared_ptr<Expression>> expr_a_;

@@ -32,6 +32,10 @@ class ReturnExpression : public Expression {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   const NonNull<std::shared_ptr<Expression>> expr_;
 };

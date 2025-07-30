@@ -139,6 +139,10 @@ class FunctionCall : public Expression {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   static futures::ValueOrError<EvaluationOutput> CaptureArgs(
       Trampoline& trampoline,
@@ -358,6 +362,10 @@ std::unique_ptr<Expression> NewMethodLookup(
                     LOG(FATAL) << error;
                     return error;
                   });
+            }
+
+            std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+              return {};
             }
 
            private:

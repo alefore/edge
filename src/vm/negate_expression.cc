@@ -43,6 +43,10 @@ class NegateExpression : public Expression {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   const std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate_;
   const NonNull<std::shared_ptr<Expression>> expr_;

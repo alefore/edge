@@ -75,6 +75,10 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
       });
 }
 
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> BinaryOperator::Expand() const {
+  return {};
+}
+
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation& compilation, std::unique_ptr<Expression> a_raw,
     std::unique_ptr<Expression> b_raw,

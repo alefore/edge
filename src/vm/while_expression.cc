@@ -42,6 +42,10 @@ class WhileExpression : public Expression {
     return Iterate(trampoline, condition_, body_);
   }
 
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   static futures::ValueOrError<EvaluationOutput> Iterate(
       Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,

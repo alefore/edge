@@ -59,6 +59,10 @@ class IfExpression : public Expression {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+    return {};
+  }
+
  private:
   const NonNull<std::shared_ptr<Expression>> cond_;
   const NonNull<std::shared_ptr<Expression>> true_case_;

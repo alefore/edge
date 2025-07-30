@@ -47,10 +47,15 @@ class AppendExpression : public Expression {
             case EvaluationOutput::OutputType::kContinue:
               return trampoline.Bounce(e1, e1->Types()[0]);
           }
-          language::Error error(LazyString{L"Unhandled OutputType case."});
+          Error error(LazyString{L"Unhandled OutputType case."});
           LOG(FATAL) << error;
           return futures::Past(error);
         });
+  }
+
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
   }
 
  private:

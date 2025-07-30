@@ -97,6 +97,12 @@ class Expression {
   // value.
   virtual futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline& trampoline, const Type& type) = 0;
+
+  // Used by the garbage collector to find objects reachable from this one.
+  // This should be overridden in subclasses that hold gc::Ptr<> or gc::Root<>
+  // to return all such objects.
+  virtual std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const = 0;
 };
 
 struct EvaluationOutput {
