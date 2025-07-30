@@ -20,6 +20,17 @@ using afc::math::numbers::Number;
 namespace afc::vm {
 
 /*static*/
+ValueOrError<gc::Root<BinaryOperator>> BinaryOperator::New(
+    gc::Pool& pool, NonNull<std::shared_ptr<Expression>> a,
+    NonNull<std::shared_ptr<Expression>> b, Type type,
+    std::function<ValueOrError<gc::Root<Value>>(gc::Pool& pool, const Value&,
+                                                const Value&)> callback) {
+  ASSIGN_OR_RETURN(NonNull<std::unique_ptr<BinaryOperator>> output,
+                   BinaryOperator::New(std::move(a), std::move(b), type, callback));
+  return Success(pool.NewRoot(std::move(output)));
+}
+
+/*static*/
 ValueOrError<NonNull<std::unique_ptr<BinaryOperator>>> BinaryOperator::New(
     NonNull<std::shared_ptr<Expression>> a,
     NonNull<std::shared_ptr<Expression>> b, Type type,
@@ -29,11 +40,11 @@ ValueOrError<NonNull<std::unique_ptr<BinaryOperator>>> BinaryOperator::New(
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   return MakeNonNullUnique<BinaryOperator>(
-      ConstructorAccessKey(), std::move(a), std::move(b), std::move(type),
+      ConstructorAccessTag(), std::move(a), std::move(b), std::move(type),
       std::move(return_types), std::move(callback));
 }
 
-BinaryOperator::BinaryOperator(ConstructorAccessKey,
+BinaryOperator::BinaryOperator(ConstructorAccessTag,
                                NonNull<std::shared_ptr<Expression>> a,
                                NonNull<std::shared_ptr<Expression>> b,
                                Type type, std::unordered_set<Type> return_types,
@@ -124,9 +135,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
   if (str_int_operator != nullptr && a->IsString() && b->IsNumber()) {
     return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::String{},
-        [str_int_operator](
-            gc::Pool& pool, const Value& a_value,
-            const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+        [str_int_operator](gc::Pool& pool, const Value& a_value,
+                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
           DECLARE_OR_RETURN(int b_value_int, b_value.get_number().ToInt32());
           DECLARE_OR_RETURN(
               LazyString value,

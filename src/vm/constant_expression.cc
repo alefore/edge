@@ -17,7 +17,15 @@ using language::Success;
 namespace gc = language::gc;
 
 class ConstantExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<ConstantExpression> New(language::gc::Pool& pool,
+                                                    gc::Root<Value> value) {
+    return pool.NewRoot(
+        language::MakeNonNullUnique<ConstantExpression>(std::move(value)));
+  }
+
   ConstantExpression(gc::Root<Value> value) : value_(std::move(value)) {}
 
   std::vector<Type> Types() override { return {value_.ptr()->type()}; }
@@ -32,7 +40,8 @@ class ConstantExpression : public Expression {
     return futures::Past(EvaluationOutput::New(value_));
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 

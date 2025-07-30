@@ -20,7 +20,16 @@ namespace afc::vm {
 namespace {
 
 class NegateExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<NegateExpression> New(
+      language::gc::Pool& pool,
+      std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate,
+      NonNull<std::shared_ptr<Expression>> expr) {
+    return pool.NewRoot(language::MakeNonNullUnique<NegateExpression>(negate, expr));
+  }
+
   NegateExpression(
       std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate,
       NonNull<std::shared_ptr<Expression>> expr)

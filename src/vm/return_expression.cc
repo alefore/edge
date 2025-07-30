@@ -10,7 +10,15 @@ using afc::language::VisitPointer;
 namespace afc::vm {
 namespace {
 class ReturnExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<ReturnExpression> New(
+      language::gc::Pool& pool,
+      NonNull<std::shared_ptr<Expression>> expr) {
+    return pool.NewRoot(language::MakeNonNullUnique<ReturnExpression>(expr));
+  }
+
   ReturnExpression(NonNull<std::shared_ptr<Expression>> expr)
       : expr_(std::move(expr)) {}
 

@@ -23,7 +23,18 @@ using afc::language::lazy_string::LazyString;
 namespace afc::vm {
 namespace {
 class LambdaExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<LambdaExpression> New(
+      language::gc::Pool& pool,
+      Type type,
+      NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
+      NonNull<std::shared_ptr<Expression>> body,
+      ImplicitPromotionCallback promotion_function) {
+    return pool.NewRoot(language::MakeNonNullUnique<LambdaExpression>(type, argument_names, body, promotion_function));
+  }
+
   static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
       Type lambda_type,
       NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
@@ -170,7 +181,7 @@ UserFunction::UserFunction(Compilation& compilation,
     compilation_.environment->DefineUninitialized(name_.value(), type_);
   compilation_.environment = Environment::New(compilation_.environment.ptr());
   for (const std::pair<Type, Identifier>& arg : args)
-    compilation.environment->DefineUninitialized(arg.second, arg.first);
+    compilation_.environment->DefineUninitialized(arg.second, arg.first);
   compilation.PushStackFrameHeader(
       StackFrameHeader{container::MaterializeVector(
           args |

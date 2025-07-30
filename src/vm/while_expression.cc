@@ -21,7 +21,16 @@ namespace afc::vm {
 namespace {
 
 class WhileExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<WhileExpression> New(
+      language::gc::Pool& pool,
+      NonNull<std::shared_ptr<Expression>> condition,
+      NonNull<std::shared_ptr<Expression>> body) {
+    return pool.NewRoot(language::MakeNonNullUnique<WhileExpression>(condition, body));
+  }
+
   WhileExpression(NonNull<std::shared_ptr<Expression>> condition,
                   NonNull<std::shared_ptr<Expression>> body)
       : condition_(std::move(condition)), body_(std::move(body)) {}

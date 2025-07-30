@@ -30,6 +30,8 @@ namespace {
 using ::operator<<;
 
 class AssignExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
   enum class AssignmentType { kDefine, kAssign };
 
@@ -40,6 +42,15 @@ class AssignExpression : public Expression {
   const NonNull<std::shared_ptr<Expression>> value_;
 
  public:
+  static language::gc::Root<AssignExpression> New(
+      language::gc::Pool& pool, AssignmentType assignment_type,
+      Identifier symbol, PurityType purity,
+      NonNull<std::shared_ptr<Expression>> value) {
+    return pool.NewRoot(language::MakeNonNullUnique<AssignExpression>(
+        assignment_type, std::move(symbol), std::move(purity),
+        std::move(value)));
+  }
+
   AssignExpression(AssignmentType assignment_type, Identifier symbol,
                    PurityType purity,
                    NonNull<std::shared_ptr<Expression>> value)
@@ -84,16 +95,26 @@ class AssignExpression : public Expression {
             });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 };
 
 class StackFrameAssign : public Expression {
+  struct ConstructorAccessTag {};
+
   const size_t index_;
   NonNull<std::shared_ptr<Expression>> value_expression_;
 
  public:
+  static language::gc::Root<StackFrameAssign> New(
+      language::gc::Pool& pool, size_t index,
+      NonNull<std::unique_ptr<Expression>> value_expression) {
+    return pool.NewRoot(language::MakeNonNullUnique<StackFrameAssign>(
+        index, std::move(value_expression)));
+  }
+
   StackFrameAssign(size_t index,
                    NonNull<std::unique_ptr<Expression>> value_expression)
       : index_(index), value_expression_(std::move(value_expression)) {}
@@ -127,7 +148,8 @@ class StackFrameAssign : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 };

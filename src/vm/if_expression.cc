@@ -16,7 +16,18 @@ namespace afc::vm {
 namespace {
 
 class IfExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<IfExpression> New(
+      language::gc::Pool& pool,
+      NonNull<std::shared_ptr<Expression>> cond,
+      NonNull<std::shared_ptr<Expression>> true_case,
+      NonNull<std::shared_ptr<Expression>> false_case,
+      std::unordered_set<Type> return_types) {
+    return pool.NewRoot(language::MakeNonNullUnique<IfExpression>(cond, true_case, false_case, return_types));
+  }
+
   IfExpression(NonNull<std::shared_ptr<Expression>> cond,
                NonNull<std::shared_ptr<Expression>> true_case,
                NonNull<std::shared_ptr<Expression>> false_case,

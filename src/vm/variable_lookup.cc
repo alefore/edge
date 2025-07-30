@@ -27,11 +27,20 @@ using afc::language::lazy_string::ToLazyString;
 namespace {
 
 class VariableLookup : public Expression {
+  struct ConstructorAccessTag {};
+
   const Namespace symbol_namespace_;
   const Identifier symbol_;
   const std::vector<Type> types_;
 
  public:
+  static language::gc::Root<VariableLookup> New(
+      language::gc::Pool& pool,
+      Namespace symbol_namespace, Identifier symbol,
+      std::vector<Type> types) {
+    return pool.NewRoot(language::MakeNonNullUnique<VariableLookup>(symbol_namespace, symbol, types));
+  }
+
   VariableLookup(Namespace symbol_namespace, Identifier symbol,
                  std::vector<Type> types)
       : symbol_namespace_(std::move(symbol_namespace)),
@@ -69,11 +78,19 @@ class VariableLookup : public Expression {
 };
 
 class StackFrameLookup : public Expression {
+  struct ConstructorAccessTag {};
+
   const size_t index_;
   const Type type_;
   const Identifier identifier_;
 
  public:
+  static language::gc::Root<StackFrameLookup> New(
+      language::gc::Pool& pool,
+      size_t index, Type type, Identifier identifier) {
+    return pool.NewRoot(language::MakeNonNullUnique<StackFrameLookup>(index, type, identifier));
+  }
+
   StackFrameLookup(size_t index, Type type, Identifier identifier)
       : index_(index), type_(type), identifier_(identifier) {}
   std::vector<Type> Types() override { return {type_}; }

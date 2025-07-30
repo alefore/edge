@@ -20,9 +20,17 @@ struct Compilation;
 
 class BinaryOperator : public Expression {
  private:
-  struct ConstructorAccessKey {};
+  struct ConstructorAccessTag {};
 
  public:
+  static language::ValueOrError<language::gc::Root<BinaryOperator>> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<Expression>> a,
+      language::NonNull<std::shared_ptr<Expression>> b, Type type,
+      std::function<language::ValueOrError<language::gc::Root<Value>>(
+          language::gc::Pool& pool, const Value&, const Value&)>
+          callback);
+
   static language::ValueOrError<
       language::NonNull<std::unique_ptr<BinaryOperator>>>
   New(language::NonNull<std::shared_ptr<Expression>> a,
@@ -32,7 +40,7 @@ class BinaryOperator : public Expression {
           callback);
 
   BinaryOperator(
-      ConstructorAccessKey, language::NonNull<std::shared_ptr<Expression>> a,
+      ConstructorAccessTag, language::NonNull<std::shared_ptr<Expression>> a,
       language::NonNull<std::shared_ptr<Expression>> b, Type type,
       std::unordered_set<Type> return_types,
       std::function<language::ValueOrError<language::gc::Root<Value>>(

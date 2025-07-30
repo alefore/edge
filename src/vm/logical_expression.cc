@@ -19,7 +19,16 @@ namespace afc::vm {
 namespace {
 
 class LogicalExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<LogicalExpression> New(
+      language::gc::Pool& pool,
+      bool identity, NonNull<std::shared_ptr<Expression>> expr_a,
+      NonNull<std::shared_ptr<Expression>> expr_b) {
+    return pool.NewRoot(language::MakeNonNullUnique<LogicalExpression>(identity, expr_a, expr_b));
+  }
+
   LogicalExpression(bool identity, NonNull<std::shared_ptr<Expression>> expr_a,
                     NonNull<std::shared_ptr<Expression>> expr_b)
       : identity_(identity),

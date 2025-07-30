@@ -83,7 +83,18 @@ std::vector<Type> DeduceTypes(
 }
 
 class FunctionCall : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<FunctionCall> New(
+      language::gc::Pool& pool,
+      NonNull<std::shared_ptr<Expression>> func,
+      NonNull<
+          std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
+          args) {
+    return pool.NewRoot(language::MakeNonNullUnique<FunctionCall>(func, args));
+  }
+
   FunctionCall(
       NonNull<std::shared_ptr<Expression>> func,
       NonNull<
@@ -290,7 +301,16 @@ std::unique_ptr<Expression> NewMethodLookup(
           // `obj_expr` evaluated to and calling the right delegate (depending
           // on the desired type).
           class BindObjectExpression : public Expression {
+            struct ConstructorAccessTag {};
+
            public:
+            static language::gc::Root<BindObjectExpression> New(
+                language::gc::Pool& pool,
+                NonNull<std::shared_ptr<Expression>> obj_expr,
+                std::vector<gc::Root<Value>> delegates) {
+              return pool.NewRoot(language::MakeNonNullUnique<BindObjectExpression>(obj_expr, delegates));
+            }
+
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
                                  std::vector<gc::Root<Value>> delegates)
                 : delegates_(std::move(delegates)),

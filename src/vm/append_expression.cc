@@ -16,7 +16,18 @@ namespace afc::vm {
 namespace {
 
 class AppendExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<AppendExpression> New(
+      language::gc::Pool& pool, NonNull<std::shared_ptr<Expression>> e0,
+      NonNull<std::shared_ptr<Expression>> e1,
+      std::unordered_set<Type> return_types) {
+    return pool.NewRoot(language::MakeNonNullUnique<AppendExpression>(
+        std::move(e0), std::move(e1),
+        std::move(return_types)));
+  }
+
   AppendExpression(NonNull<std::shared_ptr<Expression>> e0,
                    NonNull<std::shared_ptr<Expression>> e1,
                    std::unordered_set<Type> return_types)

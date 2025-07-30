@@ -15,7 +15,16 @@ using language::Success;
 using language::VisitPointer;
 
 class NamespaceExpression : public Expression {
+  struct ConstructorAccessTag {};
+
  public:
+  static language::gc::Root<NamespaceExpression> New(
+      language::gc::Pool& pool,
+      Namespace full_namespace,
+      NonNull<std::shared_ptr<Expression>> body) {
+    return pool.NewRoot(language::MakeNonNullUnique<NamespaceExpression>(full_namespace, body));
+  }
+
   NamespaceExpression(Namespace full_namespace,
                       NonNull<std::shared_ptr<Expression>> body)
       : namespace_(full_namespace), body_(std::move(body)) {}
