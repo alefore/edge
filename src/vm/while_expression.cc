@@ -5,6 +5,7 @@
 #include "append_expression.h"
 #include "compilation.h"
 #include "src/language/overload.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
@@ -25,10 +26,10 @@ class WhileExpression : public Expression {
 
  public:
   static language::gc::Root<WhileExpression> New(
-      language::gc::Pool& pool,
-      NonNull<std::shared_ptr<Expression>> condition,
+      language::gc::Pool& pool, NonNull<std::shared_ptr<Expression>> condition,
       NonNull<std::shared_ptr<Expression>> body) {
-    return pool.NewRoot(language::MakeNonNullUnique<WhileExpression>(condition, body));
+    return pool.NewRoot(
+        language::MakeNonNullUnique<WhileExpression>(condition, body));
   }
 
   WhileExpression(NonNull<std::shared_ptr<Expression>> condition,
@@ -51,7 +52,8 @@ class WhileExpression : public Expression {
     return Iterate(trampoline, condition_, body_);
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 
@@ -130,12 +132,27 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewForExpression(
     return Error{LazyString{L"Input missing."}};
   }
   ASSIGN_OR_RETURN(
-      NonNull<std::unique_ptr<Expression>> body_expression,
-      NewAppendExpression(compilation, std::move(body), std::move(update)));
+      language::gc::Root<Expression> body_expression_root,
+      NewAppendExpression(
+          compilation,
+          compilation.pool.NewRoot(
+              NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body))),
+          compilation.pool.NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(
+              std::move(update)))));
+  NonNull<std::unique_ptr<Expression>> body_expression =
+      NewDelegatingExpression(std::move(body_expression_root));
+
   ASSIGN_OR_RETURN(NonNull<std::unique_ptr<Expression>> while_expression,
                    NewWhileExpression(compilation, std::move(condition),
                                       std::move(body_expression).get_unique()));
-  return NewAppendExpression(compilation, std::move(init),
-                             std::move(while_expression).get_unique());
+
+  ASSIGN_OR_RETURN(
+      language::gc::Root<Expression> result_root,
+      NewAppendExpression(
+          compilation,
+          compilation.pool.NewRoot(
+              NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(init))),
+          compilation.pool.NewRoot(std::move(while_expression))));
+  return NewDelegatingExpression(std::move(result_root));
 }
 }  // namespace afc::vm

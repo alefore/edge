@@ -38,9 +38,13 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT =
-      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
-          .release();
+  OUT = NewDelegatingExpression(
+            ValueOrDie(NewAppendExpression(
+                *compilation,
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(a)),
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(b)))))
+            .get_unique()
+            .release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,8 +63,10 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT =
-      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
-          .release();
+      NewDelegatingExpression(ValueOrDie(NewAppendExpression(
+          *compilation, PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(a)),
+          PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(b)))))
+          .get_unique().release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -131,8 +137,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
   OUT = nullptr;
   if (func == nullptr) {
     // Pass.
-  } else if (body == nullptr) {
-    func->Abort();
   } else {
     std::visit(
         overload{
@@ -198,14 +202,27 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
   std::unique_ptr<Expression> true_case(TRUE_CASE);
   std::unique_ptr<Expression> false_case(FALSE_CASE);
 
-  A = ToUniquePtr(NewIfExpression(
-                      *compilation, std::move(condition),
-                      ToUniquePtr(NewAppendExpression(
-                          *compilation, std::move(true_case),
-                          NewVoidExpression(compilation->pool).get_unique())),
-                      ToUniquePtr(NewAppendExpression(
-                          *compilation, std::move(false_case),
+  A = ToUniquePtr(
+          NewIfExpression(
+              *compilation, std::move(condition),
+              NewDelegatingExpression(
+                  ValueOrDie(NewAppendExpression(
+                      *compilation,
+                      PTR_TO_OPTIONAL_ROOT(compilation->pool,
+                                           std::move(true_case)),
+                      PTR_TO_OPTIONAL_ROOT(
+                          compilation->pool,
                           NewVoidExpression(compilation->pool).get_unique()))))
+                  .get_unique(),
+              NewDelegatingExpression(
+                  ValueOrDie(NewAppendExpression(
+                      *compilation,
+                      PTR_TO_OPTIONAL_ROOT(compilation->pool,
+                                           std::move(false_case)),
+                      PTR_TO_OPTIONAL_ROOT(
+                          compilation->pool,
+                          NewVoidExpression(compilation->pool).get_unique()))))
+                  .get_unique()))
           .release();
 }
 
@@ -216,9 +233,15 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
   A = ToUniquePtr(
           NewIfExpression(
               *compilation, std::move(condition),
-              ToUniquePtr(NewAppendExpression(
-                  *compilation, std::move(true_case),
-                      NewVoidExpression(compilation->pool).get_unique())),
+              NewDelegatingExpression(
+                  ValueOrDie(NewAppendExpression(
+                      *compilation,
+                      PTR_TO_OPTIONAL_ROOT(compilation->pool,
+                                           std::move(true_case)),
+                      PTR_TO_OPTIONAL_ROOT(
+                          compilation->pool,
+                          NewVoidExpression(compilation->pool).get_unique()))))
+                  .get_unique(),
               NewVoidExpression(compilation->pool).get_unique()))
           .release();
 }
@@ -236,22 +259,21 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
 
   if (func == nullptr) {
     OUT = nullptr;
-  } else {
-    std::visit(
-        overload{
-            [&](Type) {
-              OUT = NewVoidExpression(compilation->pool).get_unique().release();
-            },
-            [&](Error error) {
-              compilation->AddError(error);
-              OUT = nullptr;
-              func->Abort();
-            }},
-        DefineUninitializedVariable(
-            compilation->environment.value(),
-            Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
-            *func->name(), func->type()));
   }
+  std::visit(
+      overload{
+          [&](Type) {
+            OUT = NewVoidExpression(compilation->pool).get_unique().release();
+          },
+          [&](Error error) {
+            compilation->AddError(error);
+            OUT = nullptr;
+            func->Abort();
+          }},
+      DefineUninitializedVariable(
+          compilation->environment.value(),
+          Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
+          *func->name(), func->type()));
 }
 
 assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {

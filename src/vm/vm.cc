@@ -26,6 +26,7 @@
 #include "src/vm/class_expression.h"
 #include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/expression_equality.h"

@@ -14,6 +14,11 @@
 #include "src/vm/types.h"
 
 namespace afc::vm {
+#define PTR_TO_OPTIONAL_ROOT(pool, x)          \
+  (x == nullptr                                \
+       ? std::optional<gc::Root<Expression>>() \
+       : (pool).NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(x)))
+
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileFile(infrastructure::Path path, language::gc::Pool& pool,
             language::gc::Root<Environment> environment);

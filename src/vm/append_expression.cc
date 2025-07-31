@@ -1,7 +1,9 @@
 #include "src/vm/append_expression.h"
 
+#include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/compilation.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
@@ -11,6 +13,9 @@ using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::vm::NewDelegatingExpression;
+
+namespace gc = afc::language::gc;
 
 namespace afc::vm {
 namespace {
@@ -19,17 +24,15 @@ class AppendExpression : public Expression {
   struct ConstructorAccessTag {};
 
  public:
-  static language::gc::Root<AppendExpression> New(
-      language::gc::Pool& pool, NonNull<std::shared_ptr<Expression>> e0,
-      NonNull<std::shared_ptr<Expression>> e1,
-      std::unordered_set<Type> return_types) {
-    return pool.NewRoot(language::MakeNonNullUnique<AppendExpression>(
-        std::move(e0), std::move(e1),
-        std::move(return_types)));
+  static gc::Root<AppendExpression> New(gc::Root<Expression> e0,
+                                        gc::Root<Expression> e1,
+                                        std::unordered_set<Type> return_types) {
+    gc::Pool& pool = e0.pool();
+    return pool.NewRoot(MakeNonNullUnique<AppendExpression>(
+        std::move(e0), std::move(e1), std::move(return_types)));
   }
 
-  AppendExpression(NonNull<std::shared_ptr<Expression>> e0,
-                   NonNull<std::shared_ptr<Expression>> e1,
+  AppendExpression(gc::Root<Expression> e0, gc::Root<Expression> e1,
                    std::unordered_set<Type> return_types)
       : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {
     // Check that the optimization in NewAppendExpression is applied.
@@ -49,14 +52,15 @@ class AppendExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
-    return trampoline.Bounce(e0_, e0_->Types()[0])
+    return trampoline.Bounce(NewDelegatingExpression(e0_), e0_->Types()[0])
         .Transform([&trampoline, e1 = e1_](EvaluationOutput e0_output)
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (e0_output.type) {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(std::move(e0_output));
             case EvaluationOutput::OutputType::kContinue:
-              return trampoline.Bounce(e1, e1->Types()[0]);
+              return trampoline.Bounce(NewDelegatingExpression(e1),
+                                       e1->Types()[0]);
           }
           Error error(LazyString{L"Unhandled OutputType case."});
           LOG(FATAL) << error;
@@ -64,41 +68,37 @@ class AppendExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 
  private:
-  const NonNull<std::shared_ptr<Expression>> e0_;
-  const NonNull<std::shared_ptr<Expression>> e1_;
+  const gc::Root<Expression> e0_;
+  const gc::Root<Expression> e1_;
   const std::unordered_set<Type> return_types_;
 };
 
 }  // namespace
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
-    Compilation& compilation, std::unique_ptr<Expression> a,
-    std::unique_ptr<Expression> b) {
-  if (a == nullptr || b == nullptr) {
+ValueOrError<gc::Root<Expression>> NewAppendExpression(
+    Compilation& compilation, std::optional<gc::Root<Expression>> a,
+    std::optional<gc::Root<Expression>> b) {
+  if (!a.has_value() || !b.has_value()) {
     return Error(LazyString{L"Missing input."});
   }
-  return compilation.RegisterErrors(NewAppendExpression(
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b))));
+  return compilation.RegisterErrors(NewAppendExpression(a.value(), b.value()));
 }
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
-    NonNull<std::unique_ptr<Expression>> a,
-    NonNull<std::unique_ptr<Expression>> b) {
+ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Root<Expression> a,
+                                                       gc::Root<Expression> b) {
   if (!a->purity().writes_external_outputs &&
       !a->purity().writes_local_variables && a->ReturnTypes().empty())
-    return Success(std::move(b));
+    return Success(b);
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
-  return Success<NonNull<std::unique_ptr<Expression>>>(
-      MakeNonNullUnique<AppendExpression>(std::move(a), std::move(b),
-                                          std::move(return_types)));
+  return Success<gc::Root<Expression>>(AppendExpression::New(
+      std::move(a), std::move(b), std::move(return_types)));
 }
 
 }  // namespace afc::vm
