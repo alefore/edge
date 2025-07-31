@@ -9,6 +9,7 @@
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -25,15 +26,14 @@ class WhileExpression : public Expression {
   struct ConstructorAccessTag {};
 
  public:
-  static language::gc::Root<WhileExpression> New(
-      language::gc::Pool& pool, NonNull<std::shared_ptr<Expression>> condition,
-      NonNull<std::shared_ptr<Expression>> body) {
-    return pool.NewRoot(
-        language::MakeNonNullUnique<WhileExpression>(condition, body));
+  static language::gc::Root<WhileExpression> New(gc::Root<Expression> condition,
+                                                 gc::Root<Expression> body) {
+    return body.pool().NewRoot(language::MakeNonNullUnique<WhileExpression>(
+        ConstructorAccessTag{}, std::move(condition), std::move(body)));
   }
 
-  WhileExpression(NonNull<std::shared_ptr<Expression>> condition,
-                  NonNull<std::shared_ptr<Expression>> body)
+  WhileExpression(ConstructorAccessTag, gc::Root<Expression> condition,
+                  gc::Root<Expression> body)
       : condition_(std::move(condition)), body_(std::move(body)) {}
 
   std::vector<Type> Types() override { return {types::Void{}}; }
@@ -59,9 +59,9 @@ class WhileExpression : public Expression {
 
  private:
   static futures::ValueOrError<EvaluationOutput> Iterate(
-      Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
-      NonNull<std::shared_ptr<Expression>> body) {
-    return trampoline.Bounce(condition, types::Bool{})
+      Trampoline& trampoline, gc::Root<Expression> condition,
+      gc::Root<Expression> body) {
+    return trampoline.Bounce(NewDelegatingExpression(condition), types::Bool{})
         .Transform([condition, body,
                     &trampoline](EvaluationOutput condition_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -77,7 +77,8 @@ class WhileExpression : public Expression {
               }
 
               DVLOG(5) << "Iterating...";
-              return trampoline.Bounce(body, body->Types()[0])
+              return trampoline
+                  .Bounce(NewDelegatingExpression(body), body->Types()[0])
                   .Transform([condition, body,
                               &trampoline](EvaluationOutput body_output)
                                  -> futures::ValueOrError<EvaluationOutput> {
@@ -98,61 +99,44 @@ class WhileExpression : public Expression {
         });
   }
 
-  const NonNull<std::shared_ptr<Expression>> condition_;
-  const NonNull<std::shared_ptr<Expression>> body_;
+  const gc::Root<Expression> condition_;
+  const gc::Root<Expression> body_;
 };
 
 }  // namespace
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
-    Compilation& compilation, std::unique_ptr<Expression> condition,
-    std::unique_ptr<Expression> body) {
-  if (condition == nullptr || body == nullptr) {
+ValueOrError<gc::Root<Expression>> NewWhileExpression(
+    Compilation& compilation, std::optional<gc::Root<Expression>> condition,
+    std::optional<gc::Root<Expression>> body) {
+  if (condition == std::nullopt || body == std::nullopt)
     return Error{LazyString{L"Input missing."}};
-  }
-  if (!condition->IsBool()) {
+  if (!condition.value()->IsBool()) {
     Error error{LazyString{L"Expected bool value for condition of \"while\" "
                            L"loop but found: "} +
-                TypesToString(condition->Types()) + LazyString{L"."}};
+                TypesToString(condition.value()->Types()) + LazyString{L"."}};
     compilation.AddError(error);
     return error;
   }
 
-  return MakeNonNullUnique<WhileExpression>(
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(condition)),
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body)));
+  return WhileExpression::New(std::move(condition).value(),
+                              std::move(body).value());
 }
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> NewForExpression(
-    Compilation& compilation, std::unique_ptr<Expression> init,
-    std::unique_ptr<Expression> condition, std::unique_ptr<Expression> update,
-    std::unique_ptr<Expression> body) {
-  if (init == nullptr || condition == nullptr || update == nullptr ||
-      body == nullptr) {
+ValueOrError<gc::Root<Expression>> NewForExpression(
+    Compilation& compilation, std::optional<gc::Root<Expression>> init,
+    std::optional<gc::Root<Expression>> condition,
+    std::optional<gc::Root<Expression>> update,
+    std::optional<gc::Root<Expression>> body) {
+  if (init == std::nullopt || condition == std::nullopt ||
+      update == std::nullopt || body == std::nullopt)
     return Error{LazyString{L"Input missing."}};
-  }
   ASSIGN_OR_RETURN(
-      language::gc::Root<Expression> body_expression_root,
-      NewAppendExpression(
-          compilation,
-          compilation.pool.NewRoot(
-              NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body))),
-          compilation.pool.NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(
-              std::move(update)))));
-  NonNull<std::unique_ptr<Expression>> body_expression =
-      NewDelegatingExpression(std::move(body_expression_root));
-
-  ASSIGN_OR_RETURN(NonNull<std::unique_ptr<Expression>> while_expression,
+      language::gc::Root<Expression> body_expression,
+      NewAppendExpression(compilation, body.value(), update.value()));
+  ASSIGN_OR_RETURN(gc::Root<Expression> while_expression,
                    NewWhileExpression(compilation, std::move(condition),
-                                      std::move(body_expression).get_unique()));
-
-  ASSIGN_OR_RETURN(
-      language::gc::Root<Expression> result_root,
-      NewAppendExpression(
-          compilation,
-          compilation.pool.NewRoot(
-              NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(init))),
-          compilation.pool.NewRoot(std::move(while_expression))));
-  return NewDelegatingExpression(std::move(result_root));
+                                      std::move(body_expression)));
+  return NewAppendExpression(compilation, std::move(init).value(),
+                             std::move(while_expression));
 }
 }  // namespace afc::vm

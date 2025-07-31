@@ -175,8 +175,11 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
   std::unique_ptr<Expression> condition(CONDITION);
   std::unique_ptr<Expression> body(BODY);
 
-  OUT = ToUniquePtr(NewWhileExpression(*compilation, std::move(condition),
-                                       std::move(body)))
+  OUT = ToUniquePtr(
+            NewWhileExpression(
+                *compilation,
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(condition)),
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(body))))
             .release();
 }
 
@@ -190,9 +193,13 @@ statement(OUT) ::=
   std::unique_ptr<Expression> update(UPDATE);
   std::unique_ptr<Expression> body(BODY);
 
-  OUT = ToUniquePtr(NewForExpression(*compilation, std::move(init),
-                                     std::move(condition), std::move(update),
-                                     std::move(body)))
+  OUT = ToUniquePtr(
+            NewForExpression(
+                *compilation,
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(init)),
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(condition)),
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(update)),
+                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(body))))
             .release();
 }
 

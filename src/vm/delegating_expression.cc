@@ -47,6 +47,16 @@ class DelegatingExpression : public Expression {
 };
 }  // namespace
 
+std::unique_ptr<Expression> ToUniquePtr(
+    ValueOrError<gc::Root<Expression>> input) {
+  return std::visit(
+      overload{[](Error) { return std::unique_ptr<Expression>(); },
+               [](gc::Root<Expression> expr) {
+                 return NewDelegatingExpression(std::move(expr)).get_unique();
+               }},
+      std::move(input));
+}
+
 NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
     gc::Root<Expression> delegate) {
   return MakeNonNullUnique<DelegatingExpression>(std::move(delegate));
