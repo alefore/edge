@@ -388,6 +388,8 @@ src/vm/callbacks.h \
 src/vm/callbacks_gc.h \
 src/vm/default_environment.cc \
 src/vm/default_environment.h \
+src/vm/delegating_expression.h \
+src/vm/delegating_expression.cc \
 src/vm/escape.cc \
 src/vm/escape.h \
 src/vm/expression.cc \
