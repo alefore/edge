@@ -25,15 +25,18 @@ namespace {
 class WhileExpression : public Expression {
   struct ConstructorAccessTag {};
 
+  const gc::Ptr<Expression> condition_;
+  const gc::Ptr<Expression> body_;
+
  public:
-  static language::gc::Root<WhileExpression> New(gc::Root<Expression> condition,
-                                                 gc::Root<Expression> body) {
+  static language::gc::Root<WhileExpression> New(gc::Ptr<Expression> condition,
+                                                 gc::Ptr<Expression> body) {
     return body.pool().NewRoot(language::MakeNonNullUnique<WhileExpression>(
         ConstructorAccessTag{}, std::move(condition), std::move(body)));
   }
 
-  WhileExpression(ConstructorAccessTag, gc::Root<Expression> condition,
-                  gc::Root<Expression> body)
+  WhileExpression(ConstructorAccessTag, gc::Ptr<Expression> condition,
+                  gc::Ptr<Expression> body)
       : condition_(std::move(condition)), body_(std::move(body)) {}
 
   std::vector<Type> Types() override { return {types::Void{}}; }
@@ -49,12 +52,12 @@ class WhileExpression : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
     DVLOG(4) << "Starting iteration.";
-    return Iterate(trampoline, condition_, body_);
+    return Iterate(trampoline, condition_.ToRoot(), body_.ToRoot());
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    return {condition_.object_metadata(), body_.object_metadata()};
   }
 
  private:
@@ -98,9 +101,6 @@ class WhileExpression : public Expression {
           return futures::Past(Error{LazyString{L"Internal error."}});
         });
   }
-
-  const gc::Root<Expression> condition_;
-  const gc::Root<Expression> body_;
 };
 
 }  // namespace
@@ -118,8 +118,8 @@ ValueOrError<gc::Root<Expression>> NewWhileExpression(
     return error;
   }
 
-  return WhileExpression::New(std::move(condition).value(),
-                              std::move(body).value());
+  return WhileExpression::New(std::move(condition)->ptr(),
+                              std::move(body)->ptr());
 }
 
 ValueOrError<gc::Root<Expression>> NewForExpression(
