@@ -41,20 +41,21 @@ class AssignExpression : public Expression {
   const AssignmentType assignment_type_;
   const Identifier symbol_;
   const PurityType purity_;
-  const NonNull<std::shared_ptr<Expression>> value_;
+  const gc::Ptr<Expression> value_;
 
  public:
-  static gc::Root<AssignExpression> New(
-      gc::Pool& pool, AssignmentType assignment_type, Identifier symbol,
-      PurityType purity, NonNull<std::shared_ptr<Expression>> value) {
+  static gc::Root<AssignExpression> New(gc::Pool& pool,
+                                        AssignmentType assignment_type,
+                                        Identifier symbol, PurityType purity,
+                                        gc::Ptr<Expression> value) {
     return pool.NewRoot(language::MakeNonNullUnique<AssignExpression>(
-        assignment_type, std::move(symbol), std::move(purity),
-        std::move(value)));
+        ConstructorAccessTag{}, assignment_type, std::move(symbol),
+        std::move(purity), std::move(value)));
   }
 
-  AssignExpression(AssignmentType assignment_type, Identifier symbol,
-                   PurityType purity,
-                   NonNull<std::shared_ptr<Expression>> value)
+  AssignExpression(ConstructorAccessTag, AssignmentType assignment_type,
+                   Identifier symbol, PurityType purity,
+                   gc::Ptr<Expression> value)
       : assignment_type_(assignment_type),
         symbol_(std::move(symbol)),
         purity_(CombinePurityType({std::move(purity), value->purity()})),
@@ -69,7 +70,7 @@ class AssignExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(value_, type)
+    return trampoline.Bounce(NewDelegatingExpression(value_.ToRoot()), type)
         .Transform(
             [&trampoline, symbol = symbol_,
              assignment_type = assignment_type_](EvaluationOutput value_output)
@@ -204,10 +205,10 @@ std::optional<gc::Root<Expression>> NewDefineExpression(
                   TypesToString(value.value()->Types()) + LazyString{L"."}});
               return std::nullopt;
             }
-            return compilation.pool.NewRoot(MakeNonNullUnique<AssignExpression>(
-                AssignExpression::AssignmentType::kDefine, std::move(symbol),
-                PurityType{.writes_local_variables = true},
-                NewDelegatingExpression(std::move(value.value()))));
+            return AssignExpression::New(
+                compilation.pool, AssignExpression::AssignmentType::kDefine,
+                std::move(symbol), PurityType{.writes_local_variables = true},
+                std::move(value)->ptr());
           },
           [&](Error error) -> std::optional<gc::Root<Expression>> {
             compilation.AddError(error);
@@ -254,8 +255,8 @@ std::optional<gc::Root<Expression>> NewAssignExpression(
   return VisitOptional(
       [&pool, &value, &symbol](const Environment::LookupResult& lookup_result)
           -> std::optional<gc::Root<Expression>> {
-        return pool.NewRoot(MakeNonNullUnique<AssignExpression>(
-            AssignExpression::AssignmentType::kAssign, symbol,
+        return AssignExpression::New(
+            pool, AssignExpression::AssignmentType::kAssign, symbol,
             std::invoke([&lookup_result] {
               switch (lookup_result.scope) {
                 case Environment::LookupResult::VariableScope::kLocal:
@@ -266,7 +267,7 @@ std::optional<gc::Root<Expression>> NewAssignExpression(
               LOG(FATAL) << "Invalid scope.";
               return kPurityTypeUnknown;
             }),
-            NewDelegatingExpression(std::move(value).value())));
+            std::move(value)->ptr());
       },
       [&] -> std::optional<gc::Root<Expression>> {
         compilation.AddError(Error{
