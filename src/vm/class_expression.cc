@@ -95,8 +95,9 @@ PossibleError FinishClassDeclaration(
       gc::Root<Expression> constructor_expression,
       compilation.RegisterErrors(NewAppendExpression(
           compilation,
-          compilation.pool.NewRoot(std::move(constructor_expression_input)),
-          NewVoidExpression(compilation.pool))));
+          compilation.pool.NewRoot(std::move(constructor_expression_input))
+              .ptr(),
+          NewVoidExpression(compilation.pool).ptr())));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
   gc::Root<ObjectType> class_object_type = ObjectType::New(pool, class_type);

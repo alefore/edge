@@ -77,30 +77,45 @@ class AppendExpression : public Expression {
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    return {e0_.object_metadata(), e1_.object_metadata()};
   }
 };
 
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewAppendExpression(
-    Compilation& compilation, std::optional<gc::Root<Expression>> a,
-    std::optional<gc::Root<Expression>> b) {
+    Compilation& compilation, std::optional<gc::Ptr<Expression>> a,
+    std::optional<gc::Ptr<Expression>> b) {
   if (!a.has_value() || !b.has_value()) {
     return Error(LazyString{L"Missing input."});
   }
   return compilation.RegisterErrors(NewAppendExpression(a.value(), b.value()));
 }
 
-ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Root<Expression> a,
-                                                       gc::Root<Expression> b) {
+language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
+    Compilation& compilation, std::unique_ptr<Expression> a,
+    std::unique_ptr<Expression> b) {
+  if (a == nullptr || b == nullptr) {
+    return Error(LazyString{L"Missing input."});
+  }
+  return NewAppendExpression(
+      compilation.pool
+          .NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)))
+          .ptr(),
+      compilation.pool
+          .NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)))
+          .ptr());
+}
+
+ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Ptr<Expression> a,
+                                                       gc::Ptr<Expression> b) {
   if (!a->purity().writes_external_outputs &&
       !a->purity().writes_local_variables && a->ReturnTypes().empty())
-    return Success(b);
+    return Success(b.ToRoot());
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   return Success<gc::Root<Expression>>(AppendExpression::New(
-      std::move(a.ptr()), std::move(b.ptr()), std::move(return_types)));
+      std::move(a), std::move(b), std::move(return_types)));
 }
 
 }  // namespace afc::vm

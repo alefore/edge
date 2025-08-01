@@ -13,11 +13,15 @@ class Expression;
 struct Compilation;
 
 language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
-    Compilation& compilation, std::optional<language::gc::Root<Expression>> a,
-    std::optional<language::gc::Root<Expression>> b);
+    Compilation& compilation, std::optional<language::gc::Ptr<Expression>> a,
+    std::optional<language::gc::Ptr<Expression>> b);
 
 language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
-    language::gc::Root<Expression> a, language::gc::Root<Expression> b);
+    Compilation& compilation, std::unique_ptr<Expression> a,
+    std::unique_ptr<Expression> b);
+
+language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
+    language::gc::Ptr<Expression> a, language::gc::Ptr<Expression> b);
 
 }  // namespace afc::vm
 

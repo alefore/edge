@@ -132,11 +132,11 @@ ValueOrError<gc::Root<Expression>> NewForExpression(
     return Error{LazyString{L"Input missing."}};
   ASSIGN_OR_RETURN(
       language::gc::Root<Expression> body_expression,
-      NewAppendExpression(compilation, body.value(), update.value()));
+      NewAppendExpression(compilation, body->ptr(), update->ptr()));
   ASSIGN_OR_RETURN(gc::Root<Expression> while_expression,
                    NewWhileExpression(compilation, std::move(condition),
                                       std::move(body_expression)));
-  return NewAppendExpression(compilation, std::move(init).value(),
-                             std::move(while_expression));
+  return NewAppendExpression(compilation, std::move(init)->ptr(),
+                             std::move(while_expression).ptr());
 }
 }  // namespace afc::vm

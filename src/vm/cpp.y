@@ -41,8 +41,8 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
   OUT = NewDelegatingExpression(
             NewAppendExpression(
                 *compilation,
-                PtrToOptionalRoot(compilation->pool, std::move(a)),
-                PtrToOptionalRoot(compilation->pool, std::move(b))))
+                std::move(a),
+                std::move(b)))
             .release();
 }
 
@@ -64,8 +64,7 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
 
   OUT =
       NewDelegatingExpression(ValueOrDie(NewAppendExpression(
-          *compilation, PtrToOptionalRoot(compilation->pool, std::move(a)),
-          PtrToOptionalRoot(compilation->pool, std::move(b)))))
+          *compilation, std::move(a), std::move(b))))
           .get_unique().release();
 }
 
@@ -219,16 +218,16 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
               NewDelegatingExpression(
                   ValueOrDie(NewAppendExpression(
                       *compilation,
-                      PtrToOptionalRoot(compilation->pool,
-                                           std::move(true_case)),
-                      NewVoidExpression(compilation->pool))))
+                      std::move(true_case),
+                      NewDelegatingExpression(
+                          NewVoidExpression(compilation->pool)).get_unique())))
                   .get_unique(),
               NewDelegatingExpression(
                   ValueOrDie(NewAppendExpression(
                       *compilation,
-                      PtrToOptionalRoot(compilation->pool,
-                                           std::move(false_case)),
-                      NewVoidExpression(compilation->pool))))
+                      std::move(false_case),
+                      NewDelegatingExpression(
+                          NewVoidExpression(compilation->pool)).get_unique())))
                   .get_unique()))
           .release();
 }
@@ -243,9 +242,10 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
               NewDelegatingExpression(
                   ValueOrDie(NewAppendExpression(
                       *compilation,
-                      PtrToOptionalRoot(compilation->pool,
-                                           std::move(true_case)),
-                      NewVoidExpression(compilation->pool)))).get_unique(),
+                      std::move(true_case),
+                      NewDelegatingExpression(
+                          NewVoidExpression(compilation->pool)).get_unique())))
+                      .get_unique(),
               NewDelegatingExpression(
                   NewVoidExpression(compilation->pool)).get_unique()))
           .release();

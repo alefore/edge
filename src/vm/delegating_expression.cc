@@ -17,6 +17,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ValueOrDie;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::gc::ObjectMetadata;
 using afc::vm::EvaluationOutput;
@@ -61,6 +62,16 @@ std::optional<gc::Root<Expression>> PtrToOptionalRoot(
         return pool.NewRoot(std::move(expr));
       },
       [] -> std::optional<gc::Root<Expression>> { return std::nullopt; });
+}
+
+std::optional<gc::Ptr<Expression>> PtrToOptionalGcPtr(
+    gc::Pool& pool, std::unique_ptr<Expression> expr) {
+  return VisitOptional(
+      [](gc::Root<Expression> root) -> std::optional<gc::Ptr<Expression>> {
+        return root.ptr();
+      },
+      [] -> std::optional<gc::Ptr<Expression>> { return std::nullopt; },
+      PtrToOptionalRoot(pool, std::move(expr)));
 }
 
 std::unique_ptr<Expression> ToUniquePtr(
