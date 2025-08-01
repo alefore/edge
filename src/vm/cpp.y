@@ -218,21 +218,16 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
 
   A = ToUniquePtr(
           NewIfExpression(
-              *compilation, std::move(condition),
-              NewDelegatingExpression(
-                  ValueOrDie(NewAppendExpression(
-                      *compilation,
-                      std::move(true_case),
-                      NewDelegatingExpression(
-                          NewVoidExpression(compilation->pool)).get_unique())))
-                  .get_unique(),
-              NewDelegatingExpression(
-                  ValueOrDie(NewAppendExpression(
-                      *compilation,
-                      std::move(false_case),
-                      NewDelegatingExpression(
-                          NewVoidExpression(compilation->pool)).get_unique())))
-                  .get_unique()))
+              *compilation,
+              PtrToOptionalRoot(compilation->pool, std::move(condition)),
+              ValueOrDie(NewAppendExpression(
+                  *compilation, std::move(true_case),
+                  NewDelegatingExpression(NewVoidExpression(compilation->pool))
+                      .get_unique())),
+              ValueOrDie(NewAppendExpression(
+                  *compilation, std::move(false_case),
+                  NewDelegatingExpression(NewVoidExpression(compilation->pool))
+                      .get_unique()))))
           .release();
 }
 
@@ -242,16 +237,13 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
 
   A = ToUniquePtr(
           NewIfExpression(
-              *compilation, std::move(condition),
-              NewDelegatingExpression(
-                  ValueOrDie(NewAppendExpression(
-                      *compilation,
-                      std::move(true_case),
-                      NewDelegatingExpression(
-                          NewVoidExpression(compilation->pool)).get_unique())))
-                      .get_unique(),
-              NewDelegatingExpression(
-                  NewVoidExpression(compilation->pool)).get_unique()))
+              *compilation,
+              PtrToOptionalRoot(compilation->pool, std::move(condition)),
+              ValueOrDie(NewAppendExpression(
+                  *compilation, std::move(true_case),
+                  NewDelegatingExpression(NewVoidExpression(compilation->pool))
+                      .get_unique())),
+              NewVoidExpression(compilation->pool)))
           .release();
 }
 
@@ -455,8 +447,12 @@ expr(A) ::= expr(CONDITION) QUESTION_MARK
   std::unique_ptr<Expression> true_case(TRUE_CASE);
   std::unique_ptr<Expression> false_case(FALSE_CASE);
 
-  A = ToUniquePtr(NewIfExpression(*compilation, std::move(condition),
-                                  std::move(true_case), std::move(false_case)))
+  A = ToUniquePtr(
+          NewIfExpression(
+              *compilation,
+              PtrToOptionalRoot(compilation->pool, std::move(condition)),
+              PtrToOptionalRoot(compilation->pool, std::move(true_case)),
+              PtrToOptionalRoot(compilation->pool, std::move(false_case))))
           .release();
 }
 
