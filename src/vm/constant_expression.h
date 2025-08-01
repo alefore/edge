@@ -10,9 +10,8 @@ namespace afc::vm {
 class Expression;
 class Value;
 
-language::NonNull<std::unique_ptr<Expression>> NewVoidExpression(
-    language::gc::Pool& pool);
-language::NonNull<std::unique_ptr<Expression>> NewConstantExpression(
+language::gc::Root<Expression> NewVoidExpression(language::gc::Pool& pool);
+language::gc::Root<Expression> NewConstantExpression(
     language::gc::Root<Value> value);
 }  // namespace afc::vm
 

@@ -33,6 +33,7 @@ extern "C" {
 #include "src/line_prompt_mode.h"
 #include "src/token_predictor.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/escape.h"
 #include "src/vm/function_call.h"
@@ -69,6 +70,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedString;
+using afc::vm::NewDelegatingExpression;
 
 namespace afc {
 using language::NonNull;
@@ -553,9 +555,10 @@ class ForkEditorCommand : public Command {
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
     NonNull<std::unique_ptr<vm::Expression>> context_command_expression =
         vm::NewFunctionCall(
-            vm::NewConstantExpression(*prompt_state.context_command_callback),
-            {vm::NewConstantExpression(
-                vm::Value::NewString(pool, ToLazyString(line)))});
+            NewDelegatingExpression(vm::NewConstantExpression(
+                *prompt_state.context_command_callback)),
+            {NewDelegatingExpression(vm::NewConstantExpression(
+                vm::Value::NewString(pool, ToLazyString(line))))});
     if (context_command_expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(

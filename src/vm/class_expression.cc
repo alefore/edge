@@ -7,9 +7,9 @@
 #include "src/vm/append_expression.h"
 #include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"  // Add this include for NewDelegatingExpression
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
-#include "src/vm/delegating_expression.h" // Add this include for NewDelegatingExpression
 
 namespace gc = afc::language::gc;
 
@@ -91,11 +91,12 @@ PossibleError FinishClassDeclaration(
     Compilation& compilation,
     NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
   gc::Pool& pool = compilation.pool;
-  ASSIGN_OR_RETURN(gc::Root<Expression> constructor_expression,
-                   compilation.RegisterErrors(NewAppendExpression(
-                       compilation,
-                       compilation.pool.NewRoot(std::move(constructor_expression_input)),
-                       compilation.pool.NewRoot(NewVoidExpression(compilation.pool)))));
+  ASSIGN_OR_RETURN(
+      gc::Root<Expression> constructor_expression,
+      compilation.RegisterErrors(NewAppendExpression(
+          compilation,
+          compilation.pool.NewRoot(std::move(constructor_expression_input)),
+          NewVoidExpression(compilation.pool))));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
   gc::Root<ObjectType> class_object_type = ObjectType::New(pool, class_type);
@@ -139,7 +140,9 @@ PossibleError FinishClassDeclaration(
                 class_environment.ptr()->parent_environment());
             auto original_environment = trampoline.environment();
             trampoline.SetEnvironment(instance_environment);
-            return trampoline.Bounce(NewDelegatingExpression(constructor_expression), types::Void{})
+            return trampoline
+                .Bounce(NewDelegatingExpression(constructor_expression),
+                        types::Void{})
                 .Transform([constructor_expression, original_environment,
                             class_type, instance_environment, &trampoline](
                                EvaluationOutput constructor_evaluation)

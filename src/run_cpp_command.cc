@@ -22,6 +22,7 @@
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/natural.h"
 #include "src/vm/value.h"
@@ -58,6 +59,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineSequence;
 using afc::vm::Identifier;
+using afc::vm::NewDelegatingExpression;
 using afc::vm::TypesToString;
 using afc::vm::VMTypeMapper;
 
@@ -190,9 +192,9 @@ ValueOrError<ParsedCommand> Parse(
                 std::views::transform(
                     [](const Token& v) { return ToLazyString(v.value); })));
 
-    output_function_inputs.push_back(
+    output_function_inputs.push_back(vm::NewDelegatingExpression(
         vm::NewConstantExpression(VMTypeMapper<decltype(argument_values)>::New(
-            pool, std::move(argument_values))));
+            pool, std::move(argument_values)))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output_function = type_match_functions[0];
@@ -207,12 +209,13 @@ ValueOrError<ParsedCommand> Parse(
     }
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it)
-      output_function_inputs.push_back(vm::NewConstantExpression(
-          vm::Value::NewString(pool, ToLazyString(it->value))));
+      output_function_inputs.push_back(
+          NewDelegatingExpression(NewConstantExpression(
+              vm::Value::NewString(pool, ToLazyString(it->value)))));
 
     while (output_function_inputs.size() < expected_arguments)
-      output_function_inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(pool, LazyString{})));
+      output_function_inputs.push_back(NewDelegatingExpression(
+          NewConstantExpression(vm::Value::NewString(pool, LazyString{}))));
   } else if (!all_types_found.empty()) {
     return Error{LazyString{L"Incompatible type found: "} +
                  ToLazyString(output_tokens[0].value) + LazyString{L": "} +
@@ -221,11 +224,11 @@ ValueOrError<ParsedCommand> Parse(
     return Error{LazyString{L"No definition found: "} +
                  ToLazyString(output_tokens[0].value)};
   }
-  return ParsedCommand{
-      .tokens = std::move(output_tokens),
-      .expression = NewFunctionCall(
-          NewConstantExpression(std::move(output_function.value())),
-          std::move(output_function_inputs))};
+  return ParsedCommand{.tokens = std::move(output_tokens),
+                       .expression = NewFunctionCall(
+                           NewDelegatingExpression(NewConstantExpression(
+                               std::move(output_function.value()))),
+                           std::move(output_function_inputs))};
 }
 
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool, SingleLine command,

@@ -12,6 +12,7 @@
 #include "src/language/wstring.h"
 #include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/filter_similar_names.h"
@@ -87,8 +88,7 @@ class FunctionCall : public Expression {
 
  public:
   static language::gc::Root<FunctionCall> New(
-      language::gc::Pool& pool,
-      NonNull<std::shared_ptr<Expression>> func,
+      language::gc::Pool& pool, NonNull<std::shared_ptr<Expression>> func,
       NonNull<
           std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
           args) {
@@ -150,7 +150,8 @@ class FunctionCall : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 
@@ -308,7 +309,9 @@ std::unique_ptr<Expression> NewMethodLookup(
                 language::gc::Pool& pool,
                 NonNull<std::shared_ptr<Expression>> obj_expr,
                 std::vector<gc::Root<Value>> delegates) {
-              return pool.NewRoot(language::MakeNonNullUnique<BindObjectExpression>(obj_expr, delegates));
+              return pool.NewRoot(
+                  language::MakeNonNullUnique<BindObjectExpression>(obj_expr,
+                                                                    delegates));
             }
 
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
@@ -384,7 +387,8 @@ std::unique_ptr<Expression> NewMethodLookup(
                   });
             }
 
-            std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
+            std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+                const override {
               return {};
             }
 
@@ -424,12 +428,15 @@ futures::ValueOrError<gc::Root<Value>> Call(
   CHECK_EQ(std::get<types::Function>(func.type()).inputs.size(), args.size());
   return Evaluate(
       NewFunctionCall(
-          NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
-          // Why spell the vector type explicitly? To trigger conversion from
-          // NonNull<std::unique<>> to NonNull<std::shared<>>.
-          container::Materialize<
-              std::vector<NonNull<std::shared_ptr<Expression>>>>(
-              args | std::views::transform(NewConstantExpression))),
+          NewDelegatingExpression(NewConstantExpression(
+              pool.NewRoot(MakeNonNullUnique<Value>(func)))),
+          container::MaterializeVector(
+              args | std::views::transform(
+                         [](gc::Root<Value> arg)
+                             -> NonNull<std::shared_ptr<Expression>> {
+                           return NewDelegatingExpression(
+                               NewConstantExpression(arg));
+                         }))),
       pool, Environment::New(pool), yield_callback);
 }
 

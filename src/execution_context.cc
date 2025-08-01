@@ -4,6 +4,7 @@
 #include "src/language/once_only_function.h"
 #include "src/status.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/vm.h"
 
@@ -99,7 +100,7 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
 }
 
 ExecutionContext::CompilationResult::CompilationResult(
-    ConstructorAccessTag, NonNull<std::shared_ptr<vm::Expression>> expression,
+    ConstructorAccessTag, gc::Ptr<vm::Expression> expression,
     gc::Ptr<vm::Environment> environment,
     NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue)
     : expression_(std::move(expression)),
@@ -108,8 +109,7 @@ ExecutionContext::CompilationResult::CompilationResult(
 
 /* static */ gc::Root<ExecutionContext::CompilationResult>
 ExecutionContext::CompilationResult::New(
-    NonNull<std::shared_ptr<vm::Expression>> expression,
-    gc::Ptr<vm::Environment> environment,
+    gc::Ptr<vm::Expression> expression, gc::Ptr<vm::Environment> environment,
     NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue) {
   return environment.pool().NewRoot(
       MakeNonNullUnique<ExecutionContext::CompilationResult>(
@@ -117,14 +117,16 @@ ExecutionContext::CompilationResult::New(
           std::move(work_queue)));
 }
 
-const language::NonNull<std::shared_ptr<vm::Expression>>&
+language::NonNull<std::shared_ptr<vm::Expression>>
 ExecutionContext::CompilationResult::expression() const {
-  return expression_;
+  // TODO(easy, 2025-08-01): Change to return a const gc::Ptr<>&.
+  return NewDelegatingExpression(expression_.ToRoot());
 }
 
 futures::ValueOrError<gc::Root<vm::Value>>
 ExecutionContext::CompilationResult::evaluate() const {
-  return Evaluate(expression_, environment_.pool(), environment_.ToRoot(),
+  return Evaluate(NewDelegatingExpression(expression_.ToRoot()),
+                  environment_.pool(), environment_.ToRoot(),
                   [work_queue = work_queue_](OnceOnlyFunction<void()> resume) {
                     LOG(INFO) << "Evaluation of code yields.";
                     work_queue->Schedule(
@@ -157,18 +159,20 @@ ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
   gc::Root<vm::Environment> sub_environment =
       vm::Environment::New(environment_);
   return std::visit(
-      overload{[sub_environment, work_queue = work_queue()](
-                   NonNull<std::shared_ptr<vm::Expression>> expression)
-                   -> ValueOrError<gc::Root<CompilationResult>> {
-                 return CompilationResult::New(
-                     std::move(expression), sub_environment.ptr(), work_queue);
-               },
-               [weak_status = status_, error_handling](
-                   Error error) -> ValueOrError<gc::Root<CompilationResult>> {
-                 return RegisterCompilationError(
-                     weak_status, LazyString{L"🐜Compilation error"}, error,
-                     error_handling);
-               }},
+      overload{
+          [sub_environment, work_queue = work_queue()](
+              NonNull<std::unique_ptr<vm::Expression>> expression)
+              -> ValueOrError<gc::Root<CompilationResult>> {
+            return CompilationResult::New(
+                sub_environment.pool().NewRoot(std::move(expression)).ptr(),
+                sub_environment.ptr(), work_queue);
+          },
+          [weak_status = status_, error_handling](
+              Error error) -> ValueOrError<gc::Root<CompilationResult>> {
+            return RegisterCompilationError(weak_status,
+                                            LazyString{L"🐜Compilation error"},
+                                            error, error_handling);
+          }},
       afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
 }
 
@@ -178,16 +182,19 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
   return VisitOptional(
       [&](vm::Environment::LookupResult procedure) {
         return Success(CompilationResult::New(
-            vm::NewFunctionCall(
-                vm::NewConstantExpression(
-                    std::get<gc::Root<vm::Value>>(procedure.value)),
-                container::MaterializeVector(
-                    std::move(arguments) |
-                    std::views::transform(
-                        [](gc::Ptr<vm::Value> value)
-                            -> NonNull<std::shared_ptr<vm::Expression>> {
-                          return vm::NewConstantExpression(value.ToRoot());
-                        }))),
+            environment_.pool()
+                .NewRoot(vm::NewFunctionCall(
+                    vm::NewDelegatingExpression(vm::NewConstantExpression(
+                        std::get<gc::Root<vm::Value>>(procedure.value))),
+                    container::MaterializeVector(
+                        std::move(arguments) |
+                        std::views::transform(
+                            [](gc::Ptr<vm::Value> value)
+                                -> NonNull<std::shared_ptr<vm::Expression>> {
+                              return vm::NewDelegatingExpression(
+                                  vm::NewConstantExpression(value.ToRoot()));
+                            }))))
+                .ptr(),
             environment_, work_queue()));
       },
       [&function_name] {

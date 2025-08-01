@@ -22,26 +22,25 @@ class BinaryOperator : public Expression {
  private:
   struct ConstructorAccessTag {};
 
- public:
-  static language::ValueOrError<language::gc::Root<BinaryOperator>> New(
-      language::gc::Pool& pool,
-      language::NonNull<std::shared_ptr<Expression>> a,
-      language::NonNull<std::shared_ptr<Expression>> b, Type type,
-      std::function<language::ValueOrError<language::gc::Root<Value>>(
-          language::gc::Pool& pool, const Value&, const Value&)>
-          callback);
+  const language::gc::Ptr<Expression> a_;
+  const language::gc::Ptr<Expression> b_;
+  const Type type_;
+  const std::unordered_set<Type> return_types_;
+  const std::function<language::ValueOrError<language::gc::Root<Value>>(
+      language::gc::Pool&, const Value&, const Value&)>
+      operator_;
 
-  static language::ValueOrError<
-      language::NonNull<std::unique_ptr<BinaryOperator>>>
-  New(language::NonNull<std::shared_ptr<Expression>> a,
-      language::NonNull<std::shared_ptr<Expression>> b, Type type,
+ public:
+  static language::ValueOrError<language::gc::Root<Expression>> New(
+      language::gc::Ptr<Expression> a, language::gc::Ptr<Expression> b,
+      Type type,
       std::function<language::ValueOrError<language::gc::Root<Value>>(
           language::gc::Pool& pool, const Value&, const Value&)>
           callback);
 
   BinaryOperator(
-      ConstructorAccessTag, language::NonNull<std::shared_ptr<Expression>> a,
-      language::NonNull<std::shared_ptr<Expression>> b, Type type,
+      ConstructorAccessTag, language::gc::Ptr<Expression> a,
+      language::gc::Ptr<Expression> b, Type type,
       std::unordered_set<Type> return_types,
       std::function<language::ValueOrError<language::gc::Root<Value>>(
           language::gc::Pool& pool, const Value&, const Value&)>
@@ -57,22 +56,13 @@ class BinaryOperator : public Expression {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override;
-
- private:
-  const language::NonNull<std::shared_ptr<Expression>> a_;
-  const language::NonNull<std::shared_ptr<Expression>> b_;
-  const Type type_;
-  const std::unordered_set<Type> return_types_;
-  const std::function<language::ValueOrError<language::gc::Root<Value>>(
-      language::gc::Pool&, const Value&, const Value&)>
-      operator_;
 };
 
 // A convenience wrapper of BinaryOperator that combines primitive types
 // according to the functions given.
 std::unique_ptr<Expression> NewBinaryExpression(
-    Compilation& compilation, std::unique_ptr<Expression> a,
-    std::unique_ptr<Expression> b,
+    Compilation& compilation, std::optional<language::gc::Root<Expression>> a,
+    std::optional<language::gc::Root<Expression>> b,
     std::function<language::ValueOrError<language::lazy_string::LazyString>(
         language::lazy_string::LazyString, language::lazy_string::LazyString)>
         str_operator,

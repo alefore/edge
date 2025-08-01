@@ -16,6 +16,7 @@
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
@@ -35,6 +36,7 @@ using afc::language::overload;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::vm::Expression;
+using afc::vm::NewDelegatingExpression;
 using afc::vm::Type;
 using afc::vm::Value;
 
@@ -136,8 +138,10 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
                   gc::Ptr<vm::Value> value_nested) {
                 LOG(INFO) << "Evaluating expression from Value...";
                 NonNull<std::shared_ptr<vm::Expression>> expression =
-                    NewFunctionCall(
-                        NewConstantExpression(value_nested.ToRoot()), {});
+                    vm::NewFunctionCall(
+                        NewDelegatingExpression(
+                            NewConstantExpression(value_nested.ToRoot())),
+                        {});
                 Evaluate(
                     std::move(expression), environment_locked.pool(),
                     environment_locked,

@@ -11,6 +11,7 @@
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/default_environment.h"  // For tests.
+#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/function_call.h"
 
@@ -161,7 +162,8 @@ class ParseState {
       if (std::holds_alternative<types::String>(
               function_type->inputs[children_arguments.size()]))
         children_arguments.push_back(
-            NewConstantExpression(Value::NewString(pool_, LazyString{}))
+            NewDelegatingExpression(
+                NewConstantExpression(Value::NewString(pool_, LazyString{})))
                 .get_unique());
       else
         return nullptr;
@@ -181,7 +183,7 @@ class ParseState {
     vm::Type type = value_root.ptr()->type();
     VLOG(8) << "Receive value type: " << type;
     NonNull<std::shared_ptr<Expression>> value =
-        NewConstantExpression(std::move(value_root));
+        NewDelegatingExpression(NewConstantExpression(std::move(value_root)));
     CHECK(!value->Types().empty());
     if (candidates_.empty())
       output.push_back(Tree{.type = value->Types().front(), .value = value});

@@ -24,6 +24,7 @@
 #include "src/vm/callbacks_gc.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/container.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 
 namespace gc = afc::language::gc;
@@ -72,6 +73,7 @@ using afc::vm::Identifier;
 using afc::vm::kPurityTypeReader;
 using afc::vm::kPurityTypeUnknown;
 using afc::vm::NewConstantExpression;
+using afc::vm::NewDelegatingExpression;
 using afc::vm::NewFunctionCall;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
@@ -800,34 +802,37 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             FUTURES_ASSIGN_OR_RETURN(LineProcessorKey key,
                                      LineProcessorKey::New(SingleLine::New(
                                          args[1].ptr()->get_string())));
-            buffer->AddLineProcessor(key, [buffer,
-                                           callback = std::move(args[2])](
-                                              LineProcessorInput input) {
-              return Success(LineProcessorOutputFuture{
-                  .initial_value =
-                      LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
-                  .value =
-                      buffer
-                          ->EvaluateExpression(
-                              NewFunctionCall(
-                                  NewConstantExpression(callback),
-                                  {NewConstantExpression(vm::Value::NewString(
-                                      buffer->editor().gc_pool(),
-                                      input.read()))}),
-                              buffer->environment().ToRoot())
-                          .Transform([](gc::Root<vm::Value> value) {
-                            std::ostringstream oss;
-                            oss << value.ptr().value();
-                            return LineProcessorOutput::New(SingleLine::New(
-                                LazyString{FromByteString(oss.str())}));
-                          })
-                          .ConsumeErrors([](Error error) {
-                            return futures::Past(LineProcessorOutput(
-                                SINGLE_LINE_CONSTANT(L"E: ") +
-                                LineSequence::BreakLines(error.read())
-                                    .FoldLines()));
-                          })});
-            });
+            buffer->AddLineProcessor(
+                key, [buffer,
+                      callback = std::move(args[2])](LineProcessorInput input) {
+                  return Success(LineProcessorOutputFuture{
+                      .initial_value =
+                          LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
+                      .value =
+                          buffer
+                              ->EvaluateExpression(
+                                  NewFunctionCall(
+                                      NewDelegatingExpression(
+                                          NewConstantExpression(callback)),
+                                      {NewDelegatingExpression(
+                                          NewConstantExpression(
+                                              vm::Value::NewString(
+                                                  buffer->editor().gc_pool(),
+                                                  input.read())))}),
+                                  buffer->environment().ToRoot())
+                              .Transform([](gc::Root<vm::Value> value) {
+                                std::ostringstream oss;
+                                oss << value.ptr().value();
+                                return LineProcessorOutput::New(SingleLine::New(
+                                    LazyString{FromByteString(oss.str())}));
+                              })
+                              .ConsumeErrors([](Error error) {
+                                return futures::Past(LineProcessorOutput(
+                                    SINGLE_LINE_CONSTANT(L"E: ") +
+                                    LineSequence::BreakLines(error.read())
+                                        .FoldLines()));
+                              })});
+                });
             return futures::Past(vm::Value::NewVoid(pool));
           })
           .ptr());

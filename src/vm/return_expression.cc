@@ -2,24 +2,31 @@
 
 #include <glog/logging.h>
 
+#include "src/language/gc.h"
+#include "src/vm/delegating_expression.h"
+
+namespace gc = afc::language::gc;
+
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
-using afc::language::VisitPointer;
+using afc::language::VisitOptional;
 
 namespace afc::vm {
 namespace {
 class ReturnExpression : public Expression {
   struct ConstructorAccessTag {};
 
+  const gc::Ptr<Expression> expr_;
+
  public:
-  static language::gc::Root<ReturnExpression> New(
-      language::gc::Pool& pool,
-      NonNull<std::shared_ptr<Expression>> expr) {
-    return pool.NewRoot(language::MakeNonNullUnique<ReturnExpression>(expr));
+  static gc::Root<ReturnExpression> New(gc::Ptr<Expression> expr) {
+    gc::Pool& pool = expr.pool();
+    return pool.NewRoot(
+        MakeNonNullUnique<ReturnExpression>(ConstructorAccessTag{}, expr));
   }
 
-  ReturnExpression(NonNull<std::shared_ptr<Expression>> expr)
+  ReturnExpression(ConstructorAccessTag, gc::Ptr<Expression> expr)
       : expr_(std::move(expr)) {}
 
   std::vector<Type> Types() override { return expr_->Types(); }
@@ -33,31 +40,31 @@ class ReturnExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
-    return trampoline.Bounce(expr_, expr_->Types()[0])
+    return trampoline
+        .Bounce(NewDelegatingExpression(expr_.ToRoot()), expr_->Types()[0])
         .Transform([](EvaluationOutput expr_output) {
           return Success(
               EvaluationOutput::Return(std::move(expr_output.value)));
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
-    return {};
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
+      const override {
+    return {expr_.object_metadata()};
   }
-
- private:
-  const NonNull<std::shared_ptr<Expression>> expr_;
 };
 
 }  // namespace
 
-std::unique_ptr<Expression> NewReturnExpression(
-    std::unique_ptr<Expression> expr_input) {
-  return VisitPointer(
-      std::move(expr_input),
-      [](NonNull<std::unique_ptr<Expression>> expr) {
-        return std::make_unique<ReturnExpression>(std::move(expr));
+// TODO(2025-08-01, trivial): receive expr_input as gc::Ptr.
+std::optional<gc::Root<Expression>> NewReturnExpression(
+    std::optional<gc::Root<Expression>> expr_input) {
+  return VisitOptional(
+      [](gc::Root<Expression> expr) -> std::optional<gc::Root<Expression>> {
+        return ReturnExpression::New(expr.ptr());
       },
-      [] { return nullptr; });
+      [] { return std::optional<gc::Root<Expression>>{}; },
+      std::move(expr_input));
 }
 
 }  // namespace afc::vm

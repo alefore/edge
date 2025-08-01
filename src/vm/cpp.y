@@ -39,11 +39,10 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewDelegatingExpression(
-            ValueOrDie(NewAppendExpression(
+            NewAppendExpression(
                 *compilation,
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(a)),
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(b)))))
-            .get_unique()
+                PtrToOptionalRoot(compilation->pool, std::move(a)),
+                PtrToOptionalRoot(compilation->pool, std::move(b))))
             .release();
 }
 
@@ -55,7 +54,8 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
 %destructor statement_list { delete $$; }
 
 statement_list(L) ::= . {
-  L = NewVoidExpression(compilation->pool).get_unique().release();
+  L = NewDelegatingExpression(NewVoidExpression(compilation->pool))
+          .get_unique().release();
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
@@ -64,8 +64,8 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
 
   OUT =
       NewDelegatingExpression(ValueOrDie(NewAppendExpression(
-          *compilation, PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(a)),
-          PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(b)))))
+          *compilation, PtrToOptionalRoot(compilation->pool, std::move(a)),
+          PtrToOptionalRoot(compilation->pool, std::move(b)))))
           .get_unique().release();
 }
 
@@ -106,7 +106,8 @@ statement(OUT) ::= class_declaration
     FinishClassDeclaration(
         *compilation,
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)));
-    OUT = NewVoidExpression(compilation->pool).get_unique().release();
+    OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool))
+              .get_unique().release();
   }
 }
 
@@ -121,11 +122,14 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
   std::unique_ptr<Expression> a(A);
 
-  OUT = NewReturnExpression(std::move(a)).release();
+  OUT = ToUniquePtr(language::error::FromOptional(NewReturnExpression(
+                        PtrToOptionalRoot(compilation->pool, std::move(a)))))
+            .release();
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
-  OUT = NewReturnExpression(NewVoidExpression(compilation->pool).get_unique())
+  OUT = ToUniquePtr(language::error::FromOptional(
+      NewReturnExpression(NewVoidExpression(compilation->pool))))
             .release();
 }
 
@@ -144,7 +148,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
             [&](gc::Root<Value> value) {
               compilation->environment->parent_environment().value()->Define(
                   Identifier(func->name().value()), std::move(value));
-              OUT = NewVoidExpression(compilation->pool).get_unique().release();
+              OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
             }},
         compilation->RegisterErrors(func->BuildValue(
             NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body)))));
@@ -152,7 +156,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
 }
 
 statement(A) ::= SEMICOLON . {
-  A = NewVoidExpression(compilation->pool).get_unique().release();
+  A = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
 }
 
 statement(A) ::= nesting_lbracket statement_list(L) nesting_rbracket. {
@@ -178,8 +182,8 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
   OUT = ToUniquePtr(
             NewWhileExpression(
                 *compilation,
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(condition)),
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(body))))
+                PtrToOptionalRoot(compilation->pool, std::move(condition)),
+                PtrToOptionalRoot(compilation->pool, std::move(body))))
             .release();
 }
 
@@ -196,10 +200,10 @@ statement(OUT) ::=
   OUT = ToUniquePtr(
             NewForExpression(
                 *compilation,
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(init)),
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(condition)),
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(update)),
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(body))))
+                PtrToOptionalRoot(compilation->pool, std::move(init)),
+                PtrToOptionalRoot(compilation->pool, std::move(condition)),
+                PtrToOptionalRoot(compilation->pool, std::move(update)),
+                PtrToOptionalRoot(compilation->pool, std::move(body))))
             .release();
 }
 
@@ -215,20 +219,16 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
               NewDelegatingExpression(
                   ValueOrDie(NewAppendExpression(
                       *compilation,
-                      PTR_TO_OPTIONAL_ROOT(compilation->pool,
+                      PtrToOptionalRoot(compilation->pool,
                                            std::move(true_case)),
-                      PTR_TO_OPTIONAL_ROOT(
-                          compilation->pool,
-                          NewVoidExpression(compilation->pool).get_unique()))))
+                      NewVoidExpression(compilation->pool))))
                   .get_unique(),
               NewDelegatingExpression(
                   ValueOrDie(NewAppendExpression(
                       *compilation,
-                      PTR_TO_OPTIONAL_ROOT(compilation->pool,
+                      PtrToOptionalRoot(compilation->pool,
                                            std::move(false_case)),
-                      PTR_TO_OPTIONAL_ROOT(
-                          compilation->pool,
-                          NewVoidExpression(compilation->pool).get_unique()))))
+                      NewVoidExpression(compilation->pool))))
                   .get_unique()))
           .release();
 }
@@ -243,13 +243,11 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
               NewDelegatingExpression(
                   ValueOrDie(NewAppendExpression(
                       *compilation,
-                      PTR_TO_OPTIONAL_ROOT(compilation->pool,
+                      PtrToOptionalRoot(compilation->pool,
                                            std::move(true_case)),
-                      PTR_TO_OPTIONAL_ROOT(
-                          compilation->pool,
-                          NewVoidExpression(compilation->pool).get_unique()))))
-                  .get_unique(),
-              NewVoidExpression(compilation->pool).get_unique()))
+                      NewVoidExpression(compilation->pool)))).get_unique(),
+              NewDelegatingExpression(
+                  NewVoidExpression(compilation->pool)).get_unique()))
           .release();
 }
 
@@ -270,7 +268,7 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   std::visit(
       overload{
           [&](Type) {
-            OUT = NewVoidExpression(compilation->pool).get_unique().release();
+            OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
           },
           [&](Error error) {
             compilation->AddError(error);
@@ -290,8 +288,9 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
   Identifier type_identifier(type->value().ptr()->get_symbol());
 
+  // TODO(trivial, 2025-08-01): Don't convert to std::unique_ptr.
   std::unique_ptr<Expression> constructor =
-      NewVariableLookup(*compilation, {type_identifier});
+      ToUniquePtr(NewVariableLookup(*compilation, {type_identifier}));
 
   if (constructor == nullptr) {
     compilation->AddError(Error{
@@ -308,7 +307,7 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
             language::error::FromOptional(NewDefineExpression(
                 *compilation, type->value().ptr()->get_symbol(),
                 name->value().ptr()->get_symbol(),
-                PTR_TO_OPTIONAL_ROOT(
+                PtrToOptionalRoot(
                     compilation->pool,
                     NewFunctionCall(
                         *compilation,
@@ -328,7 +327,7 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
           language::error::FromOptional(NewDefineExpression(
               *compilation, type->value().ptr()->get_symbol(),
               name->value().ptr()->get_symbol(),
-              PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(value)))))
+              PtrToOptionalRoot(compilation->pool, std::move(value)))))
           .release();
 }
 
@@ -489,7 +488,7 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   OUT = ToUniquePtr(
             language::error::FromOptional(NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
-                PTR_TO_OPTIONAL_ROOT(compilation->pool, std::move(value)))))
+                PtrToOptionalRoot(compilation->pool, std::move(value)))))
             .release();
 }
 
@@ -501,13 +500,14 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
       ToUniquePtr(
           language::error::FromOptional(NewAssignExpression(
               *compilation, name->value().ptr()->get_symbol(),
-              PTR_TO_OPTIONAL_ROOT(
-                  compilation->pool,
-                  NewBinaryExpression(
+                  PtrToOptionalRoot(
+                    compilation->pool,
+                    NewBinaryExpression(
                       *compilation,
-                      NewVariableLookup(*compilation,
-                                        {name->value().ptr()->get_symbol()}),
-                      std::move(value),
+                          language::OptionalFrom(NewVariableLookup(
+                              *compilation,
+                              {name->value().ptr()->get_symbol()})),
+                      PtrToOptionalRoot(compilation->pool, std::move(value)),
                       [](LazyString a, LazyString b) { return Success(a + b); },
                       [](numbers::Number a, numbers::Number b) {
                         return std::move(a) + std::move(b);
@@ -520,21 +520,26 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
   std::unique_ptr<Expression> value(VALUE);
 
-  OUT = ToUniquePtr(
-            language::error::FromOptional(NewAssignExpression(
-                *compilation, name->value().ptr()->get_symbol(),
-                PTR_TO_OPTIONAL_ROOT(
-                    compilation->pool,
-                    NewBinaryExpression(
-                        *compilation,
-                        NewVariableLookup(*compilation,
-                                          {name->value().ptr()->get_symbol()}),
-                        std::move(value), nullptr,
-                        [](numbers::Number a, numbers::Number b) {
-                          return std::move(a) - std::move(b);
-                        },
-                        nullptr)))))
-            .release();
+  OUT =
+      ToUniquePtr(
+          language::error::FromOptional(NewAssignExpression(
+              *compilation, name->value().ptr()->get_symbol(),
+              PtrToOptionalRoot(
+                  compilation->pool,
+                  NewBinaryExpression(
+                      *compilation,
+                      PtrToOptionalRoot(
+                          compilation->pool,
+                          ToUniquePtr(NewVariableLookup(
+                              *compilation,
+                              {name->value().ptr()->get_symbol()}))),
+                      PtrToOptionalRoot(compilation->pool, std::move(value)),
+                      nullptr,
+                      [](numbers::Number a, numbers::Number b) {
+                        return std::move(a) - std::move(b);
+                      },
+                      nullptr)))))
+          .release();
 }
 
 expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
@@ -544,13 +549,14 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = ToUniquePtr(
             language::error::FromOptional(NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
-                PTR_TO_OPTIONAL_ROOT(
+                PtrToOptionalRoot(
                     compilation->pool,
                     NewBinaryExpression(
                         *compilation,
-                        NewVariableLookup(*compilation,
-                                          {name->value().ptr()->get_symbol()}),
-                        std::move(value), nullptr,
+                        language::OptionalFrom(
+                            NewVariableLookup(*compilation,
+                                          {name->value().ptr()->get_symbol()})),
+                        PtrToOptionalRoot(compilation->pool, std::move(value)), nullptr,
                         [](numbers::Number a, numbers::Number b) {
                           return std::move(a) * std::move(b);
                         },
@@ -578,13 +584,14 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = ToUniquePtr(
             language::error::FromOptional(NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
-                PTR_TO_OPTIONAL_ROOT(
+                PtrToOptionalRoot(
                     compilation->pool,
                     NewBinaryExpression(
                         *compilation,
-                        NewVariableLookup(*compilation,
-                                          {name->value().ptr()->get_symbol()}),
-                        std::move(value), nullptr,
+                        language::OptionalFrom(
+                            NewVariableLookup(*compilation,
+                                          {name->value().ptr()->get_symbol()})),
+                        PtrToOptionalRoot(compilation->pool, std::move(value)), nullptr,
                         [](numbers::Number a, numbers::Number b) {
                           return std::move(a) / std::move(b);
                         },
@@ -595,18 +602,17 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
-  auto var =
+  ValueOrError<gc::Root<Expression>> var =
       NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()});
-  if (var == nullptr) {
+  if (IsError(var)) {
     OUT = nullptr;
-  } else if (var->IsNumber()) {
-    OUT = ToUniquePtr(
-              language::error::FromOptional(NewAssignExpression(
+  } else if (std::get<gc::Root<Expression>>(var)->IsNumber()) {
+    OUT = ToUniquePtr(language::error::FromOptional(
+              NewAssignExpression(
                   *compilation, name->value().ptr()->get_symbol(),
                   ValueOrDie(BinaryOperator::New(
-                      compilation->pool, NewVoidExpression(compilation->pool),
-                      NonNull<std::unique_ptr<Expression>>::Unsafe(
-                          std::move(var)),
+                      NewVoidExpression(compilation->pool).ptr(),
+                      ValueOrDie(std::move(var)).ptr(),
                       types::Number{},
                       [](gc::Pool& pool, const Value&, const Value& a) {
                         return Value::NewNumber(
@@ -616,7 +622,8 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
               .release();
   } else {
     compilation->AddError(Error{
-        LazyString{L"++: Type not supported: "} + TypesToString(var->Types())});
+        LazyString{L"++: Type not supported: "}
+        + TypesToString(ValueOrDie(std::move(var))->Types())});
     OUT = nullptr;
   }
 }
@@ -624,18 +631,17 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
 expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
-  auto var =
+  ValueOrError<gc::Root<Expression>> var =
       NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()});
-  if (var == nullptr) {
+  if (IsError(var)) {
     OUT = nullptr;
-  } else if (var->IsNumber()) {
+  } else if (std::get<gc::Root<Expression>>(var)->IsNumber()) {
     OUT = ToUniquePtr(
               language::error::FromOptional(NewAssignExpression(
                   *compilation, name->value().ptr()->get_symbol(),
                   ValueOrDie(BinaryOperator::New(
-                      compilation->pool, NewVoidExpression(compilation->pool),
-                      NonNull<std::unique_ptr<Expression>>::Unsafe(
-                          std::move(var)),
+                      NewVoidExpression(compilation->pool).ptr(),
+                      ValueOrDie(std::move(var)).ptr(),
                       types::Number{},
                       [](gc::Pool& pool, const Value&, const Value& a) {
                         return Value::NewNumber(
@@ -645,7 +651,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
               .release();
   } else {
     compilation->AddError(Error{
-        LazyString{L"--: Type not supported: "} + TypesToString(var->Types())});
+        LazyString{L"--: Type not supported: "}
+        + TypesToString(ValueOrDie(std::move(var))->Types())});
     OUT = nullptr;
   }
 }
@@ -740,10 +747,10 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
+    OUT = NewDelegatingExpression(
               compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
+                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
                   types::Bool{},
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
@@ -768,10 +775,10 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
+    OUT = NewDelegatingExpression(
               compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
+                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
                   types::Bool{},
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
@@ -796,10 +803,10 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
+    OUT = NewDelegatingExpression(
               compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
+                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
                   types::Bool{},
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
@@ -825,10 +832,10 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
+    OUT = NewDelegatingExpression(
               compilation->RegisterErrors(BinaryOperator::New(
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
+                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
                   types::Bool{},
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
@@ -870,7 +877,9 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            *compilation, std::move(a), std::move(b),
+            *compilation,
+            PtrToOptionalRoot(compilation->pool, std::move(a)),
+            PtrToOptionalRoot(compilation->pool, std::move(b)),
             [](LazyString a_str, LazyString b_str) {
               return Success(a_str + b_str);
             },
@@ -886,7 +895,10 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            *compilation, std::move(a), std::move(b), nullptr,
+            *compilation,
+            PtrToOptionalRoot(compilation->pool, std::move(a)),
+            PtrToOptionalRoot(compilation->pool, std::move(b)),
+            nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
               return std::move(a_number) - std::move(b_number);
             },
@@ -912,7 +924,10 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            *compilation, std::move(a), std::move(b), nullptr,
+            *compilation,
+            PtrToOptionalRoot(compilation->pool, std::move(a)),
+            PtrToOptionalRoot(compilation->pool, std::move(b)),
+            nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
               return std::move(a_number) * std::move(b_number);
             },
@@ -938,7 +953,10 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            *compilation, std::move(a), std::move(b), nullptr,
+            *compilation,
+            PtrToOptionalRoot(compilation->pool, std::move(a)),
+            PtrToOptionalRoot(compilation->pool, std::move(b)),
+            nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
               return std::move(a_number) / std::move(b_number);
             },
@@ -953,13 +971,15 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 expr(OUT) ::= BOOL(B). {
   // TODO(easy, 2022-05-13): Add a Value::IsBool check.
   CHECK(B->value().ptr()->type() == Type(types::Bool{}));
-  OUT = NewConstantExpression(std::move(B->value())).get_unique().release();
+  OUT = NewDelegatingExpression(
+      NewConstantExpression(std::move(B->value()))).get_unique().release();
   delete B;
 }
 
 expr(OUT) ::= NUMBER(I). {
   CHECK(I->value().ptr()->IsNumber());
-  OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
+  OUT = NewDelegatingExpression(
+      NewConstantExpression(std::move(I->value()))).get_unique().release();
   delete I;
 }
 
@@ -968,7 +988,8 @@ expr(OUT) ::= NUMBER(I). {
 
 expr(OUT) ::= string(S). {
   CHECK(S->ptr()->IsString());
-  OUT = NewConstantExpression(std::move(*S)).get_unique().release();
+  OUT = NewDelegatingExpression(
+      NewConstantExpression(std::move(*S))).get_unique().release();
   delete S;
 }
 
@@ -989,7 +1010,8 @@ string(OUT) ::= string(A) STRING(B). {
 }
 
 expr(OUT) ::= non_empty_symbols_list(N) . {
-  OUT = NewVariableLookup(*compilation, std::move(*N)).release();
+  OUT = NewDelegatingExpression(
+      NewVariableLookup(*compilation, std::move(*N))).release();
   delete N;
 }
 

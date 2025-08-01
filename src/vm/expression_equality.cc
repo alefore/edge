@@ -9,7 +9,8 @@
 #include "src/math/numbers.h"
 #include "src/vm/binary_operator.h"
 #include "src/vm/compilation.h"  // Full definition needed here
-#include "src/vm/expression.h"   // Full definition needed here
+#include "src/vm/delegating_expression.h"
+#include "src/vm/expression.h"  // Full definition needed here
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
@@ -34,8 +35,8 @@ std::unique_ptr<Expression> ExpressionEquals(Compilation& compilation,
   } else if (a->IsString() && b->IsString()) {
     return std::unique_ptr<Expression>(
         std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
+            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
             types::Bool{},
             [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
               return Value::NewBool(pool,
@@ -44,8 +45,8 @@ std::unique_ptr<Expression> ExpressionEquals(Compilation& compilation,
   } else if (a->IsNumber() && b->IsNumber()) {
     return std::unique_ptr<Expression>(
         std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
+            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
             types::Bool{},
             [precision = compilation.numbers_precision](
                 gc::Pool& pool, const Value& a_value,
@@ -56,8 +57,8 @@ std::unique_ptr<Expression> ExpressionEquals(Compilation& compilation,
   } else if (a->IsBool() && b->IsBool()) {
     return std::unique_ptr<Expression>(
         std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
+            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
             types::Bool{},
             [](gc::Pool& pool, const Value& a_bool, const Value& b_bool) {
               return Value::NewBool(pool,
@@ -67,8 +68,8 @@ std::unique_ptr<Expression> ExpressionEquals(Compilation& compilation,
              std::holds_alternative<types::ObjectName>(a->Types().front())) {
     return std::unique_ptr<Expression>(
         std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
+            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
             types::Bool{},
             [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
               return Value::NewBool(

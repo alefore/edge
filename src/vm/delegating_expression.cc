@@ -6,13 +6,18 @@
 
 #include "src/futures/futures.h"
 #include "src/language/error/log.h"
+#include "src/language/overload.h"
 #include "src/vm/compilation.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
 
 using afc::futures::ValueOrError;
+using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::ValueOrDie;
+using afc::language::VisitPointer;
 using afc::language::gc::ObjectMetadata;
 using afc::vm::EvaluationOutput;
 using afc::vm::Trampoline;
@@ -47,19 +52,37 @@ class DelegatingExpression : public Expression {
 };
 }  // namespace
 
+std::optional<gc::Root<Expression>> PtrToOptionalRoot(
+    language::gc::Pool& pool, std::unique_ptr<Expression> input) {
+  return VisitPointer(
+      std::move(input),
+      [&](NonNull<std::unique_ptr<Expression>> expr)
+          -> std::optional<gc::Root<Expression>> {
+        return pool.NewRoot(std::move(expr));
+      },
+      [] -> std::optional<gc::Root<Expression>> { return std::nullopt; });
+}
+
 std::unique_ptr<Expression> ToUniquePtr(
-    ValueOrError<gc::Root<Expression>> input) {
-  return std::visit(
-      overload{[](Error) { return std::unique_ptr<Expression>(); },
-               [](gc::Root<Expression> expr) {
-                 return NewDelegatingExpression(std::move(expr)).get_unique();
-               }},
-      std::move(input));
+    language::ValueOrError<gc::Root<Expression>> input) {
+  if (IsError(input)) return nullptr;
+  return NewDelegatingExpression(language::ValueOrDie(std::move(input)))
+      .get_unique();
 }
 
 NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
     gc::Root<Expression> delegate) {
   return MakeNonNullUnique<DelegatingExpression>(std::move(delegate));
+}
+
+std::unique_ptr<Expression> NewDelegatingExpression(
+    language::ValueOrError<language::gc::Root<Expression>> delegate) {
+  return std::visit(
+      overload{[](gc::Root<Expression> expr) {
+                 return NewDelegatingExpression(std::move(expr)).get_unique();
+               },
+               [](Error) -> std::unique_ptr<Expression> { return nullptr; }},
+      delegate);
 }
 
 }  // namespace afc::vm

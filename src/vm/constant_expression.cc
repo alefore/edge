@@ -2,17 +2,16 @@
 
 #include <glog/logging.h>
 
+#include "src/language/gc.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
-namespace afc::language::gc {
-class Pool;
-}
+namespace gc = afc::language::gc;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
 namespace afc::vm {
 namespace {
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
 
 namespace gc = language::gc;
 
@@ -51,12 +50,13 @@ class ConstantExpression : public Expression {
 
 }  // namespace
 
-NonNull<std::unique_ptr<Expression>> NewVoidExpression(gc::Pool& pool) {
+gc::Root<Expression> NewVoidExpression(gc::Pool& pool) {
   return NewConstantExpression(Value::NewVoid(pool));
 }
 
-NonNull<std::unique_ptr<Expression>> NewConstantExpression(
-    gc::Root<Value> value) {
-  return MakeNonNullUnique<ConstantExpression>(std::move(value));
+// TODO(2025-08-01, trivial): Receive a gc::Ptr, not gc::Root.
+gc::Root<Expression> NewConstantExpression(gc::Root<Value> value) {
+  gc::Pool& pool = value.pool();
+  return pool.NewRoot(MakeNonNullUnique<ConstantExpression>(std::move(value)));
 }
 }  // namespace afc::vm

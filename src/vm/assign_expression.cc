@@ -6,6 +6,7 @@
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/vm/compilation.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
@@ -22,9 +23,10 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
+using afc::language::lazy_string::ToSingleLine;
 
 namespace afc::vm {
-using afc::language::lazy_string::ToLazyString;
 namespace {
 
 using ::operator<<;
@@ -42,10 +44,9 @@ class AssignExpression : public Expression {
   const NonNull<std::shared_ptr<Expression>> value_;
 
  public:
-  static language::gc::Root<AssignExpression> New(
-      language::gc::Pool& pool, AssignmentType assignment_type,
-      Identifier symbol, PurityType purity,
-      NonNull<std::shared_ptr<Expression>> value) {
+  static gc::Root<AssignExpression> New(
+      gc::Pool& pool, AssignmentType assignment_type, Identifier symbol,
+      PurityType purity, NonNull<std::shared_ptr<Expression>> value) {
     return pool.NewRoot(language::MakeNonNullUnique<AssignExpression>(
         assignment_type, std::move(symbol), std::move(purity),
         std::move(value)));
@@ -108,8 +109,8 @@ class StackFrameAssign : public Expression {
   NonNull<std::shared_ptr<Expression>> value_expression_;
 
  public:
-  static language::gc::Root<StackFrameAssign> New(
-      language::gc::Pool& pool, size_t index,
+  static gc::Root<StackFrameAssign> New(
+      gc::Pool& pool, size_t index,
       NonNull<std::unique_ptr<Expression>> value_expression) {
     return pool.NewRoot(language::MakeNonNullUnique<StackFrameAssign>(
         index, std::move(value_expression)));
@@ -176,67 +177,68 @@ ValueOrError<Type> DefineUninitializedVariable(
   return type_def;
 }
 
-std::unique_ptr<Expression> NewDefineExpression(
+std::optional<gc::Root<Expression>> NewDefineExpression(
     Compilation& compilation, Identifier type, Identifier symbol,
-    std::unique_ptr<Expression> value) {
-  if (value == nullptr) return nullptr;
+    std::optional<gc::Root<Expression>> value) {
+  if (value == std::nullopt) return std::nullopt;
   std::optional<Type> default_type;
   if (type == IdentifierAuto()) {
-    if (auto types = value->Types(); types.size() == 1)
+    if (auto types = value.value()->Types(); types.size() == 1)
       default_type = *types.cbegin();
     else {
       compilation.AddError(
           Error{LazyString{L"Unable to deduce type for symbol: `"} +
                 ToLazyString(symbol) + LazyString{L"`."}});
-      return nullptr;
+      return std::nullopt;
     }
   }
   return std::visit(
       overload{
-          [&](Type final_type) -> std::unique_ptr<Expression> {
-            if (!value->SupportsType(final_type)) {
+          [&](Type final_type) -> std::optional<gc::Root<Expression>> {
+            if (!value.value()->SupportsType(final_type)) {
               compilation.AddError(Error{
                   LazyString{
                       L"Unable to assign a value to a variable of type "} +
                   ToQuotedSingleLine(final_type) +
                   LazyString{L". Value types: "} +
-                  TypesToString(value->Types()) + LazyString{L"."}});
-              return nullptr;
+                  TypesToString(value.value()->Types()) + LazyString{L"."}});
+              return std::nullopt;
             }
-            return std::make_unique<AssignExpression>(
+            return compilation.pool.NewRoot(MakeNonNullUnique<AssignExpression>(
                 AssignExpression::AssignmentType::kDefine, std::move(symbol),
                 PurityType{.writes_local_variables = true},
-                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+                NewDelegatingExpression(std::move(value.value()))));
           },
-          [&](Error error) -> std::unique_ptr<Expression> {
+          [&](Error error) -> std::optional<gc::Root<Expression>> {
             compilation.AddError(error);
-            return nullptr;
+            return std::nullopt;
           }},
       DefineUninitializedVariable(compilation.environment.value(), type, symbol,
                                   default_type));
 }
 
-std::unique_ptr<Expression> NewAssignExpression(
+std::optional<gc::Root<Expression>> NewAssignExpression(
     Compilation& compilation, Identifier symbol,
-    std::unique_ptr<Expression> value) {
-  if (value == nullptr) return nullptr;
-
+    std::optional<gc::Root<Expression>> value) {
+  if (value == std::nullopt) return std::nullopt;
+  gc::Pool& pool = value->pool();
   if (std::optional<std::reference_wrapper<StackFrameHeader>> header =
           compilation.CurrentStackFrameHeader();
       header.has_value())
     if (std::optional<std::pair<size_t, Type>> argument_data =
             header->get().Find(symbol);
         argument_data.has_value()) {
-      if (value->SupportsType(argument_data->second)) {
-        return std::make_unique<StackFrameAssign>(
+      if (value.value()->SupportsType(argument_data->second)) {
+        return pool.NewRoot(MakeNonNullUnique<StackFrameAssign>(
             argument_data->first,
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+            NewDelegatingExpression(std::move(value).value())));
       } else {
         compilation.AddError(Error{
             LazyString{L"Unable to assign a value to an argument of type "} +
             ToQuotedSingleLine(argument_data->second) +
-            LazyString{L". Type found: "} + TypesToString(value->Types())});
-        return nullptr;
+            LazyString{L". Type found: "} +
+            TypesToString(value.value()->Types())});
+        return std::nullopt;
       }
     }
 
@@ -246,12 +248,13 @@ std::unique_ptr<Expression> NewAssignExpression(
   if (variables.empty()) {
     compilation.AddError(Error{LazyString{L"Variable not found: \""} +
                                ToLazyString(symbol) + LazyString{L"\""}});
-    return nullptr;
+    return std::nullopt;
   }
 
   return VisitOptional(
-      [&value, &symbol](const Environment::LookupResult& lookup_result) {
-        return std::make_unique<AssignExpression>(
+      [&pool, &value, &symbol](const Environment::LookupResult& lookup_result)
+          -> std::optional<gc::Root<Expression>> {
+        return pool.NewRoot(MakeNonNullUnique<AssignExpression>(
             AssignExpression::AssignmentType::kAssign, symbol,
             std::invoke([&lookup_result] {
               switch (lookup_result.scope) {
@@ -263,22 +266,22 @@ std::unique_ptr<Expression> NewAssignExpression(
               LOG(FATAL) << "Invalid scope.";
               return kPurityTypeUnknown;
             }),
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+            NewDelegatingExpression(std::move(value).value())));
       },
-      [&] {
+      [&] -> std::optional<gc::Root<Expression>> {
         compilation.AddError(Error{
             LazyString{L"Unable to assign a value to a variable supporting "
                        L"types: \""} +
-            TypesToString(value->Types()) + LazyString{L"\". Value types: "} +
+            TypesToString(value.value()->Types()) +
+            LazyString{L"\". Value types: "} +
             TypesToString(container::MaterializeVector(
                 std::move(variables) |
                 std::views::transform(&Environment::LookupResult::type)))});
-
-        return nullptr;
+        return std::nullopt;
       },
       container::FindFirstIf(
           variables, [&value](const Environment::LookupResult& lookup_result) {
-            return value->SupportsType(lookup_result.type);
+            return value.value()->SupportsType(lookup_result.type);
           }));
 }
 }  // namespace afc::vm

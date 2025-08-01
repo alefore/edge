@@ -50,6 +50,7 @@ extern "C" {
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/vm/constant_expression.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
@@ -94,6 +95,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
+using afc::vm::NewDelegatingExpression;
 using afc::vm::Type;
 using afc::vm::VMTypeMapper;
 
@@ -532,11 +534,11 @@ class InsertMode : public InputReceiver {
             buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
               NonNull<std::unique_ptr<vm::Expression>> expression =
                   vm::NewFunctionCall(
-                      vm::NewConstantExpression(
-                          std::get<gc::Root<vm::Value>>(callback->value)),
-                      {vm::NewConstantExpression(
+                      vm::NewDelegatingExpression(vm::NewConstantExpression(
+                          std::get<gc::Root<vm::Value>>(callback->value))),
+                      {vm::NewDelegatingExpression(vm::NewConstantExpression(
                           {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
-                              buffer.editor().gc_pool(), buffer.NewRoot())})});
+                              buffer.editor().gc_pool(), buffer.NewRoot())}))});
               if (expression->Types().empty()) {
                 buffer.status().InsertError(
                     Error{LazyString{L"Unable to compile (type mismatch)."}});

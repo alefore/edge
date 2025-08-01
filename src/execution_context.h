@@ -31,24 +31,22 @@ class ExecutionContext {
   class CompilationResult {
     struct ConstructorAccessTag {};
 
-    language::NonNull<std::shared_ptr<vm::Expression>> expression_;
+    language::gc::Ptr<vm::Expression> expression_;
     language::gc::Ptr<vm::Environment> environment_;
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
    public:
     CompilationResult(
-        ConstructorAccessTag,
-        language::NonNull<std::shared_ptr<vm::Expression>> expression,
+        ConstructorAccessTag, language::gc::Ptr<vm::Expression> expression,
         language::gc::Ptr<vm::Environment> environment,
         language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue);
 
     static language::gc::Root<CompilationResult> New(
-        language::NonNull<std::shared_ptr<vm::Expression>> expression,
+        language::gc::Ptr<vm::Expression> expression,
         language::gc::Ptr<vm::Environment> environment,
         language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue);
 
-    const language::NonNull<std::shared_ptr<vm::Expression>>& expression()
-        const;
+    language::NonNull<std::shared_ptr<vm::Expression>> expression() const;
 
     futures::ValueOrError<language::gc::Root<vm::Value>> evaluate() const;
 

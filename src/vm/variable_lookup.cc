@@ -19,6 +19,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
+using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 
@@ -34,15 +35,16 @@ class VariableLookup : public Expression {
   const std::vector<Type> types_;
 
  public:
-  static language::gc::Root<VariableLookup> New(
-      language::gc::Pool& pool,
-      Namespace symbol_namespace, Identifier symbol,
-      std::vector<Type> types) {
-    return pool.NewRoot(language::MakeNonNullUnique<VariableLookup>(symbol_namespace, symbol, types));
+  static language::gc::Root<VariableLookup> New(language::gc::Pool& pool,
+                                                Namespace symbol_namespace,
+                                                Identifier symbol,
+                                                std::vector<Type> types) {
+    return pool.NewRoot(language::MakeNonNullUnique<VariableLookup>(
+        ConstructorAccessTag{}, symbol_namespace, symbol, types));
   }
 
-  VariableLookup(Namespace symbol_namespace, Identifier symbol,
-                 std::vector<Type> types)
+  VariableLookup(ConstructorAccessTag, Namespace symbol_namespace,
+                 Identifier symbol, std::vector<Type> types)
       : symbol_namespace_(std::move(symbol_namespace)),
         symbol_(std::move(symbol)),
         types_(types) {}
@@ -72,7 +74,8 @@ class VariableLookup : public Expression {
                                                type)));
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 };
@@ -85,13 +88,15 @@ class StackFrameLookup : public Expression {
   const Identifier identifier_;
 
  public:
-  static language::gc::Root<StackFrameLookup> New(
-      language::gc::Pool& pool,
-      size_t index, Type type, Identifier identifier) {
-    return pool.NewRoot(language::MakeNonNullUnique<StackFrameLookup>(index, type, identifier));
+  static language::gc::Root<StackFrameLookup> New(language::gc::Pool& pool,
+                                                  size_t index, Type type,
+                                                  Identifier identifier) {
+    return pool.NewRoot(language::MakeNonNullUnique<StackFrameLookup>(
+        ConstructorAccessTag{}, index, type, identifier));
   }
 
-  StackFrameLookup(size_t index, Type type, Identifier identifier)
+  StackFrameLookup(ConstructorAccessTag, size_t index, Type type,
+                   Identifier identifier)
       : index_(index), type_(type), identifier_(identifier) {}
   std::vector<Type> Types() override { return {type_}; }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
@@ -106,15 +111,16 @@ class StackFrameLookup : public Expression {
         trampoline.stack().current_frame().get(index_).ToRoot())));
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
+      const override {
     return {};
   }
 };
 
 }  // namespace
 
-std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
-                                              std::list<Identifier> symbols) {
+ValueOrError<gc::Root<Expression>> NewVariableLookup(
+    Compilation& compilation, std::list<Identifier> symbols) {
   CHECK(!symbols.empty());
 
   auto symbol = std::move(symbols.back());
@@ -128,8 +134,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
     if (std::optional<std::pair<size_t, Type>> argument_data =
             header->get().Find(symbol);
         argument_data.has_value())
-      return std::make_unique<StackFrameLookup>(argument_data->first,
-                                                argument_data->second, symbol);
+      return StackFrameLookup::New(compilation.pool, argument_data->first,
+                                   argument_data->second, symbol);
 
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
@@ -137,9 +143,9 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
   std::vector<Environment::LookupResult> result =
       compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol);
   if (result.empty()) {
-    compilation.AddError(
-        Error{LazyString{L"Unknown variable: `" + to_wstring(symbol) + L"`"}});
-    return nullptr;
+    Error error{LazyString{L"Unknown variable: `" + to_wstring(symbol) + L"`"}};
+    compilation.AddError(error);
+    return error;
   }
 
   std::unordered_set<Type> already_seen;
@@ -150,8 +156,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
        std::move(result) |
            std::views::transform(&Environment::LookupResult::type))
     if (already_seen.insert(type).second) types.push_back(type);
-  return std::make_unique<VariableLookup>(std::move(symbol_namespace),
-                                          std::move(symbol), types);
+  return VariableLookup::New(compilation.pool, std::move(symbol_namespace),
+                             std::move(symbol), types);
 }
 
 }  // namespace afc::vm
