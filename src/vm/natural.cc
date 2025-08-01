@@ -5,6 +5,7 @@
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/once_only_function.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/math/numbers.h"
@@ -23,6 +24,8 @@ using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
@@ -38,7 +41,7 @@ using vm::operator<<;
 
 struct Tree {
   vm::Type type;
-  NonNull<std::shared_ptr<Expression>> value;
+  gc::Root<Expression> value;
   std::vector<Tree> children = {};
 
   // How many times can we descend down the right-most child?
@@ -97,7 +100,7 @@ class ParseState {
         environment_(environment),
         search_namespaces_(search_namespaces) {}
 
-  ValueOrError<NonNull<std::shared_ptr<Expression>>> Evaluate() {
+  ValueOrError<gc::Root<Expression>> Evaluate() {
     bool first_token = true;
     for (auto& token : tokens_) {
       VLOG(5) << "Consume token: " << token.value
@@ -125,65 +128,62 @@ class ParseState {
       for (auto& c : candidates_) VLOG(6) << "Extended Candidate: " << c;
     }
 
-    std::vector<std::shared_ptr<Expression>> valid_outputs =
+    std::vector<std::optional<gc::Root<Expression>>> valid_outputs =
         container::MaterializeVector(
             candidates_ |
             std::views::transform(
-                [this](Tree& tree) -> std::shared_ptr<Expression> {
+                [this](Tree& tree) -> std::optional<gc::Root<Expression>> {
                   return CompileTree(tree);
                 }) |
-            std::views::filter([](const std::shared_ptr<Expression>& value) {
-              return value != nullptr;
-            }));
+            std::views::filter(
+                [](const std::optional<gc::Root<Expression>>& candidate) {
+                  return candidate.has_value();
+                }));
     LOG(INFO) << "Natural results: " << valid_outputs.size();
     if (valid_outputs.empty())
       return Error{LazyString{L"No valid parses found (post compilation)."}};
 
     // Safe because we've dropped null values above.
-    return NonNull<std::shared_ptr<Expression>>::Unsafe(valid_outputs.front());
+    return valid_outputs.front().value();
   }
 
  private:
-  std::shared_ptr<Expression> CompileTree(const Tree& tree) {
+  std::optional<gc::Root<Expression>> CompileTree(const Tree& tree) {
     const types::Function* function_type =
         std::get_if<types::Function>(&tree.type);
-    if (function_type == nullptr) return tree.value.get_shared();
-    std::vector<std::shared_ptr<Expression>> children_arguments =
+    if (function_type == nullptr) return tree.value;
+    std::vector<std::optional<gc::Root<Expression>>> children_arguments =
         container::MaterializeVector(
             tree.children | std::views::transform([this](const Tree& argument) {
               return CompileTree(argument);
             }));
 
     if (std::ranges::any_of(children_arguments,
-                            [](auto& value) { return value == nullptr; }))
-      return nullptr;
+                            [](auto& value) { return value == std::nullopt; }))
+      return std::nullopt;
 
     while (children_arguments.size() < function_type->inputs.size()) {
       if (std::holds_alternative<types::String>(
               function_type->inputs[children_arguments.size()]))
         children_arguments.push_back(
-            NewDelegatingExpression(
-                NewConstantExpression(Value::NewString(pool_, LazyString{})))
-                .get_unique());
+            NewConstantExpression(Value::NewString(pool_, LazyString{})));
       else
-        return nullptr;
+        return std::nullopt;
     }
     return NewFunctionCall(
-               tree.value,
-               container::MaterializeVector(
-                   std::move(children_arguments) |
-                   std::views::transform([](std::shared_ptr<Expression> value) {
-                     return NonNull<std::shared_ptr<Expression>>::Unsafe(
-                         std::move(value));
-                   })))
-        .get_unique();
+        tree.value.ptr(),
+        container::MaterializeVector(
+            children_arguments |
+            std::views::transform(
+                [](std::optional<gc::Root<Expression>>& expr) {
+                  return expr->ptr();
+                })));
   }
 
   void PushValue(gc::Root<Value> value_root, std::vector<Tree>& output) const {
     vm::Type type = value_root.ptr()->type();
     VLOG(8) << "Receive value type: " << type;
-    NonNull<std::shared_ptr<Expression>> value =
-        NewDelegatingExpression(NewConstantExpression(std::move(value_root)));
+    gc::Root<Expression> value = NewConstantExpression(std::move(value_root));
     CHECK(!value->Types().empty());
     if (candidates_.empty())
       output.push_back(Tree{.type = value->Types().front(), .value = value});
@@ -193,8 +193,8 @@ class ParseState {
   }
 
   static void ExtendTree(const vm::Type& type,
-                         const NonNull<std::shared_ptr<Expression>>& value,
-                         Tree tree, std::vector<Tree>& output) {
+                         const gc::Root<Expression>& value, Tree tree,
+                         std::vector<Tree>& output) {
     for (size_t child_insertion_depth = tree.DepthRightBranch() + 1;
          child_insertion_depth > 0; --child_insertion_depth)
       if (std::optional<Tree> new_tree =
@@ -205,9 +205,9 @@ class ParseState {
 
   // insertion_depth is the depth of the parent to which we'll add `value` as a
   // child.
-  static std::optional<Tree> Insert(
-      const vm::Type& type, const NonNull<std::shared_ptr<Expression>>& value,
-      Tree tree, size_t insertion_depth) {
+  static std::optional<Tree> Insert(const vm::Type& type,
+                                    const gc::Root<Expression>& value,
+                                    Tree tree, size_t insertion_depth) {
     Tree& parent_tree = tree.RightBranchTreeAtDepth(insertion_depth);
     const types::Function* parent_function_type =
         std::get_if<types::Function>(&parent_tree.type);
@@ -248,7 +248,7 @@ class ParseState {
   }
 };
 
-ValueOrError<NonNull<std::shared_ptr<Expression>>> CompileTokens(
+ValueOrError<gc::Root<Expression>> CompileTokens(
     const std::vector<Token>& tokens, const SingleLine& function_name_prefix,
     const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
@@ -258,7 +258,7 @@ ValueOrError<NonNull<std::shared_ptr<Expression>>> CompileTokens(
 }
 }  // namespace
 
-language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
+language::ValueOrError<gc::Root<Expression>> Compile(
     const SingleLine& input, const SingleLine& function_name_prefix,
     const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
@@ -267,6 +267,16 @@ language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
 }
 
 namespace {
+// TODO(2025-08-01, trivial): Get rid of this once the real `Evaluate` function
+// accepts a gc::Root expression.
+futures::ValueOrError<gc::Root<Value>> Evaluate(
+    const gc::Ptr<Expression>& expr, gc::Pool& pool,
+    gc::Root<Environment> environment,
+    std::function<void(language::OnceOnlyFunction<void()>)> yield_callback) {
+  return Evaluate(NewDelegatingExpression(expr.ToRoot()), pool,
+                  std::move(environment), std::move(yield_callback));
+}
+
 using ::operator<<;
 using afc::language::operator<<;
 static const vm::Namespace kEmptyNamespace;
@@ -279,16 +289,16 @@ bool tests_registration = tests::Register(
                gc::Pool pool({});
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
-               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
+               gc::Root<Expression> expression = ValueOrDie(
                    Compile(SingleLine{LazyString{L"\"foo\""}}, SingleLine{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK_EQ(
-                   ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                  .Get()
-                                  .value())
-                       .ptr()
-                       ->get_string(),
-                   LazyString{L"foo"});
+               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), pool, environment,
+                                            nullptr)
+                                       .Get()
+                                       .value())
+                            .ptr()
+                            ->get_string(),
+                        LazyString{L"foo"});
              }},
         {.name = L"FunctionNoArguments",
          .callback =
@@ -301,17 +311,16 @@ bool tests_registration = tests::Register(
                        SingleLine{LazyString{L"SomeFunction"}}}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    []() -> std::wstring { return L"quux"; }));
-               NonNull<std::shared_ptr<Expression>> expression =
-                   ValueOrDie(Compile(SingleLine{LazyString{L"SomeFunction"}},
-                                      SingleLine{}, environment.ptr().value(),
-                                      {kEmptyNamespace}, pool));
-               CHECK_EQ(
-                   ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                  .Get()
-                                  .value())
-                       .ptr()
-                       ->get_string(),
-                   LazyString{L"quux"});
+               gc::Root<Expression> expression = ValueOrDie(Compile(
+                   SingleLine{LazyString{L"SomeFunction"}}, SingleLine{},
+                   environment.ptr().value(), {kEmptyNamespace}, pool));
+               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), pool, environment,
+                                            nullptr)
+                                       .Get()
+                                       .value())
+                            .ptr()
+                            ->get_string(),
+                        LazyString{L"quux"});
              }},
         {.name = L"MissingArguments",
          .callback =
@@ -328,17 +337,17 @@ bool tests_registration = tests::Register(
                                      return L"{" + a + L"," + b + L"," + c +
                                             L"}";
                                    }));
-               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
+               gc::Root<Expression> expression = ValueOrDie(
                    Compile(SingleLine{LazyString{L"Moo Moo"}}, SingleLine{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
-               CHECK_EQ(
-                   ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                  .Get()
-                                  .value())
-                       .ptr()
-                       ->get_string(),
-                   LazyString{L"{{,,},,}"});
+               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), pool, environment,
+                                            nullptr)
+                                       .Get()
+                                       .value())
+                            .ptr()
+                            ->get_string(),
+                        LazyString{L"{{,,},,}"});
              }},
         {.name = L"UnaryFunctionUnquotedArgument",
          .callback =
@@ -354,13 +363,13 @@ bool tests_registration = tests::Register(
                                      CHECK(a == L"bar");
                                      return L"quux";
                                    }));
-               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(SingleLine{LazyString{L"UnaryFunction bar"}},
-                           SingleLine{}, environment.ptr().value(),
-                           {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                    .Get()
-                                    .value())
+               gc::Root<Expression> expression = ValueOrDie(Compile(
+                   SingleLine{LazyString{L"UnaryFunction bar"}}, SingleLine{},
+                   environment.ptr().value(), {kEmptyNamespace}, pool));
+               CHECK(ValueOrDie(
+                         Evaluate(expression.ptr(), pool, environment, nullptr)
+                             .Get()
+                             .value())
                          .ptr()
                          ->get_string() == LazyString{L"quux"});
              }},
@@ -378,13 +387,13 @@ bool tests_registration = tests::Register(
                                      CHECK(a == L"ba.r");
                                      return L"quux";
                                    }));
-               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(SingleLine{LazyString{L"UnaryFunction ba.r"}},
-                           SingleLine{}, environment.ptr().value(),
-                           {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                    .Get()
-                                    .value())
+               gc::Root<Expression> expression = ValueOrDie(Compile(
+                   SingleLine{LazyString{L"UnaryFunction ba.r"}}, SingleLine{},
+                   environment.ptr().value(), {kEmptyNamespace}, pool));
+               CHECK(ValueOrDie(
+                         Evaluate(expression.ptr(), pool, environment, nullptr)
+                             .Get()
+                             .value())
                          .ptr()
                          ->get_string() == LazyString{L"quux"});
              }},
@@ -404,14 +413,14 @@ bool tests_registration = tests::Register(
                          CHECK(b == L"foo");
                          return L"quux";
                        }));
-               NonNull<std::shared_ptr<Expression>> expression =
-                   ValueOrDie(Compile(
-                       SingleLine{LazyString{L"SomeFunction \"bar\" \"foo\""}},
-                       SingleLine{}, environment.ptr().value(),
-                       {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                    .Get()
-                                    .value())
+               gc::Root<Expression> expression = ValueOrDie(Compile(
+                   SingleLine{LazyString{L"SomeFunction \"bar\" \"foo\""}},
+                   SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
+                   pool));
+               CHECK(ValueOrDie(
+                         Evaluate(expression.ptr(), pool, environment, nullptr)
+                             .Get()
+                             .value())
                          .ptr()
                          ->get_string() == LazyString{L"quux"});
              }},
@@ -427,15 +436,16 @@ bool tests_registration = tests::Register(
                                  calls++;
                                  return L"[" + a + L"]";
                                }));
-           NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(Compile(
+           gc::Root<Expression> expression = ValueOrDie(Compile(
                SingleLine{LazyString{L"foo foo foo \"bar\" "}}, SingleLine{},
                environment.ptr().value(), {kEmptyNamespace}, pool));
-           CHECK_EQ(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
-                                   .Get()
-                                   .value())
-                        .ptr()
-                        ->get_string(),
-                    LazyString{L"[[[bar]]]"});
+           CHECK_EQ(
+               ValueOrDie(Evaluate(expression.ptr(), pool, environment, nullptr)
+                              .Get()
+                              .value())
+                   .ptr()
+                   ->get_string(),
+               LazyString{L"[[[bar]]]"});
            CHECK_EQ(calls, 3ul);
          }}});
 }  // namespace

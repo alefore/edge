@@ -12,7 +12,9 @@
 #include <utility>
 
 #include "src/infrastructure/dirname.h"
+#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
@@ -42,6 +44,7 @@
 #include "src/vm/variable_lookup.h"
 #include "src/vm/while_expression.h"
 
+namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 namespace numbers = afc::math::numbers;
 

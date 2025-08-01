@@ -120,13 +120,14 @@ ValueOrError<ParsedCommand> Parse(
     std::unordered_set<vm::Type> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
   std::vector<Token> output_tokens = TokenizeBySpaces(command);
-  if (ValueOrError<NonNull<std::shared_ptr<vm::Expression>>> parse =
+  if (ValueOrError<gc::Root<vm::Expression>> parse =
           vm::natural::Compile(command, function_name_prefix, environment,
                                search_namespaces.namespaces, pool);
       !IsError(parse)) {
     LOG(INFO) << "Parse natural command: " << command;
-    return ParsedCommand{.tokens = std::move(output_tokens),
-                         .expression = ValueOrDie(std::move(parse))};
+    return ParsedCommand{
+        .tokens = std::move(output_tokens),
+        .expression = NewDelegatingExpression(ValueOrDie(std::move(parse)))};
   }
 
   if (output_tokens.empty()) {
@@ -181,7 +182,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   std::optional<gc::Root<vm::Value>> output_function;
-  std::vector<NonNull<std::shared_ptr<vm::Expression>>> output_function_inputs;
+  std::vector<gc::Root<vm::Expression>> output_function_inputs;
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
@@ -192,9 +193,9 @@ ValueOrError<ParsedCommand> Parse(
                 std::views::transform(
                     [](const Token& v) { return ToLazyString(v.value); })));
 
-    output_function_inputs.push_back(vm::NewDelegatingExpression(
+    output_function_inputs.push_back(
         vm::NewConstantExpression(VMTypeMapper<decltype(argument_values)>::New(
-            pool, std::move(argument_values)))));
+            pool, std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output_function = type_match_functions[0];
@@ -209,13 +210,12 @@ ValueOrError<ParsedCommand> Parse(
     }
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it)
-      output_function_inputs.push_back(
-          NewDelegatingExpression(NewConstantExpression(
-              vm::Value::NewString(pool, ToLazyString(it->value)))));
+      output_function_inputs.push_back(NewConstantExpression(
+          vm::Value::NewString(pool, ToLazyString(it->value))));
 
     while (output_function_inputs.size() < expected_arguments)
-      output_function_inputs.push_back(NewDelegatingExpression(
-          NewConstantExpression(vm::Value::NewString(pool, LazyString{}))));
+      output_function_inputs.push_back(
+          NewConstantExpression(vm::Value::NewString(pool, LazyString{})));
   } else if (!all_types_found.empty()) {
     return Error{LazyString{L"Incompatible type found: "} +
                  ToLazyString(output_tokens[0].value) + LazyString{L": "} +
@@ -224,11 +224,12 @@ ValueOrError<ParsedCommand> Parse(
     return Error{LazyString{L"No definition found: "} +
                  ToLazyString(output_tokens[0].value)};
   }
-  return ParsedCommand{.tokens = std::move(output_tokens),
-                       .expression = NewFunctionCall(
-                           NewDelegatingExpression(NewConstantExpression(
-                               std::move(output_function.value()))),
-                           std::move(output_function_inputs))};
+  return ParsedCommand{
+      .tokens = std::move(output_tokens),
+      .expression = NewDelegatingExpression(NewFunctionCall(
+          NewConstantExpression(std::move(output_function.value())).ptr(),
+          container::MaterializeVector(output_function_inputs |
+                                       gc::view::Ptr)))};
 }
 
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool, SingleLine command,

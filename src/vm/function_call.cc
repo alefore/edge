@@ -43,8 +43,7 @@ namespace {
 using ::operator<<;
 
 PossibleError CheckFunctionArguments(
-    const Type& type,
-    const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
+    const Type& type, const std::vector<gc::Ptr<Expression>>& args) {
   const types::Function* function_type = std::get_if<types::Function>(&type);
   if (function_type == nullptr) {
     return Error{LazyString{L"Expected function but found: "} +
@@ -71,9 +70,8 @@ PossibleError CheckFunctionArguments(
   return Success();
 }
 
-std::vector<Type> DeduceTypes(
-    Expression& func,
-    const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
+std::vector<Type> DeduceTypes(Expression& func,
+                              const std::vector<gc::Ptr<Expression>>& args) {
   return container::MaterializeVector(container::MaterializeUnorderedSet(
       func.Types() |
       std::views::transform([&args](const Type& type) -> ValueOrError<Type> {
@@ -86,20 +84,26 @@ std::vector<Type> DeduceTypes(
 class FunctionCall : public Expression {
   struct ConstructorAccessTag {};
 
+  // Expression that evaluates to get the function to call.
+  const gc::Ptr<Expression> func_;
+  // TODO(2025-08-02, trivial): I think this should probably be: const
+  // gc::Ptr<std::vector<gc::Ptr<Expression>>>. I think
+  // src/language/gc_container.h would help. During an evaluation, we just get a
+  // root to the value.
+  const NonNull<std::shared_ptr<std::vector<gc::Ptr<Expression>>>> args_;
+  const std::vector<Type> types_;
+
  public:
   static language::gc::Root<FunctionCall> New(
-      language::gc::Pool& pool, NonNull<std::shared_ptr<Expression>> func,
-      NonNull<
-          std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
-          args) {
-    return pool.NewRoot(language::MakeNonNullUnique<FunctionCall>(func, args));
+      gc::Ptr<Expression> func,
+      NonNull<std::shared_ptr<std::vector<gc::Ptr<Expression>>>> args) {
+    gc::Pool& pool = func.pool();
+    return pool.NewRoot(language::MakeNonNullUnique<FunctionCall>(
+        ConstructorAccessTag{}, func, args));
   }
 
-  FunctionCall(
-      NonNull<std::shared_ptr<Expression>> func,
-      NonNull<
-          std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
-          args)
+  FunctionCall(ConstructorAccessTag, gc::Ptr<Expression> func,
+               NonNull<std::shared_ptr<std::vector<gc::Ptr<Expression>>>> args)
       : func_(std::move(func)),
         args_(std::move(args)),
         types_(DeduceTypes(func_.value(), args_.value())) {}
@@ -115,9 +119,7 @@ class FunctionCall : public Expression {
             container::MaterializeVector(
                 args_.value() |
                 std::views::transform(
-                    [](const NonNull<std::shared_ptr<Expression>>& a) {
-                      return a->purity();
-                    })),
+                    [](const gc::Ptr<Expression>& a) { return a->purity(); })),
             container::MaterializeVector(
                 func_->Types() |
                 std::views::transform([](const auto& callback_type) {
@@ -130,21 +132,26 @@ class FunctionCall : public Expression {
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
       Trampoline& trampoline, const Type& type) override {
     DVLOG(3) << "Function call evaluation starts.";
+    NonNull<std::shared_ptr<std::vector<gc::Root<Expression>>>> args_roots =
+        MakeNonNullShared<std::vector<gc::Root<Expression>>>(
+            container::MaterializeVector(args_.value() | gc::view::Root));
     return trampoline
-        .Bounce(func_, types::Function{.output = type,
-                                       .inputs = container::MaterializeVector(
-                                           args_.value() |
-                                           std::views::transform([](auto& arg) {
-                                             return arg->Types()[0];
-                                           })),
-                                       .function_purity = purity()})
-        .Transform([&trampoline, args = args_](EvaluationOutput callback) {
+        .Bounce(NewDelegatingExpression(func_.ToRoot()),
+                types::Function{
+                    .output = type,
+                    .inputs = container::MaterializeVector(
+                        args_.value() | std::views::transform([](auto& arg) {
+                          return arg->Types()[0];
+                        })),
+                    .function_purity = purity()})
+        .Transform([&trampoline, args_roots](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
           DVLOG(6) << "Is function: " << callback.value->IsFunction();
           CHECK(callback.value.ptr()->IsFunction());
-          return CaptureArgs(trampoline, args,
+
+          return CaptureArgs(trampoline, args_roots,
                              MakeNonNullShared<std::vector<gc::Root<Value>>>(),
                              callback.value);
         });
@@ -152,15 +159,16 @@ class FunctionCall : public Expression {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
+        container::MaterializeVector(args_.value() | gc::view::ObjectMetadata);
+    output.push_back(func_.object_metadata());
+    return output;
   }
 
  private:
   static futures::ValueOrError<EvaluationOutput> CaptureArgs(
       Trampoline& trampoline,
-      NonNull<
-          std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
-          args,
+      NonNull<std::shared_ptr<std::vector<gc::Root<Expression>>>> args,
       NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
       gc::Root<vm::Value> callback) {
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
@@ -182,9 +190,9 @@ class FunctionCall : public Expression {
                 Success(EvaluationOutput::New(std::move(return_value))));
           });
     }
-    NonNull<std::shared_ptr<Expression>>& arg = args->at(values->size());
+    gc::Root<Expression>& arg = args->at(values->size());
     DVLOG(6) << "Bounce with types: " << TypesToString(arg->Types());
-    return trampoline.Bounce(arg, arg->Types()[0])
+    return trampoline.Bounce(NewDelegatingExpression(arg), arg->Types()[0])
         .Transform(
             [&trampoline, args, values, callback](EvaluationOutput value) {
               DVLOG(7) << "Got evaluation output.";
@@ -205,41 +213,33 @@ class FunctionCall : public Expression {
               return futures::Past(ValueOrError<EvaluationOutput>(error));
             });
   }
-
-  // Expression that evaluates to get the function to call.
-  const NonNull<std::shared_ptr<Expression>> func_;
-  const NonNull<
-      std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
-      args_;
-  const std::vector<Type> types_;
 };
 
 }  // namespace
 
-NonNull<std::unique_ptr<Expression>> NewFunctionCall(
-    NonNull<std::shared_ptr<Expression>> func,
-    std::vector<NonNull<std::shared_ptr<Expression>>> args) {
-  return MakeNonNullUnique<FunctionCall>(
+gc::Root<Expression> NewFunctionCall(gc::Ptr<Expression> func,
+                                     std::vector<gc::Ptr<Expression>> args) {
+  return FunctionCall::New(
       std::move(func),
-      MakeNonNullShared<std::vector<NonNull<std::shared_ptr<Expression>>>>(
-          std::move(args)));
+      MakeNonNullShared<std::vector<gc::Ptr<Expression>>>(std::move(args)));
 }
 
-std::unique_ptr<Expression> NewFunctionCall(
-    Compilation& compilation, NonNull<std::unique_ptr<Expression>> func,
-    std::vector<NonNull<std::shared_ptr<Expression>>> args) {
+// TODO(trivial, 2025-08-01): Change to return ValueOrError?
+std::optional<language::gc::Root<Expression>> NewFunctionCall(
+    Compilation& compilation, gc::Ptr<Expression> func,
+    std::vector<gc::Ptr<Expression>> args) {
   std::vector<Error> errors;
   for (auto& type : func->Types()) {
     PossibleError check_results = CheckFunctionArguments(type, args);
     if (Error* error = std::get_if<Error>(&check_results); error != nullptr)
       errors.push_back(*error);
     else
-      return NewFunctionCall(std::move(func), std::move(args)).get_unique();
+      return NewFunctionCall(std::move(func), std::move(args));
   }
 
   CHECK(!errors.empty());
   compilation.AddError(MergeErrors(errors, L", "));
-  return nullptr;
+  return std::nullopt;
 }
 
 std::unique_ptr<Expression> NewMethodLookup(
@@ -426,17 +426,17 @@ futures::ValueOrError<gc::Root<Value>> Call(
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
   CHECK(std::holds_alternative<types::Function>(func.type()));
   CHECK_EQ(std::get<types::Function>(func.type()).inputs.size(), args.size());
+  std::vector<gc::Root<Expression>> args_expr = container::MaterializeVector(
+      args |
+      std::views::transform([](gc::Root<Value> arg) -> gc::Root<Expression> {
+        return NewConstantExpression(std::move(arg));
+      }));
   return Evaluate(
-      NewFunctionCall(
-          NewDelegatingExpression(NewConstantExpression(
-              pool.NewRoot(MakeNonNullUnique<Value>(func)))),
-          container::MaterializeVector(
-              args | std::views::transform(
-                         [](gc::Root<Value> arg)
-                             -> NonNull<std::shared_ptr<Expression>> {
-                           return NewDelegatingExpression(
-                               NewConstantExpression(arg));
-                         }))),
+      NewDelegatingExpression(FunctionCall::New(
+          NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func)))
+              .ptr(),
+          MakeNonNullShared<std::vector<gc::Ptr<Expression>>>(
+              container::MaterializeVector(args_expr | gc::view::Ptr)))),
       pool, Environment::New(pool), yield_callback);
 }
 

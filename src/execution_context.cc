@@ -1,5 +1,6 @@
 #include "src/execution_context.h"
 
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/once_only_function.h"
 #include "src/status.h"
@@ -181,19 +182,20 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
                                std::vector<gc::Ptr<vm::Value>> arguments) {
   return VisitOptional(
       [&](vm::Environment::LookupResult procedure) {
+        std::vector<gc::Root<vm::Expression>> arg_roots =
+            container::MaterializeVector(
+                std::move(arguments) |
+                std::views::transform(
+                    [](gc::Ptr<vm::Value> value) -> gc::Root<vm::Expression> {
+                      return vm::NewConstantExpression(value.ToRoot());
+                    }));
         return Success(CompilationResult::New(
-            environment_.pool()
-                .NewRoot(vm::NewFunctionCall(
-                    vm::NewDelegatingExpression(vm::NewConstantExpression(
-                        std::get<gc::Root<vm::Value>>(procedure.value))),
-                    container::MaterializeVector(
-                        std::move(arguments) |
-                        std::views::transform(
-                            [](gc::Ptr<vm::Value> value)
-                                -> NonNull<std::shared_ptr<vm::Expression>> {
-                              return vm::NewDelegatingExpression(
-                                  vm::NewConstantExpression(value.ToRoot()));
-                            }))))
+            vm::NewFunctionCall(
+                vm::NewConstantExpression(
+                    std::get<gc::Root<vm::Value>>(procedure.value))
+                    .ptr(),
+                container::MaterializeVector(std::move(arg_roots) |
+                                             gc::view::Ptr))
                 .ptr(),
             environment_, work_queue()));
       },

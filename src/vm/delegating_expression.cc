@@ -75,25 +75,18 @@ std::optional<gc::Ptr<Expression>> PtrToOptionalGcPtr(
 }
 
 std::unique_ptr<Expression> ToUniquePtr(
-    language::ValueOrError<gc::Root<Expression>> input) {
-  if (IsError(input)) return nullptr;
-  return NewDelegatingExpression(language::ValueOrDie(std::move(input)))
-      .get_unique();
-}
-
-NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
-    gc::Root<Expression> delegate) {
-  return MakeNonNullUnique<DelegatingExpression>(std::move(delegate));
-}
-
-std::unique_ptr<Expression> NewDelegatingExpression(
-    language::ValueOrError<language::gc::Root<Expression>> delegate) {
+    language::ValueOrError<gc::Root<Expression>> delegate) {
   return std::visit(
       overload{[](gc::Root<Expression> expr) {
                  return NewDelegatingExpression(std::move(expr)).get_unique();
                },
                [](Error) -> std::unique_ptr<Expression> { return nullptr; }},
       delegate);
+}
+
+NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
+    gc::Root<Expression> delegate) {
+  return MakeNonNullUnique<DelegatingExpression>(std::move(delegate));
 }
 
 }  // namespace afc::vm

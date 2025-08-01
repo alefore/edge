@@ -16,14 +16,13 @@ namespace vm {
 class Expression;
 struct Compilation;
 
-language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
-    language::NonNull<std::shared_ptr<Expression>> func,
-    std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
+language::gc::Root<Expression> NewFunctionCall(
+    language::gc::Ptr<Expression> func,
+    std::vector<language::gc::Ptr<Expression>> args);
 
-std::unique_ptr<Expression> NewFunctionCall(
-    Compilation& compilation,
-    language::NonNull<std::unique_ptr<Expression>> func,
-    std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
+std::optional<language::gc::Root<Expression>> NewFunctionCall(
+    Compilation& compilation, language::gc::Ptr<Expression> func,
+    std::vector<language::gc::Ptr<Expression>> args);
 
 futures::ValueOrError<language::gc::Root<Value>> Call(
     language::gc::Pool& pool, const Value& func,

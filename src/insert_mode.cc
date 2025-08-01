@@ -532,21 +532,23 @@ class InsertMode : public InputReceiver {
         }
         ForEachActiveBuffer(
             buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
-              NonNull<std::unique_ptr<vm::Expression>> expression =
-                  vm::NewFunctionCall(
-                      vm::NewDelegatingExpression(vm::NewConstantExpression(
-                          std::get<gc::Root<vm::Value>>(callback->value))),
-                      {vm::NewDelegatingExpression(vm::NewConstantExpression(
-                          {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
-                              buffer.editor().gc_pool(), buffer.NewRoot())}))});
+              gc::Root<vm::Expression> expression = vm::NewFunctionCall(
+                  vm::NewConstantExpression(
+                      std::get<gc::Root<vm::Value>>(callback->value))
+                      .ptr(),
+                  {vm::NewConstantExpression(
+                       {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
+                           buffer.editor().gc_pool(), buffer.NewRoot())})
+                       .ptr()});
               if (expression->Types().empty()) {
                 buffer.status().InsertError(
                     Error{LazyString{L"Unable to compile (type mismatch)."}});
                 return futures::Past(EmptyValue());
               }
               return buffer
-                  .EvaluateExpression(std::move(expression),
-                                      buffer.environment().ToRoot())
+                  .EvaluateExpression(
+                      NewDelegatingExpression(std::move(expression)),
+                      buffer.environment().ToRoot())
                   .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
                     return futures::Past(vm::Value::NewVoid(pool));
                   })

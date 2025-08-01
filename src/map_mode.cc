@@ -137,14 +137,11 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
                   const gc::Root<vm::Environment> environment_locked,
                   gc::Ptr<vm::Value> value_nested) {
                 LOG(INFO) << "Evaluating expression from Value...";
-                NonNull<std::shared_ptr<vm::Expression>> expression =
-                    vm::NewFunctionCall(
-                        NewDelegatingExpression(
-                            NewConstantExpression(value_nested.ToRoot())),
-                        {});
                 Evaluate(
-                    std::move(expression), environment_locked.pool(),
-                    environment_locked,
+                    NewDelegatingExpression(vm::NewFunctionCall(
+                        NewConstantExpression(value_nested.ToRoot()).ptr(),
+                        {})),
+                    environment_locked.pool(), environment_locked,
                     [&editor_state](OnceOnlyFunction<void()> callback) {
                       editor_state.work_queue()->Schedule(
                           WorkQueue::Callback{.callback = std::move(callback)});

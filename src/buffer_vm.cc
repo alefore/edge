@@ -811,14 +811,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                       .value =
                           buffer
                               ->EvaluateExpression(
-                                  NewFunctionCall(
-                                      NewDelegatingExpression(
-                                          NewConstantExpression(callback)),
-                                      {NewDelegatingExpression(
-                                          NewConstantExpression(
-                                              vm::Value::NewString(
-                                                  buffer->editor().gc_pool(),
-                                                  input.read())))}),
+                                  NewDelegatingExpression(NewFunctionCall(
+                                      NewConstantExpression(callback).ptr(),
+                                      {NewConstantExpression(
+                                           vm::Value::NewString(
+                                               buffer->editor().gc_pool(),
+                                               input.read()))
+                                           .ptr()})),
                                   buffer->environment().ToRoot())
                               .Transform([](gc::Root<vm::Value> value) {
                                 std::ostringstream oss;
