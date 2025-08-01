@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "src/language/error/value_or_error.h"
+#include "src/language/gc.h"
 #include "src/vm/expression.h"
 
 namespace afc::vm {
@@ -10,8 +12,9 @@ struct Compilation;
 void StartNamespaceDeclaration(Compilation& compilation,
                                const Identifier& name);
 
-std::unique_ptr<Expression> NewNamespaceExpression(
-    Compilation& compilation, std::unique_ptr<Expression> body);
+language::ValueOrError<language::gc::Root<Expression>> NewNamespaceExpression(
+    Compilation& compilation,
+    std::optional<language::gc::Root<Expression>> body);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_NAMESPACE_EXPRESSION_H__

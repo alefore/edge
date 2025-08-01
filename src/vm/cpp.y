@@ -83,7 +83,11 @@ statement(OUT) ::= namespace_declaration
     LBRACKET statement_list(A) RBRACKET. {
   std::unique_ptr<Expression> a(A);
 
-  OUT = NewNamespaceExpression(*compilation, std::move(a)).release();
+  OUT =
+      NewDelegatingExpression(
+          NewNamespaceExpression(
+              *compilation, PtrToOptionalRoot(compilation->pool, std::move(a))))
+          .release();
 }
 
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
