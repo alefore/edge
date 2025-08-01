@@ -44,10 +44,10 @@ class AssignExpression : public Expression {
   const gc::Ptr<Expression> value_;
 
  public:
-  static gc::Root<AssignExpression> New(gc::Pool& pool,
-                                        AssignmentType assignment_type,
+  static gc::Root<AssignExpression> New(AssignmentType assignment_type,
                                         Identifier symbol, PurityType purity,
                                         gc::Ptr<Expression> value) {
+    gc::Pool& pool = value.pool();
     return pool.NewRoot(language::MakeNonNullUnique<AssignExpression>(
         ConstructorAccessTag{}, assignment_type, std::move(symbol),
         std::move(purity), std::move(value)));
@@ -206,8 +206,8 @@ std::optional<gc::Root<Expression>> NewDefineExpression(
               return std::nullopt;
             }
             return AssignExpression::New(
-                compilation.pool, AssignExpression::AssignmentType::kDefine,
-                std::move(symbol), PurityType{.writes_local_variables = true},
+                AssignExpression::AssignmentType::kDefine, std::move(symbol),
+                PurityType{.writes_local_variables = true},
                 std::move(value)->ptr());
           },
           [&](Error error) -> std::optional<gc::Root<Expression>> {
@@ -255,7 +255,7 @@ std::optional<gc::Root<Expression>> NewAssignExpression(
       [&pool, &value, &symbol](const Environment::LookupResult& lookup_result)
           -> std::optional<gc::Root<Expression>> {
         return AssignExpression::New(
-            pool, AssignExpression::AssignmentType::kAssign, symbol,
+            AssignExpression::AssignmentType::kAssign, symbol,
             std::invoke([&lookup_result] {
               switch (lookup_result.scope) {
                 case Environment::LookupResult::VariableScope::kLocal:

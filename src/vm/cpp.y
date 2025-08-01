@@ -728,7 +728,10 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 
 expr(OUT) ::= NOT expr(A). {
   std::unique_ptr<Expression> a(A);
-  OUT = NewNegateExpressionBool(*compilation, std::move(a)).release();
+  OUT = ToUniquePtr(NewNegateExpressionBool(
+                        *compilation,
+                        PtrToOptionalRoot(compilation->pool, std::move(a))))
+            .release();
 }
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
@@ -737,10 +740,15 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
 }
 
 expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
-  OUT = NewNegateExpressionBool(
-            *compilation,
-            ExpressionEquals(*compilation, std::unique_ptr<Expression>(A),
-                             std::unique_ptr<Expression>(B)))
+  std::unique_ptr<Expression> a(A);
+  std::unique_ptr<Expression> b(B);
+
+  OUT = ToUniquePtr(
+            NewNegateExpressionBool(
+                *compilation,
+                PtrToOptionalRoot(compilation->pool,
+                                  ExpressionEquals(*compilation, std::move(a),
+                                                   std::move(b)))))
             .release();
 }
 
@@ -915,7 +923,10 @@ expr(OUT) ::= MINUS expr(A). {
   if (a == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber()) {
-    OUT = NewNegateExpressionNumber(*compilation, std::move(a)).release();
+    OUT = ToUniquePtr(NewNegateExpressionNumber(
+                          *compilation,
+                          PtrToOptionalRoot(compilation->pool, std::move(a))))
+              .release();
   } else {
     compilation->AddError(Error{
         LazyString{L"Invalid expression: -: "} + TypesToString(a->Types())});
