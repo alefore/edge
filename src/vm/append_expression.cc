@@ -23,16 +23,22 @@ namespace {
 class AppendExpression : public Expression {
   struct ConstructorAccessTag {};
 
+  const gc::Ptr<Expression> e0_;
+  const gc::Ptr<Expression> e1_;
+  const std::unordered_set<Type> return_types_;
+
  public:
-  static gc::Root<AppendExpression> New(gc::Root<Expression> e0,
-                                        gc::Root<Expression> e1,
+  static gc::Root<AppendExpression> New(gc::Ptr<Expression> e0,
+                                        gc::Ptr<Expression> e1,
                                         std::unordered_set<Type> return_types) {
     gc::Pool& pool = e0.pool();
     return pool.NewRoot(MakeNonNullUnique<AppendExpression>(
-        std::move(e0), std::move(e1), std::move(return_types)));
+        ConstructorAccessTag{}, std::move(e0), std::move(e1),
+        std::move(return_types)));
   }
 
-  AppendExpression(gc::Root<Expression> e0, gc::Root<Expression> e1,
+  AppendExpression(ConstructorAccessTag, gc::Ptr<Expression> e0,
+                   gc::Ptr<Expression> e1,
                    std::unordered_set<Type> return_types)
       : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {
     // Check that the optimization in NewAppendExpression is applied.
@@ -52,8 +58,9 @@ class AppendExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
-    return trampoline.Bounce(NewDelegatingExpression(e0_), e0_->Types()[0])
-        .Transform([&trampoline, e1 = e1_](EvaluationOutput e0_output)
+    return trampoline
+        .Bounce(NewDelegatingExpression(e0_.ToRoot()), e0_->Types()[0])
+        .Transform([&trampoline, e1 = e1_.ToRoot()](EvaluationOutput e0_output)
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (e0_output.type) {
             case EvaluationOutput::OutputType::kReturn:
@@ -72,11 +79,6 @@ class AppendExpression : public Expression {
       const override {
     return {};
   }
-
- private:
-  const gc::Root<Expression> e0_;
-  const gc::Root<Expression> e1_;
-  const std::unordered_set<Type> return_types_;
 };
 
 }  // namespace
@@ -98,7 +100,7 @@ ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Root<Expression> a,
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   return Success<gc::Root<Expression>>(AppendExpression::New(
-      std::move(a), std::move(b), std::move(return_types)));
+      std::move(a.ptr()), std::move(b.ptr()), std::move(return_types)));
 }
 
 }  // namespace afc::vm
