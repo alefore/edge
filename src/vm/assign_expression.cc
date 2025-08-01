@@ -99,7 +99,7 @@ class AssignExpression : public Expression {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    return {value_.object_metadata()};
   }
 };
 
@@ -107,18 +107,17 @@ class StackFrameAssign : public Expression {
   struct ConstructorAccessTag {};
 
   const size_t index_;
-  NonNull<std::shared_ptr<Expression>> value_expression_;
+  const gc::Ptr<Expression> value_expression_;
 
  public:
-  static gc::Root<StackFrameAssign> New(
-      gc::Pool& pool, size_t index,
-      NonNull<std::unique_ptr<Expression>> value_expression) {
-    return pool.NewRoot(language::MakeNonNullUnique<StackFrameAssign>(
-        index, std::move(value_expression)));
+  static gc::Root<StackFrameAssign> New(size_t index,
+                                        gc::Ptr<Expression> value_expression) {
+    return value_expression.pool().NewRoot(MakeNonNullUnique<StackFrameAssign>(
+        ConstructorAccessTag{}, index, std::move(value_expression)));
   }
 
-  StackFrameAssign(size_t index,
-                   NonNull<std::unique_ptr<Expression>> value_expression)
+  StackFrameAssign(ConstructorAccessTag, size_t index,
+                   gc::Ptr<Expression> value_expression)
       : index_(index), value_expression_(std::move(value_expression)) {}
 
   std::vector<Type> Types() override { return value_expression_->Types(); }
@@ -132,7 +131,8 @@ class StackFrameAssign : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(value_expression_, type)
+    return trampoline
+        .Bounce(NewDelegatingExpression(value_expression_.ToRoot()), type)
         .Transform([&trampoline, index = index_](EvaluationOutput value_output)
                        -> language::ValueOrError<EvaluationOutput> {
           switch (value_output.type) {
@@ -152,7 +152,7 @@ class StackFrameAssign : public Expression {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    return {value_expression_.object_metadata()};
   }
 };
 }  // namespace
@@ -230,9 +230,8 @@ std::optional<gc::Root<Expression>> NewAssignExpression(
             header->get().Find(symbol);
         argument_data.has_value()) {
       if (value.value()->SupportsType(argument_data->second)) {
-        return pool.NewRoot(MakeNonNullUnique<StackFrameAssign>(
-            argument_data->first,
-            NewDelegatingExpression(std::move(value).value())));
+        return StackFrameAssign::New(argument_data->first,
+                                     std::move(value)->ptr());
       } else {
         compilation.AddError(Error{
             LazyString{L"Unable to assign a value to an argument of type "} +
