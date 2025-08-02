@@ -107,6 +107,14 @@ struct IgnoreErrors {
   void operator()(Error);
 };
 
+#define VALUE_OR_DIE(value_expr)                         \
+  afc::language::ValueOrDie(                             \
+      value_expr,                                        \
+      afc::language::lazy_string::LazyString{            \
+          afc::language::FromByteString(__FILE__)} +     \
+          afc::language::lazy_string::LazyString{L":"} + \
+          language::lazy_string::LazyString{std::to_wstring(__LINE__)})
+
 template <typename T>
 T ValueOrDie(ValueOrError<T>&& value,
              language::lazy_string::LazyString error_location) {
