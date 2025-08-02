@@ -60,9 +60,8 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT =
-      NewDelegatingExpression(ValueOrDie(NewAppendExpression(
-          *compilation, std::move(a), std::move(b))))
-          .get_unique().release();
+      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
+          .release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -216,11 +215,11 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
           NewIfExpression(
               *compilation,
               PtrToOptionalRoot(compilation->pool, std::move(condition)),
-              ValueOrDie(NewAppendExpression(
+              language::OptionalFrom(NewAppendExpression(
                   *compilation, std::move(true_case),
                   NewDelegatingExpression(NewVoidExpression(compilation->pool))
                       .get_unique())),
-              ValueOrDie(NewAppendExpression(
+              language::OptionalFrom(NewAppendExpression(
                   *compilation, std::move(false_case),
                   NewDelegatingExpression(NewVoidExpression(compilation->pool))
                       .get_unique()))))
@@ -235,7 +234,7 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
           NewIfExpression(
               *compilation,
               PtrToOptionalRoot(compilation->pool, std::move(condition)),
-              ValueOrDie(NewAppendExpression(
+              VALUE_OR_DIE(NewAppendExpression(
                   *compilation, std::move(true_case),
                   NewDelegatingExpression(NewVoidExpression(compilation->pool))
                       .get_unique())),
@@ -256,21 +255,24 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
 
   if (func == nullptr) {
     OUT = nullptr;
+  } else {
+    std::visit(
+        overload{[&](Type) {
+                   OUT = NewDelegatingExpression(
+                             NewVoidExpression(compilation->pool))
+                             .get_unique()
+                             .release();
+                 },
+                 [&](Error error) {
+                   compilation->AddError(error);
+                   OUT = nullptr;
+                   func->Abort();
+                 }},
+        DefineUninitializedVariable(
+            compilation->environment.value(),
+            Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
+            *func->name(), func->type()));
   }
-  std::visit(
-      overload{
-          [&](Type) {
-            OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
-          },
-          [&](Error error) {
-            compilation->AddError(error);
-            OUT = nullptr;
-            func->Abort();
-          }},
-      DefineUninitializedVariable(
-          compilation->environment.value(),
-          Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
-          *func->name(), func->type()));
 }
 
 assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
@@ -603,9 +605,9 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
     OUT = ToUniquePtr(language::error::FromOptional(
               NewAssignExpression(
                   *compilation, name->value().ptr()->get_symbol(),
-                  ValueOrDie(BinaryOperator::New(
+                  VALUE_OR_DIE(BinaryOperator::New(
                       NewVoidExpression(compilation->pool).ptr(),
-                      ValueOrDie(std::move(var)).ptr(),
+                      VALUE_OR_DIE(std::move(var)).ptr(),
                       types::Number{},
                       [](gc::Pool& pool, const Value&, const Value& a) {
                         return Value::NewNumber(
@@ -616,7 +618,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   } else {
     compilation->AddError(Error{
         LazyString{L"++: Type not supported: "}
-        + TypesToString(ValueOrDie(std::move(var))->Types())});
+        + TypesToString(VALUE_OR_DIE(std::move(var))->Types())});
     OUT = nullptr;
   }
 }
@@ -632,9 +634,9 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
     OUT = ToUniquePtr(
               language::error::FromOptional(NewAssignExpression(
                   *compilation, name->value().ptr()->get_symbol(),
-                  ValueOrDie(BinaryOperator::New(
+                  VALUE_OR_DIE(BinaryOperator::New(
                       NewVoidExpression(compilation->pool).ptr(),
-                      ValueOrDie(std::move(var)).ptr(),
+                      VALUE_OR_DIE(std::move(var)).ptr(),
                       types::Number{},
                       [](gc::Pool& pool, const Value&, const Value& a) {
                         return Value::NewNumber(
@@ -645,7 +647,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   } else {
     compilation->AddError(Error{
         LazyString{L"--: Type not supported: "}
-        + TypesToString(ValueOrDie(std::move(var))->Types())});
+        + TypesToString(VALUE_OR_DIE(std::move(var))->Types())});
     OUT = nullptr;
   }
 }
