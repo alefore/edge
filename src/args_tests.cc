@@ -36,14 +36,21 @@ bool args_tests_registration = tests::Register(
                       Path{LazyString{L"/home/xxx-unexistent/.edge"}});
               CHECK_EQ(editor->buffer_registry().buffers().size(), 0ul);
               infrastructure::Path server_address =
-                  ValueOrDie(StartServer(editor.value(), std::nullopt));
+                  VALUE_OR_DIE(StartServer(editor.value(), std::nullopt));
               CHECK_EQ(editor->buffer_registry().buffers().size(), 1ul);
               CHECK(!editor->exit_value().has_value());
 
               size_t iteration = 0;
               ExecutionEnvironment(
                   ExecutionEnvironmentOptions{
-                      .stop_check = [&] { return stop(editor.value()); },
+                      .stop_check =
+                          [&] {
+                            // We require at least kRequiredIterations to allow
+                            // various initialization tasks to happen.
+                            const static size_t kRequiredIterations = 10;
+                            return iteration > kRequiredIterations &&
+                                   stop(editor.value());
+                          },
                       .get_next_alarm =
                           [&] { return editor->WorkQueueNextExecution(); },
                       .on_signals = [] {},
@@ -53,7 +60,7 @@ bool args_tests_registration = tests::Register(
                             LOG(INFO) << "Iteration: " << iteration;
                             editor->ExecutionIteration(handler);
                             if (iteration == 0) {
-                              FileDescriptor client_fd = ValueOrDie(
+                              FileDescriptor client_fd = VALUE_OR_DIE(
                                   SyncConnectToServer(server_address));
                               CHECK(!IsError(SyncSendCommandsToServer(
                                   client_fd, CommandsToRun(args()))));
@@ -64,33 +71,45 @@ bool args_tests_registration = tests::Register(
                   .Run();
             }};
       };
-      auto has_buffer = [](const BufferName& name,
-                           const EditorState& editor) -> bool {
-        const bool result = editor.buffer_registry().Find(name).has_value();
+      auto get_buffer = [](const BufferName& name, const EditorState& editor) {
+        const std::optional<gc::Root<OpenBuffer>> result =
+            editor.buffer_registry().Find(name);
         LOG(INFO) << "Checking for: " << name << ": "
-                  << (result ? "present" : "absent");
+                  << (result.has_value() ? "present" : "absent");
         return result;
+      };
+      auto has_buffer = [get_buffer](const BufferName& name,
+                                     const EditorState& editor) -> bool {
+        return get_buffer(name, editor).has_value();
       };
       return {add_test(
                   L"DefaultArguments", [] { return CommandLineValues(); },
                   std::bind_front(has_buffer, BufferName{CommandBufferName{
                                                   LazyString{L"💻shell"}}})),
-              add_test(
-                  L"File",
-                  [] {
-                    CommandLineValues output;
-                    output.naked_arguments = {LazyString{L"/foo/bar"},
-                                              LazyString{L"/tmp"}};
-                    return output;
-                  },
-                  [has_buffer](EditorState& editor) {
-                    return has_buffer(BufferName{BufferFileId{ValueOrDie(
-                                          Path::New(LazyString{L"/foo/bar"}))}},
-                                      editor) &&
-                           has_buffer(BufferName{BufferFileId{ValueOrDie(
-                                          Path::New(LazyString{L"/tmp"}))}},
-                                      editor);
-                  })};
+              std::invoke([&] {
+                std::vector<LazyString> paths = {LazyString{L"/foo/bar"},
+                                                 LazyString{L"/tmp"}};
+                return add_test(
+                    L"File",
+                    [paths] {
+                      CommandLineValues output;
+                      output.naked_arguments = paths;
+                      return output;
+                    },
+                    [get_buffer, paths](EditorState& editor) {
+                      return std::all_of(
+                          paths.begin(), paths.end(), [&](LazyString path_str) {
+                            auto buffer = get_buffer(
+                                BufferName{BufferFileId{
+                                    VALUE_OR_DIE(Path::New(path_str))}},
+                                editor);
+                            return buffer.has_value() && !buffer.value()
+                                                              ->work_queue()
+                                                              ->NextExecution()
+                                                              .has_value();
+                          });
+                    });
+              })};
     }));
 }  // namespace
 }  // namespace afc::editor

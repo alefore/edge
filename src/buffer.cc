@@ -930,7 +930,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                                  compilation_result) {
                         if (editor().exit_value().has_value())
                           return futures::Past(Success());
-                        LOG(INFO) << "Starting reload: "
+                        LOG(INFO) << name() << "Starting reload: "
                                   << Read(buffer_variables::name);
                         return futures::IgnoreErrors(
                             compilation_result->evaluate().Transform(
@@ -948,6 +948,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                                                          ptr_this_.value())
                       .ptr()}))
       .Transform([this](EmptyValue) {
+        LOG(INFO) << name() << ": Reload: generating contents.";
         if (Read(buffer_variables::clear_on_reload)) {
           ClearContents();
           SetDiskState(DiskState::kCurrent);
@@ -957,6 +958,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                    : futures::Past(Success());
       })
       .Transform([this](EmptyValue) {
+        LOG(INFO) << name() << ": Reload: Starting log supplier.";
         return futures::OnError(
             GetEdgeStateDirectory().Transform(options_.log_supplier),
             [](Error error) {
@@ -964,25 +966,27 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
               return futures::Past(NewNullLog());
             });
       })
-      .Transform(
-          [root_this = ptr_this_->ToRoot()](NonNull<std::unique_ptr<Log>> log) {
-            root_this->log_ = std::move(log);
-            switch (root_this->reload_state_) {
-              case ReloadState::kDone:
-                LOG(FATAL) << "Invalid reload state! Can't be kDone.";
-                break;
-              case ReloadState::kOngoing:
-                root_this->reload_state_ = ReloadState::kDone;
-                break;
-              case ReloadState::kPending:
-                root_this->reload_state_ = ReloadState::kDone;
-                root_this->SignalEndOfFile();
-                return root_this->Reload();
-            }
-            LOG(INFO) << "Reload finished evaluation: " << root_this->name();
-            root_this->SignalEndOfFile();
-            return futures::Past(Success());
-          });
+      .Transform([this, root_this = ptr_this_->ToRoot()](
+                     NonNull<std::unique_ptr<Log>> log) {
+        log_ = std::move(log);
+        LOG(INFO) << name() << ": Reload: Finalizing reload.";
+        switch (reload_state_) {
+          case ReloadState::kDone:
+            LOG(FATAL) << name() << ":Invalid reload state! Can't be kDone.";
+            break;
+          case ReloadState::kOngoing:
+            reload_state_ = ReloadState::kDone;
+            break;
+          case ReloadState::kPending:
+            reload_state_ = ReloadState::kDone;
+            SignalEndOfFile();
+            LOG(INFO) << name() << ": Reload: Restarting operation.";
+            return Reload();
+        }
+        LOG(INFO) << name() << ": Reload finished evaluation.";
+        SignalEndOfFile();
+        return futures::Past(Success());
+      });
 }
 
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
@@ -1817,31 +1821,39 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                        LazyString{L":"} + name_suffix},
             .fd = fd.value(),
             .receive_end_of_file =
-                [root_this = NewRoot(), &reader,
+                [weak_this = ptr_this_->ToWeakPtr(), &reader,
                  output_consumer = std::move(output.consumer)] mutable {
-                  root_this->RegisterProgress();
-                  // Why make a copy? Because setting `reader` to nullptr erases
-                  // us.
-                  auto output_consumer_copy = std::move(output_consumer);
-                  reader = nullptr;
-                  std::move(output_consumer_copy)(EmptyValue());
+                  VisitOptional(
+                      [&](gc::Root<OpenBuffer> root_this) {
+                        root_this->RegisterProgress();
+                        // Why make a copy? Because setting `reader` to nullptr
+                        // erases us.
+                        auto output_consumer_copy = std::move(output_consumer);
+                        reader = nullptr;
+                        std::move(output_consumer_copy)(EmptyValue());
+                      },
+                      [] {}, weak_this.Lock());
                 },
             .receive_data =
-                [root_this = NewRoot(), modifiers](
+                [weak_this = ptr_this_->ToWeakPtr(), modifiers](
                     LazyString input, std::function<void()> done_callback) {
-                  root_this->RegisterProgress();
-                  if (root_this->Read(buffer_variables::vm_exec)) {
-                    LOG(INFO) << root_this->name()
-                              << ": Evaluating VM code: " << input;
-                    root_this->execution_context()->EvaluateString(input);
-                  }
-                  root_this->file_adapter_
-                      ->ReceiveInput(std::move(input), modifiers)
-                      .Transform([done_callback =
-                                      std::move(done_callback)](EmptyValue) {
-                        done_callback();
-                        return futures::Past(EmptyValue());
-                      });
+                  VisitOptional(
+                      [&](gc::Root<OpenBuffer> root_this) {
+                        root_this->RegisterProgress();
+                        if (root_this->Read(buffer_variables::vm_exec)) {
+                          LOG(INFO) << root_this->name()
+                                    << ": Evaluating VM code: " << input;
+                          root_this->execution_context()->EvaluateString(input);
+                        }
+                        root_this->file_adapter_
+                            ->ReceiveInput(std::move(input), modifiers)
+                            .Transform([done_callback = std::move(
+                                            done_callback)](EmptyValue) {
+                              done_callback();
+                              return futures::Past(EmptyValue());
+                            });
+                      },
+                      [] {}, weak_this.Lock());
                 }});
     return std::move(output.value);
   };
@@ -1850,33 +1862,41 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
       JoinValues(new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
                  new_reader(input_error_fd, LazyString{L"stderr"},
                             {LineModifier::kBold}, fd_error_))
-          .Transform([root_this =
-                          NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
-            CHECK(root_this->fd_ == nullptr);
-            CHECK(root_this->fd_error_ == nullptr);
+          .Transform([weak_this = ptr_this_->ToWeakPtr()](
+                         std::tuple<EmptyValue, EmptyValue>) {
             return VisitOptional(
-                [&](ProcessId materialized_child_pid)
-                    -> futures::Value<EmptyValue> {
-                  return root_this->file_system_driver()
-                      ->WaitPid(materialized_child_pid, 0)
-                      .Transform([root_this](FileSystemDriver::WaitPidOutput
-                                                 waitpid_output) {
-                        root_this->child_exit_status_ = waitpid_output.wstatus;
-                        clock_gettime(0, &root_this->time_last_exit_);
+                [&](gc::Root<OpenBuffer> root_this) {
+                  CHECK(root_this->fd_ == nullptr);
+                  CHECK(root_this->fd_error_ == nullptr);
+                  return VisitOptional(
+                      [&](ProcessId materialized_child_pid)
+                          -> futures::Value<EmptyValue> {
+                        return root_this->file_system_driver()
+                            ->WaitPid(materialized_child_pid, 0)
+                            .Transform(
+                                [root_this](FileSystemDriver::WaitPidOutput
+                                                waitpid_output) {
+                                  root_this->child_exit_status_ =
+                                      waitpid_output.wstatus;
+                                  clock_gettime(0, &root_this->time_last_exit_);
 
-                        root_this->child_pid_ = std::nullopt;
-                        if (root_this->on_exit_handler_.has_value()) {
-                          std::invoke(
-                              std::move(root_this->on_exit_handler_).value());
-                          root_this->on_exit_handler_ = std::nullopt;
-                        }
-                        return futures::Past(Success());
-                      })
-                      .ConsumeErrors(
-                          [](Error) { return futures::Past(EmptyValue()); });
+                                  root_this->child_pid_ = std::nullopt;
+                                  if (root_this->on_exit_handler_.has_value()) {
+                                    std::invoke(
+                                        std::move(root_this->on_exit_handler_)
+                                            .value());
+                                    root_this->on_exit_handler_ = std::nullopt;
+                                  }
+                                  return futures::Past(Success());
+                                })
+                            .ConsumeErrors([](Error) {
+                              return futures::Past(EmptyValue());
+                            });
+                      },
+                      [] { return futures::Past(EmptyValue()); },
+                      root_this->child_pid_);
                 },
-                [] { return futures::Past(EmptyValue()); },
-                root_this->child_pid_);
+                [] { return futures::Past(EmptyValue()); }, weak_this.Lock());
           });
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
@@ -1982,9 +2002,11 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   std::vector<Path> search_paths = {};
   std::visit(overload{IgnoreErrors{},
                       [&](Path path) {
-                        // Works if the current buffer is a directory listing:
+                        // Works if the current buffer is a directory
+                        // listing:
                         search_paths.push_back(path);
-                        // And a fall-back for the current buffer being a file:
+                        // And a fall-back for the current buffer being a
+                        // file:
                         std::visit(overload{IgnoreErrors{},
                                             [&](Path dir) {
                                               search_paths.push_back(dir);
@@ -2401,8 +2423,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
       undo_state_.Current().get_shared();
 
-  // TODO(2025-05-26, easy): Change the buffer in transformation::Input to be a
-  // root?
+  // TODO(2025-05-26, easy): Change the buffer in transformation::Input to be
+  // a root?
   transformation::Input input(transformation_adapter_.value(), *this);
   input.mode = mode;
   input.position = position;
