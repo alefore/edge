@@ -198,7 +198,9 @@ void EditorState::NotifyInternalEvent(EditorState::SharedData& data) {
   }
 }
 
-void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
+void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue,
+                        const std::optional<int>& exit_value) {
+  if (exit_value.has_value()) return;
   gc::Pool::CollectOutput collect_output = pool.Collect();
   static constexpr size_t kSecondsBetweenGc = 1;
   work_queue.Schedule(WorkQueue::Callback{
@@ -206,8 +208,8 @@ void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
                                     &collect_output) == nullptr
                                     ? kSecondsBetweenGc
                                     : 0.0),
-      .callback = [&pool, &work_queue] {
-        ReclaimAndSchedule(pool, work_queue);
+      .callback = [&pool, &work_queue, &exit_value] {
+        ReclaimAndSchedule(pool, work_queue, exit_value);
       }});
 }
 
@@ -323,20 +325,22 @@ EditorState::EditorState(
     return Observers::State::kAlive;
   });
 
-  ReclaimAndSchedule(execution_context().pool(), work_queue().value());
+  ReclaimAndSchedule(execution_context().pool(), work_queue().value(),
+                     exit_value_);
 }
 
 EditorState::~EditorState() {
-  // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
-  // CloseBuffer accordingly.
-  LOG(INFO) << "Closing buffers.";
-  std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
-                        &OpenBuffer::Close);
-
-  execution_context()
-      ->environment()
-      ->Clear();  // We may have loops. This helps break them.
-  buffer_registry_->Clear();
+  if (!exit_value_.has_value()) exit_value_ = 0;
+  while (!buffer_registry_->buffers().empty()) {
+    // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
+    // CloseBuffer accordingly.
+    LOG(INFO) << "Closing buffers.";
+    std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
+                          &OpenBuffer::Close);
+    buffer_registry_->Clear();
+    // Execute work that was blocking until buffers were deleted.
+    thread_pool_->WaitForProgress();
+  }
 
   LOG(INFO) << "Reclaim GC pool.";
   execution_context().pool().FullCollect();
