@@ -255,9 +255,7 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
 
   editor_state.buffer_registry().Add(buffer.name(),
                                      buffer_root.ptr().ToWeakPtr());
-  // Why do we add the listener (call to `Transform()`)? To ensure that the
-  // buffer won't be collected before it has processed its input.
-  buffer.Reload().Transform([buffer_root](EmptyValue) { return Success(); });
+  buffer.Reload();
 }
 
 namespace {
