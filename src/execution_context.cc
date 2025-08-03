@@ -142,6 +142,7 @@ ExecutionContext::CompilationResult::Expand() const {
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
     LazyString code, ErrorHandling on_compilation_error) {
+  VLOG(9) << "Evaluate string: " << code;
   return std::visit(
       overload{[](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
                  // No need to handle error; `CompileString` already does it.
