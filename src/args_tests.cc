@@ -62,8 +62,10 @@ bool args_tests_registration = tests::Register(
                             if (iteration == 0) {
                               FileDescriptor client_fd = VALUE_OR_DIE(
                                   SyncConnectToServer(server_address));
+                              LazyString commands = CommandsToRun(args());
+                              LOG(INFO) << "Commands: " << commands;
                               CHECK(!IsError(SyncSendCommandsToServer(
-                                  client_fd, CommandsToRun(args()))));
+                                  client_fd, commands)));
                             }
                             iteration++;
                             CHECK_LT(iteration, 1000ul);
