@@ -20,6 +20,12 @@ class ThreadPool {
 
   size_t size() const;
 
+  size_t pending_work_units() const;  // Includes a sum of active and pending.
+
+  // Blocks until there's a state change (e.g., new work scheduled, pending
+  // work finished, etc.).
+  void WaitForProgress() const;
+
   template <typename Callable>
   void RunIgnoringResult(Callable callable) {
     // We copy callable into a shared pointer in case it's not copyable.
@@ -35,6 +41,7 @@ class ThreadPool {
   struct Data {
     bool shutting_down = false;
     std::vector<std::thread> threads = {};
+    size_t active_work = 0;
     std::list<std::function<void()>> work = {};
   };
   ProtectedWithCondition<Data, EmptyValidator<Data>, false> data_ =
@@ -76,6 +83,8 @@ class ThreadPoolWithWorkQueue {
     });
     return std::move(output.value);
   }
+
+  void WaitForProgress();
 
  private:
   const language::NonNull<std::shared_ptr<ThreadPool>> thread_pool_;

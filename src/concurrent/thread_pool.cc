@@ -16,6 +16,22 @@ ThreadPool::ThreadPool(size_t size) : size_(size) {
 
 size_t ThreadPool::size() const { return size_; }
 
+size_t ThreadPool::pending_work_units() const {
+  return data_.lock([](const Data& data, std::condition_variable&) {
+    return data.active_work + data.work.size();
+  });
+}
+
+void ThreadPool::WaitForProgress() const {
+  // TODO(trivial, 2025-08-03): Instead of waiting until there are fewer units,
+  // wait instead until ... some progress is made. I think this requires adding
+  // a variable.
+  if (size_t pending = pending_work_units(); pending > 0)
+    data_.wait([pending](const Data& data) {
+      return data.active_work + data.work.size() < pending;
+    });
+}
+
 ThreadPool::~ThreadPool() {
   LOG(INFO) << "Starting destruction of ThreadPool.";
   std::vector<std::thread> threads;
@@ -44,15 +60,24 @@ void ThreadPool::Schedule(std::function<void()> work) {
 }
 
 void ThreadPool::BackgroundThread() {
+  bool active_work_thread = false;
   while (true) {
     std::function<void()> callback;
     VLOG(8) << "BackgroundThread waits for work.";
-    data_.wait([&callback](Data& data) {
-      CHECK(callback == nullptr);
+    data_.wait([this, &callback, &active_work_thread](Data& data) {
+      if (active_work_thread) {
+        CHECK_GE(data.active_work, 0ul);
+        data.active_work--;
+        active_work_thread = false;
+      }
+
       if (data.shutting_down) return true;
       if (data.work.empty()) return false;
       callback = std::move(data.work.front());
       data.work.pop_front();
+      data.active_work++;
+      active_work_thread = true;
+      CHECK_LE(data.active_work, size_);
       return true;
     });
     if (callback == nullptr) {
@@ -78,6 +103,14 @@ ThreadPoolWithWorkQueue::thread_pool() const {
 const language::NonNull<std::shared_ptr<WorkQueue>>&
 ThreadPoolWithWorkQueue::work_queue() const {
   return work_queue_;
+}
+
+void ThreadPoolWithWorkQueue::WaitForProgress() {
+  while (work_queue()->NextExecution().has_value() ||
+         thread_pool()->pending_work_units() > 0) {
+    while (work_queue()->NextExecution().has_value()) work_queue()->Execute();
+    thread_pool()->WaitForProgress();
+  }
 }
 
 }  // namespace afc::concurrent
