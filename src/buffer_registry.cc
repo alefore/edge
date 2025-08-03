@@ -223,8 +223,11 @@ void BufferRegistry::Add(Data& data, const BufferName& name,
   if (std::holds_alternative<FuturePasteBuffer>(name) ||
       std::holds_alternative<HistoryBufferName>(name) ||
       std::holds_alternative<PasteBuffer>(name) ||
-      std::holds_alternative<FragmentsBuffer>(name))
+      std::holds_alternative<FragmentsBuffer>(name) ||
+      std::holds_alternative<ServerBufferName>(name)) {
+    LOG(INFO) << "Retain buffer: " << name;
     data.retained_buffers.insert_or_assign(name, buffer.Lock()->ptr());
+  }
   if (const auto* id = std::get_if<BufferFileId>(&name); id != nullptr)
     data.path_suffix_map.Insert(id->read());
   data.buffer_map.insert_or_assign(name, std::move(buffer));
