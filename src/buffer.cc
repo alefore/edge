@@ -900,6 +900,30 @@ void OpenBuffer::AppendLines(
   }
 }
 
+// TODO(trivial, 2025-08-02): Move this to src/language/gc_util.h.
+template <typename F1, typename F2, typename T>
+auto CreateWeakLockCallback(F1&& on_lock, F2&& on_failure,
+                            gc::WeakPtr<T> weak_ptr) {
+  return [on_lock = std::forward<F1>(on_lock),
+          on_failure = std::forward<F2>(on_failure), weak_ptr](auto&&... args) {
+    using OnLockReturn =
+        decltype(std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                             std::declval<gc::Root<T>>()));
+    using OnFailureReturn = decltype(std::invoke(
+        on_failure, std::forward<decltype(args)>(args)...));
+    static_assert(std::is_convertible_v<OnLockReturn, OnFailureReturn> ||
+                      std::is_convertible_v<OnFailureReturn, OnLockReturn>,
+                  "The return types of the success and failure callbacks are "
+                  "not compatible.");
+    if (std::optional<gc::Root<T>> root = weak_ptr.Lock(); root.has_value()) {
+      return std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                         std::move(root).value());
+    } else {
+      return std::invoke(on_failure, std::forward<decltype(args)>(args)...);
+    }
+  };
+}
+
 futures::Value<PossibleError> OpenBuffer::Reload() {
   LOG(INFO) << name() << ": Reload starts.";
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
@@ -947,7 +971,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                  {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(ptr_this_->pool(),
                                                          ptr_this_.value())
                       .ptr()}))
-      .Transform([this](EmptyValue) {
+      .Transform([this, root_this = ptr_this_->ToRoot()](EmptyValue) {
         LOG(INFO) << name() << ": Reload: generating contents.";
         if (Read(buffer_variables::clear_on_reload)) {
           ClearContents();
@@ -957,36 +981,48 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                    ? futures::IgnoreErrors(options_.generate_contents(*this))
                    : futures::Past(Success());
       })
-      .Transform([this](EmptyValue) {
-        LOG(INFO) << name() << ": Reload: Starting log supplier.";
-        return futures::OnError(
-            GetEdgeStateDirectory().Transform(options_.log_supplier),
-            [](Error error) {
-              LOG(INFO) << "Error opening log: " << error;
-              return futures::Past(NewNullLog());
-            });
-      })
-      .Transform([this, root_this = ptr_this_->ToRoot()](
-                     NonNull<std::unique_ptr<Log>> log) {
-        log_ = std::move(log);
-        LOG(INFO) << name() << ": Reload: Finalizing reload.";
-        switch (reload_state_) {
-          case ReloadState::kDone:
-            LOG(FATAL) << name() << ":Invalid reload state! Can't be kDone.";
-            break;
-          case ReloadState::kOngoing:
-            reload_state_ = ReloadState::kDone;
-            break;
-          case ReloadState::kPending:
-            reload_state_ = ReloadState::kDone;
-            SignalEndOfFile();
-            LOG(INFO) << name() << ": Reload: Restarting operation.";
-            return Reload();
-        }
-        LOG(INFO) << name() << ": Reload finished evaluation.";
-        SignalEndOfFile();
-        return futures::Past(Success());
-      });
+      .Transform(CreateWeakLockCallback(
+          [](EmptyValue, gc::Root<OpenBuffer> root_this) {
+            LOG(INFO) << root_this->name()
+                      << ": Reload: Starting log supplier.";
+            return futures::OnError(
+                root_this->GetEdgeStateDirectory().Transform(
+                    root_this->options_.log_supplier),
+                [](Error error) {
+                  LOG(INFO) << "Error opening log: " << error;
+                  return futures::Past(NewNullLog());
+                });
+          },
+          [](EmptyValue) { return futures::Past(Success(NewNullLog())); },
+          ptr_this_->ToWeakPtr()))
+      .Transform(CreateWeakLockCallback(
+          [](NonNull<std::unique_ptr<Log>> log,
+             gc::Root<OpenBuffer> root_this) {
+            root_this->log_ = std::move(log);
+            LOG(INFO) << root_this->name() << ": Reload: Finalizing reload.";
+            switch (root_this->reload_state_) {
+              case ReloadState::kDone:
+                LOG(FATAL) << root_this->name()
+                           << ":Invalid reload state! Can't be kDone.";
+                break;
+              case ReloadState::kOngoing:
+                root_this->reload_state_ = ReloadState::kDone;
+                break;
+              case ReloadState::kPending:
+                root_this->reload_state_ = ReloadState::kDone;
+                root_this->SignalEndOfFile();
+                LOG(INFO) << root_this->name()
+                          << ": Reload: Restarting operation.";
+                return root_this->Reload();
+            }
+            LOG(INFO) << root_this->name() << ": Reload finished evaluation.";
+            root_this->SignalEndOfFile();
+            return futures::Past(Success());
+          },
+          [](NonNull<std::unique_ptr<Log>>) {
+            return futures::Past(Success());
+          },
+          ptr_this_->ToWeakPtr()));
 }
 
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
