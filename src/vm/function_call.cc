@@ -315,14 +315,15 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
 
             BindObjectExpression(ConstructorAccessTag,
                                  gc::Ptr<Expression> obj_expr,
-                                 std::vector<gc::Root<Value>> delegates)
-                : delegates_(std::move(delegates)),
+                                 const std::vector<gc::Root<Value>>& delegates)
+                : delegates_(
+                      container::MaterializeVector(delegates | gc::view::Ptr)),
                   external_types_(MakeNonNullShared<std::vector<Type>>(
                       container::MaterializeVector(
                           delegates_ | std::views::transform(
-                                           [](const gc::Root<Value>& delegate) {
+                                           [](const gc::Ptr<Value>& delegate) {
                                              return RemoveObjectFirstArgument(
-                                                 delegate.ptr()->type());
+                                                 delegate->type());
                                            })))),
                   obj_expr_(std::move(obj_expr)) {}
 
@@ -345,9 +346,19 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
                 Trampoline& trampoline, const Type& type) override {
+              std::optional<gc::Root<Value>> delegate;
+              for (const gc::Ptr<Value>& candidate : delegates_)
+                if (GetImplicitPromotion(
+                        RemoveObjectFirstArgument(candidate->type()), type) !=
+                    nullptr)
+                  delegate = candidate.ToRoot();
+              LOG_IF(FATAL, !delegate.has_value())
+                  << "Unable to find proper delegate with type: " << type
+                  << ", candidates: " << TypesToString(external_types_.value());
+
               return trampoline.Bounce(obj_expr_, obj_expr_->Types()[0])
                   .Transform([type, external_types = external_types_,
-                              delegates = delegates_,
+                              delegate = delegate.value(),
                               &pool =
                                   trampoline.pool()](EvaluationOutput output)
                                  -> ValueOrError<EvaluationOutput> {
@@ -355,30 +366,19 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
                       case EvaluationOutput::OutputType::kReturn:
                         return Success(std::move(output));
                       case EvaluationOutput::OutputType::kContinue:
-                        for (auto& delegate : delegates)
-                          if (GetImplicitPromotion(RemoveObjectFirstArgument(
-                                                       delegate.ptr()->type()),
-                                                   type) != nullptr) {
-                            const types::Function& function_type =
-                                std::get<types::Function>(type);
-                            return Success(
-                                EvaluationOutput::New(Value::NewFunction(
-                                    pool, function_type.function_purity,
-                                    function_type.output.get(),
-                                    function_type.inputs,
-                                    [obj = std::move(output.value),
-                                     callback = delegate](
-                                        std::vector<gc::Root<Value>> args,
-                                        Trampoline& trampoline_inner) {
-                                      args.emplace(args.begin(), obj);
-                                      return callback.ptr()->RunFunction(
-                                          std::move(args), trampoline_inner);
-                                    })));
-                          }
-                        LOG(FATAL)
-                            << "Unable to find proper delegate with type: "
-                            << type << ", candidates: "
-                            << TypesToString(external_types.value());
+                        const types::Function& function_type =
+                            std::get<types::Function>(type);
+                        return Success(EvaluationOutput::New(Value::NewFunction(
+                            pool, function_type.function_purity,
+                            function_type.output.get(), function_type.inputs,
+                            [obj = std::move(output.value),
+                             callback = delegate](
+                                std::vector<gc::Root<Value>> args,
+                                Trampoline& trampoline_inner) {
+                              args.emplace(args.begin(), obj);
+                              return callback.ptr()->RunFunction(
+                                  std::move(args), trampoline_inner);
+                            })));
                     }
                     language::Error error{
                         LazyString{L"Unhandled OutputType case."}};
@@ -389,7 +389,11 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
 
             std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
                 const override {
-              return {obj_expr_.object_metadata()};
+              std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
+                  container::MaterializeVector(delegates_ |
+                                               gc::view::ObjectMetadata);
+              output.push_back(obj_expr_.object_metadata());
+              return output;
             }
 
            private:
@@ -400,7 +404,7 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
               return input_function;
             }
 
-            const std::vector<gc::Root<Value>> delegates_;
+            const std::vector<gc::Ptr<Value>> delegates_;
 
             // The actual types that the expression can deliver. Basically, a
             // function receiving the arguments that will be dispatched to a
