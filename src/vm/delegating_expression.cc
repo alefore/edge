@@ -89,4 +89,12 @@ NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
   return MakeNonNullUnique<DelegatingExpression>(std::move(delegate));
 }
 
+std::optional<gc::Ptr<Expression>> OptionalRootToPtr(
+    std::optional<gc::Root<Expression>> input) {
+  return VisitOptional(
+      [](gc::Root<Expression> input_root) {
+        return std::optional<gc::Ptr<Expression>>(input_root.ptr());
+      },
+      [] { return std::optional<gc::Ptr<Expression>>(); }, input);
+}
 }  // namespace afc::vm

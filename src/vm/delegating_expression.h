@@ -20,6 +20,9 @@ std::unique_ptr<Expression> ToUniquePtr(
 // consumers) and gc::Root worlds.
 language::NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
     language::gc::Root<Expression> delegate);
+
+std::optional<language::gc::Ptr<Expression>> OptionalRootToPtr(
+    std::optional<language::gc::Root<Expression>>);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_DELEGATING_EXPRESSION_H__
