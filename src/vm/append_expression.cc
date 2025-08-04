@@ -92,21 +92,6 @@ ValueOrError<gc::Root<Expression>> NewAppendExpression(
   return compilation.RegisterErrors(NewAppendExpression(a.value(), b.value()));
 }
 
-language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
-    Compilation& compilation, std::unique_ptr<Expression> a,
-    std::unique_ptr<Expression> b) {
-  if (a == nullptr || b == nullptr) {
-    return Error(LazyString{L"Missing input."});
-  }
-  return NewAppendExpression(
-      compilation.pool
-          .NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)))
-          .ptr(),
-      compilation.pool
-          .NewRoot(NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)))
-          .ptr());
-}
-
 ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Ptr<Expression> a,
                                                        gc::Ptr<Expression> b) {
   if (!a->purity().writes_external_outputs &&

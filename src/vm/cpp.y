@@ -48,12 +48,14 @@ program(OUT) ::= statement_list(A). {
 }
 
 program(OUT) ::= statement_list(A) assignment_statement(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
+  std::optional<gc::Root<Expression>> b =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
 
-  OUT = new std::optional<gc::Root<Expression>>(
-            language::OptionalFrom(
-                NewAppendExpression(*compilation, std::move(a), std::move(b))));
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewAppendExpression(*compilation, OptionalRootToPtr(std::move(a)),
+                          OptionalRootToPtr(std::move(b)))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,12 +71,15 @@ statement_list(L) ::= . {
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
+  std::optional<gc::Root<Expression>> b =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
 
-  OUT =
-      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
-          .release();
+  OUT = ToUniquePtr(NewAppendExpression(*compilation,
+                                        OptionalRootToPtr(std::move(a)),
+                                        OptionalRootToPtr(std::move(b))))
+            .release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -220,38 +225,37 @@ statement(OUT) ::=
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
     ELSE statement(FALSE_CASE). {
-  std::unique_ptr<Expression> condition(CONDITION);
-  std::unique_ptr<Expression> true_case(TRUE_CASE);
-  std::unique_ptr<Expression> false_case(FALSE_CASE);
+  std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(CONDITION));
+  std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
+  std::optional<gc::Root<Expression>> false_case = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(FALSE_CASE));
 
   A = ToUniquePtr(
           NewIfExpression(
-              *compilation,
-              PtrToOptionalRoot(compilation->pool, std::move(condition)),
+              *compilation, std::move(condition),
               language::OptionalFrom(NewAppendExpression(
-                  *compilation, std::move(true_case),
-                  NewDelegatingExpression(NewVoidExpression(compilation->pool))
-                      .get_unique())),
+                  *compilation, OptionalRootToPtr(std::move(true_case)),
+                  NewVoidExpression(compilation->pool).ptr())),
               language::OptionalFrom(NewAppendExpression(
-                  *compilation, std::move(false_case),
-                  NewDelegatingExpression(NewVoidExpression(compilation->pool))
-                      .get_unique()))))
+                  *compilation, OptionalRootToPtr(std::move(false_case)),
+                  NewVoidExpression(compilation->pool).ptr()))))
           .release();
 }
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
-  std::unique_ptr<Expression> condition(CONDITION);
-  std::unique_ptr<Expression> true_case(TRUE_CASE);
+  std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(CONDITION));
+  std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
 
-  A = ToUniquePtr(
-          NewIfExpression(
-              *compilation,
-              PtrToOptionalRoot(compilation->pool, std::move(condition)),
-              VALUE_OR_DIE(NewAppendExpression(
-                  *compilation, std::move(true_case),
-                  NewDelegatingExpression(NewVoidExpression(compilation->pool))
-                      .get_unique())),
-              NewVoidExpression(compilation->pool)))
+  A = ToUniquePtr(NewIfExpression(
+                      *compilation, std::move(condition),
+                      language::OptionalFrom(NewAppendExpression(
+                          *compilation, OptionalRootToPtr(std::move(true_case)),
+                          NewVoidExpression(compilation->pool).ptr())),
+                      NewVoidExpression(compilation->pool)))
           .release();
 }
 
