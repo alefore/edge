@@ -191,12 +191,17 @@ void Run(std::vector<std::wstring> tests_filter) {
       GetSchedule(tests_filter_set);
 
   // If we have a single test, avoid forking.
-  if (tests_to_schedule.size() == 1) {
-    const TestInfoToSchedule& test = tests_to_schedule.front();
-    std::cerr << "## Group: " << test.group_name << std::endl << std::endl;
-    std::cerr << "* " << test.test_name << std::endl;
-    for (size_t i = 0; i < test.test.runs; ++i) test.test.callback();
-    std::cerr << std::endl;
+  // TODO(trivial, 2025-08-04): This could be significantly better: it could
+  // actually output the tests grouped. It should also not use an environment
+  // variable but a parameter (coming from the command-line flags).
+  if (tests_to_schedule.size() == 1 ||
+      getenv("EDGE_TESTS_NO_FORK") != nullptr) {
+    for (const TestInfoToSchedule& test : tests_to_schedule) {
+      std::cerr << "## Group: " << test.group_name << std::endl << std::endl;
+      std::cerr << "* " << test.test_name << std::endl;
+      for (size_t i = 0; i < test.test.runs; ++i) test.test.callback();
+      std::cerr << std::endl;
+    }
     return;
   }
 
