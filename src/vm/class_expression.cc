@@ -89,15 +89,12 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
 
 PossibleError FinishClassDeclaration(
     Compilation& compilation,
-    NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
+    gc::Root<Expression> constructor_expression_input) {
   gc::Pool& pool = compilation.pool;
-  ASSIGN_OR_RETURN(
-      gc::Root<Expression> constructor_expression,
-      compilation.RegisterErrors(NewAppendExpression(
-          compilation,
-          compilation.pool.NewRoot(std::move(constructor_expression_input))
-              .ptr(),
-          NewVoidExpression(compilation.pool).ptr())));
+  ASSIGN_OR_RETURN(gc::Root<Expression> constructor_expression,
+                   compilation.RegisterErrors(NewAppendExpression(
+                       compilation, constructor_expression_input.ptr(),
+                       NewVoidExpression(compilation.pool).ptr())));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
   gc::Root<ObjectType> class_object_type = ObjectType::New(pool, class_type);

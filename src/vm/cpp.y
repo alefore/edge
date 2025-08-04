@@ -39,19 +39,14 @@ main ::= error. {
 %destructor program { delete $$; }
 
 program(OUT) ::= statement_list(A). {
-  std::unique_ptr<Expression> a(A);
-  if (a == nullptr)
-    OUT = new std::optional<gc::Root<Expression>>();
-  else
-    OUT = new std::optional<gc::Root<Expression>>(
-                  PtrToOptionalRoot(compilation->pool, std::move(a)));
+  OUT = A;
 }
 
 program(OUT) ::= statement_list(A) assignment_statement(B). {
   std::optional<gc::Root<Expression>> a =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
   std::optional<gc::Root<Expression>> b =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(B));
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
       NewAppendExpression(*compilation, OptionalRootToPtr(std::move(a)),
@@ -62,31 +57,36 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
 // Statement list
 ////////////////////////////////////////////////////////////////////////////////
 
-%type statement_list { Expression * }
+%type statement_list {
+  // Never nullptr (but maybe std::nullopt).
+  std::optional<gc::Root<Expression>>*
+}
 %destructor statement_list { delete $$; }
 
 statement_list(L) ::= . {
-  L = NewDelegatingExpression(NewVoidExpression(compilation->pool))
-          .get_unique().release();
+  L = new std::optional<gc::Root<Expression>>(
+      NewVoidExpression(compilation->pool));
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
   std::optional<gc::Root<Expression>> a =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
   std::optional<gc::Root<Expression>> b =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(B));
 
-  OUT = ToUniquePtr(NewAppendExpression(*compilation,
-                                        OptionalRootToPtr(std::move(a)),
-                                        OptionalRootToPtr(std::move(b))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewAppendExpression(*compilation, OptionalRootToPtr(std::move(a)),
+                          OptionalRootToPtr(std::move(b)))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Statements
 ////////////////////////////////////////////////////////////////////////////////
 
-%type statement { Expression* }
+%type statement {
+  // Never nullptr (but maybe std::nullopt).
+  std::optional<gc::Root<Expression>>*
+}
 %destructor statement { delete $$; }
 
 statement(A) ::= assignment_statement(B) SEMICOLON . {
@@ -95,12 +95,11 @@ statement(A) ::= assignment_statement(B) SEMICOLON . {
 
 statement(OUT) ::= namespace_declaration
     LBRACKET statement_list(A) RBRACKET. {
-  std::unique_ptr<Expression> a(A);
+  std::optional<gc::Root<Expression>> a =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
 
-  OUT = ToUniquePtr(NewNamespaceExpression(
-                        *compilation,
-                        PtrToOptionalRoot(compilation->pool, std::move(a))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewNamespaceExpression(*compilation, std::move(a))));
 }
 
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
@@ -114,16 +113,15 @@ namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
 
 statement(OUT) ::= class_declaration
     LBRACKET statement_list(A) RBRACKET SEMICOLON. {
-  std::unique_ptr<Expression> a(A);
+  std::optional<gc::Root<Expression>> a =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
 
-  if (a == nullptr) {
+  if (a == std::nullopt) {
     OUT = nullptr;
   } else {
-    FinishClassDeclaration(
-        *compilation,
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)));
-    OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool))
-              .get_unique().release();
+    FinishClassDeclaration(*compilation, std::move(a).value());
+    OUT = new std::optional<gc::Root<Expression>>(
+        NewVoidExpression(compilation->pool));
   }
 }
 
@@ -138,42 +136,44 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
   std::unique_ptr<Expression> a(A);
 
-  OUT = ToUniquePtr(language::error::FromOptional(NewReturnExpression(
-                        PtrToOptionalRoot(compilation->pool, std::move(a)))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+      NewReturnExpression(
+                        PtrToOptionalRoot(compilation->pool, std::move(a))));
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
-  OUT = ToUniquePtr(language::error::FromOptional(
-      NewReturnExpression(NewVoidExpression(compilation->pool))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+      NewReturnExpression(NewVoidExpression(compilation->pool)));
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
   std::unique_ptr<UserFunction> func(FUNC);
-  std::unique_ptr<Expression> body(BODY);
+  std::optional<gc::Root<Expression>> body =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
 
   OUT = nullptr;
   if (func == nullptr) {
     // Pass.
+  } else if (body == std::nullopt) {
+    func->Abort();
   } else {
-    gc::Root<Expression> body_expr =
-        PtrToOptionalRoot(compilation->pool, std::move(body)).value();
     std::visit(
         overload{
             [&](Error) { func->Abort(); },
             [&](gc::Root<Value> value) {
               compilation->environment->parent_environment().value()->Define(
                   Identifier(func->name().value()), std::move(value));
-              OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
+              OUT = new std::optional<gc::Root<Expression>>(
+                  NewVoidExpression(compilation->pool));
             }},
-        compilation->RegisterErrors(func->BuildValue(body_expr.ptr())));
+        compilation->RegisterErrors(func->BuildValue(body->ptr())));
   }
 }
 
-statement(A) ::= SEMICOLON . {
-  A = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
+statement(OUT) ::= SEMICOLON . {
+  OUT = new std::optional<gc::Root<Expression>>(
+            NewVoidExpression(compilation->pool));
 }
 
 statement(A) ::= nesting_lbracket statement_list(L) nesting_rbracket. {
@@ -194,14 +194,14 @@ nesting_rbracket ::= RBRACKET. {
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
   std::unique_ptr<Expression> condition(CONDITION);
-  std::unique_ptr<Expression> body(BODY);
+  std::optional<gc::Root<Expression>> body =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
 
-  OUT = ToUniquePtr(
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
             NewWhileExpression(
                 *compilation,
                 PtrToOptionalRoot(compilation->pool, std::move(condition)),
-                PtrToOptionalRoot(compilation->pool, std::move(body))))
-            .release();
+                std::move(body))));
 }
 
 statement(OUT) ::=
@@ -209,33 +209,33 @@ statement(OUT) ::=
         expr(CONDITION) SEMICOLON
         expr(UPDATE)
     RPAREN statement(BODY). {
-  std::unique_ptr<Expression> init(INIT);
+  std::unique_ptr<std::optional<gc::Root<Expression>>> init(INIT);
   std::unique_ptr<Expression> condition(CONDITION);
   std::unique_ptr<Expression> update(UPDATE);
-  std::unique_ptr<Expression> body(BODY);
+  std::optional<gc::Root<Expression>> body =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
 
-  OUT = ToUniquePtr(
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
             NewForExpression(
                 *compilation,
-                PtrToOptionalRoot(compilation->pool, std::move(init)),
+                std::move(*init),
                 PtrToOptionalRoot(compilation->pool, std::move(condition)),
                 PtrToOptionalRoot(compilation->pool, std::move(update)),
-                PtrToOptionalRoot(compilation->pool, std::move(body))))
-            .release();
+                std::move(body))));
 }
 
-statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
+statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
     ELSE statement(FALSE_CASE). {
   std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
       compilation->pool, std::unique_ptr<Expression>(CONDITION));
-  std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
-  std::optional<gc::Root<Expression>> false_case = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(FALSE_CASE));
+  std::optional<gc::Root<Expression>> true_case =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(TRUE_CASE));
+  std::optional<gc::Root<Expression>> false_case =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(FALSE_CASE));
 
   gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
 
-  A = ToUniquePtr(
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
           NewIfExpression(
               *compilation, OptionalRootToPtr(condition),
               OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
@@ -243,33 +243,35 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
                   void_expression.ptr()))),
               OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
                   *compilation, OptionalRootToPtr(std::move(false_case)),
-                  void_expression.ptr())))))
-          .release();
+                  void_expression.ptr()))))));
 }
 
-statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
+statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
   std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
       compilation->pool, std::unique_ptr<Expression>(CONDITION));
-  std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
+  std::optional<gc::Root<Expression>> true_case =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(TRUE_CASE));
 
   gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
 
-  A = ToUniquePtr(
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
           NewIfExpression(
               *compilation, OptionalRootToPtr(condition),
               OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
                   *compilation, OptionalRootToPtr(std::move(true_case)),
                   void_expression.ptr()))),
-              OptionalRootToPtr(void_expression)))
-          .release();
+              OptionalRootToPtr(void_expression))));
 }
 
-%type assignment_statement { Expression* }
+%type assignment_statement {
+  // Never nullptr (but maybe std::nullopt).
+  std::optional<gc::Root<Expression>>*
+}
 %destructor assignment_statement { delete $$; }
 
 assignment_statement(A) ::= expr(VALUE) . {
-  A = VALUE;
+  A = new std::optional<gc::Root<Expression>>(
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(VALUE)));
 }
 
 // Declaration of a function (signature).
@@ -279,22 +281,19 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   if (func == nullptr) {
     OUT = nullptr;
   } else {
-    std::visit(
-        overload{[&](Type) {
-                   OUT = NewDelegatingExpression(
-                             NewVoidExpression(compilation->pool))
-                             .get_unique()
-                             .release();
+    OUT = new std::optional<gc::Root<Expression>>(std::visit(
+        overload{[&](Type) -> std::optional<gc::Root<Expression>> {
+                   return NewVoidExpression(compilation->pool);
                  },
-                 [&](Error error) {
+                 [&](Error error) -> std::optional<gc::Root<Expression>> {
                    compilation->AddError(error);
-                   OUT = nullptr;
                    func->Abort();
+                   return std::nullopt;
                  }},
         DefineUninitializedVariable(
             compilation->environment.value(),
             Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
-            *func->name(), func->type()));
+            *func->name(), func->type())));
   }
 }
 
@@ -319,30 +318,28 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
             type_identifier))});
     OUT = nullptr;
   } else {
-    OUT = ToUniquePtr(
-              language::error::FromOptional(NewDefineExpression(
+    OUT = new std::optional<gc::Root<Expression>>(
+              NewDefineExpression(
                   *compilation, type->value().ptr()->get_symbol(),
                   name->value().ptr()->get_symbol(),
                   NewFunctionCall(*compilation,
                                   PtrToOptionalRoot(compilation->pool,
                                                     std::move(constructor))
                                       ->ptr(),
-                                  {}))))
-              .release();
+                                  {})));
   }
 }
 
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
   std::unique_ptr<std::optional<gc::Root<Value>>> type(TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<Expression> value(VALUE);
+  std::optional<gc::Root<Expression>> value =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(VALUE));
 
-  A = ToUniquePtr(
-          language::error::FromOptional(NewDefineExpression(
+  A = new std::optional<gc::Root<Expression>>(
+          NewDefineExpression(
               *compilation, type->value().ptr()->get_symbol(),
-              name->value().ptr()->get_symbol(),
-              PtrToOptionalRoot(compilation->pool, std::move(value)))))
-          .release();
+              name->value().ptr()->get_symbol(), std::move(value)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -484,22 +481,21 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
 expr(OUT) ::= lambda_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET . {
   std::unique_ptr<UserFunction> func(FUNC);
-  std::unique_ptr<Expression> body(BODY);
+  std::optional<gc::Root<Expression>> body =
+      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
 
   OUT = nullptr;
   if (func == nullptr) {
     // Pass.
-  } else if (body == nullptr) {
+  } else if (body == std::nullopt) {
     func->Abort();
   } else {
-    gc::Root<Expression> body_expr =
-        PtrToOptionalRoot(compilation->pool, std::move(body)).value();
     std::visit(overload{IgnoreErrors{},
                         [&](NonNull<std::unique_ptr<Expression>> value) {
                           OUT = value.release().get();
                         }},
                compilation->RegisterErrors(
-                   func->BuildExpression(body_expr.ptr())));
+                   func->BuildExpression(body->ptr())));
   }
 }
 

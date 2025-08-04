@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/vm/compilation.h"
 #include "src/vm/expression.h"
@@ -16,8 +17,7 @@ class ObjectName;
 void StartClassDeclaration(Compilation& compilation,
                            const types::ObjectName& name);
 language::PossibleError FinishClassDeclaration(
-    Compilation& compilation,
-    language::NonNull<std::unique_ptr<Expression>> body);
+    Compilation& compilation, language::gc::Root<Expression> body);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_CLASS_EXPRESSION_H__
