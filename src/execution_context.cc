@@ -137,7 +137,7 @@ ExecutionContext::CompilationResult::evaluate() const {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 ExecutionContext::CompilationResult::Expand() const {
-  return {environment_.object_metadata()};
+  return {expression_.object_metadata(), environment_.object_metadata()};
 }
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
