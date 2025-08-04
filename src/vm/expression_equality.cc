@@ -27,62 +27,48 @@ using afc::vm::types::ObjectName;
 
 namespace afc::vm {
 
-std::unique_ptr<Expression> ExpressionEquals(Compilation& compilation,
-                                             std::unique_ptr<Expression> a,
-                                             std::unique_ptr<Expression> b) {
-  if (a == nullptr || b == nullptr) {
-    return nullptr;
-  } else if (a->IsString() && b->IsString()) {
-    return std::unique_ptr<Expression>(
-        std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
-            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
-            types::Bool{},
-            [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
-              return Value::NewBool(pool,
-                                    a_str.get_string() == b_str.get_string());
-            })))));
-  } else if (a->IsNumber() && b->IsNumber()) {
-    return std::unique_ptr<Expression>(
-        std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
-            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
-            types::Bool{},
-            [precision = compilation.numbers_precision](
-                gc::Pool& pool, const Value& a_value,
-                const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-              return Value::NewBool(
-                  pool, a_value.get_number() == b_value.get_number());
-            })))));
-  } else if (a->IsBool() && b->IsBool()) {
-    return std::unique_ptr<Expression>(
-        std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
-            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
-            types::Bool{},
-            [](gc::Pool& pool, const Value& a_bool, const Value& b_bool) {
-              return Value::NewBool(pool,
-                                    a_bool.get_bool() == b_bool.get_bool());
-            })))));
-  } else if (a->Types().front() == b->Types().front() &&
-             std::holds_alternative<types::ObjectName>(a->Types().front())) {
-    return std::unique_ptr<Expression>(
-        std::move(ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
-            PtrToOptionalRoot(compilation.pool, std::move(a))->ptr(),
-            PtrToOptionalRoot(compilation.pool, std::move(b))->ptr(),
-            types::Bool{},
-            [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
-              return Value::NewBool(
-                  pool,
-                  a_value.get_user_value<void>(a_value.type()).get_shared() ==
-                      b_value.get_user_value<void>(b_value.type())
-                          .get_shared());
-            })))));
+ValueOrError<gc::Root<Expression>> ExpressionEquals(
+    Compilation& compilation, std::optional<gc::Ptr<Expression>> a,
+    std::optional<gc::Ptr<Expression>> b) {
+  if (a == std::nullopt || b == std::nullopt) {
+    return Error{LazyString{L"Missing inputs."}};
+  } else if (a.value()->IsString() && b.value()->IsString()) {
+    return compilation.RegisterErrors(BinaryOperator::New(
+        std::move(a).value(), std::move(b).value(), types::Bool{},
+        [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
+          return Value::NewBool(pool, a_str.get_string() == b_str.get_string());
+        }));
+  } else if (a.value()->IsNumber() && b.value()->IsNumber()) {
+    return compilation.RegisterErrors(BinaryOperator::New(
+        std::move(a).value(), std::move(b).value(), types::Bool{},
+        [precision = compilation.numbers_precision](
+            gc::Pool& pool, const Value& a_value,
+            const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          return Value::NewBool(pool,
+                                a_value.get_number() == b_value.get_number());
+        }));
+  } else if (a.value()->IsBool() && b.value()->IsBool()) {
+    return compilation.RegisterErrors(BinaryOperator::New(
+        std::move(a).value(), std::move(b).value(), types::Bool{},
+        [](gc::Pool& pool, const Value& a_bool, const Value& b_bool) {
+          return Value::NewBool(pool, a_bool.get_bool() == b_bool.get_bool());
+        }));
+  } else if (a.value()->Types().front() == b.value()->Types().front() &&
+             std::holds_alternative<types::ObjectName>(
+                 a.value()->Types().front())) {
+    return compilation.RegisterErrors(BinaryOperator::New(
+        std::move(a).value(), std::move(b).value(), types::Bool{},
+        [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
+          return Value::NewBool(
+              pool,
+              a_value.get_user_value<void>(a_value.type()).get_shared() ==
+                  b_value.get_user_value<void>(b_value.type()).get_shared());
+        }));
   } else {
-    compilation.AddError(Error{LazyString{L"Unable to compare types: "} +
-                               TypesToString(a->Types()) + LazyString{L" == "} +
-                               TypesToString(b->Types()) + LazyString{L"."}});
-    return nullptr;
+    return compilation.AddError(
+        Error{LazyString{L"Unable to compare types: "} +
+              TypesToString(a.value()->Types()) + LazyString{L" == "} +
+              TypesToString(b.value()->Types()) + LazyString{L"."}});
   }
 }
 

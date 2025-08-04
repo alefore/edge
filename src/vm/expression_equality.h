@@ -3,14 +3,15 @@
 
 #include <memory>
 
+#include "src/language/gc.h"
+
 namespace afc::vm {
 struct Compilation;
 class Expression;
 
-std::unique_ptr<Expression> ExpressionEquals(
-    Compilation& compilation,
-    std::unique_ptr<Expression> a,
-    std::unique_ptr<Expression> b);
+language::ValueOrError<language::gc::Root<Expression>> ExpressionEquals(
+    Compilation& compilation, std::optional<language::gc::Ptr<Expression>> a,
+    std::optional<language::gc::Ptr<Expression>> b);
 
 }  // namespace afc::vm
 

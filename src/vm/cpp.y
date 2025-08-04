@@ -732,20 +732,26 @@ expr(OUT) ::= NOT expr(A). {
 }
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
-  OUT = ExpressionEquals(*compilation, std::unique_ptr<Expression>(A),
-                         std::unique_ptr<Expression>(B)).release();
+  OUT =
+      ToUniquePtr(ExpressionEquals(
+                      *compilation,
+                      OptionalRootToPtr(PtrToOptionalRoot(
+                          compilation->pool, std::unique_ptr<Expression>(A))),
+                      OptionalRootToPtr(PtrToOptionalRoot(
+                          compilation->pool, std::unique_ptr<Expression>(B)))))
+          .release();
 }
 
 expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
-
   OUT = ToUniquePtr(
             NewNegateExpressionBool(
                 *compilation,
-                PtrToOptionalRoot(compilation->pool,
-                                  ExpressionEquals(*compilation, std::move(a),
-                                                   std::move(b)))))
+                language::OptionalFrom(ExpressionEquals(
+                    *compilation,
+                    OptionalRootToPtr(PtrToOptionalRoot(
+                        compilation->pool, std::unique_ptr<Expression>(A))),
+                    OptionalRootToPtr(PtrToOptionalRoot(
+                        compilation->pool, std::unique_ptr<Expression>(B)))))))
             .release();
 }
 
