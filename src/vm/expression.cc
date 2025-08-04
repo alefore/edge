@@ -25,22 +25,21 @@ Trampoline::Trampoline(Options options)
       yield_callback_(std::move(options.yield_callback)) {}
 
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
-    const NonNull<std::shared_ptr<Expression>>& expression, Type type) {
+    const gc::Ptr<Expression>& expression, Type type) {
   if (!expression->SupportsType(type)) {
     LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
                << ", expected: " << type;
   }
   static const size_t kMaximumJumps = 100;
-  if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
+  if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr)
     return expression->Evaluate(*this, type);
-  }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
   yield_callback_(OnceOnlyFunction<void()>(
-      [this, type, expression = std::move(expression),
+      [this, type, expression_root = expression.ToRoot(),
        consumer = std::move(output.consumer)]() mutable {
         jumps_ = 0;
-        Bounce(std::move(expression), type).SetConsumer(std::move(consumer));
+        Bounce(expression_root.ptr(), type).SetConsumer(std::move(consumer));
       }));
   return std::move(output.value);
 }
@@ -84,7 +83,7 @@ ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 }
 
 futures::ValueOrError<gc::Root<Value>> Evaluate(
-    const NonNull<std::shared_ptr<Expression>>& expr, gc::Pool& pool,
+    const gc::Ptr<Expression>& expr, gc::Pool& pool,
     gc::Root<Environment> environment,
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
   NonNull<std::shared_ptr<Trampoline>> trampoline =

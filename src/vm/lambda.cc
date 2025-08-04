@@ -119,8 +119,7 @@ class LambdaExpression : public Expression {
                                       std::move(args.at(i)));
           }
           trampoline.SetEnvironment(environment);
-          return trampoline
-              .Bounce(NewDelegatingExpression(body_root), body_root->Types()[0])
+          return trampoline.Bounce(body_root.ptr(), body_root->Types()[0])
               .Transform(
                   [original_trampoline, &trampoline, body_root,
                    promotion_function](EvaluationOutput body_output) mutable {

@@ -64,7 +64,7 @@ class WhileExpression : public Expression {
   static futures::ValueOrError<EvaluationOutput> Iterate(
       Trampoline& trampoline, gc::Root<Expression> condition,
       gc::Root<Expression> body) {
-    return trampoline.Bounce(NewDelegatingExpression(condition), types::Bool{})
+    return trampoline.Bounce(condition.ptr(), types::Bool{})
         .Transform([condition, body,
                     &trampoline](EvaluationOutput condition_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -80,8 +80,7 @@ class WhileExpression : public Expression {
               }
 
               DVLOG(5) << "Iterating...";
-              return trampoline
-                  .Bounce(NewDelegatingExpression(body), body->Types()[0])
+              return trampoline.Bounce(body.ptr(), body->Types()[0])
                   .Transform([condition, body,
                               &trampoline](EvaluationOutput body_output)
                                  -> futures::ValueOrError<EvaluationOutput> {

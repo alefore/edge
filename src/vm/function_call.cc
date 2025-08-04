@@ -32,6 +32,7 @@ using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::view::SkipErrors;
@@ -136,14 +137,13 @@ class FunctionCall : public Expression {
         MakeNonNullShared<std::vector<gc::Root<Expression>>>(
             container::MaterializeVector(args_.value() | gc::view::Root));
     return trampoline
-        .Bounce(NewDelegatingExpression(func_.ToRoot()),
-                types::Function{
-                    .output = type,
-                    .inputs = container::MaterializeVector(
-                        args_.value() | std::views::transform([](auto& arg) {
-                          return arg->Types()[0];
-                        })),
-                    .function_purity = purity()})
+        .Bounce(func_, types::Function{.output = type,
+                                       .inputs = container::MaterializeVector(
+                                           args_.value() |
+                                           std::views::transform([](auto& arg) {
+                                             return arg->Types()[0];
+                                           })),
+                                       .function_purity = purity()})
         .Transform([&trampoline, args_roots](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
@@ -192,7 +192,7 @@ class FunctionCall : public Expression {
     }
     gc::Root<Expression>& arg = args->at(values->size());
     DVLOG(6) << "Bounce with types: " << TypesToString(arg->Types());
-    return trampoline.Bounce(NewDelegatingExpression(arg), arg->Types()[0])
+    return trampoline.Bounce(arg.ptr(), arg->Types()[0])
         .Transform(
             [&trampoline, args, values, callback](EvaluationOutput value) {
               DVLOG(7) << "Got evaluation output.";
@@ -242,13 +242,12 @@ std::optional<language::gc::Root<Expression>> NewFunctionCall(
   return std::nullopt;
 }
 
-std::unique_ptr<Expression> NewMethodLookup(
-    Compilation& compilation, std::unique_ptr<Expression> object_ptr,
+ValueOrError<gc::Root<Expression>> NewMethodLookup(
+    Compilation& compilation, std::optional<gc::Root<Expression>> object_ptr,
     Identifier method_name) {
-  return VisitPointer(
-      std::move(object_ptr),
-      [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)
-          -> std::unique_ptr<Expression> {
+  return VisitOptional(
+      [&compilation, &method_name](
+          gc::Root<Expression> object) -> ValueOrError<gc::Root<Expression>> {
         std::vector<Error> errors;
         // TODO: Better support polymorphism: don't return early assuming one of
         // the types of `object`.
@@ -306,15 +305,16 @@ std::unique_ptr<Expression> NewMethodLookup(
 
            public:
             static language::gc::Root<BindObjectExpression> New(
-                language::gc::Pool& pool,
-                NonNull<std::shared_ptr<Expression>> obj_expr,
+                gc::Ptr<Expression> obj_expr,
                 std::vector<gc::Root<Value>> delegates) {
+              gc::Pool& pool = obj_expr.pool();
               return pool.NewRoot(
-                  language::MakeNonNullUnique<BindObjectExpression>(obj_expr,
-                                                                    delegates));
+                  language::MakeNonNullUnique<BindObjectExpression>(
+                      ConstructorAccessTag{}, obj_expr, delegates));
             }
 
-            BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
+            BindObjectExpression(ConstructorAccessTag,
+                                 gc::Ptr<Expression> obj_expr,
                                  std::vector<gc::Root<Value>> delegates)
                 : delegates_(std::move(delegates)),
                   external_types_(MakeNonNullShared<std::vector<Type>>(
@@ -389,7 +389,7 @@ std::unique_ptr<Expression> NewMethodLookup(
 
             std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
                 const override {
-              return {};
+              return {obj_expr_.object_metadata()};
             }
 
            private:
@@ -407,18 +407,19 @@ std::unique_ptr<Expression> NewMethodLookup(
             // delegate (after inserting the result from evaluating
             // `obj_expr_`).
             const NonNull<std::shared_ptr<std::vector<Type>>> external_types_;
-            const NonNull<std::shared_ptr<Expression>> obj_expr_;
+            const gc::Ptr<Expression> obj_expr_;
           };
 
-          return std::make_unique<BindObjectExpression>(std::move(object),
-                                                        fields);
+          return BindObjectExpression::New(std::move(object).ptr(), fields);
         }
 
         CHECK(!errors.empty());
-        compilation.AddError(MergeErrors(errors, L", "));
-        return nullptr;
+        return compilation.AddError(MergeErrors(errors, L", "));
       },
-      [] { return nullptr; });
+      [] -> ValueOrError<gc::Root<Expression>> {
+        return Error{LazyString{L"Missing input"}};
+      },
+      std::move(object_ptr));
 }
 
 futures::ValueOrError<gc::Root<Value>> Call(
@@ -432,11 +433,12 @@ futures::ValueOrError<gc::Root<Value>> Call(
         return NewConstantExpression(std::move(arg));
       }));
   return Evaluate(
-      NewDelegatingExpression(FunctionCall::New(
+      FunctionCall::New(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func)))
               .ptr(),
           MakeNonNullShared<std::vector<gc::Ptr<Expression>>>(
-              container::MaterializeVector(args_expr | gc::view::Ptr)))),
+              container::MaterializeVector(args_expr | gc::view::Ptr)))
+          .ptr(),
       pool, Environment::New(pool), yield_callback);
 }
 

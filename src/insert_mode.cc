@@ -546,9 +546,8 @@ class InsertMode : public InputReceiver {
                 return futures::Past(EmptyValue());
               }
               return buffer
-                  .EvaluateExpression(
-                      NewDelegatingExpression(std::move(expression)),
-                      buffer.environment().ToRoot())
+                  .EvaluateExpression(expression.ptr(),
+                                      buffer.environment().ToRoot())
                   .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
                     return futures::Past(vm::Value::NewVoid(pool));
                   })

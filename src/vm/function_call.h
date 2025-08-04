@@ -29,9 +29,10 @@ futures::ValueOrError<language::gc::Root<Value>> Call(
     std::vector<language::gc::Root<Value>> args,
     std::function<void(language::OnceOnlyFunction<void()>)> yield_callback);
 
-std::unique_ptr<Expression> NewMethodLookup(Compilation& compilation,
-                                            std::unique_ptr<Expression> object,
-                                            Identifier method_name);
+language::ValueOrError<language::gc::Root<Expression>> NewMethodLookup(
+    Compilation& compilation,
+    std::optional<language::gc::Root<Expression>> object,
+    Identifier method_name);
 
 }  // namespace vm
 }  // namespace afc

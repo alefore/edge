@@ -567,7 +567,7 @@ class ForkEditorCommand : public Command {
     }
     return prompt_state.original_buffer.ptr()
         ->EvaluateExpression(
-            NewDelegatingExpression(std::move(context_command_expression)),
+            context_command_expression.ptr(),
             prompt_state.original_buffer.ptr()->environment().ToRoot())
         .Transform([&prompt_state,
                     &editor](gc::Root<vm::Value> context_command_output)

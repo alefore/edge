@@ -59,10 +59,10 @@ PurityType BinaryOperator::purity() {
 futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline& trampoline, const Type& type) {
   CHECK(type_ == type);
-  return trampoline.Bounce(NewDelegatingExpression(a_.ToRoot()), a_->Types()[0])
+  return trampoline.Bounce(a_, a_->Types()[0])
       .Transform([b = b_.ToRoot(), type = type_, op = operator_,
                   &trampoline](EvaluationOutput a_value) {
-        return trampoline.Bounce(NewDelegatingExpression(b), b->Types()[0])
+        return trampoline.Bounce(b.ptr(), b->Types()[0])
             .Transform([&trampoline, a_value = std::move(a_value.value), type,
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {

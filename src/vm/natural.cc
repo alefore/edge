@@ -267,17 +267,7 @@ language::ValueOrError<gc::Root<Expression>> Compile(
 }
 
 namespace {
-// TODO(2025-08-01, trivial): Get rid of this once the real `Evaluate` function
-// accepts a gc::Root expression.
-futures::ValueOrError<gc::Root<Value>> Evaluate(
-    const gc::Ptr<Expression>& expr, gc::Pool& pool,
-    gc::Root<Environment> environment,
-    std::function<void(language::OnceOnlyFunction<void()>)> yield_callback) {
-  return Evaluate(NewDelegatingExpression(expr.ToRoot()), pool,
-                  std::move(environment), std::move(yield_callback));
-}
-
-using ::operator<<;
+// using ::operator<<;
 using afc::language::operator<<;
 static const vm::Namespace kEmptyNamespace;
 bool tests_registration = tests::Register(

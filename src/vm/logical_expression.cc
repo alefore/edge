@@ -53,8 +53,7 @@ class LogicalExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline
-        .Bounce(NewDelegatingExpression(expr_a_.ToRoot()), types::Bool{})
+    return trampoline.Bounce(expr_a_, types::Bool{})
         .Transform([type, &trampoline, identity = identity_,
                     expr_b_root = expr_b_.ToRoot()](EvaluationOutput a_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -63,8 +62,7 @@ class LogicalExpression : public Expression {
               return futures::Past(Success(std::move(a_output)));
             case EvaluationOutput::OutputType::kContinue:
               return a_output.value.ptr()->get_bool() == identity
-                         ? trampoline.Bounce(
-                               NewDelegatingExpression(expr_b_root), type)
+                         ? trampoline.Bounce(expr_b_root.ptr(), type)
                          : futures::Past(Success(std::move(a_output)));
           }
           language::Error error{LazyString{L"Unhandled OutputType case."}};

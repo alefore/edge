@@ -111,7 +111,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 struct ParsedCommand {
   std::vector<Token> tokens;
   // Should be a function of zero arguments.
-  NonNull<std::shared_ptr<vm::Expression>> expression;
+  gc::Root<vm::Expression> expression;
 };
 
 ValueOrError<ParsedCommand> Parse(
@@ -125,9 +125,8 @@ ValueOrError<ParsedCommand> Parse(
                                search_namespaces.namespaces, pool);
       !IsError(parse)) {
     LOG(INFO) << "Parse natural command: " << command;
-    return ParsedCommand{
-        .tokens = std::move(output_tokens),
-        .expression = NewDelegatingExpression(ValueOrDie(std::move(parse)))};
+    return ParsedCommand{.tokens = std::move(output_tokens),
+                         .expression = VALUE_OR_DIE(std::move(parse))};
   }
 
   if (output_tokens.empty()) {
@@ -226,10 +225,10 @@ ValueOrError<ParsedCommand> Parse(
   }
   return ParsedCommand{
       .tokens = std::move(output_tokens),
-      .expression = NewDelegatingExpression(NewFunctionCall(
+      .expression = NewFunctionCall(
           NewConstantExpression(std::move(output_function.value())).ptr(),
           container::MaterializeVector(output_function_inputs |
-                                       gc::view::Ptr)))};
+                                       gc::view::Ptr))};
 }
 
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool, SingleLine command,
@@ -302,7 +301,7 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
     return futures::Past(
         Error{LazyString{L"Unable to compile (type mismatch)."}});
   }
-  return buffer.EvaluateExpression(std::move(parsed_command.expression),
+  return buffer.EvaluateExpression(parsed_command.expression.ptr(),
                                    buffer.environment().ToRoot());
 }
 

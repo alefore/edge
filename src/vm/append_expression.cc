@@ -58,21 +58,20 @@ class AppendExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
-    return trampoline
-        .Bounce(NewDelegatingExpression(e0_.ToRoot()), e0_->Types()[0])
-        .Transform([&trampoline, e1 = e1_.ToRoot()](EvaluationOutput e0_output)
-                       -> futures::ValueOrError<EvaluationOutput> {
-          switch (e0_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
-              return futures::Past(std::move(e0_output));
-            case EvaluationOutput::OutputType::kContinue:
-              return trampoline.Bounce(NewDelegatingExpression(e1),
-                                       e1->Types()[0]);
-          }
-          Error error(LazyString{L"Unhandled OutputType case."});
-          LOG(FATAL) << error;
-          return futures::Past(error);
-        });
+    return trampoline.Bounce(e0_, e0_->Types()[0])
+        .Transform(
+            [&trampoline, e1_root = e1_.ToRoot()](EvaluationOutput e0_output)
+                -> futures::ValueOrError<EvaluationOutput> {
+              switch (e0_output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  return futures::Past(std::move(e0_output));
+                case EvaluationOutput::OutputType::kContinue:
+                  return trampoline.Bounce(e1_root.ptr(), e1_root->Types()[0]);
+              }
+              Error error(LazyString{L"Unhandled OutputType case."});
+              LOG(FATAL) << error;
+              return futures::Past(error);
+            });
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()

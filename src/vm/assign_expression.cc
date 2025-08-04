@@ -70,7 +70,7 @@ class AssignExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(NewDelegatingExpression(value_.ToRoot()), type)
+    return trampoline.Bounce(value_, type)
         .Transform(
             [&trampoline, symbol = symbol_,
              assignment_type = assignment_type_](EvaluationOutput value_output)
@@ -131,8 +131,7 @@ class StackFrameAssign : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline
-        .Bounce(NewDelegatingExpression(value_expression_.ToRoot()), type)
+    return trampoline.Bounce(value_expression_, type)
         .Transform([&trampoline, index = index_](EvaluationOutput value_output)
                        -> language::ValueOrError<EvaluationOutput> {
           switch (value_output.type) {

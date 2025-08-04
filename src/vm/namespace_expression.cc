@@ -60,17 +60,16 @@ class NamespaceExpression : public Expression {
     CHECK(namespace_environment.has_value());
     trampoline.SetEnvironment(*namespace_environment);
 
-    return OnError(
-        trampoline.Bounce(NewDelegatingExpression(body_.ToRoot()), type)
-            .Transform(
-                [&trampoline, original_environment](EvaluationOutput output) {
-                  trampoline.SetEnvironment(original_environment);
-                  return Success(std::move(output));
-                }),
-        [&trampoline, original_environment](Error error) {
-          trampoline.SetEnvironment(original_environment);
-          return futures::Past(error);
-        });
+    return OnError(trampoline.Bounce(body_, type)
+                       .Transform([&trampoline, original_environment](
+                                      EvaluationOutput output) {
+                         trampoline.SetEnvironment(original_environment);
+                         return Success(std::move(output));
+                       }),
+                   [&trampoline, original_environment](Error error) {
+                     trampoline.SetEnvironment(original_environment);
+                     return futures::Past(error);
+                   });
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()

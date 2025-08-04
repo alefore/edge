@@ -23,6 +23,16 @@ language::NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
 
 std::optional<language::gc::Ptr<Expression>> OptionalRootToPtr(
     const std::optional<language::gc::Root<Expression>>&);
+
+template <typename T>
+std::optional<language::gc::Root<T>> MoveOutAndDelete(
+    std::optional<language::gc::Root<T>>* value_raw) {
+  if (std::unique_ptr<std::optional<language::gc::Root<T>>> value{value_raw};
+      value != nullptr)
+    return std::move(*value);
+  return std::nullopt;
+}
+
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_DELEGATING_EXPRESSION_H__

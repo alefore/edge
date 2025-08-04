@@ -1249,8 +1249,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
-    const NonNull<std::shared_ptr<Expression>>& expr,
-    gc::Root<Environment> environment) {
+    const gc::Ptr<Expression>& expr, gc::Root<Environment> environment) {
   // TODO(2025-05-26, trivial): Replace with a method from execution_context.
   return Evaluate(expr, editor().gc_pool(), environment,
                   [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](

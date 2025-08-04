@@ -43,10 +43,8 @@ program(OUT) ::= statement_list(A). {
 }
 
 program(OUT) ::= statement_list(A) assignment_statement(B). {
-  std::optional<gc::Root<Expression>> a =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
-  std::optional<gc::Root<Expression>> b =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(B));
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
       NewAppendExpression(*compilation, OptionalRootToPtr(std::move(a)),
@@ -69,10 +67,8 @@ statement_list(L) ::= . {
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
-  std::optional<gc::Root<Expression>> a =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
-  std::optional<gc::Root<Expression>> b =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(B));
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
       NewAppendExpression(*compilation, OptionalRootToPtr(std::move(a)),
@@ -95,8 +91,7 @@ statement(A) ::= assignment_statement(B) SEMICOLON . {
 
 statement(OUT) ::= namespace_declaration
     LBRACKET statement_list(A) RBRACKET. {
-  std::optional<gc::Root<Expression>> a =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
       NewNamespaceExpression(*compilation, std::move(a))));
@@ -113,8 +108,7 @@ namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
 
 statement(OUT) ::= class_declaration
     LBRACKET statement_list(A) RBRACKET SEMICOLON. {
-  std::optional<gc::Root<Expression>> a =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(A));
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
 
   if (a == std::nullopt) {
     OUT = nullptr;
@@ -149,8 +143,7 @@ statement(OUT) ::= RETURN SEMICOLON . {
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
   std::unique_ptr<UserFunction> func(FUNC);
-  std::optional<gc::Root<Expression>> body =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
+  std::optional<gc::Root<Expression>> body = MoveOutAndDelete(BODY);
 
   OUT = nullptr;
   if (func == nullptr) {
@@ -194,8 +187,7 @@ nesting_rbracket ::= RBRACKET. {
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
   std::unique_ptr<Expression> condition(CONDITION);
-  std::optional<gc::Root<Expression>> body =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
+  std::optional<gc::Root<Expression>> body = MoveOutAndDelete(BODY);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
             NewWhileExpression(
@@ -212,8 +204,7 @@ statement(OUT) ::=
   std::unique_ptr<std::optional<gc::Root<Expression>>> init(INIT);
   std::unique_ptr<Expression> condition(CONDITION);
   std::unique_ptr<Expression> update(UPDATE);
-  std::optional<gc::Root<Expression>> body =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
+  std::optional<gc::Root<Expression>> body = MoveOutAndDelete(BODY);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
             NewForExpression(
@@ -228,10 +219,8 @@ statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
     ELSE statement(FALSE_CASE). {
   std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
       compilation->pool, std::unique_ptr<Expression>(CONDITION));
-  std::optional<gc::Root<Expression>> true_case =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(TRUE_CASE));
-  std::optional<gc::Root<Expression>> false_case =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(FALSE_CASE));
+  std::optional<gc::Root<Expression>> true_case = MoveOutAndDelete(TRUE_CASE);
+  std::optional<gc::Root<Expression>> false_case = MoveOutAndDelete(FALSE_CASE);
 
   gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
 
@@ -249,8 +238,7 @@ statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
 statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
   std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
       compilation->pool, std::unique_ptr<Expression>(CONDITION));
-  std::optional<gc::Root<Expression>> true_case =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(TRUE_CASE));
+  std::optional<gc::Root<Expression>> true_case = MoveOutAndDelete(TRUE_CASE);
 
   gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
 
@@ -481,8 +469,7 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
 expr(OUT) ::= lambda_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET . {
   std::unique_ptr<UserFunction> func(FUNC);
-  std::optional<gc::Root<Expression>> body =
-      std::move(*std::unique_ptr<std::optional<gc::Root<Expression>>>(BODY));
+  std::optional<gc::Root<Expression>> body = MoveOutAndDelete(BODY);
 
   OUT = nullptr;
   if (func == nullptr) {
@@ -1064,7 +1051,9 @@ non_empty_symbols_list(OUT) ::=
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
-  OUT = NewMethodLookup(*compilation, std::unique_ptr<Expression>(OBJ),
-                        FIELD->value().ptr()->get_symbol()).release();
+  std::optional<gc::Root<Expression>> obj =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(OBJ));
+  OUT = ToUniquePtr(NewMethodLookup(*compilation, std::move(obj),
+                        FIELD->value().ptr()->get_symbol())).release();
   delete FIELD;
 }

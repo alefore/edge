@@ -59,8 +59,7 @@ class IfExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline
-        .Bounce(NewDelegatingExpression(cond_.ToRoot()), types::Bool{})
+    return trampoline.Bounce(cond_, types::Bool{})
         .Transform([type, true_case = true_case_.ToRoot(),
                     false_case = false_case_.ToRoot(),
                     &trampoline](EvaluationOutput cond_output)
@@ -69,11 +68,10 @@ class IfExpression : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(cond_output)));
             case EvaluationOutput::OutputType::kContinue:
-              return trampoline.Bounce(
-                  NewDelegatingExpression(cond_output.value.ptr()->get_bool()
-                                              ? true_case
-                                              : false_case),
-                  type);
+              return trampoline.Bounce(cond_output.value.ptr()->get_bool()
+                                           ? true_case.ptr()
+                                           : false_case.ptr(),
+                                       type);
           }
           language::Error error{LazyString{L"Unhandled OutputType case."}};
           LOG(FATAL) << error;

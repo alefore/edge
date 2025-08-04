@@ -55,8 +55,7 @@ class Trampoline {
   // The Trampoline itself must not be deleted before the future is given a
   // value.
   futures::ValueOrError<EvaluationOutput> Bounce(
-      const language::NonNull<std::shared_ptr<Expression>>& expression,
-      Type expression_type);
+      const language::gc::Ptr<Expression>& expression, Type expression_type);
 
   language::gc::Pool& pool() const;
 };
@@ -101,7 +100,8 @@ class Expression {
   // Used by the garbage collector to find objects reachable from this one.
   // This should be overridden in subclasses that hold gc::Ptr<> or gc::Root<>
   // to return all such objects.
-  virtual std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  virtual std::vector<
+      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const = 0;
 };
 
@@ -132,8 +132,8 @@ language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 // `expr` can be deleted as soon as this returns (even before a value is given
 // to the returned future).
 futures::ValueOrError<language::gc::Root<Value>> Evaluate(
-    const language::NonNull<std::shared_ptr<Expression>>& expr,
-    language::gc::Pool& pool, language::gc::Root<Environment> environment,
+    const language::gc::Ptr<Expression>& expr, language::gc::Pool& pool,
+    language::gc::Root<Environment> environment,
     std::function<void(language::OnceOnlyFunction<void()>)> yield_callback);
 
 // If a value of `original` type can be promoted implicitly to a value of
