@@ -93,8 +93,7 @@ class LambdaExpression : public Expression {
     const types::Function& function_type = std::get<types::Function>(type_);
     return Value::NewFunction(
         pool, body_->purity(), function_type.output.get(), function_type.inputs,
-        [body_root = body_.ToRoot(), parent_environment,
-         argument_names = argument_names_,
+        [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
@@ -111,20 +110,20 @@ class LambdaExpression : public Expression {
                                       std::move(args.at(i)));
           }
           trampoline.SetEnvironment(environment);
-          return trampoline.Bounce(body_root.ptr(), body_root->Types()[0])
-              .Transform(
-                  [original_trampoline, &trampoline, body_root,
-                   promotion_function](EvaluationOutput body_output) mutable {
-                    gc::Root<Value> promoted_value =
-                        promotion_function(std::move(body_output.value));
-                    trampoline.stack().Pop();
-                    trampoline = std::move(original_trampoline);
-                    return Success(promoted_value);
-                  });
+          return trampoline.Bounce(body, body->Types()[0])
+              .Transform([original_trampoline, &trampoline, promotion_function](
+                             EvaluationOutput body_output) mutable {
+                gc::Root<Value> promoted_value =
+                    promotion_function(std::move(body_output.value));
+                trampoline.stack().Pop();
+                trampoline = std::move(original_trampoline);
+                return Success(promoted_value);
+              });
         },
-        [parent_environment] {
+        [parent_environment_metadata = parent_environment.object_metadata(),
+         body_metadata = body_.object_metadata()] {
           return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
-              {parent_environment.object_metadata()});
+              {parent_environment_metadata, body_metadata});
         });
   }
 

@@ -339,7 +339,9 @@ EditorState::~EditorState() {
                           &OpenBuffer::Close);
     buffer_registry_->Clear();
     // Execute work that was blocking until buffers were deleted.
+    LOG(INFO) << "thread_pool_: WaitForProgress.";
     thread_pool_->WaitForProgress();
+    LOG(INFO) << "thread_pool_: Caught up.";
   }
 
   LOG(INFO) << "Reclaim GC pool.";
