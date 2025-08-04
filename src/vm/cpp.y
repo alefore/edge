@@ -232,15 +232,17 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
   std::optional<gc::Root<Expression>> false_case = PtrToOptionalRoot(
       compilation->pool, std::unique_ptr<Expression>(FALSE_CASE));
 
+  gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
+
   A = ToUniquePtr(
           NewIfExpression(
-              *compilation, std::move(condition),
-              language::OptionalFrom(NewAppendExpression(
+              *compilation, OptionalRootToPtr(condition),
+              OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
                   *compilation, OptionalRootToPtr(std::move(true_case)),
-                  NewVoidExpression(compilation->pool).ptr())),
-              language::OptionalFrom(NewAppendExpression(
+                  void_expression.ptr()))),
+              OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
                   *compilation, OptionalRootToPtr(std::move(false_case)),
-                  NewVoidExpression(compilation->pool).ptr()))))
+                  void_expression.ptr())))))
           .release();
 }
 
@@ -250,12 +252,15 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
   std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
       compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
 
-  A = ToUniquePtr(NewIfExpression(
-                      *compilation, std::move(condition),
-                      language::OptionalFrom(NewAppendExpression(
-                          *compilation, OptionalRootToPtr(std::move(true_case)),
-                          NewVoidExpression(compilation->pool).ptr())),
-                      NewVoidExpression(compilation->pool)))
+  gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
+
+  A = ToUniquePtr(
+          NewIfExpression(
+              *compilation, OptionalRootToPtr(condition),
+              OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
+                  *compilation, OptionalRootToPtr(std::move(true_case)),
+                  void_expression.ptr()))),
+              OptionalRootToPtr(void_expression)))
           .release();
 }
 
@@ -455,16 +460,19 @@ lambda_declaration_params(OUT) ::= LBRACE RBRACE
 
 expr(A) ::= expr(CONDITION) QUESTION_MARK
     expr(TRUE_CASE) COLON expr(FALSE_CASE). {
-  std::unique_ptr<Expression> condition(CONDITION);
-  std::unique_ptr<Expression> true_case(TRUE_CASE);
-  std::unique_ptr<Expression> false_case(FALSE_CASE);
+  std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(CONDITION));
+  std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
+  std::optional<gc::Root<Expression>> false_case = PtrToOptionalRoot(
+      compilation->pool, std::unique_ptr<Expression>(FALSE_CASE));
 
   A = ToUniquePtr(
           NewIfExpression(
               *compilation,
-              PtrToOptionalRoot(compilation->pool, std::move(condition)),
-              PtrToOptionalRoot(compilation->pool, std::move(true_case)),
-              PtrToOptionalRoot(compilation->pool, std::move(false_case))))
+              OptionalRootToPtr(condition),
+              OptionalRootToPtr(true_case),
+              OptionalRootToPtr(false_case)))
           .release();
 }
 

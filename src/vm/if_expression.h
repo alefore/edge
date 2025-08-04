@@ -10,12 +10,11 @@
 
 namespace afc::vm {
 struct Compilation;
-// TODO(trivial, 2025-08-01): Parameters should be gc::Ptr.
 language::ValueOrError<language::gc::Root<Expression>> NewIfExpression(
     Compilation& compilation,
-    std::optional<language::gc::Root<Expression>> condition,
-    std::optional<language::gc::Root<Expression>> true_case,
-    std::optional<language::gc::Root<Expression>> false_case);
+    std::optional<language::gc::Ptr<Expression>> condition,
+    std::optional<language::gc::Ptr<Expression>> true_case,
+    std::optional<language::gc::Ptr<Expression>> false_case);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_IF_EXPRESSION_H__

@@ -32,12 +32,12 @@ class IfExpression : public Expression {
       gc::Ptr<Expression> false_case, std::unordered_set<Type> return_types) {
     gc::Pool& pool = cond.pool();
     return pool.NewRoot(language::MakeNonNullUnique<IfExpression>(
-        std::move(cond), std::move(true_case), std::move(false_case),
-        std::move(return_types)));
+        ConstructorAccessTag{}, std::move(cond), std::move(true_case),
+        std::move(false_case), std::move(return_types)));
   }
 
-  IfExpression(gc::Ptr<Expression> cond, gc::Ptr<Expression> true_case,
-               gc::Ptr<Expression> false_case,
+  IfExpression(ConstructorAccessTag, gc::Ptr<Expression> cond,
+               gc::Ptr<Expression> true_case, gc::Ptr<Expression> false_case,
                std::unordered_set<Type> return_types)
       : cond_(std::move(cond)),
         true_case_(std::move(true_case)),
@@ -91,9 +91,9 @@ class IfExpression : public Expression {
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewIfExpression(
-    Compilation& compilation, std::optional<gc::Root<Expression>> condition,
-    std::optional<gc::Root<Expression>> true_case,
-    std::optional<gc::Root<Expression>> false_case) {
+    Compilation& compilation, std::optional<gc::Ptr<Expression>> condition,
+    std::optional<gc::Ptr<Expression>> true_case,
+    std::optional<gc::Ptr<Expression>> false_case) {
   if (condition == std::nullopt || true_case == std::nullopt ||
       false_case == std::nullopt)
     return Error{LazyString{L"Missing input parameter"}};
@@ -122,8 +122,8 @@ ValueOrError<gc::Root<Expression>> NewIfExpression(
                                           false_case.value()->ReturnTypes())));
 
   return IfExpression::New(
-      std::move(condition)->ptr(), std::move(true_case)->ptr(),
-      std::move(false_case)->ptr(), std::move(return_types));
+      std::move(condition).value(), std::move(true_case).value(),
+      std::move(false_case).value(), std::move(return_types));
 }
 
 }  // namespace afc::vm
