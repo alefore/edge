@@ -19,7 +19,12 @@
 %left ELSE.
 
 main ::= program(P) . {
-  compilation->expr.reset(P);
+  std::unique_ptr<std::optional<gc::Root<Expression>>> p{P};
+  if (p->has_value())
+    // TODO(trivial, 2025-08-04): Avoid the new root?
+    compilation->expr = p->value().ptr().ToRoot();
+  else
+    compilation->expr = std::nullopt;
 }
 
 main ::= error. {
@@ -27,20 +32,28 @@ main ::= error. {
                               compilation->last_token + LazyString{L"\""}});
 }
 
-%type program { Expression* }
+%type program {
+  // Never nullptr (but maybe std::nullopt).
+  std::optional<gc::Root<Expression>>*
+}
 %destructor program { delete $$; }
 
 program(OUT) ::= statement_list(A). {
-  OUT = A;
+  std::unique_ptr<Expression> a(A);
+  if (a == nullptr)
+    OUT = new std::optional<gc::Root<Expression>>();
+  else
+    OUT = new std::optional<gc::Root<Expression>>(
+                  PtrToOptionalRoot(compilation->pool, std::move(a)));
 }
 
 program(OUT) ::= statement_list(A) assignment_statement(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT =
-      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
-          .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+            language::OptionalFrom(
+                NewAppendExpression(*compilation, std::move(a), std::move(b))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -16,6 +16,7 @@ language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
     Compilation& compilation, std::optional<language::gc::Ptr<Expression>> a,
     std::optional<language::gc::Ptr<Expression>> b);
 
+// TODO(trivial, 2025-08-04): Remove this one.
 language::ValueOrError<language::gc::Root<Expression>> NewAppendExpression(
     Compilation& compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b);

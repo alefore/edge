@@ -620,10 +620,12 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
   if (!compilation.errors().empty()) {
     return MergeErrors(compilation.errors(), L", ");
   }
-  return language::VisitPointer(
-      std::move(compilation.expr),
-      &language::Success<NonNull<std::unique_ptr<Expression>>>,
-      []() { return Error{LazyString{L"Unexpected empty expression."}}; });
+  return language::VisitOptional(
+      [](gc::Root<Expression> expr) {
+        return Success(NewDelegatingExpression(std::move(expr)));
+      },
+      []() { return Error{LazyString{L"Unexpected empty expression."}}; },
+      std::move(compilation.expr));
 }
 }  // namespace
 

@@ -41,7 +41,7 @@ struct Compilation {
 
   language::gc::Pool& pool;
 
-  std::unique_ptr<Expression> expr;
+  std::optional<language::gc::Root<Expression>> expr;
 
   Namespace current_namespace;
   std::vector<Type> current_class = {};
