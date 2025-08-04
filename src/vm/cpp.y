@@ -732,26 +732,24 @@ expr(OUT) ::= NOT expr(A). {
 }
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
-  OUT =
-      ToUniquePtr(ExpressionEquals(
-                      *compilation,
-                      OptionalRootToPtr(PtrToOptionalRoot(
-                          compilation->pool, std::unique_ptr<Expression>(A))),
-                      OptionalRootToPtr(PtrToOptionalRoot(
-                          compilation->pool, std::unique_ptr<Expression>(B)))))
-          .release();
+  std::optional<gc::Root<Expression>> a =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
+  std::optional<gc::Root<Expression>> b =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
+  OUT = ToUniquePtr(ExpressionEquals(*compilation, OptionalRootToPtr(a),
+                                     OptionalRootToPtr(b)))
+            .release();
 }
 
 expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
-  OUT = ToUniquePtr(
-            NewNegateExpressionBool(
-                *compilation,
-                language::OptionalFrom(ExpressionEquals(
-                    *compilation,
-                    OptionalRootToPtr(PtrToOptionalRoot(
-                        compilation->pool, std::unique_ptr<Expression>(A))),
-                    OptionalRootToPtr(PtrToOptionalRoot(
-                        compilation->pool, std::unique_ptr<Expression>(B)))))))
+  std::optional<gc::Root<Expression>> a =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
+  std::optional<gc::Root<Expression>> b =
+      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
+  OUT = ToUniquePtr(NewNegateExpressionBool(
+                        *compilation, language::OptionalFrom(ExpressionEquals(
+                                          *compilation, OptionalRootToPtr(a),
+                                          OptionalRootToPtr(b)))))
             .release();
 }
 

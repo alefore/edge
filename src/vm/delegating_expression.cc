@@ -90,9 +90,9 @@ NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
 }
 
 std::optional<gc::Ptr<Expression>> OptionalRootToPtr(
-    std::optional<gc::Root<Expression>> input) {
+    const std::optional<gc::Root<Expression>>& input) {
   return VisitOptional(
-      [](gc::Root<Expression> input_root) {
+      [](const gc::Root<Expression>& input_root) {
         return std::optional<gc::Ptr<Expression>>(input_root.ptr());
       },
       [] { return std::optional<gc::Ptr<Expression>>(); }, input);
