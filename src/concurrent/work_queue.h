@@ -55,9 +55,9 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
 
   futures::Value<language::EmptyValue> Wait(infrastructure::Time time);
 
-  // Takes all the scheduled callbacks at a time in the past and executes them.
-  // Any new callbacks that they transitively schedule may not (and typically
-  // won't) be executed.
+  // Takes all the scheduled callbacks at a time in the past or present and
+  // executes them. Any new callbacks that they transitively schedule may not
+  // (and typically won't) be executed.
   void Execute();
   void Execute(std::function<infrastructure::Time()> clock);
 

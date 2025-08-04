@@ -50,7 +50,7 @@ void WorkQueue::Execute(std::function<infrastructure::Time()> clock) {
   auto start = clock();
   data_.lock([&callbacks_ready, &clock](MutableData& data) {
     VLOG(5) << "Executing work queue: callbacks: " << data.callbacks.size();
-    while (!data.callbacks.empty() && data.callbacks.front().time < clock()) {
+    while (!data.callbacks.empty() && data.callbacks.front().time <= clock()) {
       callbacks_ready.push_back(std::move(data.callbacks.front().callback));
       std::pop_heap(data.callbacks.begin(), data.callbacks.end(), operator>);
       data.callbacks.pop_back();
