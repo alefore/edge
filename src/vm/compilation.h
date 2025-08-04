@@ -58,7 +58,7 @@ struct Compilation {
   Compilation(const Compilation&) = delete;
   Compilation& operator=(const Compilation&) = delete;
 
-  void AddError(language::Error error);
+  language::Error AddError(language::Error error);
 
   void PushStackFrameHeader(StackFrameHeader);
   void PopStackFrameHeader();

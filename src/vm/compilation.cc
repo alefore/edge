@@ -31,7 +31,7 @@ Compilation::CurrentStackFrameHeader() {
   return std::ref(stack_headers_.back());
 }
 
-void Compilation::AddError(Error error) {
+Error Compilation::AddError(Error error) {
   LOG(INFO) << "Compilation error: " << error;
   LazyString prefix;
   for (auto it = source_.begin(); it != source_.end(); ++it) {
@@ -48,7 +48,8 @@ void Compilation::AddError(Error error) {
     prefix += location + LazyString{L": "};
   }
 
-  errors_.push_back(AugmentError(prefix, std::move(error)));
+  errors_.push_back(AugmentError(prefix, error));
+  return error;
 }
 
 const std::vector<Error>& Compilation::errors() const { return errors_; }
