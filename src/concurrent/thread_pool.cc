@@ -1,5 +1,6 @@
 #include "src/concurrent/thread_pool.h"
 
+#include "src/infrastructure/time_human.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
@@ -26,10 +27,14 @@ void ThreadPool::WaitForProgress() const {
   // TODO(trivial, 2025-08-03): Instead of waiting until there are fewer units,
   // wait instead until ... some progress is made. I think this requires adding
   // a variable.
-  if (size_t pending = pending_work_units(); pending > 0)
+  if (size_t pending = pending_work_units(); pending > 0) {
+    LOG(INFO) << "Waiting with pending units: " << pending;
     data_.wait([pending](const Data& data) {
+      LOG(INFO) << "Checking: active: " << data.active_work
+                << ", scheduled: " << data.work.size();
       return data.active_work + data.work.size() < pending;
     });
+  }
 }
 
 ThreadPool::~ThreadPool() {
@@ -108,13 +113,12 @@ ThreadPoolWithWorkQueue::work_queue() const {
 void ThreadPoolWithWorkQueue::WaitForProgress() {
   while (work_queue()->NextExecution().has_value() ||
          thread_pool()->pending_work_units() > 0) {
-    while (work_queue()->NextExecution().has_value()) {
-      LOG(INFO) << "Executing from work_queue.";
-      work_queue()->Execute(
-          [when = work_queue()->NextExecution().value()] { return when; });
+    if (auto when = work_queue()->NextExecution(); when.has_value()) {
+      LOG(INFO) << "Executing from work_queue: "
+                << infrastructure::HumanReadableTime(when.value());
+      work_queue()->Execute([when] { return when.value(); });
     }
-    LOG(INFO) << "Waiting on thread pool.";
-    thread_pool()->WaitForProgress();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
   LOG(INFO) << "ThreadPoolWithWorkQueue::WaitForProgress: Done.";
 }

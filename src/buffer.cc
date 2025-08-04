@@ -256,10 +256,11 @@ void SetMutableLineSequenceLineMetadata(
 // next_scheduled_execution holds the smallest time at which we know we have
 // scheduled an execution of work_queue_ in the editor's work queue.
 Observers::State MaybeScheduleNextWorkQueueExecution(
-    std::weak_ptr<WorkQueue> work_queue_weak,
+    EditorState& editor, std::weak_ptr<WorkQueue> work_queue_weak,
     NonNull<std::shared_ptr<WorkQueue>> parent_work_queue,
     NonNull<std::shared_ptr<std::optional<struct timespec>>>
         next_scheduled_execution) {
+  if (editor.exit_value().has_value()) return Observers::State::kExpired;
   auto work_queue = work_queue_weak.lock();
   if (work_queue == nullptr) return Observers::State::kExpired;
   if (auto next = work_queue->NextExecution();
@@ -267,12 +268,12 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
     next_scheduled_execution.value() = next;
     parent_work_queue->Schedule(WorkQueue::Callback{
         .time = next.value(),
-        .callback = [work_queue, parent_work_queue,
+        .callback = [&editor, work_queue, parent_work_queue,
                      next_scheduled_execution]() mutable {
           next_scheduled_execution.value() = std::nullopt;
           work_queue->Execute();
-          MaybeScheduleNextWorkQueueExecution(work_queue, parent_work_queue,
-                                              next_scheduled_execution);
+          MaybeScheduleNextWorkQueueExecution(
+              editor, work_queue, parent_work_queue, next_scheduled_execution);
         }});
   }
   return Observers::State::kAlive;
@@ -438,7 +439,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       }}),
       execution_context_(std::move(execution_context)) {
   work_queue()->OnSchedule().Add(std::bind_front(
-      MaybeScheduleNextWorkQueueExecution,
+      MaybeScheduleNextWorkQueueExecution, std::ref(editor()),
       std::weak_ptr<WorkQueue>(work_queue().get_shared()),
       editor().work_queue(),
       NonNull<std::shared_ptr<std::optional<struct timespec>>>()));

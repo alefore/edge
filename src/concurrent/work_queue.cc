@@ -47,7 +47,6 @@ void WorkQueue::Execute() { Execute(infrastructure::Now); }
 
 void WorkQueue::Execute(std::function<infrastructure::Time()> clock) {
   std::vector<OnceOnlyFunction<void()>> callbacks_ready;
-  auto start = clock();
   data_.lock([&callbacks_ready, &clock](MutableData& data) {
     VLOG(5) << "Executing work queue: callbacks: " << data.callbacks.size();
     while (!data.callbacks.empty() && data.callbacks.front().time <= clock()) {
@@ -57,16 +56,18 @@ void WorkQueue::Execute(std::function<infrastructure::Time()> clock) {
     }
   });
 
+  VLOG(4) << "Callbacks ready: " << callbacks_ready.size();
   if (callbacks_ready.empty()) return;
 
   // Make sure we stay alive until all callbacks have run.
   const std::shared_ptr<WorkQueue> shared_this = shared_from_this();
   for (auto& callback : callbacks_ready) {
+    auto start = clock();
+    VLOG(9) << "Running callback.";
     std::move(callback)();
     auto end = Now();
     data_.lock()->execution_seconds.IncrementAndGetEventsPerSecond(
         SecondsBetween(start, end));
-    start = end;
   }
 }
 
