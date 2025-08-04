@@ -18,45 +18,44 @@ namespace gc = language::gc;
 class ConstantExpression : public Expression {
   struct ConstructorAccessTag {};
 
+  const gc::Ptr<Value> value_;
+
  public:
-  static language::gc::Root<ConstantExpression> New(language::gc::Pool& pool,
-                                                    gc::Root<Value> value) {
-    return pool.NewRoot(
-        language::MakeNonNullUnique<ConstantExpression>(std::move(value)));
+  static language::gc::Root<ConstantExpression> New(gc::Ptr<Value> value) {
+    gc::Pool& pool = value.pool();
+    return pool.NewRoot(language::MakeNonNullUnique<ConstantExpression>(
+        ConstructorAccessTag{}, std::move(value)));
   }
 
-  ConstantExpression(gc::Root<Value> value) : value_(std::move(value)) {}
+  ConstantExpression(ConstructorAccessTag, gc::Ptr<Value> value)
+      : value_(std::move(value)) {}
 
-  std::vector<Type> Types() override { return {value_.ptr()->type()}; }
+  std::vector<Type> Types() override { return {value_->type()}; }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override { return PurityType{}; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline&,
                                                    const Type& type) override {
-    CHECK(type == value_.ptr()->type());
-    DVLOG(5) << "Evaluating constant value: " << value_.ptr().value();
-    return futures::Past(EvaluationOutput::New(value_));
+    CHECK(type == value_->type());
+    DVLOG(5) << "Evaluating constant value: " << value_.value();
+    return futures::Past(EvaluationOutput::New(value_.ToRoot()));
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    return {value_.object_metadata()};
   }
-
- private:
-  const gc::Root<Value> value_;
 };
 
 }  // namespace
 
 gc::Root<Expression> NewVoidExpression(gc::Pool& pool) {
-  return NewConstantExpression(Value::NewVoid(pool));
+  return ConstantExpression::New(Value::NewVoid(pool).ptr());
 }
 
 // TODO(2025-08-01, trivial): Receive a gc::Ptr, not gc::Root.
 gc::Root<Expression> NewConstantExpression(gc::Root<Value> value) {
-  gc::Pool& pool = value.pool();
-  return pool.NewRoot(MakeNonNullUnique<ConstantExpression>(std::move(value)));
+  return ConstantExpression::New(std::move(value).ptr());
 }
 }  // namespace afc::vm

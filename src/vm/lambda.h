@@ -33,8 +33,8 @@ class UserFunction {
   UserFunction(const UserFunction&) = delete;
   UserFunction(UserFunction&&) = delete;
 
-  language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-  BuildExpression(language::gc::Ptr<Expression> body);
+  language::ValueOrError<language::gc::Root<Expression>> BuildExpression(
+      language::gc::Ptr<Expression> body);
 
   // It is the caller's responsibility to register errors.
   language::ValueOrError<language::gc::Root<Value>> BuildValue(

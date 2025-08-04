@@ -32,16 +32,7 @@ class LambdaExpression : public Expression {
   const ImplicitPromotionCallback promotion_function_;
 
  public:
-  static language::gc::Root<LambdaExpression> New(
-      language::gc::Pool& pool, Type type,
-      NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
-      gc::Ptr<Expression> body, ImplicitPromotionCallback promotion_function) {
-    return pool.NewRoot(language::MakeNonNullUnique<LambdaExpression>(
-        ConstructorAccessTag{}, type, argument_names, body,
-        promotion_function));
-  }
-
-  static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
+  static ValueOrError<gc::Root<LambdaExpression>> New(
       Type lambda_type,
       NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
       gc::Ptr<Expression> body) {
@@ -65,10 +56,11 @@ class LambdaExpression : public Expression {
                    ToQuotedSingleLine(*deduced_types.cbegin()) +
                    LazyString{L"."}};
     }
-    return MakeNonNullUnique<LambdaExpression>(
+    gc::Pool& pool = body.pool();
+    return pool.NewRoot(MakeNonNullUnique<LambdaExpression>(
         ConstructorAccessTag{}, std::move(lambda_type),
         std::move(argument_names), std::move(body),
-        std::move(promotion_function));
+        std::move(promotion_function)));
   }
 
   LambdaExpression(
@@ -203,18 +195,15 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
 ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
     gc::Ptr<Expression> body) {
   DECLARE_OR_RETURN(
-      NonNull<std::unique_ptr<LambdaExpression>> expression,
+      gc::Root<LambdaExpression> expression,
       LambdaExpression::New(type_, argument_names_, std::move(body)));
   return expression->BuildValue(compilation_.pool, compilation_.environment);
 }
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>>
-UserFunction::BuildExpression(gc::Ptr<Expression> body) {
-  // We can't just return the result of LambdaExpression::New; that's a
-  // ValueOrError<LambdaExpression>. We need to explicitly convert it to a
-  // ValueOrError<Expression>.
+ValueOrError<gc::Root<Expression>> UserFunction::BuildExpression(
+    gc::Ptr<Expression> body) {
   DECLARE_OR_RETURN(
-      NonNull<std::unique_ptr<LambdaExpression>> expression,
+      gc::Root<LambdaExpression> expression,
       LambdaExpression::New(type_, argument_names_, std::move(body)));
   return expression;
 }

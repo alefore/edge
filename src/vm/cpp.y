@@ -128,11 +128,10 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
-  std::unique_ptr<Expression> a(A);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
 
   OUT = new std::optional<gc::Root<Expression>>(
-      NewReturnExpression(
-                        PtrToOptionalRoot(compilation->pool, std::move(a))));
+      NewReturnExpression(std::move(a)));
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
@@ -186,14 +185,11 @@ nesting_rbracket ::= RBRACKET. {
 }
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
-  std::unique_ptr<Expression> condition(CONDITION);
+  std::optional<gc::Root<Expression>> condition = MoveOutAndDelete(CONDITION);
   std::optional<gc::Root<Expression>> body = MoveOutAndDelete(BODY);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
-            NewWhileExpression(
-                *compilation,
-                PtrToOptionalRoot(compilation->pool, std::move(condition)),
-                std::move(body))));
+      NewWhileExpression(*compilation, std::move(condition), std::move(body))));
 }
 
 statement(OUT) ::=
@@ -202,23 +198,18 @@ statement(OUT) ::=
         expr(UPDATE)
     RPAREN statement(BODY). {
   std::unique_ptr<std::optional<gc::Root<Expression>>> init(INIT);
-  std::unique_ptr<Expression> condition(CONDITION);
-  std::unique_ptr<Expression> update(UPDATE);
+  std::optional<gc::Root<Expression>> condition = MoveOutAndDelete(CONDITION);
+  std::optional<gc::Root<Expression>> update = MoveOutAndDelete(UPDATE);
   std::optional<gc::Root<Expression>> body = MoveOutAndDelete(BODY);
 
   OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
-            NewForExpression(
-                *compilation,
-                std::move(*init),
-                PtrToOptionalRoot(compilation->pool, std::move(condition)),
-                PtrToOptionalRoot(compilation->pool, std::move(update)),
-                std::move(body))));
+      NewForExpression(*compilation, std::move(*init), std::move(condition),
+                       std::move(update), std::move(body))));
 }
 
 statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
     ELSE statement(FALSE_CASE). {
-  std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(CONDITION));
+  std::optional<gc::Root<Expression>> condition = MoveOutAndDelete(CONDITION);
   std::optional<gc::Root<Expression>> true_case = MoveOutAndDelete(TRUE_CASE);
   std::optional<gc::Root<Expression>> false_case = MoveOutAndDelete(FALSE_CASE);
 
@@ -236,19 +227,18 @@ statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
 }
 
 statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
-  std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(CONDITION));
+  std::optional<gc::Root<Expression>> condition = MoveOutAndDelete(CONDITION);
   std::optional<gc::Root<Expression>> true_case = MoveOutAndDelete(TRUE_CASE);
 
   gc::Root<Expression> void_expression = NewVoidExpression(compilation->pool);
 
-  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
-          NewIfExpression(
-              *compilation, OptionalRootToPtr(condition),
-              OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
-                  *compilation, OptionalRootToPtr(std::move(true_case)),
-                  void_expression.ptr()))),
-              OptionalRootToPtr(void_expression))));
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewIfExpression(
+          *compilation, OptionalRootToPtr(condition),
+          OptionalRootToPtr(language::OptionalFrom(NewAppendExpression(
+              *compilation, OptionalRootToPtr(std::move(true_case)),
+              void_expression.ptr()))),
+          OptionalRootToPtr(void_expression))));
 }
 
 %type assignment_statement {
@@ -258,8 +248,9 @@ statement(OUT) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
 %destructor assignment_statement { delete $$; }
 
 assignment_statement(A) ::= expr(VALUE) . {
-  A = new std::optional<gc::Root<Expression>>(
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(VALUE)));
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
+
+  A = new std::optional<gc::Root<Expression>>(std::move(value));
 }
 
 // Declaration of a function (signature).
@@ -321,13 +312,11 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
 assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
   std::unique_ptr<std::optional<gc::Root<Value>>> type(TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::optional<gc::Root<Expression>> value =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(VALUE));
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
 
   A = new std::optional<gc::Root<Expression>>(
-          NewDefineExpression(
-              *compilation, type->value().ptr()->get_symbol(),
-              name->value().ptr()->get_symbol(), std::move(value)));
+      NewDefineExpression(*compilation, type->value().ptr()->get_symbol(),
+                          name->value().ptr()->get_symbol(), std::move(value)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -441,25 +430,24 @@ lambda_declaration_params(OUT) ::= LBRACE RBRACE
 // Expressions
 ////////////////////////////////////////////////////////////////////////////////
 
-%type expr { Expression* }
+%type expr {
+  // Never nullptr (but maybe std::nullopt).
+  std::optional<gc::Root<Expression>>*
+}
 %destructor expr { delete $$; }
 
 expr(A) ::= expr(CONDITION) QUESTION_MARK
     expr(TRUE_CASE) COLON expr(FALSE_CASE). {
-  std::optional<gc::Root<Expression>> condition = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(CONDITION));
-  std::optional<gc::Root<Expression>> true_case = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(TRUE_CASE));
-  std::optional<gc::Root<Expression>> false_case = PtrToOptionalRoot(
-      compilation->pool, std::unique_ptr<Expression>(FALSE_CASE));
+  std::optional<gc::Root<Expression>> condition = MoveOutAndDelete(CONDITION);
+  std::optional<gc::Root<Expression>> true_case = MoveOutAndDelete(TRUE_CASE);
+  std::optional<gc::Root<Expression>> false_case = MoveOutAndDelete(FALSE_CASE);
 
-  A = ToUniquePtr(
+  A = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
           NewIfExpression(
               *compilation,
               OptionalRootToPtr(condition),
               OptionalRootToPtr(true_case),
-              OptionalRootToPtr(false_case)))
-          .release();
+              OptionalRootToPtr(false_case))));
 }
 
 expr(A) ::= LPAREN expr(B) RPAREN. {
@@ -477,114 +465,95 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
   } else if (body == std::nullopt) {
     func->Abort();
   } else {
-    std::visit(overload{IgnoreErrors{},
-                        [&](NonNull<std::unique_ptr<Expression>> value) {
-                          OUT = value.release().get();
-                        }},
-               compilation->RegisterErrors(
-                   func->BuildExpression(body->ptr())));
+    OUT = new std::optional<gc::Root<Expression>>(
+              language::OptionalFrom(compilation->RegisterErrors(
+                  func->BuildExpression(body->ptr()))));
   }
 }
 
 expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<Expression> value(VALUE);
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
 
-  OUT = ToUniquePtr(
-            language::error::FromOptional(NewAssignExpression(
+  OUT = new std::optional<gc::Root<Expression>>(
+            NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
-                PtrToOptionalRoot(compilation->pool, std::move(value)))))
-            .release();
+                std::move(value)));
 }
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<Expression> value(VALUE);
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
 
-  OUT =
-      ToUniquePtr(
-          language::error::FromOptional(NewAssignExpression(
-              *compilation, name->value().ptr()->get_symbol(),
-              language::OptionalFrom(
-                    NewBinaryExpression(
-                      *compilation,
-                          language::OptionalFrom(NewVariableLookup(
-                              *compilation,
-                              {name->value().ptr()->get_symbol()})),
-                      PtrToOptionalRoot(compilation->pool, std::move(value)),
-                      [](LazyString a, LazyString b) { return Success(a + b); },
-                      [](numbers::Number a, numbers::Number b) {
-                        return std::move(a) + std::move(b);
-                      },
-                      nullptr)))))
-          .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+      NewAssignExpression(
+          *compilation, name->value().ptr()->get_symbol(),
+          language::OptionalFrom(NewBinaryExpression(
+              *compilation,
+              language::OptionalFrom(NewVariableLookup(
+                  *compilation, {name->value().ptr()->get_symbol()})),
+              std::move(value),
+              [](LazyString a, LazyString b) { return Success(a + b); },
+              [](numbers::Number a, numbers::Number b) {
+                return std::move(a) + std::move(b);
+              },
+              nullptr))));
 }
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<Expression> value(VALUE);
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
 
-  OUT =
-      ToUniquePtr(
-          language::error::FromOptional(NewAssignExpression(
-              *compilation, name->value().ptr()->get_symbol(),
-              language::OptionalFrom(
-                  NewBinaryExpression(
-                      *compilation,
-                      PtrToOptionalRoot(
-                          compilation->pool,
-                          ToUniquePtr(NewVariableLookup(
-                              *compilation,
-                              {name->value().ptr()->get_symbol()}))),
-                      PtrToOptionalRoot(compilation->pool, std::move(value)),
-                      nullptr,
-                      [](numbers::Number a, numbers::Number b) {
-                        return std::move(a) - std::move(b);
-                      },
-                      nullptr)))))
-          .release();
+  OUT = new std::optional<gc::Root<Expression>>(NewAssignExpression(
+      *compilation, name->value().ptr()->get_symbol(),
+      language::OptionalFrom(NewBinaryExpression(
+          *compilation,
+          PtrToOptionalRoot(
+              compilation->pool,
+              ToUniquePtr(NewVariableLookup(
+                  *compilation, {name->value().ptr()->get_symbol()}))),
+          std::move(value), nullptr,
+          [](numbers::Number a, numbers::Number b) {
+            return std::move(a) - std::move(b);
+          },
+          nullptr))));
 }
 
 expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
-  std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<Expression> value(VALUE);
+  std::unique_ptr<std::optional<gc::Root<Value>>> name{NAME};
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
 
-  OUT = ToUniquePtr(
-            language::error::FromOptional(NewAssignExpression(
-                *compilation, name->value().ptr()->get_symbol(),
-                language::OptionalFrom(
-                    NewBinaryExpression(
-                        *compilation,
-                        language::OptionalFrom(
-                            NewVariableLookup(*compilation,
-                                          {name->value().ptr()->get_symbol()})),
-                        PtrToOptionalRoot(compilation->pool, std::move(value)), nullptr,
-                        [](numbers::Number a, numbers::Number b) {
-                          return std::move(a) * std::move(b);
-                        },
-                        [](LazyString a,
-                           int b) -> language::ValueOrError<LazyString> {
-                          LazyString output;
-                          for (int i = 0; i < b; i++) {
-                            try {
-                              output += a;
-                            } catch (const std::bad_alloc& e) {
-                              return Error{LazyString{L"Bad Alloc"}};
-                            } catch (const std::length_error& e) {
-                              return Error{LazyString{L"Length Error"}};
-                            }
-                          }
-                          return Success(output);
-                        })))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(NewAssignExpression(
+      *compilation, name->value().ptr()->get_symbol(),
+      language::OptionalFrom(NewBinaryExpression(
+          *compilation,
+          language::OptionalFrom(NewVariableLookup(
+              *compilation, {name->value().ptr()->get_symbol()})),
+          std::move(value), nullptr,
+          [](numbers::Number a, numbers::Number b) {
+            return std::move(a) * std::move(b);
+          },
+          [](LazyString a, int b) -> language::ValueOrError<LazyString> {
+            LazyString output;
+            for (int i = 0; i < b; i++) {
+              try {
+                output += a;
+              } catch (const std::bad_alloc& e) {
+                return Error{LazyString{L"Bad Alloc"}};
+              } catch (const std::length_error& e) {
+                return Error{LazyString{L"Length Error"}};
+              }
+            }
+            return Success(output);
+          }))));
 }
 
 expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<Expression> value(VALUE);
+  std::optional<gc::Root<Expression>> value = MoveOutAndDelete(VALUE);
 
-  OUT = ToUniquePtr(
-            language::error::FromOptional(NewAssignExpression(
+  OUT = new std::optional<gc::Root<Expression>>(
+            NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
                 language::OptionalFrom(
                     NewBinaryExpression(
@@ -592,12 +561,11 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                         language::OptionalFrom(
                             NewVariableLookup(*compilation,
                                           {name->value().ptr()->get_symbol()})),
-                        PtrToOptionalRoot(compilation->pool, std::move(value)), nullptr,
+                        std::move(value), nullptr,
                         [](numbers::Number a, numbers::Number b) {
                           return std::move(a) / std::move(b);
                         },
-                        nullptr)))))
-            .release();
+                        nullptr))));
 }
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
@@ -608,7 +576,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   if (IsError(var)) {
     OUT = nullptr;
   } else if (std::get<gc::Root<Expression>>(var)->IsNumber()) {
-    OUT = ToUniquePtr(language::error::FromOptional(
+    OUT = new std::optional<gc::Root<Expression>>(
               NewAssignExpression(
                   *compilation, name->value().ptr()->get_symbol(),
                   VALUE_OR_DIE(BinaryOperator::New(
@@ -619,8 +587,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                         return Value::NewNumber(
                             pool, numbers::Number(a.get_number()) +
                                       numbers::Number::FromInt64(1));
-                      })))))
-              .release();
+                      }))));
   } else {
     compilation->AddError(Error{
         LazyString{L"++: Type not supported: "}
@@ -637,8 +604,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   if (IsError(var)) {
     OUT = nullptr;
   } else if (std::get<gc::Root<Expression>>(var)->IsNumber()) {
-    OUT = ToUniquePtr(
-              language::error::FromOptional(NewAssignExpression(
+    OUT = new std::optional<gc::Root<Expression>>(
+              NewAssignExpression(
                   *compilation, name->value().ptr()->get_symbol(),
                   VALUE_OR_DIE(BinaryOperator::New(
                       NewVoidExpression(compilation->pool).ptr(),
@@ -648,8 +615,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                         return Value::NewNumber(
                             pool, numbers::Number(a.get_number()) -
                                       numbers::Number::FromInt64(1));
-                      })))))
-              .release();
+                      }))));
   } else {
     compilation->AddError(Error{
         LazyString{L"--: Type not supported: "}
@@ -659,18 +625,15 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
   std::unique_ptr<std::vector<gc::Root<Expression>>> args(ARGS);
 
-  if (b == nullptr || args == nullptr) {
-    OUT = nullptr;
-  } else {
-      OUT = ToUniquePtr(language::error::FromOptional(NewFunctionCall(
-                *compilation,
-                PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
-                container::MaterializeVector(*args | gc::view::Ptr))))
-                .release();
-  }
+  OUT = new std::optional<gc::Root<Expression>>(
+      (!b.has_value() || args == nullptr)
+          ? std::nullopt
+          : NewFunctionCall(
+                *compilation, std::move(b)->ptr(),
+                container::MaterializeVector(*args | gc::view::Ptr)));
 }
 
 
@@ -695,25 +658,24 @@ arguments_list(OUT) ::= non_empty_arguments_list(L). {
 %destructor non_empty_arguments_list { delete $$; }
 
 non_empty_arguments_list(OUT) ::= expr(E). {
-  std::unique_ptr<Expression> e(E);
+  std::optional<gc::Root<Expression>> e = MoveOutAndDelete(E);
 
-  if (e == nullptr) {
+  if (e == std::nullopt) {
     OUT = nullptr;
   } else {
-    OUT = new std::vector<gc::Root<Expression>>();
-    OUT->push_back(PtrToOptionalRoot(compilation->pool, std::move(e)).value());
+    OUT = new std::vector<gc::Root<Expression>>({std::move(e).value()});
   }
 }
 
 non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
   std::unique_ptr<std::vector<gc::Root<Expression>>> l(L);
-  std::unique_ptr<Expression> e(E);
+  std::optional<gc::Root<Expression>> e = MoveOutAndDelete(E);
 
-  if (l == nullptr || e == nullptr) {
+  if (l == nullptr || !e.has_value()) {
     OUT = nullptr;
   } else {
     OUT = l.release();
-    OUT->push_back(PtrToOptionalRoot(compilation->pool, std::move(e)).value());
+    OUT->push_back(std::move(e).value());
   }
 }
 
@@ -721,264 +683,229 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 // Basic operators
 
 expr(OUT) ::= NOT expr(A). {
-  std::unique_ptr<Expression> a(A);
-  OUT = ToUniquePtr(NewNegateExpressionBool(
-                        *compilation,
-                        PtrToOptionalRoot(compilation->pool, std::move(a))))
-            .release();
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewNegateExpressionBool(*compilation, std::move(a))));
 }
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
-  std::optional<gc::Root<Expression>> a =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
-  std::optional<gc::Root<Expression>> b =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
-  OUT = ToUniquePtr(ExpressionEquals(*compilation, OptionalRootToPtr(a),
-                                     OptionalRootToPtr(b)))
-            .release();
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
+
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(ExpressionEquals(
+          *compilation, OptionalRootToPtr(a), OptionalRootToPtr(b))));
 }
 
 expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
-  std::optional<gc::Root<Expression>> a =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(A));
-  std::optional<gc::Root<Expression>> b =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(B));
-  OUT = ToUniquePtr(NewNegateExpressionBool(
-                        *compilation, language::OptionalFrom(ExpressionEquals(
-                                          *compilation, OptionalRootToPtr(a),
-                                          OptionalRootToPtr(b)))))
-            .release();
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
+
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewNegateExpressionBool(
+          *compilation,
+          language::OptionalFrom(ExpressionEquals(
+              *compilation, OptionalRootToPtr(a), OptionalRootToPtr(b))))));
 }
 
 expr(OUT) ::= expr(A) LESS_THAN expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  if (a == nullptr || b == nullptr) {
+  if (!a.has_value() || !b.has_value()) {
     OUT = nullptr;
-  } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
-                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
-                  types::Bool{},
-                  [precision = compilation->numbers_precision](
-                      gc::Pool& pool, const Value& a_value,
-                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    return Value::NewBool(
-                        pool, a_value.get_number() < b_value.get_number());
-                  })))
-              .release();
+  } else if (a.value()->IsNumber() && b.value()->IsNumber()) {
+    OUT = new std::optional<gc::Root<Expression>>(
+        language::OptionalFrom(compilation->RegisterErrors(BinaryOperator::New(
+            std::move(a)->ptr(), std::move(b)->ptr(), types::Bool{},
+            [precision = compilation->numbers_precision](
+                gc::Pool& pool, const Value& a_value,
+                const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+              return Value::NewBool(
+                  pool, a_value.get_number() < b_value.get_number());
+            }))));
   } else {
-    compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
-                                TypesToString(a->Types()) +
-                                LazyString{L" <= "} +
-                                TypesToString(b->Types()) + LazyString{L"."}});
+    compilation->AddError(
+        Error{LazyString{L"Unable to compare types: "} +
+              TypesToString(a.value()->Types()) + LazyString{L" <= "} +
+              TypesToString(b.value()->Types()) + LazyString{L"."}});
     OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  if (a == nullptr || b == nullptr) {
+  if (!a.has_value() || !b.has_value()) {
     OUT = nullptr;
-  } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
-                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
-                  types::Bool{},
-                  [precision = compilation->numbers_precision](
-                      gc::Pool& pool, const Value& a_value,
-                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    return Value::NewBool(
-                        pool, a_value.get_number() <= b_value.get_number());
-                  })))
-              .release();
+  } else if (a.value()->IsNumber() && b.value()->IsNumber()) {
+    OUT = new std::optional<gc::Root<Expression>>(
+        language::OptionalFrom(compilation->RegisterErrors(BinaryOperator::New(
+            std::move(a)->ptr(), std::move(b)->ptr(), types::Bool{},
+            [precision = compilation->numbers_precision](
+                gc::Pool& pool, const Value& a_value,
+                const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+              return Value::NewBool(
+                  pool, a_value.get_number() <= b_value.get_number());
+            }))));
   } else {
-    compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
-                                TypesToString(a->Types()) +
-                                LazyString{L" <= "} +
-                                TypesToString(b->Types()) + LazyString{L"."}});
+    compilation->AddError(
+        Error{LazyString{L"Unable to compare types: "} +
+              TypesToString(a.value()->Types()) + LazyString{L" <= "} +
+              TypesToString(b.value()->Types()) + LazyString{L"."}});
     OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  if (a == nullptr || b == nullptr) {
+  if (!a.has_value() || !b.has_value()) {
     OUT = nullptr;
-  } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
-                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
-                  types::Bool{},
-                  [precision = compilation->numbers_precision](
-                      gc::Pool& pool, const Value& a_value,
-                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    return Value::NewBool(
-                        pool, a_value.get_number() > b_value.get_number());
-                  })))
-              .release();
+  } else if (a.value()->IsNumber() && b.value()->IsNumber()) {
+    OUT = new std::optional<gc::Root<Expression>>(
+        language::OptionalFrom(compilation->RegisterErrors(BinaryOperator::New(
+            std::move(a)->ptr(), std::move(b)->ptr(), types::Bool{},
+            [precision = compilation->numbers_precision](
+                gc::Pool& pool, const Value& a_value,
+                const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+              return Value::NewBool(
+                  pool, a_value.get_number() > b_value.get_number());
+            }))));
   } else {
-    compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
-                                TypesToString(a->Types()) +
-                                LazyString{L" <= "} +
-                                TypesToString(b->Types()) +
-                                LazyString{L"."}});
+    compilation->AddError(
+        Error{LazyString{L"Unable to compare types: "} +
+              TypesToString(a.value()->Types()) + LazyString{L" <= "} +
+              TypesToString(b.value()->Types()) + LazyString{L"."}});
     OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  if (a == nullptr || b == nullptr) {
+  if (!a.has_value() || !b.has_value()) {
     OUT = nullptr;
-  } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = ToUniquePtr(
-              compilation->RegisterErrors(BinaryOperator::New(
-                  PtrToOptionalRoot(compilation->pool, std::move(a))->ptr(),
-                  PtrToOptionalRoot(compilation->pool, std::move(b))->ptr(),
-                  types::Bool{},
-                  [precision = compilation->numbers_precision](
-                      gc::Pool& pool, const Value& a_value,
-                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    return Value::NewBool(
-                        pool, a_value.get_number() >= b_value.get_number());
-                  })))
-              .release();
+  } else if (a.value()->IsNumber() && b.value()->IsNumber()) {
+    OUT = new std::optional<gc::Root<Expression>>(
+        language::OptionalFrom(compilation->RegisterErrors(BinaryOperator::New(
+            std::move(a)->ptr(), std::move(b)->ptr(), types::Bool{},
+            [precision = compilation->numbers_precision](
+                gc::Pool& pool, const Value& a_value,
+                const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+              return Value::NewBool(
+                  pool, a_value.get_number() >= b_value.get_number());
+            }))));
   } else {
-    compilation->AddError(Error{LazyString{L"Unable to compare types: "} +
-                                TypesToString(a->Types()) +
-                                LazyString{L" <= "} +
-                                TypesToString(b->Types()) +
-                                LazyString{L"."}});
+    compilation->AddError(
+        Error{LazyString{L"Unable to compare types: "} +
+              TypesToString(a.value()->Types()) + LazyString{L" <= "} +
+              TypesToString(b.value()->Types()) + LazyString{L"."}});
     OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) OR expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = ToUniquePtr(NewLogicalExpression(
-                        *compilation, false,
-                        PtrToOptionalRoot(compilation->pool, std::move(a)),
-                        PtrToOptionalRoot(compilation->pool, std::move(b))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewLogicalExpression(*compilation, false, std::move(a), std::move(b))));
 }
 
 expr(OUT) ::= expr(A) AND expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = ToUniquePtr(NewLogicalExpression(
-                        *compilation, true,
-                        PtrToOptionalRoot(compilation->pool, std::move(a)),
-                        PtrToOptionalRoot(compilation->pool, std::move(b))))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewLogicalExpression(*compilation, true, std::move(a), std::move(b))));
 }
 
 expr(OUT) ::= expr(A) PLUS expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = ToUniquePtr(NewBinaryExpression(
-            *compilation,
-            PtrToOptionalRoot(compilation->pool, std::move(a)),
-            PtrToOptionalRoot(compilation->pool, std::move(b)),
-            [](LazyString a_str, LazyString b_str) {
-              return Success(a_str + b_str);
-            },
-            [](numbers::Number a_number, numbers::Number b_number) {
-              return std::move(a_number) + std::move(b_number);
-            },
-            nullptr))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewBinaryExpression(
+          *compilation, std::move(a), std::move(b),
+          [](LazyString a_str, LazyString b_str) {
+            return Success(a_str + b_str);
+          },
+          [](numbers::Number a_number, numbers::Number b_number) {
+            return std::move(a_number) + std::move(b_number);
+          },
+          nullptr)));
 }
 
 expr(OUT) ::= expr(A) MINUS expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = ToUniquePtr(NewBinaryExpression(
-            *compilation,
-            PtrToOptionalRoot(compilation->pool, std::move(a)),
-            PtrToOptionalRoot(compilation->pool, std::move(b)),
-            nullptr,
-            [](numbers::Number a_number, numbers::Number b_number) {
-              return std::move(a_number) - std::move(b_number);
-            },
-            nullptr))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewBinaryExpression(
+          *compilation, std::move(a), std::move(b), nullptr,
+          [](numbers::Number a_number, numbers::Number b_number) {
+            return std::move(a_number) - std::move(b_number);
+          },
+          nullptr)));
 }
 
 expr(OUT) ::= MINUS expr(A). {
-  std::unique_ptr<Expression> a(A);
-  if (a == nullptr) {
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+
+  if (!a.has_value()) {
     OUT = nullptr;
-  } else if (a->IsNumber()) {
-    OUT = ToUniquePtr(NewNegateExpressionNumber(
-                          *compilation,
-                          PtrToOptionalRoot(compilation->pool, std::move(a))))
-              .release();
+  } else if (a.value()->IsNumber()) {
+    OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+        NewNegateExpressionNumber(*compilation, std::move(a))));
   } else {
-    compilation->AddError(Error{
-        LazyString{L"Invalid expression: -: "} + TypesToString(a->Types())});
+    compilation->AddError(Error{LazyString{L"Invalid expression: -: "} +
+                                TypesToString(a.value()->Types())});
     OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) TIMES expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = ToUniquePtr(NewBinaryExpression(
-            *compilation,
-            PtrToOptionalRoot(compilation->pool, std::move(a)),
-            PtrToOptionalRoot(compilation->pool, std::move(b)),
-            nullptr,
-            [](numbers::Number a_number, numbers::Number b_number) {
-              return std::move(a_number) * std::move(b_number);
-            },
-            [](LazyString a_str, int b_int)
-                -> language::ValueOrError<LazyString> {
-              LazyString output;
-              for (int i = 0; i < b_int; i++) {
-                try {
-                  output += a_str;
-                } catch (const std::bad_alloc& e) {
-                  return Error{LazyString{L"Bad Alloc"}};
-                } catch (const std::length_error& e) {
-                  return Error{LazyString{L"Length Error"}};
-                }
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewBinaryExpression(
+          *compilation, std::move(a), std::move(b), nullptr,
+          [](numbers::Number a_number, numbers::Number b_number) {
+            return std::move(a_number) * std::move(b_number);
+          },
+          [](LazyString a_str,
+             int b_int) -> language::ValueOrError<LazyString> {
+            LazyString output;
+            for (int i = 0; i < b_int; i++) {
+              try {
+                output += a_str;
+              } catch (const std::bad_alloc& e) {
+                return Error{LazyString{L"Bad Alloc"}};
+              } catch (const std::length_error& e) {
+                return Error{LazyString{L"Length Error"}};
               }
-              return Success(output);
-            }))
-            .release();
+            }
+            return Success(output);
+          })));
 }
 
 expr(OUT) ::= expr(A) DIVIDE expr(B). {
-  std::unique_ptr<Expression> a(A);
-  std::unique_ptr<Expression> b(B);
+  std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
+  std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = ToUniquePtr(NewBinaryExpression(
-            *compilation,
-            PtrToOptionalRoot(compilation->pool, std::move(a)),
-            PtrToOptionalRoot(compilation->pool, std::move(b)),
-            nullptr,
-            [](numbers::Number a_number, numbers::Number b_number) {
-              return std::move(a_number) / std::move(b_number);
-            },
-            nullptr))
-            .release();
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewBinaryExpression(
+          *compilation, std::move(a), std::move(b), nullptr,
+          [](numbers::Number a_number, numbers::Number b_number) {
+            return std::move(a_number) / std::move(b_number);
+          },
+          nullptr)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -986,17 +913,18 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 ////////////////////////////////////////////////////////////////////////////////
 
 expr(OUT) ::= BOOL(B). {
-  // TODO(easy, 2022-05-13): Add a Value::IsBool check.
-  CHECK(B->value().ptr()->type() == Type(types::Bool{}));
-  OUT = NewDelegatingExpression(
-      NewConstantExpression(std::move(B->value()))).get_unique().release();
+  gc::Root<Value> b{B->value()};
+  CHECK(b->IsBool());
+  OUT = new std::optional<gc::Root<Expression>>(
+      NewConstantExpression(std::move(b)));
   delete B;
 }
 
 expr(OUT) ::= NUMBER(I). {
-  CHECK(I->value().ptr()->IsNumber());
-  OUT = NewDelegatingExpression(
-      NewConstantExpression(std::move(I->value()))).get_unique().release();
+  gc::Root<Value> i{I->value()};
+  CHECK(i->IsNumber());
+  OUT = new std::optional<gc::Root<Expression>>(
+      NewConstantExpression(std::move(i)));
   delete I;
 }
 
@@ -1004,10 +932,10 @@ expr(OUT) ::= NUMBER(I). {
 %destructor string { delete $$; }
 
 expr(OUT) ::= string(S). {
-  CHECK(S->ptr()->IsString());
-  OUT = NewDelegatingExpression(
-      NewConstantExpression(std::move(*S))).get_unique().release();
-  delete S;
+  std::unique_ptr<gc::Root<Value>> s{S};
+  CHECK((*s)->IsString());
+  OUT = new std::optional<gc::Root<Expression>>(
+      NewConstantExpression(std::move(*s)));
 }
 
 string(OUT) ::= STRING(S). {
@@ -1027,8 +955,10 @@ string(OUT) ::= string(A) STRING(B). {
 }
 
 expr(OUT) ::= non_empty_symbols_list(N) . {
-  OUT = ToUniquePtr(NewVariableLookup(*compilation, std::move(*N))).release();
-  delete N;
+  std::unique_ptr<std::list<Identifier>> n{N};
+
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewVariableLookup(*compilation, std::move(*N))));
 }
 
 %type non_empty_symbols_list { std::list<Identifier>* }
@@ -1051,9 +981,10 @@ non_empty_symbols_list(OUT) ::=
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
-  std::optional<gc::Root<Expression>> obj =
-      PtrToOptionalRoot(compilation->pool, std::unique_ptr<Expression>(OBJ));
-  OUT = ToUniquePtr(NewMethodLookup(*compilation, std::move(obj),
-                        FIELD->value().ptr()->get_symbol())).release();
+  std::optional<gc::Root<Expression>> obj = MoveOutAndDelete(OBJ);
+
+  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
+      NewMethodLookup(*compilation, std::move(obj),
+                      FIELD->value().ptr()->get_symbol())));
   delete FIELD;
 }
