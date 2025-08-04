@@ -495,8 +495,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
       ToUniquePtr(
           language::error::FromOptional(NewAssignExpression(
               *compilation, name->value().ptr()->get_symbol(),
-                  PtrToOptionalRoot(
-                    compilation->pool,
+              language::OptionalFrom(
                     NewBinaryExpression(
                       *compilation,
                           language::OptionalFrom(NewVariableLookup(
@@ -519,8 +518,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
       ToUniquePtr(
           language::error::FromOptional(NewAssignExpression(
               *compilation, name->value().ptr()->get_symbol(),
-              PtrToOptionalRoot(
-                  compilation->pool,
+              language::OptionalFrom(
                   NewBinaryExpression(
                       *compilation,
                       PtrToOptionalRoot(
@@ -544,8 +542,7 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = ToUniquePtr(
             language::error::FromOptional(NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
-                PtrToOptionalRoot(
-                    compilation->pool,
+                language::OptionalFrom(
                     NewBinaryExpression(
                         *compilation,
                         language::OptionalFrom(
@@ -579,8 +576,7 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = ToUniquePtr(
             language::error::FromOptional(NewAssignExpression(
                 *compilation, name->value().ptr()->get_symbol(),
-                PtrToOptionalRoot(
-                    compilation->pool,
+                language::OptionalFrom(
                     NewBinaryExpression(
                         *compilation,
                         language::OptionalFrom(
@@ -876,7 +872,7 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = NewBinaryExpression(
+  OUT = ToUniquePtr(NewBinaryExpression(
             *compilation,
             PtrToOptionalRoot(compilation->pool, std::move(a)),
             PtrToOptionalRoot(compilation->pool, std::move(b)),
@@ -886,7 +882,7 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
             [](numbers::Number a_number, numbers::Number b_number) {
               return std::move(a_number) + std::move(b_number);
             },
-            nullptr)
+            nullptr))
             .release();
 }
 
@@ -894,7 +890,7 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = NewBinaryExpression(
+  OUT = ToUniquePtr(NewBinaryExpression(
             *compilation,
             PtrToOptionalRoot(compilation->pool, std::move(a)),
             PtrToOptionalRoot(compilation->pool, std::move(b)),
@@ -902,7 +898,7 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
             [](numbers::Number a_number, numbers::Number b_number) {
               return std::move(a_number) - std::move(b_number);
             },
-            nullptr)
+            nullptr))
             .release();
 }
 
@@ -926,7 +922,7 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = NewBinaryExpression(
+  OUT = ToUniquePtr(NewBinaryExpression(
             *compilation,
             PtrToOptionalRoot(compilation->pool, std::move(a)),
             PtrToOptionalRoot(compilation->pool, std::move(b)),
@@ -947,7 +943,7 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
                 }
               }
               return Success(output);
-            })
+            }))
             .release();
 }
 
@@ -955,7 +951,7 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = NewBinaryExpression(
+  OUT = ToUniquePtr(NewBinaryExpression(
             *compilation,
             PtrToOptionalRoot(compilation->pool, std::move(a)),
             PtrToOptionalRoot(compilation->pool, std::move(b)),
@@ -963,7 +959,7 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
             [](numbers::Number a_number, numbers::Number b_number) {
               return std::move(a_number) / std::move(b_number);
             },
-            nullptr)
+            nullptr))
             .release();
 }
 

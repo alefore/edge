@@ -80,24 +80,23 @@ BinaryOperator::Expand() const {
   return {a_.object_metadata(), b_.object_metadata()};
 }
 
-std::unique_ptr<Expression> NewBinaryExpression(
-    Compilation& compilation,
-    std::optional<language::gc::Root<Expression>> a_raw,
-    std::optional<language::gc::Root<Expression>> b_raw,
-    std::function<language::ValueOrError<LazyString>(LazyString, LazyString)>
+ValueOrError<gc::Root<Expression>> NewBinaryExpression(
+    Compilation& compilation, std::optional<gc::Root<Expression>> a_raw,
+    std::optional<gc::Root<Expression>> b_raw,
+    std::function<ValueOrError<LazyString>(LazyString, LazyString)>
         str_operator,
-    std::function<language::ValueOrError<math::numbers::Number>(
-        math::numbers::Number, math::numbers::Number)>
+    std::function<ValueOrError<math::numbers::Number>(math::numbers::Number,
+                                                      math::numbers::Number)>
         number_operator,
-    std::function<language::ValueOrError<LazyString>(LazyString, int)>
-        str_int_operator) {
-  if (a_raw == std::nullopt || b_raw == std::nullopt) return nullptr;
+    std::function<ValueOrError<LazyString>(LazyString, int)> str_int_operator) {
+  if (a_raw == std::nullopt || b_raw == std::nullopt)
+    return Error{LazyString{L"Missing input"}};
 
   auto a = a_raw.value();
   auto b = b_raw.value();
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
-    return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
+    return compilation.RegisterErrors(BinaryOperator::New(
         a.ptr(), b.ptr(), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
@@ -105,11 +104,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
               LazyString value,
               str_operator(value_a.get_string(), value_b.get_string()));
           return Value::NewString(pool, std::move(value));
-        })));
+        }));
   }
 
   if (number_operator != nullptr && a->IsNumber() && b->IsNumber()) {
-    return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
+    return compilation.RegisterErrors(BinaryOperator::New(
         a.ptr(), b.ptr(), types::Number{},
         [number_operator](
             gc::Pool& pool, const Value& value_a,
@@ -118,11 +117,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
               Number value,
               number_operator(value_a.get_number(), value_b.get_number()));
           return Value::NewNumber(pool, value);
-        })));
+        }));
   }
 
   if (str_int_operator != nullptr && a->IsString() && b->IsNumber()) {
-    return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
+    return compilation.RegisterErrors(BinaryOperator::New(
         a.ptr(), b.ptr(), types::String{},
         [str_int_operator](
             gc::Pool& pool, const Value& a_value,
@@ -132,13 +131,12 @@ std::unique_ptr<Expression> NewBinaryExpression(
               LazyString value,
               str_int_operator(a_value.get_string(), b_value_int));
           return Value::NewString(pool, std::move(value));
-        })));
+        }));
   }
 
-  compilation.AddError(Error{LazyString{L"Unable to add types: "} +
-                             TypesToString(a->Types()) + LazyString{L" + "} +
-                             TypesToString(b->Types())});
-  return nullptr;
+  return compilation.AddError(
+      Error{LazyString{L"Unable to add types: "} + TypesToString(a->Types()) +
+            LazyString{L" + "} + TypesToString(b->Types())});
 }
 
 }  // namespace afc::vm
