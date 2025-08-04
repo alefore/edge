@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
 namespace afc::vm {
@@ -11,10 +12,11 @@ namespace afc::vm {
 class Expression;
 struct Compilation;
 
-language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-NewLogicalExpression(Compilation& compilation, bool identity,
-                     std::unique_ptr<Expression> a,
-                     std::unique_ptr<Expression> b);
+// TODO(trivial, 2025-08-04): a and b should be optional<Ptr<>>.
+language::ValueOrError<language::gc::Root<Expression>> NewLogicalExpression(
+    Compilation& compilation, bool identity,
+    std::optional<language::gc::Root<Expression>> a,
+    std::optional<language::gc::Root<Expression>> b);
 
 }  // namespace afc::vm
 

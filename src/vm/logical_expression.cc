@@ -4,9 +4,12 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/vm/compilation.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
+
+namespace gc = afc::language::gc;
 
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
@@ -21,16 +24,22 @@ namespace {
 class LogicalExpression : public Expression {
   struct ConstructorAccessTag {};
 
+  const bool identity_;
+  const gc::Ptr<Expression> expr_a_;
+  const gc::Ptr<Expression> expr_b_;
+
  public:
-  static language::gc::Root<LogicalExpression> New(
-      language::gc::Pool& pool,
-      bool identity, NonNull<std::shared_ptr<Expression>> expr_a,
-      NonNull<std::shared_ptr<Expression>> expr_b) {
-    return pool.NewRoot(language::MakeNonNullUnique<LogicalExpression>(identity, expr_a, expr_b));
+  static language::gc::Root<LogicalExpression> New(bool identity,
+                                                   gc::Ptr<Expression> expr_a,
+                                                   gc::Ptr<Expression> expr_b) {
+    gc::Pool& pool = expr_a.pool();
+    return pool.NewRoot(language::MakeNonNullUnique<LogicalExpression>(
+        ConstructorAccessTag{}, identity, std::move(expr_a),
+        std::move(expr_b)));
   }
 
-  LogicalExpression(bool identity, NonNull<std::shared_ptr<Expression>> expr_a,
-                    NonNull<std::shared_ptr<Expression>> expr_b)
+  LogicalExpression(ConstructorAccessTag, bool identity,
+                    gc::Ptr<Expression> expr_a, gc::Ptr<Expression> expr_b)
       : identity_(identity),
         expr_a_(std::move(expr_a)),
         expr_b_(std::move(expr_b)) {}
@@ -44,16 +53,18 @@ class LogicalExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(expr_a_, types::Bool{})
+    return trampoline
+        .Bounce(NewDelegatingExpression(expr_a_.ToRoot()), types::Bool{})
         .Transform([type, &trampoline, identity = identity_,
-                    expr_b = expr_b_](EvaluationOutput a_output)
+                    expr_b_root = expr_b_.ToRoot()](EvaluationOutput a_output)
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (a_output.type) {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(a_output)));
             case EvaluationOutput::OutputType::kContinue:
               return a_output.value.ptr()->get_bool() == identity
-                         ? trampoline.Bounce(expr_b, type)
+                         ? trampoline.Bounce(
+                               NewDelegatingExpression(expr_b_root), type)
                          : futures::Past(Success(std::move(a_output)));
           }
           language::Error error{LazyString{L"Unhandled OutputType case."}};
@@ -62,39 +73,33 @@ class LogicalExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand() const override {
-    return {};
+  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
+      const override {
+    return {expr_a_.object_metadata(), expr_b_.object_metadata()};
   }
-
- private:
-  const bool identity_;
-  const NonNull<std::shared_ptr<Expression>> expr_a_;
-  const NonNull<std::shared_ptr<Expression>> expr_b_;
 };
 
 }  // namespace
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> NewLogicalExpression(
-    Compilation& compilation, bool identity, std::unique_ptr<Expression> a,
-    std::unique_ptr<Expression> b) {
-  if (a == nullptr || b == nullptr) {
+ValueOrError<gc::Root<Expression>> NewLogicalExpression(
+    Compilation& compilation, bool identity,
+    std::optional<gc::Root<Expression>> a,
+    std::optional<gc::Root<Expression>> b) {
+  if (a == std::nullopt || b == std::nullopt)
     return Error{LazyString{L"Missing inputs"}};
-  }
-  if (!a->IsBool()) {
-    Error error{LazyString{L"Expected `bool` value but found: "} +
-                TypesToString(a->Types())};
-    compilation.AddError(error);
-    return error;
-  }
-  if (!b->IsBool()) {
-    Error error{LazyString{L"Expected `bool` value but found: "} +
-                TypesToString(b->Types())};
-    compilation.AddError(error);
-    return error;
-  }
-  return MakeNonNullUnique<LogicalExpression>(
-      identity, NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)));
+
+  if (!a.value()->IsBool())
+    return compilation.AddError(
+        Error{LazyString{L"Expected `bool` value but found: "} +
+              TypesToString(a.value()->Types())});
+
+  if (!b.value()->IsBool())
+    return compilation.AddError(
+        Error{LazyString{L"Expected `bool` value but found: "} +
+              TypesToString(b.value()->Types())});
+
+  return LogicalExpression::New(identity, std::move(a)->ptr(),
+                                std::move(b)->ptr());
 }
 
 }  // namespace afc::vm

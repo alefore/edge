@@ -854,8 +854,10 @@ expr(OUT) ::= expr(A) OR expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = ToUniquePtr(NewLogicalExpression(*compilation, false, std::move(a),
-                                         std::move(b)))
+  OUT = ToUniquePtr(NewLogicalExpression(
+                        *compilation, false,
+                        PtrToOptionalRoot(compilation->pool, std::move(a)),
+                        PtrToOptionalRoot(compilation->pool, std::move(b))))
             .release();
 }
 
@@ -863,8 +865,10 @@ expr(OUT) ::= expr(A) AND expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = ToUniquePtr(NewLogicalExpression(*compilation, true, std::move(a),
-                                         std::move(b)))
+  OUT = ToUniquePtr(NewLogicalExpression(
+                        *compilation, true,
+                        PtrToOptionalRoot(compilation->pool, std::move(a)),
+                        PtrToOptionalRoot(compilation->pool, std::move(b))))
             .release();
 }
 
