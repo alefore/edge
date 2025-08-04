@@ -158,6 +158,8 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (func == nullptr) {
     // Pass.
   } else {
+    gc::Root<Expression> body_expr =
+        PtrToOptionalRoot(compilation->pool, std::move(body)).value();
     std::visit(
         overload{
             [&](Error) { func->Abort(); },
@@ -166,8 +168,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
                   Identifier(func->name().value()), std::move(value));
               OUT = NewDelegatingExpression(NewVoidExpression(compilation->pool)).get_unique().release();
             }},
-        compilation->RegisterErrors(func->BuildValue(
-            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(body)))));
+        compilation->RegisterErrors(func->BuildValue(body_expr.ptr())));
   }
 }
 
@@ -491,13 +492,14 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
   } else if (body == nullptr) {
     func->Abort();
   } else {
+    gc::Root<Expression> body_expr =
+        PtrToOptionalRoot(compilation->pool, std::move(body)).value();
     std::visit(overload{IgnoreErrors{},
                         [&](NonNull<std::unique_ptr<Expression>> value) {
                           OUT = value.release().get();
                         }},
-               compilation->RegisterErrors(func->BuildExpression(
-                   NonNull<std::unique_ptr<Expression>>::Unsafe(
-                       std::move(body)))));
+               compilation->RegisterErrors(
+                   func->BuildExpression(body_expr.ptr())));
   }
 }
 

@@ -5,6 +5,7 @@
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc_view.h"
+#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
@@ -25,20 +26,25 @@ namespace {
 class LambdaExpression : public Expression {
   struct ConstructorAccessTag {};
 
+  Type type_;
+  const NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names_;
+  const gc::Ptr<Expression> body_;
+  const ImplicitPromotionCallback promotion_function_;
+
  public:
   static language::gc::Root<LambdaExpression> New(
-      language::gc::Pool& pool,
-      Type type,
+      language::gc::Pool& pool, Type type,
       NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
-      NonNull<std::shared_ptr<Expression>> body,
-      ImplicitPromotionCallback promotion_function) {
-    return pool.NewRoot(language::MakeNonNullUnique<LambdaExpression>(type, argument_names, body, promotion_function));
+      gc::Ptr<Expression> body, ImplicitPromotionCallback promotion_function) {
+    return pool.NewRoot(language::MakeNonNullUnique<LambdaExpression>(
+        ConstructorAccessTag{}, type, argument_names, body,
+        promotion_function));
   }
 
   static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
       Type lambda_type,
       NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
-      NonNull<std::shared_ptr<Expression>> body) {
+      gc::Ptr<Expression> body) {
     auto& lambda_function_type = std::get<types::Function>(lambda_type);
     lambda_function_type.function_purity = body->purity();
     Type expected_return_type = lambda_function_type.output.get();
@@ -60,15 +66,15 @@ class LambdaExpression : public Expression {
                    LazyString{L"."}};
     }
     return MakeNonNullUnique<LambdaExpression>(
-        std::move(lambda_type), std::move(argument_names), std::move(body),
+        ConstructorAccessTag{}, std::move(lambda_type),
+        std::move(argument_names), std::move(body),
         std::move(promotion_function));
   }
 
   LambdaExpression(
-      Type type,
+      ConstructorAccessTag, Type type,
       NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
-      NonNull<std::shared_ptr<Expression>> body,
-      ImplicitPromotionCallback promotion_function)
+      gc::Ptr<Expression> body, ImplicitPromotionCallback promotion_function)
       : type_(std::move(type)),
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
@@ -95,7 +101,8 @@ class LambdaExpression : public Expression {
     const types::Function& function_type = std::get<types::Function>(type_);
     return Value::NewFunction(
         pool, body_->purity(), function_type.output.get(), function_type.inputs,
-        [body = body_, parent_environment, argument_names = argument_names_,
+        [body_root = body_.ToRoot(), parent_environment,
+         argument_names = argument_names_,
          promotion_function = promotion_function_](
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
@@ -112,9 +119,10 @@ class LambdaExpression : public Expression {
                                       std::move(args.at(i)));
           }
           trampoline.SetEnvironment(environment);
-          return trampoline.Bounce(body, body->Types()[0])
+          return trampoline
+              .Bounce(NewDelegatingExpression(body_root), body_root->Types()[0])
               .Transform(
-                  [original_trampoline, &trampoline, body,
+                  [original_trampoline, &trampoline, body_root,
                    promotion_function](EvaluationOutput body_output) mutable {
                     gc::Root<Value> promoted_value =
                         promotion_function(std::move(body_output.value));
@@ -129,15 +137,10 @@ class LambdaExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const override {
-    return {};
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {body_.object_metadata()};
   }
-
- private:
-  Type type_;
-  const NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names_;
-  const NonNull<std::shared_ptr<Expression>> body_;
-  const ImplicitPromotionCallback promotion_function_;
 };
 }  // namespace
 
@@ -199,7 +202,7 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
 }
 
 ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
-    NonNull<std::unique_ptr<Expression>> body) {
+    gc::Ptr<Expression> body) {
   DECLARE_OR_RETURN(
       NonNull<std::unique_ptr<LambdaExpression>> expression,
       LambdaExpression::New(type_, argument_names_, std::move(body)));
@@ -207,7 +210,7 @@ ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>>
-UserFunction::BuildExpression(NonNull<std::unique_ptr<Expression>> body) {
+UserFunction::BuildExpression(gc::Ptr<Expression> body) {
   // We can't just return the result of LambdaExpression::New; that's a
   // ValueOrError<LambdaExpression>. We need to explicitly convert it to a
   // ValueOrError<Expression>.
