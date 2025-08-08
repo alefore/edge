@@ -271,7 +271,6 @@ EditorState::EditorState(
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
       edge_path_(args_.config_paths),
-      thread_pool_(std::move(thread_pool)),
       execution_context_(ExecutionContext::New(
           std::invoke([&] {
             environment->Define(
@@ -284,8 +283,8 @@ EditorState::EditorState(
                         std::shared_ptr<EditorState>(this, [](void*) {}))));
             return environment;
           }),
-          shared_data_->status.get_shared(), thread_pool_->work_queue(),
-          MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()))),
+          shared_data_->status.get_shared(), thread_pool->work_queue(),
+          MakeNonNullUnique<FileSystemDriver>(thread_pool.value()))),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
       buffer_registry_(gc_pool_->NewRoot(MakeNonNullUnique<BufferRegistry>(
@@ -300,7 +299,8 @@ EditorState::EditorState(
                 });
           }))),
       buffer_tree_(buffer_registry_.ptr().value(),
-                   MakeNonNullUnique<BuffersListAdapter>(*this)) {
+                   MakeNonNullUnique<BuffersListAdapter>(*this)),
+      thread_pool_(std::move(thread_pool)) {
   work_queue()->OnSchedule().Add([shared_data = shared_data_] {
     NotifyInternalEvent(shared_data.value());
     return Observers::State::kAlive;
@@ -331,23 +331,10 @@ EditorState::EditorState(
 
 EditorState::~EditorState() {
   if (!exit_value_.has_value()) exit_value_ = 0;
-  while (!buffer_registry_->buffers().empty()) {
-    // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
-    // CloseBuffer accordingly.
-    LOG(INFO) << "Closing buffers.";
-    std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
-                          &OpenBuffer::Close);
-    buffer_registry_->Clear();
-    // Execute work that was blocking until buffers were deleted.
-    LOG(INFO) << "thread_pool_: WaitForProgress.";
-    thread_pool_->WaitForProgress();
-    LOG(INFO) << "thread_pool_: Caught up.";
-  }
-
-  LOG(INFO) << "Reclaim GC pool.";
-  execution_context().pool().FullCollect();
-  execution_context().pool().BlockUntilDone();
-
+  LOG(INFO) << "Closing buffers.";
+  std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
+                        &OpenBuffer::Close);
+  buffer_registry_->Clear();
   LOG(INFO) << "Destructor finished running.";
 }
 

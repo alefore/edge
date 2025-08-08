@@ -57,6 +57,11 @@ class ThreadPoolWithWorkQueue {
       language::NonNull<std::shared_ptr<ThreadPool>> thread_pool,
       language::NonNull<std::shared_ptr<WorkQueue>> work_queue);
 
+  // During shutdown we will notify WorkQueue (through
+  // `WorkQueue::StartShutdown`), which causes it to drop all unimportant work.
+  // We will then wait until both the work queue and the thread pool are empty.
+  ~ThreadPoolWithWorkQueue();
+
   const language::NonNull<std::shared_ptr<ThreadPool>>& thread_pool() const;
   const language::NonNull<std::shared_ptr<WorkQueue>>& work_queue() const;
 

@@ -100,6 +100,24 @@ ThreadPoolWithWorkQueue::ThreadPoolWithWorkQueue(
     : thread_pool_(std::move(thread_pool)),
       work_queue_(std::move(work_queue)) {}
 
+ThreadPoolWithWorkQueue::~ThreadPoolWithWorkQueue() {
+  LOG(INFO) << "Deletion of ThreadPoolWithWorkQueue starts.";
+  work_queue_->StartShutdown();
+  while (thread_pool_->pending_work_units() > 0 ||
+         work_queue_->NextExecution().has_value())
+    if (work_queue_->NextExecution().has_value())
+      work_queue_->Execute();
+    else
+      // Ideally, we'd block until either the thread pool is empty or the
+      // work_queue has work scheduled. Doing this is ... tricky (we'd likely
+      // need to add a condition variable and receive notifications).
+      //
+      // So, instead, just ... sleep, ugh.
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
+
+  LOG(INFO) << "Deletion of ThreadPoolWithWorkQueue proceeds.";
+}
+
 const language::NonNull<std::shared_ptr<ThreadPool>>&
 ThreadPoolWithWorkQueue::thread_pool() const {
   return thread_pool_;

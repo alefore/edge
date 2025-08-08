@@ -262,8 +262,6 @@ class EditorState {
 
   const std::vector<infrastructure::Path> edge_path_;
 
-  const language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
-      thread_pool_;
   const language::gc::Root<ExecutionContext> execution_context_;
 
   // Should only be directly used when the editor has no buffer.
@@ -292,6 +290,9 @@ class EditorState {
   const language::gc::Root<BufferRegistry> buffer_registry_;
 
   BuffersList buffer_tree_;
+
+  const language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
+      thread_pool_;
 };
 
 }  // namespace afc::editor

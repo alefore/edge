@@ -403,7 +403,7 @@ const bool buffer_work_queue_tests_registration = tests::Register(
         LOG(INFO) << "Editor deleted.";
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         LOG(INFO) << "Checking value";
-        CHECK(!value.Get());
+        CHECK(value.Get());
       }}});
 
 const bool buffer_positions_tests_registration = tests::Register(
