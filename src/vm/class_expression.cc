@@ -7,7 +7,6 @@
 #include "src/vm/append_expression.h"
 #include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
-#include "src/vm/delegating_expression.h"  // Add this include for NewDelegatingExpression
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
