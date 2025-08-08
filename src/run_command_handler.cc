@@ -33,7 +33,6 @@ extern "C" {
 #include "src/line_prompt_mode.h"
 #include "src/token_predictor.h"
 #include "src/vm/constant_expression.h"
-#include "src/vm/delegating_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/escape.h"
 #include "src/vm/function_call.h"
@@ -70,7 +69,6 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedString;
-using afc::vm::NewDelegatingExpression;
 
 namespace afc {
 using language::NonNull;
