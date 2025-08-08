@@ -25,6 +25,13 @@ bool operator>(const WorkQueue::Callback& a, const WorkQueue::Callback& b) {
 
 WorkQueue::WorkQueue(ConstructorAccessTag) {}
 
+void WorkQueue::StartShutdown() {
+  data_.lock([&](MutableData& data) {
+    CHECK(!data.shutting_down);
+    data.shutting_down = true;
+  });
+}
+
 void WorkQueue::Schedule(WorkQueue::Callback callback) {
   data_.lock([&](MutableData& data) {
     data.callbacks.emplace_back(std::move(callback));
@@ -49,7 +56,8 @@ void WorkQueue::Execute(std::function<infrastructure::Time()> clock) {
   std::vector<OnceOnlyFunction<void()>> callbacks_ready;
   data_.lock([&callbacks_ready, &clock](MutableData& data) {
     VLOG(5) << "Executing work queue: callbacks: " << data.callbacks.size();
-    while (!data.callbacks.empty() && data.callbacks.front().time <= clock()) {
+    while (!data.callbacks.empty() &&
+           (data.shutting_down || data.callbacks.front().time <= clock())) {
       callbacks_ready.push_back(std::move(data.callbacks.front().callback));
       std::pop_heap(data.callbacks.begin(), data.callbacks.end(), operator>);
       data.callbacks.pop_back();

@@ -46,6 +46,11 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
 
   explicit WorkQueue(ConstructorAccessTag);
 
+  // During shutdown, callbacks scheduled are executed immediately (even if they
+  // are scheduled far in the future). Customers should take care to stop
+  // scheduling regular "update" tasks such as garbage collection.
+  void StartShutdown();
+
   struct Callback {
     infrastructure::Time time = infrastructure::Now();
     language::OnceOnlyFunction<void()> callback = [] {};
@@ -90,6 +95,8 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
     // This is used to track the percentage of time spent executing (seconds per
     // second).
     math::DecayingCounter execution_seconds = math::DecayingCounter(1.0);
+
+    bool shutting_down = false;
   };
   Protected<MutableData> data_;
   language::Observers schedule_observers_;
