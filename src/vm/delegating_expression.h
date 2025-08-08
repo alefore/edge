@@ -12,12 +12,6 @@ namespace afc::vm {
 std::optional<language::gc::Root<Expression>> PtrToOptionalRoot(
     language::gc::Pool& pool, std::unique_ptr<Expression> expr);
 
-// Factory function to create a NonNull<std::unique_ptr<Expression>> from a
-// gc::Root<Expression>. This bridges the unique_ptr (for cpp.y and similar
-// consumers) and gc::Root worlds.
-language::NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
-    language::gc::Root<Expression> delegate);
-
 std::optional<language::gc::Ptr<Expression>> OptionalRootToPtr(
     const std::optional<language::gc::Root<Expression>>&);
 
