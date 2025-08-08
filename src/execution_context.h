@@ -46,7 +46,7 @@ class ExecutionContext {
         language::gc::Ptr<vm::Environment> environment,
         language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue);
 
-    language::NonNull<std::shared_ptr<vm::Expression>> expression() const;
+    language::gc::Ptr<vm::Expression> expression() const;
 
     futures::ValueOrError<language::gc::Root<vm::Value>> evaluate() const;
 

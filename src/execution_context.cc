@@ -5,7 +5,6 @@
 #include "src/language/once_only_function.h"
 #include "src/status.h"
 #include "src/vm/constant_expression.h"
-#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/vm.h"
 
@@ -118,10 +117,9 @@ ExecutionContext::CompilationResult::New(
           std::move(work_queue)));
 }
 
-language::NonNull<std::shared_ptr<vm::Expression>>
-ExecutionContext::CompilationResult::expression() const {
-  // TODO(easy, 2025-08-01): Change to return a const gc::Ptr<>&.
-  return NewDelegatingExpression(expression_.ToRoot());
+gc::Ptr<vm::Expression> ExecutionContext::CompilationResult::expression()
+    const {
+  return expression_;
 }
 
 futures::ValueOrError<gc::Root<vm::Value>>
