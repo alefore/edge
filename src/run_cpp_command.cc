@@ -22,7 +22,6 @@
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
-#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/natural.h"
 #include "src/vm/value.h"
@@ -59,7 +58,6 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineSequence;
 using afc::vm::Identifier;
-using afc::vm::NewDelegatingExpression;
 using afc::vm::TypesToString;
 using afc::vm::VMTypeMapper;
 
