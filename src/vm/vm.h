@@ -14,14 +14,13 @@
 #include "src/vm/types.h"
 
 namespace afc::vm {
-language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileFile(infrastructure::Path path, language::gc::Pool& pool,
-            language::gc::Root<Environment> environment);
+language::ValueOrError<language::gc::Root<Expression>> CompileFile(
+    infrastructure::Path path, language::gc::Pool& pool,
+    language::gc::Root<Environment> environment);
 
-language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileString(const language::lazy_string::LazyString& str,
-              language::gc::Pool& pool,
-              language::gc::Root<Environment> environment);
+language::ValueOrError<language::gc::Root<Expression>> CompileString(
+    const language::lazy_string::LazyString& str, language::gc::Pool& pool,
+    language::gc::Root<Environment> environment);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_VM_H__

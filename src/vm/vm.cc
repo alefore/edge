@@ -60,6 +60,7 @@ using afc::language::Success;
 using afc::language::ToUniquePtr;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
@@ -620,26 +621,23 @@ ValueOrError<gc::Root<Expression>> ResultsFromCompilation(
   if (!compilation.errors().empty()) {
     return MergeErrors(compilation.errors(), L", ");
   }
-  return language::VisitOptional(
+  return VisitOptional(
       [](gc::Root<Expression> expr) { return Success(std::move(expr)); },
       []() { return Error{LazyString{L"Unexpected empty expression."}}; },
       std::move(compilation.expr));
 }
 }  // namespace
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
+ValueOrError<gc::Root<Expression>> CompileFile(
     Path path, gc::Pool& pool, gc::Root<Environment> environment) {
   TRACK_OPERATION(vm_CompileFile);
   Compilation compilation(pool, std::move(environment));
   CompileFile(path, compilation, GetParser(compilation).get());
-  DECLARE_OR_RETURN(gc::Root<Expression> output,
-                    ResultsFromCompilation(std::move(compilation)));
-  return NewDelegatingExpression(std::move(output));
+  return ResultsFromCompilation(std::move(compilation));
 }
 
-language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileString(const LazyString& str, language::gc::Pool& pool,
-              language::gc::Root<Environment> environment) {
+ValueOrError<gc::Root<Expression>> CompileString(
+    const LazyString& str, gc::Pool& pool, gc::Root<Environment> environment) {
   Compilation compilation(pool, std::move(environment));
   compilation.PushSource(std::nullopt);
   LineSequence::BreakLines(str).EveryLine(
@@ -651,9 +649,7 @@ CompileString(const LazyString& str, language::gc::Pool& pool,
         return compilation.errors().empty();
       });
   compilation.PopSource();
-  DECLARE_OR_RETURN(gc::Root<Expression> output,
-                    ResultsFromCompilation(std::move(compilation)));
-  return NewDelegatingExpression(std::move(output));
+  return ResultsFromCompilation(std::move(compilation));
 }
 
 }  // namespace afc::vm

@@ -81,11 +81,10 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
     infrastructure::Path path) {
   return std::visit(
       overload{[environment = environment_.ToRoot(), work_queue = work_queue_,
-                path](NonNull<std::unique_ptr<vm::Expression>> expression) {
+                path](gc::Root<vm::Expression> expression) {
                  LOG(INFO) << "Evaluating file: " << path;
                  return Evaluate(
-                     environment.pool().NewRoot(std::move(expression)).ptr(),
-                     environment.pool(), environment,
+                     expression.ptr(), environment.pool(), environment,
                      [path, work_queue](OnceOnlyFunction<void()> resume) {
                        LOG(INFO) << "Evaluation of file yields: " << path;
                        work_queue->Schedule(
@@ -161,20 +160,19 @@ ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
   gc::Root<vm::Environment> sub_environment =
       vm::Environment::New(environment_);
   return std::visit(
-      overload{
-          [sub_environment, work_queue = work_queue()](
-              NonNull<std::unique_ptr<vm::Expression>> expression)
-              -> ValueOrError<gc::Root<CompilationResult>> {
-            return CompilationResult::New(
-                sub_environment.pool().NewRoot(std::move(expression)).ptr(),
-                sub_environment.ptr(), work_queue);
-          },
-          [weak_status = status_, error_handling](
-              Error error) -> ValueOrError<gc::Root<CompilationResult>> {
-            return RegisterCompilationError(weak_status,
-                                            LazyString{L"🐜Compilation error"},
-                                            error, error_handling);
-          }},
+      overload{[sub_environment,
+                work_queue = work_queue()](gc::Root<vm::Expression> expression)
+                   -> ValueOrError<gc::Root<CompilationResult>> {
+                 return CompilationResult::New(std::move(expression).ptr(),
+                                               sub_environment.ptr(),
+                                               work_queue);
+               },
+               [weak_status = status_, error_handling](
+                   Error error) -> ValueOrError<gc::Root<CompilationResult>> {
+                 return RegisterCompilationError(
+                     weak_status, LazyString{L"🐜Compilation error"}, error,
+                     error_handling);
+               }},
       afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
 }
 
