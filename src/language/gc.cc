@@ -126,7 +126,10 @@ Pool::Pool(Options options)
                           ? std::make_optional(Bag<Backtrace>(
                                 BagOptions{.shards = options_.max_bag_shards}))
                           : std::optional<Bag<Backtrace>>()),
-      async_work_(options_.operation_factory->New(nullptr)) {}
+      async_work_(options_.operation_factory->New(nullptr)) {
+  LOG(INFO) << "GC: root_backtrace: "
+            << (root_backtrace_.has_value() ? "enabled" : "disabled");
+}
 
 Pool::~Pool() {
   LOG(INFO) << "Deleting Pool.";
@@ -140,6 +143,7 @@ Pool::~Pool() {
   data_.lock([](const Data& data) {
     CHECK(data.expansion_schedule.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
+    LOG(INFO) << "Roots list size: " << data.roots_list.size();
     // CHECK(data.roots_list.empty());
   });
   if (root_backtrace_.has_value()) {
