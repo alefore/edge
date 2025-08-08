@@ -3,7 +3,6 @@
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/compilation.h"
-#include "src/vm/delegating_expression.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
@@ -13,7 +12,6 @@ using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using afc::vm::NewDelegatingExpression;
 
 namespace gc = afc::language::gc;
 
