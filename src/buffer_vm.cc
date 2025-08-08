@@ -24,7 +24,6 @@
 #include "src/vm/callbacks_gc.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/container.h"
-#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 
 namespace gc = afc::language::gc;
@@ -73,7 +72,6 @@ using afc::vm::Identifier;
 using afc::vm::kPurityTypeReader;
 using afc::vm::kPurityTypeUnknown;
 using afc::vm::NewConstantExpression;
-using afc::vm::NewDelegatingExpression;
 using afc::vm::NewFunctionCall;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
