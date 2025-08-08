@@ -283,11 +283,10 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
   Identifier type_identifier(type->value().ptr()->get_symbol());
 
-  // TODO(trivial, 2025-08-01): Don't convert to std::unique_ptr.
-  std::unique_ptr<Expression> constructor =
-      ToUniquePtr(NewVariableLookup(*compilation, {type_identifier}));
+  ValueOrError<gc::Root<Expression>> constructor =
+      NewVariableLookup(*compilation, {type_identifier});
 
-  if (constructor == nullptr) {
+  if (std::holds_alternative<Error>(constructor)) {
     compilation->AddError(Error{
         LazyString{L"Need to explicitly initialize variable "} +
         QuoteExpr(language::lazy_string::ToSingleLine(
@@ -302,9 +301,7 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
                   *compilation, type->value().ptr()->get_symbol(),
                   name->value().ptr()->get_symbol(),
                   NewFunctionCall(*compilation,
-                                  PtrToOptionalRoot(compilation->pool,
-                                                    std::move(constructor))
-                                      ->ptr(),
+                                  VALUE_OR_DIE(std::move(constructor)).ptr(),
                                   {})));
   }
 }
@@ -508,10 +505,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
       *compilation, name->value().ptr()->get_symbol(),
       language::OptionalFrom(NewBinaryExpression(
           *compilation,
-          PtrToOptionalRoot(
-              compilation->pool,
-              ToUniquePtr(NewVariableLookup(
-                  *compilation, {name->value().ptr()->get_symbol()}))),
+          language::OptionalFrom(NewVariableLookup(
+              *compilation, {name->value().ptr()->get_symbol()})),
           std::move(value), nullptr,
           [](numbers::Number a, numbers::Number b) {
             return std::move(a) - std::move(b);
