@@ -615,15 +615,13 @@ std::unique_ptr<void, std::function<void(void*)>> GetParser(
       });
 }
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
+ValueOrError<gc::Root<Expression>> ResultsFromCompilation(
     Compilation compilation) {
   if (!compilation.errors().empty()) {
     return MergeErrors(compilation.errors(), L", ");
   }
   return language::VisitOptional(
-      [](gc::Root<Expression> expr) {
-        return Success(NewDelegatingExpression(std::move(expr)));
-      },
+      [](gc::Root<Expression> expr) { return Success(std::move(expr)); },
       []() { return Error{LazyString{L"Unexpected empty expression."}}; },
       std::move(compilation.expr));
 }
@@ -634,7 +632,9 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
   TRACK_OPERATION(vm_CompileFile);
   Compilation compilation(pool, std::move(environment));
   CompileFile(path, compilation, GetParser(compilation).get());
-  return ResultsFromCompilation(std::move(compilation));
+  DECLARE_OR_RETURN(gc::Root<Expression> output,
+                    ResultsFromCompilation(std::move(compilation)));
+  return NewDelegatingExpression(std::move(output));
 }
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
@@ -651,7 +651,9 @@ CompileString(const LazyString& str, language::gc::Pool& pool,
         return compilation.errors().empty();
       });
   compilation.PopSource();
-  return ResultsFromCompilation(std::move(compilation));
+  DECLARE_OR_RETURN(gc::Root<Expression> output,
+                    ResultsFromCompilation(std::move(compilation)));
+  return NewDelegatingExpression(std::move(output));
 }
 
 }  // namespace afc::vm
