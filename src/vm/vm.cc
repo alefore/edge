@@ -57,7 +57,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToUniquePtr;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;

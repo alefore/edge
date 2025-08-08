@@ -74,16 +74,6 @@ std::optional<gc::Ptr<Expression>> PtrToOptionalGcPtr(
       PtrToOptionalRoot(pool, std::move(expr)));
 }
 
-std::unique_ptr<Expression> ToUniquePtr(
-    language::ValueOrError<gc::Root<Expression>> delegate) {
-  return std::visit(
-      overload{[](gc::Root<Expression> expr) {
-                 return NewDelegatingExpression(std::move(expr)).get_unique();
-               },
-               [](Error) -> std::unique_ptr<Expression> { return nullptr; }},
-      delegate);
-}
-
 NonNull<std::unique_ptr<Expression>> NewDelegatingExpression(
     gc::Root<Expression> delegate) {
   return MakeNonNullUnique<DelegatingExpression>(std::move(delegate));
