@@ -50,7 +50,6 @@ extern "C" {
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 #include "src/vm/constant_expression.h"
-#include "src/vm/delegating_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
@@ -95,7 +94,6 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
-using afc::vm::NewDelegatingExpression;
 using afc::vm::Type;
 using afc::vm::VMTypeMapper;
 
