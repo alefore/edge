@@ -113,7 +113,7 @@ struct IgnoreErrors {
       afc::language::lazy_string::LazyString{            \
           afc::language::FromByteString(__FILE__)} +     \
           afc::language::lazy_string::LazyString{L":"} + \
-          language::lazy_string::LazyString{std::to_wstring(__LINE__)})
+          afc::language::lazy_string::LazyString{std::to_wstring(__LINE__)})
 
 template <typename T>
 T ValueOrDie(ValueOrError<T>&& value,
