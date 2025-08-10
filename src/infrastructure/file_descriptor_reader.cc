@@ -52,7 +52,10 @@ void FileDescriptorReader::Register(
              kLowBufferSize - low_buffer_length_);
     LOG(INFO) << "Read returns: " << characters_read;
     if (characters_read == -1) {
-      if (errno == EAGAIN) return options_->receive_data(LazyString(), [] {});
+      if (errno == EAGAIN) {
+        options_->receive_data(LazyString{});
+        return;
+      }
       return std::move(options_->receive_end_of_file)();
     }
     CHECK_GE(characters_read, 0);
@@ -99,10 +102,12 @@ void FileDescriptorReader::Register(
 
     clock_gettime(0, &last_input_received_);
     state_ = State::kProcessing;
-    options_->receive_data(std::move(buffer_wrapper), [this] {
-      CHECK(state_ == State::kProcessing);
-      state_ = State::kReading;
-    });
+    options_->receive_data(std::move(buffer_wrapper))
+        .Transform([this](EmptyValue) {
+          CHECK(state_ == State::kProcessing);
+          state_ = State::kReading;
+          return futures::Past(EmptyValue{});
+        });
   });
 }
 

@@ -1843,28 +1843,24 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                       },
                       [] {}, weak_this.Lock());
                 },
-            // TODO(trivial, 2025-08-10): Change this to not receive a
-            // `done_callback` but to return a future.
-            .receive_data = LockAndVisitCallback(
-                [modifiers](LazyString input,
-                            std::function<void()> done_callback,
-                            gc::Root<OpenBuffer> root_this) {
-                  root_this->RegisterProgress();
-                  if (root_this->Read(buffer_variables::vm_exec)) {
-                    LOG(INFO) << root_this->name()
-                              << ": Evaluating VM code: " << input;
-                    root_this->execution_context()->EvaluateString(input);
-                  }
-                  root_this->file_adapter_
-                      ->ReceiveInput(std::move(input), modifiers)
-                      .Transform([done_callback =
-                                      std::move(done_callback)](EmptyValue) {
-                        done_callback();
-                        return futures::Past(EmptyValue());
-                      });
-                },
-                [](LazyString, std::function<void()>) {},
-                ptr_this_->ToWeakPtr())});
+            .receive_data =
+                [modifiers,
+                 weak_this = ptr_this_->ToWeakPtr()](LazyString input) {
+                  return VisitOptional(
+                      [&input, &modifiers](gc::Root<OpenBuffer> root_this) {
+                        root_this->RegisterProgress();
+                        if (root_this->Read(buffer_variables::vm_exec)) {
+                          LOG(INFO) << root_this->name()
+                                    << ": Evaluating VM code: " << input;
+                          root_this->execution_context()->EvaluateString(input);
+                        }
+                        return root_this->file_adapter_->ReceiveInput(
+                            std::move(input), modifiers);
+                      },
+                      [] { return futures::Past(EmptyValue()); },
+                      weak_this.Lock());
+                }});
+
     return std::move(output.value);
   };
 

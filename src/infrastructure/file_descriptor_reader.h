@@ -39,8 +39,12 @@ class FileDescriptorReader {
     infrastructure::FileDescriptor fd;
 
     mutable language::OnceOnlyFunction<void()> receive_end_of_file;
-    std::function<void(language::lazy_string::LazyString,
-                       std::function<void()>)>
+
+    // When data is received, the FileDescriptorReader should call the
+    // `receive_data` function. This function should return a future that gets
+    // notified when the data has been successfully consumed.
+    std::function<futures::Value<language::EmptyValue>(
+        language::lazy_string::LazyString)>
         receive_data;
   };
 
