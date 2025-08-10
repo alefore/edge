@@ -4,6 +4,7 @@
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/vm/environment.h"
@@ -35,18 +36,18 @@ int main(int, char** argv) {
       .operation_factory = std::make_shared<OperationFactory>(
           MakeNonNullShared<ThreadPool>(6))});
   gc::Root<afc::vm::Environment> environment = afc::vm::Environment::New(pool);
-  ValueOrError<NonNull<std::shared_ptr<Expression>>> expr =
-      ValueOrDie(afc::vm::CompileFile(
-          ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
-                                                         "stdin")})),
-          pool, environment));
+  ValueOrError<gc::Root<Expression>> expr = afc::vm::CompileFile(
+      ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
+                                                     "stdin")})),
+      pool, environment);
   if (IsError(expr)) return 0;
 
   std::optional<OnceOnlyFunction<void()>> resume;
-  auto value = afc::vm::Evaluate(ValueOrDie(std::move(expr)), pool, environment,
-                                 [&resume](OnceOnlyFunction<void()> callback) {
-                                   resume = std::move(callback);
-                                 });
+  auto value =
+      afc::vm::Evaluate(VALUE_OR_DIE(std::move(expr)).ptr(), pool, environment,
+                        [&resume](OnceOnlyFunction<void()> callback) {
+                          resume = std::move(callback);
+                        });
 
   for (int i = 0; i < 5 && resume.has_value(); ++i) {
     auto copy = std::move(resume.value());
