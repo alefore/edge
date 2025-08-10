@@ -151,6 +151,7 @@ using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
+using gc::LockAndVisitCallback;
 
 namespace afc::editor {
 namespace {
@@ -399,22 +400,18 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                                    PathComponent::FromString(L".edge_state")));
                     file_system_driver()
                         ->Stat(state_path)
-                        .Transform(
-                            [state_path,
-                             execution_context =
-                                 execution_context_.ToWeakPtr()](struct stat) {
-                              return VisitOptional(
-                                  [&](gc::Root<ExecutionContext> context) {
-                                    return context->EvaluateFile(state_path);
-                                  },
-                                  [] {
-                                    return futures::Past(
-                                        ValueOrError<gc::Root<Value>>(
-                                            Error{LazyString{
-                                                L"Buffer has been deleted."}}));
-                                  },
-                                  execution_context.Lock());
-                            });
+                        .Transform(LockAndVisitCallback(
+                            [state_path](struct stat,
+                                         gc::Root<ExecutionContext> context) {
+                              return context->EvaluateFile(state_path);
+                            },
+                            [](struct stat) {
+                              return futures::Past(
+                                  ValueOrError<gc::Root<Value>>(
+                                      Error{LazyString{
+                                          L"Buffer has been deleted."}}));
+                            },
+                            execution_context_.ToWeakPtr()));
                   }
                 }},
             Path::New(Read(buffer_variables::path)));
@@ -901,30 +898,6 @@ void OpenBuffer::AppendLines(
   }
 }
 
-// TODO(trivial, 2025-08-02): Move this to src/language/gc_util.h.
-template <typename F1, typename F2, typename T>
-auto CreateWeakLockCallback(F1&& on_lock, F2&& on_failure,
-                            gc::WeakPtr<T> weak_ptr) {
-  return [on_lock = std::forward<F1>(on_lock),
-          on_failure = std::forward<F2>(on_failure), weak_ptr](auto&&... args) {
-    using OnLockReturn =
-        decltype(std::invoke(on_lock, std::forward<decltype(args)>(args)...,
-                             std::declval<gc::Root<T>>()));
-    using OnFailureReturn = decltype(std::invoke(
-        on_failure, std::forward<decltype(args)>(args)...));
-    static_assert(std::is_convertible_v<OnLockReturn, OnFailureReturn> ||
-                      std::is_convertible_v<OnFailureReturn, OnLockReturn>,
-                  "The return types of the success and failure callbacks are "
-                  "not compatible.");
-    if (std::optional<gc::Root<T>> root = weak_ptr.Lock(); root.has_value()) {
-      return std::invoke(on_lock, std::forward<decltype(args)>(args)...,
-                         std::move(root).value());
-    } else {
-      return std::invoke(on_failure, std::forward<decltype(args)>(args)...);
-    }
-  };
-}
-
 futures::Value<PossibleError> OpenBuffer::Reload() {
   LOG(INFO) << name() << ": Reload starts.";
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
@@ -982,7 +955,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                    ? futures::IgnoreErrors(options_.generate_contents(*this))
                    : futures::Past(Success());
       })
-      .Transform(CreateWeakLockCallback(
+      .Transform(LockAndVisitCallback(
           [](EmptyValue, gc::Root<OpenBuffer> root_this) {
             LOG(INFO) << root_this->name()
                       << ": Reload: Starting log supplier.";
@@ -996,7 +969,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
           },
           [](EmptyValue) { return futures::Past(Success(NewNullLog())); },
           ptr_this_->ToWeakPtr()))
-      .Transform(CreateWeakLockCallback(
+      .Transform(LockAndVisitCallback(
           [](NonNull<std::unique_ptr<Log>> log,
              gc::Root<OpenBuffer> root_this) {
             root_this->log_ = std::move(log);
@@ -1870,27 +1843,28 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                       },
                       [] {}, weak_this.Lock());
                 },
-            .receive_data =
-                [weak_this = ptr_this_->ToWeakPtr(), modifiers](
-                    LazyString input, std::function<void()> done_callback) {
-                  VisitOptional(
-                      [&](gc::Root<OpenBuffer> root_this) {
-                        root_this->RegisterProgress();
-                        if (root_this->Read(buffer_variables::vm_exec)) {
-                          LOG(INFO) << root_this->name()
-                                    << ": Evaluating VM code: " << input;
-                          root_this->execution_context()->EvaluateString(input);
-                        }
-                        root_this->file_adapter_
-                            ->ReceiveInput(std::move(input), modifiers)
-                            .Transform([done_callback = std::move(
-                                            done_callback)](EmptyValue) {
-                              done_callback();
-                              return futures::Past(EmptyValue());
-                            });
-                      },
-                      [] {}, weak_this.Lock());
-                }});
+            // TODO(trivial, 2025-08-10): Change this to not receive a
+            // `done_callback` but to return a future.
+            .receive_data = LockAndVisitCallback(
+                [modifiers](LazyString input,
+                            std::function<void()> done_callback,
+                            gc::Root<OpenBuffer> root_this) {
+                  root_this->RegisterProgress();
+                  if (root_this->Read(buffer_variables::vm_exec)) {
+                    LOG(INFO) << root_this->name()
+                              << ": Evaluating VM code: " << input;
+                    root_this->execution_context()->EvaluateString(input);
+                  }
+                  root_this->file_adapter_
+                      ->ReceiveInput(std::move(input), modifiers)
+                      .Transform([done_callback =
+                                      std::move(done_callback)](EmptyValue) {
+                        done_callback();
+                        return futures::Past(EmptyValue());
+                      });
+                },
+                [](LazyString, std::function<void()>) {},
+                ptr_this_->ToWeakPtr())});
     return std::move(output.value);
   };
 
@@ -2383,16 +2357,14 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
   buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
-      .Transform([weak_buffer = buffer.ptr().ToWeakPtr()](
-                     std::optional<gc::Root<OpenBuffer>> result) {
-        VisitPointer(
-            weak_buffer.Lock(),
-            [&result](gc::Root<OpenBuffer> locked_buffer) {
-              locked_buffer->status().set_context(result);
-            },
-            [] {});
-        return Success();
-      });
+      .Transform(LockAndVisitCallback(
+          [](std::optional<gc::Root<OpenBuffer>> result,
+             gc::Root<OpenBuffer> locked_buffer) {
+            locked_buffer->status().set_context(result);
+            return Success();
+          },
+          [](std::optional<gc::Root<OpenBuffer>>) { return Success(); },
+          buffer.ptr().ToWeakPtr()));
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(

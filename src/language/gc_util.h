@@ -127,9 +127,44 @@ gc::Root<BindFrontImpl<Func, BoundArgs...>> BindFront(Pool& pool, Func&& func,
       pool, std::forward<Func>(func), std::forward<BoundArgs>(args)...);
 }
 
+// Given a gc::Ptr<Callback> (to an arbitrary Callback type), obtains a root to
+// ensure it won't be deallocated and returns a lambda form.
 template <typename Callback>
 auto LockCallback(gc::Ptr<Callback> callback) {
-  return [root = callback.ToRoot()] { root.ptr().value()(); };
+  return [root = callback.ToRoot()] { std::invoke(root.ptr().value()); };
+}
+
+template <typename F1, typename F2, typename T>
+decltype(auto) LockAndVisitCallback(F1&& on_lock, F2&& on_failure,
+                                    gc::WeakPtr<T> weak_ptr) {
+  return [on_lock = std::forward<F1>(on_lock),
+          on_failure = std::forward<F2>(on_failure), weak_ptr](auto&&... args) {
+    using OnLockReturn =
+        decltype(std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                             std::declval<gc::Root<T>>()));
+    using OnFailureReturn = decltype(std::invoke(
+        on_failure, std::forward<decltype(args)>(args)...));
+    static_assert(std::is_convertible_v<OnLockReturn, OnFailureReturn> ||
+                      std::is_convertible_v<OnFailureReturn, OnLockReturn>,
+                  "The return types of the success and failure callbacks are "
+                  "not compatible.");
+
+    if constexpr (std::is_void_v<OnLockReturn>) {
+      if (std::optional<gc::Root<T>> root = weak_ptr.Lock(); root.has_value()) {
+        std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                    std::move(root).value());
+      } else {
+        std::invoke(on_failure, std::forward<decltype(args)>(args)...);
+      }
+    } else {
+      if (std::optional<gc::Root<T>> root = weak_ptr.Lock(); root.has_value()) {
+        return std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                           std::move(root).value());
+      } else {
+        return std::invoke(on_failure, std::forward<decltype(args)>(args)...);
+      }
+    }
+  };
 }
 }  // namespace afc::language::gc
 #endif  // __AFC_LANGUAGE_GC_UTIL_H__
