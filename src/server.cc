@@ -235,6 +235,8 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
   OpenBuffer& buffer = buffer_root.ptr().value();
   buffer.NewCloseFuture().Transform(
       [file_system_driver = buffer.file_system_driver(), address](EmptyValue) {
+        LOG(INFO) << address
+                  << ": OpenServerBuffer: CloseFuture executes, removing.";
         return file_system_driver->Unlink(address);
       });
 
