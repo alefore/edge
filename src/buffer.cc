@@ -296,7 +296,8 @@ using namespace afc::vm;
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
-          mode.ptr(), std::move(status), execution_context.ptr()));
+          mode.ptr(), std::move(status), execution_context.ptr(),
+          futures::Future<EmptyValue>{}));
   output->Initialize(output.ptr());
   return output;
 }
@@ -373,10 +374,13 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<InputReceiver> mode,
                        NonNull<std::shared_ptr<Status>> status,
-                       gc::Ptr<ExecutionContext> execution_context)
+                       gc::Ptr<ExecutionContext> execution_context,
+                       futures::Future<EmptyValue> close_future)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
+      close_consumer_(std::move(close_future.consumer)),
+      close_listenable_future_(std::move(close_future.value)),
       contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
           std::vector<NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
               {contents_observer_,
@@ -542,6 +546,8 @@ OpenBuffer::PrepareToClose() {
 }
 
 void OpenBuffer::Close() {
+  CHECK(!close_listenable_future_.has_value())
+      << name() << ": Buffer closed multiple times.";
   log_->Append(LazyString{L"Closing"});
   if (dirty() && !Read(buffer_variables::allow_dirty_delete)) {
     if (Read(buffer_variables::save_on_close)) {
@@ -556,7 +562,7 @@ void OpenBuffer::Close() {
   }
   editor().line_marks().RemoveSource(name());
   LOG(INFO) << name() << ": Notify close observers";
-  close_observers_.Notify();
+  std::move(close_consumer_)(EmptyValue{});
 }
 
 futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
@@ -568,13 +574,14 @@ futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
 }
 
 futures::Value<EmptyValue> OpenBuffer::NewCloseFuture() {
-  return close_observers_.NewFuture();
+  return close_listenable_future_.ToFuture();
 }
 
 void OpenBuffer::HandleDisplay() const { CHECK(load_visual_state_.get()); }
 
 void OpenBuffer::Visit() {
   if (Read(buffer_variables::reload_on_enter)) {
+    LOG(INFO) << name() << ": Visit triggers Reload.";
     Reload();
     CheckPosition();
   }
@@ -670,7 +677,10 @@ void OpenBuffer::SignalEndOfFile() {
   if (Read(buffer_variables::reload_after_exit)) {
     Set(buffer_variables::reload_after_exit,
         Read(buffer_variables::default_reload_after_exit));
-    Reload();
+    if (!close_listenable_future_.has_value()) {
+      LOG(INFO) << name() << ": reload_after_exit triggers Reload.";
+      Reload();
+    }
   }
 
   if (Read(buffer_variables::close_after_clean_exit) &&

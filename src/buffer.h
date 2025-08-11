@@ -132,7 +132,8 @@ class OpenBuffer {
              language::gc::Ptr<MapModeCommands> default_commands,
              language::gc::Ptr<InputReceiver> mode,
              language::NonNull<std::shared_ptr<Status>> status,
-             language::gc::Ptr<ExecutionContext> execution_context);
+             language::gc::Ptr<ExecutionContext> execution_context,
+             futures::Future<language::EmptyValue> close_future);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -586,7 +587,8 @@ class OpenBuffer {
   language::Observers end_of_file_observers_;
 
   // Functions to call when this buffer is deleted.
-  language::Observers close_observers_;
+  futures::Value<language::EmptyValue>::Consumer close_consumer_;
+  futures::ListenableValue<language::EmptyValue> close_listenable_future_;
 
   enum class ReloadState {
     // No need to reload this buffer.
