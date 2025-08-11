@@ -294,7 +294,7 @@ EditorState::EditorState(
             return buffer.PrepareToClose().Transform(
                 [root_buffer =
                      buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
-                  root_buffer->Close();
+                  root_buffer->Close(OpenBuffer::CloseAccessTag{});
                   return Success();
                 });
           }))),
@@ -333,7 +333,9 @@ EditorState::~EditorState() {
   if (!exit_value_.has_value()) exit_value_ = 0;
   LOG(INFO) << "Closing buffers.";
   std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
-                        &OpenBuffer::Close);
+                        [](OpenBuffer& buffer) {
+                          return buffer.Close(OpenBuffer::CloseAccessTag{});
+                        });
   buffer_registry_->Clear();
   LOG(INFO) << "Destructor finished running.";
 }
@@ -413,7 +415,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
           })
       .Transform(
           [this, buffer = buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
-            buffer->Close();
+            buffer->Close(OpenBuffer::CloseAccessTag{});
             buffer_registry_->RemoveListedBuffers(std::unordered_set{
                 NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
             AdjustWidgets();

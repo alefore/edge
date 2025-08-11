@@ -143,6 +143,12 @@ class OpenBuffer {
   // status.
   Status& status() const;
 
+  struct CloseAccessTag {
+   private:
+    explicit CloseAccessTag() = default;
+    friend EditorState;
+  };
+
   // If it is closeable, returns std::nullopt. Otherwise, returns reasons why
   // we can predict that PrepareToClose will fail.
   language::PossibleError IsUnableToPrepareToClose() const;
@@ -152,7 +158,7 @@ class OpenBuffer {
     bool dirty_contents_saved_to_backup = false;
   };
   futures::ValueOrError<PrepareToCloseOutput> PrepareToClose();
-  void Close();
+  void Close(CloseAccessTag);
 
   // If the buffer was already read (fd_ == -1), this is immediately notified.
   // Otherwise, it'll be notified when the buffer is done being read.

@@ -625,7 +625,7 @@ const bool buffer_positions_tests_registration = tests::Register(
             LineSequence::ForTests({L"Alejandro", L"Forero"});
         driver.OpenAndReadPath(driver.NewTmpFile(contents), contents)
             .Transform([&](gc::Root<OpenBuffer> buffer) {
-              buffer->Close();
+              buffer->editor().CloseBuffer(buffer.value());
               driver.Stop();
               return Success();
             });

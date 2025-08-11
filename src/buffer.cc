@@ -545,7 +545,7 @@ OpenBuffer::PrepareToClose() {
       IsUnableToPrepareToClose());
 }
 
-void OpenBuffer::Close() {
+void OpenBuffer::Close(CloseAccessTag) {
   if (close_listenable_future_.has_value()) {
     LOG(INFO) << name() << ": Buffer closed multiple times.";
     return;
