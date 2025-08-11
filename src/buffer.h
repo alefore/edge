@@ -158,6 +158,7 @@ class OpenBuffer {
   // Otherwise, it'll be notified when the buffer is done being read.
   futures::Value<language::EmptyValue> WaitForEndOfFile();
 
+  bool IsClosed() const;
   futures::Value<language::EmptyValue> NewCloseFuture();
 
   // HandleDisplay signals that the buffer is being shown; the first time this

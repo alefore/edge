@@ -546,8 +546,10 @@ OpenBuffer::PrepareToClose() {
 }
 
 void OpenBuffer::Close() {
-  CHECK(!close_listenable_future_.has_value())
-      << name() << ": Buffer closed multiple times.";
+  if (close_listenable_future_.has_value()) {
+    LOG(INFO) << name() << ": Buffer closed multiple times.";
+    return;
+  }
   log_->Append(LazyString{L"Closing"});
   if (dirty() && !Read(buffer_variables::allow_dirty_delete)) {
     if (Read(buffer_variables::save_on_close)) {
@@ -571,6 +573,10 @@ futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
     return futures::Past(EmptyValue());
   }
   return end_of_file_observers_.NewFuture();
+}
+
+bool OpenBuffer::IsClosed() const {
+  return close_listenable_future_.has_value();
 }
 
 futures::Value<EmptyValue> OpenBuffer::NewCloseFuture() {
