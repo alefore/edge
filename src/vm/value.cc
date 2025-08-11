@@ -22,50 +22,42 @@ size_t constexpr kDefaultPrecision = 5ul;
 
 namespace afc::vm {
 
-Value::Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
-    : pool_(pool), type_(t) {}
-
-/* static */ language::gc::Root<Value> Value::New(language::gc::Pool& pool,
-                                                  const Type& type) {
-  return pool.NewRoot(
-      MakeNonNullUnique<Value>(ConstructorAccessTag(), pool, type));
-}
+Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant)
+    : type_(type), value_(std::move(value_variant)) {}
 
 /* static */ gc::Root<Value> Value::NewVoid(gc::Pool& pool) {
-  return New(pool, types::Void{});
+  return pool.NewRoot(MakeNonNullUnique<Value>(ConstructorAccessTag(),
+                                               types::Void{}, ValueVariant()));
 }
 
 /* static */ gc::Root<Value> Value::NewBool(gc::Pool& pool, bool value) {
-  gc::Root<Value> output = New(pool, types::Bool{});
-  output.ptr()->value_ = value;
-  return output;
+  return pool.NewRoot(
+      MakeNonNullUnique<Value>(ConstructorAccessTag(), types::Bool{}, value));
 }
 
 /* static */ gc::Root<Value> Value::NewNumber(gc::Pool& pool, Number value) {
-  gc::Root<Value> output = New(pool, types::Number{});
-  output.ptr()->value_ = value;
-  return output;
+  return pool.NewRoot(
+      MakeNonNullUnique<Value>(ConstructorAccessTag(), types::Number{}, value));
 }
 
 /* static */ gc::Root<Value> Value::NewString(gc::Pool& pool,
                                               LazyString value) {
-  gc::Root<Value> output = New(pool, types::String{});
-  output.ptr()->value_ = std::move(value);
-  return output;
+  return pool.NewRoot(MakeNonNullUnique<Value>(
+      ConstructorAccessTag(), types::String{}, std::move(value)));
 }
 
 /* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool,
                                               Identifier value) {
-  gc::Root<Value> output = New(pool, types::Symbol{});
-  output.ptr()->value_ = std::move(value);
-  return output;
+  return pool.NewRoot(MakeNonNullUnique<Value>(
+      ConstructorAccessTag(), types::Symbol{}, std::move(value)));
 }
 
 /* static */ gc::Root<Value> Value::NewObject(
     gc::Pool& pool, types::ObjectName name,
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
-  gc::Root<Value> output = New(pool, std::move(name));
-  output.ptr()->value_ = ObjectInstance{.value = std::move(value)};
+  gc::Root<Value> output = pool.NewRoot(
+      MakeNonNullUnique<Value>(ConstructorAccessTag(), std::move(name),
+                               ObjectInstance{.value = std::move(value)}));
   output.ptr()->expand_callback_ = std::move(expand_callback);
   return output;
 }
@@ -75,11 +67,12 @@ Value::Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
     std::vector<Type> type_inputs, Value::Callback callback,
     ExpandCallback expand_callback) {
   CHECK(callback != nullptr);
-  gc::Root<Value> output =
-      New(pool, types::Function{.output = std::move(type_output),
-                                .inputs = std::move(type_inputs),
-                                .function_purity = purity_type});
-  output.ptr()->value_ = std::move(callback);
+  gc::Root<Value> output = pool.NewRoot(
+      MakeNonNullUnique<Value>(ConstructorAccessTag(),
+                               types::Function{.output = std::move(type_output),
+                                               .inputs = std::move(type_inputs),
+                                               .function_purity = purity_type},
+                               std::move(callback)));
   output.ptr()->expand_callback_ = std::move(expand_callback);
   return output;
 }

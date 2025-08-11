@@ -30,29 +30,24 @@ class Value {
     friend Value;
   };
 
-  // TODO(2025-05-30, trivial): We could remove this? Nothing seems to use it.
-  language::gc::Pool& pool_;
-
   Type type_;
 
   struct ObjectInstance {
     language::NonNull<std::shared_ptr<void>> value;
   };
 
-  std::variant<bool, math::numbers::Number, language::lazy_string::LazyString,
-               Identifier, ObjectInstance, Callback>
-      value_;
+  using ValueVariant = std::variant<bool, math::numbers::Number,
+                                    language::lazy_string::LazyString,
+                                    Identifier, ObjectInstance, Callback>;
+
+  ValueVariant value_;
 
   ExpandCallback expand_callback_;
 
  public:
-  explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t);
+  explicit Value(ConstructorAccessTag, const Type& type,
+                 ValueVariant value_variant);
 
-  // TODO(2025-05-30, trivial?): This should be deleted. Make it impossible
-  // to build uninitialized objects. The other static factory methods should
-  // call a constructor that receives the values for `value_` and
-  // `expand_callback_` (and `pool_` and `type_`).
-  static language::gc::Root<Value> New(language::gc::Pool& pool, const Type&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
                                            bool value);
