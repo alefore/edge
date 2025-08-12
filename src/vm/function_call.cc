@@ -130,9 +130,6 @@ class FunctionCall : public Expression {
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
       Trampoline& trampoline, const Type& type) override {
     DVLOG(3) << "Function call evaluation starts.";
-    NonNull<std::shared_ptr<std::vector<gc::Root<Expression>>>> args_roots =
-        MakeNonNullShared<std::vector<gc::Root<Expression>>>(
-            container::MaterializeVector(args_.value() | gc::view::Root));
     return trampoline
         .Bounce(func_, types::Function{.output = type,
                                        .inputs = container::MaterializeVector(
@@ -141,14 +138,15 @@ class FunctionCall : public Expression {
                                              return arg->Types()[0];
                                            })),
                                        .function_purity = purity()})
-        .Transform([&trampoline, args_roots](EvaluationOutput callback) {
+        .Transform([&trampoline,
+                    args_root = args_.ToRoot()](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
           DVLOG(6) << "Is function: " << callback.value->IsFunction();
           CHECK(callback.value.ptr()->IsFunction());
 
-          return CaptureArgs(trampoline, args_roots,
+          return CaptureArgs(trampoline, args_root,
                              MakeNonNullShared<std::vector<gc::Root<Value>>>(),
                              callback.value);
         });
@@ -161,8 +159,7 @@ class FunctionCall : public Expression {
 
  private:
   static futures::ValueOrError<EvaluationOutput> CaptureArgs(
-      Trampoline& trampoline,
-      NonNull<std::shared_ptr<std::vector<gc::Root<Expression>>>> args,
+      Trampoline& trampoline, gc::Root<std::vector<gc::Ptr<Expression>>> args,
       NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
       gc::Root<vm::Value> callback) {
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
@@ -184,9 +181,9 @@ class FunctionCall : public Expression {
                 Success(EvaluationOutput::New(std::move(return_value))));
           });
     }
-    gc::Root<Expression>& arg = args->at(values->size());
+    const gc::Ptr<Expression>& arg = args->at(values->size());
     DVLOG(6) << "Bounce with types: " << TypesToString(arg->Types());
-    return trampoline.Bounce(arg.ptr(), arg->Types()[0])
+    return trampoline.Bounce(arg, arg->Types()[0])
         .Transform(
             [&trampoline, args, values, callback](EvaluationOutput value) {
               DVLOG(7) << "Got evaluation output.";
