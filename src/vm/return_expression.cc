@@ -55,12 +55,11 @@ class ReturnExpression : public Expression {
 
 }  // namespace
 
-// TODO(2025-08-01, trivial): receive expr_input as gc::Ptr.
 std::optional<gc::Root<Expression>> NewReturnExpression(
-    std::optional<gc::Root<Expression>> expr_input) {
+    std::optional<gc::Ptr<Expression>> expr_input) {
   return VisitOptional(
-      [](gc::Root<Expression> expr) -> std::optional<gc::Root<Expression>> {
-        return ReturnExpression::New(expr.ptr());
+      [](gc::Ptr<Expression> expr) -> std::optional<gc::Root<Expression>> {
+        return ReturnExpression::New(std::move(expr));
       },
       [] { return std::optional<gc::Root<Expression>>{}; },
       std::move(expr_input));

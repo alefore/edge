@@ -131,12 +131,12 @@ statement(OUT) ::= RETURN expr(A) SEMICOLON . {
   std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
 
   OUT = new std::optional<gc::Root<Expression>>(
-      NewReturnExpression(std::move(a)));
+      NewReturnExpression(OptionalRootToPtr(std::move(a))));
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
   OUT = new std::optional<gc::Root<Expression>>(
-      NewReturnExpression(NewVoidExpression(compilation->pool)));
+      NewReturnExpression(NewVoidExpression(compilation->pool).ptr()));
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)

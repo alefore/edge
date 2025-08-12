@@ -7,7 +7,7 @@
 
 namespace afc::vm {
 std::optional<language::gc::Root<Expression>> NewReturnExpression(
-    std::optional<language::gc::Root<Expression>> expr);
+    std::optional<language::gc::Ptr<Expression>> expr);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_RETURN_EXPRESSION_H__
