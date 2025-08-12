@@ -800,37 +800,38 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             FUTURES_ASSIGN_OR_RETURN(LineProcessorKey key,
                                      LineProcessorKey::New(SingleLine::New(
                                          args[1].ptr()->get_string())));
-            buffer->AddLineProcessor(
-                key, [buffer,
-                      callback = std::move(args[2])](LineProcessorInput input) {
-                  return Success(LineProcessorOutputFuture{
-                      .initial_value =
-                          LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
-                      .value =
-                          buffer
-                              ->EvaluateExpression(
-                                  NewFunctionCall(
-                                      NewConstantExpression(callback).ptr(),
-                                      {NewConstantExpression(
-                                           vm::Value::NewString(
-                                               buffer->editor().gc_pool(),
-                                               input.read()))
-                                           .ptr()})
-                                      .ptr(),
-                                  buffer->environment().ToRoot())
-                              .Transform([](gc::Root<vm::Value> value) {
-                                std::ostringstream oss;
-                                oss << value.ptr().value();
-                                return LineProcessorOutput::New(SingleLine::New(
-                                    LazyString{FromByteString(oss.str())}));
-                              })
-                              .ConsumeErrors([](Error error) {
-                                return futures::Past(LineProcessorOutput(
-                                    SINGLE_LINE_CONSTANT(L"E: ") +
-                                    LineSequence::BreakLines(error.read())
-                                        .FoldLines()));
-                              })});
-                });
+            buffer->AddLineProcessor(key, [buffer,
+                                           callback = std::move(args[2])](
+                                              LineProcessorInput input) {
+              return Success(LineProcessorOutputFuture{
+                  .initial_value =
+                      LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
+                  .value =
+                      buffer
+                          ->EvaluateExpression(
+                              NewFunctionCall(
+                                  NewConstantExpression(callback.ptr()).ptr(),
+                                  {NewConstantExpression(
+                                       vm::Value::NewString(
+                                           buffer->editor().gc_pool(),
+                                           input.read())
+                                           .ptr())
+                                       .ptr()})
+                                  .ptr(),
+                              buffer->environment().ToRoot())
+                          .Transform([](gc::Root<vm::Value> value) {
+                            std::ostringstream oss;
+                            oss << value.ptr().value();
+                            return LineProcessorOutput::New(SingleLine::New(
+                                LazyString{FromByteString(oss.str())}));
+                          })
+                          .ConsumeErrors([](Error error) {
+                            return futures::Past(LineProcessorOutput(
+                                SINGLE_LINE_CONSTANT(L"E: ") +
+                                LineSequence::BreakLines(error.read())
+                                    .FoldLines()));
+                          })});
+            });
             return futures::Past(vm::Value::NewVoid(pool));
           })
           .ptr());

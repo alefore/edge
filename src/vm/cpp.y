@@ -912,16 +912,14 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 expr(OUT) ::= BOOL(B). {
   gc::Root<Value> b{B->value()};
   CHECK(b->IsBool());
-  OUT = new std::optional<gc::Root<Expression>>(
-      NewConstantExpression(std::move(b)));
+  OUT = new std::optional<gc::Root<Expression>>(NewConstantExpression(b.ptr()));
   delete B;
 }
 
 expr(OUT) ::= NUMBER(I). {
   gc::Root<Value> i{I->value()};
   CHECK(i->IsNumber());
-  OUT = new std::optional<gc::Root<Expression>>(
-      NewConstantExpression(std::move(i)));
+  OUT = new std::optional<gc::Root<Expression>>(NewConstantExpression(i.ptr()));
   delete I;
 }
 
@@ -932,7 +930,7 @@ expr(OUT) ::= string(S). {
   std::unique_ptr<gc::Root<Value>> s{S};
   CHECK((*s)->IsString());
   OUT = new std::optional<gc::Root<Expression>>(
-      NewConstantExpression(std::move(*s)));
+      NewConstantExpression(s->ptr()));
 }
 
 string(OUT) ::= STRING(S). {

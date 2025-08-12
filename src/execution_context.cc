@@ -182,14 +182,11 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
         std::vector<gc::Root<vm::Expression>> arg_roots =
             container::MaterializeVector(
                 std::move(arguments) |
-                std::views::transform(
-                    [](gc::Ptr<vm::Value> value) -> gc::Root<vm::Expression> {
-                      return vm::NewConstantExpression(value.ToRoot());
-                    }));
+                std::views::transform(vm::NewConstantExpression));
         return Success(CompilationResult::New(
             vm::NewFunctionCall(
                 vm::NewConstantExpression(
-                    std::get<gc::Root<vm::Value>>(procedure.value))
+                    std::get<gc::Root<vm::Value>>(procedure.value).ptr())
                     .ptr(),
                 container::MaterializeVector(std::move(arg_roots) |
                                              gc::view::Ptr))

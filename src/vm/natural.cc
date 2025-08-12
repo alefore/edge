@@ -166,7 +166,7 @@ class ParseState {
       if (std::holds_alternative<types::String>(
               function_type->inputs[children_arguments.size()]))
         children_arguments.push_back(
-            NewConstantExpression(Value::NewString(pool_, LazyString{})));
+            NewConstantExpression(Value::NewString(pool_, LazyString{}).ptr()));
       else
         return std::nullopt;
     }
@@ -180,10 +180,11 @@ class ParseState {
                 })));
   }
 
+  // TODO(trivial, 2025-08-13): Receive value_root as gc::Ptr.
   void PushValue(gc::Root<Value> value_root, std::vector<Tree>& output) const {
     vm::Type type = value_root.ptr()->type();
     VLOG(8) << "Receive value type: " << type;
-    gc::Root<Expression> value = NewConstantExpression(std::move(value_root));
+    gc::Root<Expression> value = NewConstantExpression(value_root.ptr());
     CHECK(!value->Types().empty());
     if (candidates_.empty())
       output.push_back(Tree{.type = value->Types().front(), .value = value});

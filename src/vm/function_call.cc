@@ -425,14 +425,15 @@ futures::ValueOrError<gc::Root<Value>> Call(
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
   CHECK(std::holds_alternative<types::Function>(func.type()));
   CHECK_EQ(std::get<types::Function>(func.type()).inputs.size(), args.size());
-  std::vector<gc::Root<Expression>> args_expr = container::MaterializeVector(
-      args |
-      std::views::transform([](gc::Root<Value> arg) -> gc::Root<Expression> {
-        return NewConstantExpression(std::move(arg));
-      }));
+  std::vector<gc::Root<Expression>> args_expr =
+      args | std::views::transform([](gc::Root<Value> value) {
+        return NewConstantExpression(value.ptr());
+      }) |
+      std::ranges::to<std::vector>();
   return Evaluate(
       FunctionCall::New(
-          NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func)))
+          NewConstantExpression(
+              pool.NewRoot(MakeNonNullUnique<Value>(func)).ptr())
               .ptr(),
           pool
               .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<Expression>>>(

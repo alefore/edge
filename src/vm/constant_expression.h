@@ -12,7 +12,7 @@ class Value;
 
 language::gc::Root<Expression> NewVoidExpression(language::gc::Pool& pool);
 language::gc::Root<Expression> NewConstantExpression(
-    language::gc::Root<Value> value);
+    language::gc::Ptr<Value> value);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_CONSTANT_EXPRESSION_H__

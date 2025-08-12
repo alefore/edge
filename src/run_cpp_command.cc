@@ -193,7 +193,8 @@ ValueOrError<ParsedCommand> Parse(
 
     output_function_inputs.push_back(
         vm::NewConstantExpression(VMTypeMapper<decltype(argument_values)>::New(
-            pool, std::move(argument_values))));
+                                      pool, std::move(argument_values))
+                                      .ptr()));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output_function = type_match_functions[0];
@@ -209,11 +210,11 @@ ValueOrError<ParsedCommand> Parse(
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it)
       output_function_inputs.push_back(NewConstantExpression(
-          vm::Value::NewString(pool, ToLazyString(it->value))));
+          vm::Value::NewString(pool, ToLazyString(it->value)).ptr()));
 
     while (output_function_inputs.size() < expected_arguments)
-      output_function_inputs.push_back(
-          NewConstantExpression(vm::Value::NewString(pool, LazyString{})));
+      output_function_inputs.push_back(NewConstantExpression(
+          vm::Value::NewString(pool, LazyString{}).ptr()));
   } else if (!all_types_found.empty()) {
     return Error{LazyString{L"Incompatible type found: "} +
                  ToLazyString(output_tokens[0].value) + LazyString{L": "} +
@@ -225,7 +226,7 @@ ValueOrError<ParsedCommand> Parse(
   return ParsedCommand{
       .tokens = std::move(output_tokens),
       .expression = NewFunctionCall(
-          NewConstantExpression(std::move(output_function.value())).ptr(),
+          NewConstantExpression(output_function.value().ptr()).ptr(),
           container::MaterializeVector(output_function_inputs |
                                        gc::view::Ptr))};
 }

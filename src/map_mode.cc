@@ -137,7 +137,7 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
                 LOG(INFO) << "Evaluating expression from Value...";
                 Evaluate(
                     vm::NewFunctionCall(
-                        NewConstantExpression(value_nested.ToRoot()).ptr(), {})
+                        NewConstantExpression(value_nested).ptr(), {})
                         .ptr(),
                     environment_locked.pool(), environment_locked,
                     [&editor_state](OnceOnlyFunction<void()> callback) {

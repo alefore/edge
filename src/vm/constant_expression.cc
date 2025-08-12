@@ -54,8 +54,7 @@ gc::Root<Expression> NewVoidExpression(gc::Pool& pool) {
   return ConstantExpression::New(Value::NewVoid(pool).ptr());
 }
 
-// TODO(2025-08-01, trivial): Receive a gc::Ptr, not gc::Root.
-gc::Root<Expression> NewConstantExpression(gc::Root<Value> value) {
-  return ConstantExpression::New(std::move(value).ptr());
+gc::Root<Expression> NewConstantExpression(gc::Ptr<Value> value) {
+  return ConstantExpression::New(std::move(value));
 }
 }  // namespace afc::vm

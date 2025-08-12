@@ -552,9 +552,10 @@ class ForkEditorCommand : public Command {
     language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
     gc::Root<vm::Expression> context_command_expression = vm::NewFunctionCall(
-        vm::NewConstantExpression(*prompt_state.context_command_callback).ptr(),
+        vm::NewConstantExpression(prompt_state.context_command_callback->ptr())
+            .ptr(),
         {vm::NewConstantExpression(
-             vm::Value::NewString(pool, ToLazyString(line)))
+             vm::Value::NewString(pool, ToLazyString(line)).ptr())
              .ptr()});
     if (context_command_expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
