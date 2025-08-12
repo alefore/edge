@@ -2097,7 +2097,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
 
   using ICC = futures::IterationControlCommand;
   return futures::ForEach(
-             std::make_shared<std::vector<URL>>(
+             MakeNonNullShared<std::vector<URL>>(
                  GetURLsForCurrentPosition(*this)),
              [adjusted_position, data, remote_url_behavior](const URL& url) {
                return VisitPointer(

@@ -321,8 +321,9 @@ Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
 //
 // Unlike ForEachWithCopy, avoids having to copy the container.
 template <typename Container, typename Callable>
-Value<IterationControlCommand> ForEach(std::shared_ptr<Container> container,
-                                       Callable callable) {
+Value<IterationControlCommand> ForEach(
+    language::NonNull<std::shared_ptr<Container>> container,
+    Callable callable) {
   return ForEach(container->begin(), container->end(),
                  [container, callable](auto& T) { return callable(T); });
 }
@@ -407,10 +408,9 @@ template <typename Value>
 futures::Value<std::vector<Value>> UnwrapVectorFuture(
     language::NonNull<std::shared_ptr<std::vector<futures::Value<Value>>>>
         input) {
-  auto output = language::MakeNonNullShared<std::vector<Value>>();
-  // TODO(2025-05-27, trivial): Remove need to call `get_shared()` below:
+  language::NonNull<std::shared_ptr<std::vector<Value>>> output;
   return futures::ForEach(
-             input.get_shared(),
+             input,
              [output](futures::Value<Value>& future_item) {
                return std::move(future_item).Transform([output](Value item) {
                  output->push_back(std::move(item));

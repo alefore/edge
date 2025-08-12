@@ -366,7 +366,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                  std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
                  buffers_to_wait) {
             return futures::ForEach(
-                       std::make_shared<
+                       MakeNonNullShared<
                            std::vector<futures::Value<EmptyValue>>>(
                            buffers_to_wait->lock(
                                [](const std::vector<gc::Ptr<OpenBuffer>>&

@@ -276,7 +276,7 @@ class SearchCommand : public Command {
          .history_file = HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"search")},
          .colorize_options_provider =
              [&editor_state = editor_state_,
-              buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
+              buffers = MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
                   editor_state_.active_buffers())](
                  const SingleLine& line,
                  NonNull<std::unique_ptr<ProgressChannel>>

@@ -294,7 +294,7 @@ void DefineSortLinesByKey(
                 });
 
             return futures::ForEach(
-                       inputs.get_shared(),
+                       inputs,
                        [data, get_key](LineNumber line_number) {
                          return data->callback.ptr()
                              ->RunFunction({vm::Value::NewNumber(
