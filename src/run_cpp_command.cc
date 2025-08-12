@@ -135,9 +135,10 @@ ValueOrError<ParsedCommand> Parse(
   CHECK(!search_namespaces.namespaces.empty());
   std::vector<gc::Root<vm::Value>> functions;
   for (const auto& n : search_namespaces.namespaces) {
-    environment.CaseInsensitiveLookup(
-        n, Identifier{function_name_prefix + output_tokens[0].value},
-        &functions);
+    DECLARE_OR_RETURN(
+        Identifier identifier,
+        Identifier::New(function_name_prefix + output_tokens[0].value));
+    environment.CaseInsensitiveLookup(n, identifier, &functions);
     if (!functions.empty()) break;
   }
 
@@ -253,6 +254,22 @@ bool tests_parse_registration = tests::Register(
                 SearchNamespaces(buffer.ptr().value()));
             CHECK_EQ(std::get<Error>(output), Error{LazyString{}});
           }},
+     {.name = L"BadIdentifier",
+      .callback =
+          [] {
+            NonNull<std::unique_ptr<EditorState>> editor =
+                EditorForTests(std::nullopt);
+            gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
+            gc::Pool pool({});
+            gc::Root<vm::Environment> environment = vm::Environment::New(pool);
+            ParsedCommand output = VALUE_OR_DIE(
+                Parse(pool, SINGLE_LINE_CONSTANT(L"-bad-identifier"),
+                      environment.ptr().value(), SingleLine{},
+                      std::unordered_set<vm::Type>({vm::types::String{}}),
+                      SearchNamespaces(buffer.ptr().value())));
+            // Should be the string "-bad-identifier".
+            CHECK_EQ(output.tokens.size(), 1ul);
+          }},
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
           [] {
@@ -282,7 +299,7 @@ bool tests_parse_registration = tests::Register(
         gc::Pool pool({});
         gc::Root<vm::Environment> environment = vm::Environment::New(pool);
         environment.ptr()->Define(
-            Identifier{NonEmptySingleLine{SingleLine{LazyString{L"foo"}}}},
+            IDENTIFIER_CONSTANT(L"foo"),
             vm::Value::NewString(pool, LazyString{L"bar"}));
         ValueOrError<ParsedCommand> output = Parse(
             pool, SingleLine{LazyString{L"foo"}}, environment.ptr().value(),
