@@ -6,6 +6,7 @@
 
 #include "src/language/container.h"
 #include "src/language/error/view.h"
+#include "src/language/gc_container.h"
 #include "src/language/gc_view.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
@@ -87,24 +88,20 @@ class FunctionCall : public Expression {
 
   // Expression that evaluates to get the function to call.
   const gc::Ptr<Expression> func_;
-  // TODO(2025-08-02, trivial): I think this should probably be: const
-  // gc::Ptr<std::vector<gc::Ptr<Expression>>>. I think
-  // src/language/gc_container.h would help. During an evaluation, we just get a
-  // root to the value.
-  const NonNull<std::shared_ptr<std::vector<gc::Ptr<Expression>>>> args_;
+  const gc::Ptr<std::vector<gc::Ptr<Expression>>> args_;
   const std::vector<Type> types_;
 
  public:
   static language::gc::Root<FunctionCall> New(
       gc::Ptr<Expression> func,
-      NonNull<std::shared_ptr<std::vector<gc::Ptr<Expression>>>> args) {
+      gc::Ptr<std::vector<gc::Ptr<Expression>>> args) {
     gc::Pool& pool = func.pool();
     return pool.NewRoot(language::MakeNonNullUnique<FunctionCall>(
         ConstructorAccessTag{}, func, args));
   }
 
   FunctionCall(ConstructorAccessTag, gc::Ptr<Expression> func,
-               NonNull<std::shared_ptr<std::vector<gc::Ptr<Expression>>>> args)
+               gc::Ptr<std::vector<gc::Ptr<Expression>>> args)
       : func_(std::move(func)),
         args_(std::move(args)),
         types_(DeduceTypes(func_.value(), args_.value())) {}
@@ -159,10 +156,7 @@ class FunctionCall : public Expression {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
-        container::MaterializeVector(args_.value() | gc::view::ObjectMetadata);
-    output.push_back(func_.object_metadata());
-    return output;
+    return {func_.object_metadata(), args_.object_metadata()};
   }
 
  private:
@@ -219,9 +213,12 @@ class FunctionCall : public Expression {
 
 gc::Root<Expression> NewFunctionCall(gc::Ptr<Expression> func,
                                      std::vector<gc::Ptr<Expression>> args) {
+  gc::Pool& pool = func.pool();
   return FunctionCall::New(
       std::move(func),
-      MakeNonNullShared<std::vector<gc::Ptr<Expression>>>(std::move(args)));
+      pool.NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<Expression>>>(
+                       std::move(args)))
+          .ptr());
 }
 
 // TODO(trivial, 2025-08-01): Change to return ValueOrError?
@@ -440,8 +437,10 @@ futures::ValueOrError<gc::Root<Value>> Call(
       FunctionCall::New(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func)))
               .ptr(),
-          MakeNonNullShared<std::vector<gc::Ptr<Expression>>>(
-              container::MaterializeVector(args_expr | gc::view::Ptr)))
+          pool
+              .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<Expression>>>(
+                  container::MaterializeVector(args_expr | gc::view::Ptr)))
+              .ptr())
           .ptr(),
       pool, Environment::New(pool), yield_callback);
 }
