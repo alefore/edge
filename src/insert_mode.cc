@@ -514,43 +514,33 @@ class InsertMode : public InputReceiver {
       case ControlChar::kCtrlU: {
         ResetScrollBehavior();
         StartNewInsertion();
-        // TODO: Find a way to set `copy_to_paste_buffer` in the
-        // transformation.
-        std::optional<vm::Environment::LookupResult> callback =
-            options_.editor_state.execution_context()->environment()->Lookup(
-                vm::Namespace(),
-                vm::Identifier{NonEmptySingleLine{
-                    SingleLine{LazyString{L"HandleKeyboardControlU"}}}},
-                vm::types::Function{
-                    .output = vm::Type{vm::types::Void{}},
-                    .inputs = {vm::GetVMType<gc::Ptr<OpenBuffer>>::vmtype()}});
-        if (!callback.has_value()) {
-          LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
-          return;
-        }
+        // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         ForEachActiveBuffer(
-            buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
-              gc::Root<vm::Expression> expression = vm::NewFunctionCall(
-                  vm::NewConstantExpression(
-                      std::get<gc::Root<vm::Value>>(callback->value))
-                      .ptr(),
-                  {vm::NewConstantExpression(
-                       {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
-                           buffer.editor().gc_pool(), buffer.NewRoot())})
-                       .ptr()});
-              if (expression->Types().empty()) {
-                buffer.status().InsertError(
-                    Error{LazyString{L"Unable to compile (type mismatch)."}});
-                return futures::Past(EmptyValue());
-              }
-              return buffer
-                  .EvaluateExpression(expression.ptr(),
-                                      buffer.environment().ToRoot())
-                  .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
-                    return futures::Past(vm::Value::NewVoid(pool));
-                  })
-                  .Transform(ModifyHandler<gc::Root<vm::Value>>(
-                      options.modify_handler, buffer));
+            buffers_, {21}, [options = options_](OpenBuffer& buffer) {
+              return std::visit(
+                  overload{
+                      [&buffer,
+                       &options](gc::Root<ExecutionContext::CompilationResult>
+                                     compilation_result) {
+                        return compilation_result->evaluate()
+                            .ConsumeErrors([&pool = buffer.editor().gc_pool()](
+                                               Error) {
+                              return futures::Past(vm::Value::NewVoid(pool));
+                            })
+                            .Transform(ModifyHandler<gc::Root<vm::Value>>(
+                                options.modify_handler, buffer));
+                      },
+                      [](Error error) {
+                        LOG(WARNING) << "Unable to compile call for "
+                                        "HandleKeyboardControlU: "
+                                     << error;
+                        return futures::Past(EmptyValue{});
+                      }},
+                  options.editor_state.execution_context()->FunctionCall(
+                      IDENTIFIER_CONSTANT(L"HandleKeyboardControlU"),
+                      {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
+                           buffer.editor().gc_pool(), buffer.NewRoot())
+                           .ptr()}));
             });
         return;
       }
