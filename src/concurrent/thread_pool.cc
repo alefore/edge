@@ -23,20 +23,6 @@ size_t ThreadPool::pending_work_units() const {
   });
 }
 
-void ThreadPool::WaitForProgress() const {
-  // TODO(trivial, 2025-08-03): Instead of waiting until there are fewer units,
-  // wait instead until ... some progress is made. I think this requires adding
-  // a variable.
-  if (size_t pending = pending_work_units(); pending > 0) {
-    LOG(INFO) << "Waiting with pending units: " << pending;
-    data_.wait([pending](const Data& data) {
-      LOG(INFO) << "Checking: active: " << data.active_work
-                << ", scheduled: " << data.work.size();
-      return data.active_work + data.work.size() < pending;
-    });
-  }
-}
-
 ThreadPool::~ThreadPool() {
   LOG(INFO) << "Starting destruction of ThreadPool.";
   std::vector<std::thread> threads;

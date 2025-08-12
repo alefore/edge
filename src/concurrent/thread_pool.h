@@ -22,10 +22,6 @@ class ThreadPool {
 
   size_t pending_work_units() const;  // Includes a sum of active and pending.
 
-  // Blocks until there's a state change (e.g., new work scheduled, pending
-  // work finished, etc.).
-  void WaitForProgress() const;
-
   template <typename Callable>
   void RunIgnoringResult(Callable callable) {
     // We copy callable into a shared pointer in case it's not copyable.
