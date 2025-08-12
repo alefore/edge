@@ -1,0 +1,30 @@
+## General Context
+
+This is a large code-base for a text editor in C++ that runs in Linux.
+
+Preserving existing functionality is more important than adding new
+functionality. Prefer to fail and give up than to remove existing functionality.
+
+If you want to delete tests, please ask for confirmation first. You will only be
+allowed to delete tests that are obsolete by a new feature.
+
+Part of this editor (the files in rc/…) is implemented in an interpreted language that is similar to (a simplified version of) C++. For example, it doesn't require manual memory management (but uses garbage collection). That language is significantly restricted compared to C++, but aims to operate at a higher level.
+
+### Style
+
+Headers should be guarded in #ifndef guards like this, where `XXXX` corresponds to the path under src/, replacing slash with underscore (e.g., __AFC_VM_VALUE_H__ for src/vm/value.h):
+
+  #ifndef __AFC_XXXX__
+  #define __AFC_XXXX__
+  // ... contents ...
+  #endif __AFC_XXX__
+
+All code should be in the `afc` namespace. If it's inside `src/language/`, `src/infrastructure/`, `src/concurrent/` or `src/futures/` it will be in `afc::SUBDIR` (e.g., `afc::concurrent`) or even more specific namespaces. Everything directly in `src/` is in `afc::editor`.
+
+## Workflow instructions
+
+Before applying any actual code changes, please:
+
+1. Read any files that you need in order to get all the necessary context. Or, alternatively, use `ask`.
+
+2. Display an English description of the plan of changes that you will apply and let the human operator confirm explicitly that the plan makes sense. Only display this plan *after* you've read any files you need to get all context.
