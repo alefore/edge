@@ -29,9 +29,17 @@ class LogicalExpression : public Expression {
   const gc::Ptr<Expression> expr_b_;
 
  public:
-  static language::gc::Root<LogicalExpression> New(bool identity,
-                                                   gc::Ptr<Expression> expr_a,
-                                                   gc::Ptr<Expression> expr_b) {
+  static ValueOrError<gc::Root<Expression>> New(bool identity,
+                                                gc::Ptr<Expression> expr_a,
+                                                gc::Ptr<Expression> expr_b) {
+    if (!expr_a->IsBool())
+      return Error{LazyString{L"Expected `bool` value but found: "} +
+                   TypesToString(expr_a->Types())};
+
+    if (!expr_b->IsBool())
+      return Error{LazyString{L"Expected `bool` value but found: "} +
+                   TypesToString(expr_b->Types())};
+
     gc::Pool& pool = expr_a.pool();
     return pool.NewRoot(language::MakeNonNullUnique<LogicalExpression>(
         ConstructorAccessTag{}, identity, std::move(expr_a),
@@ -76,28 +84,15 @@ class LogicalExpression : public Expression {
     return {expr_a_.object_metadata(), expr_b_.object_metadata()};
   }
 };
-
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewLogicalExpression(
     Compilation& compilation, bool identity,
-    std::optional<gc::Root<Expression>> a,
-    std::optional<gc::Root<Expression>> b) {
+    std::optional<gc::Ptr<Expression>> a,
+    std::optional<gc::Ptr<Expression>> b) {
   if (a == std::nullopt || b == std::nullopt)
     return Error{LazyString{L"Missing inputs"}};
-
-  if (!a.value()->IsBool())
-    return compilation.AddError(
-        Error{LazyString{L"Expected `bool` value but found: "} +
-              TypesToString(a.value()->Types())});
-
-  if (!b.value()->IsBool())
-    return compilation.AddError(
-        Error{LazyString{L"Expected `bool` value but found: "} +
-              TypesToString(b.value()->Types())});
-
-  return LogicalExpression::New(identity, std::move(a)->ptr(),
-                                std::move(b)->ptr());
+  return compilation.RegisterErrors(
+      LogicalExpression::New(identity, a.value(), b.value()));
 }
-
 }  // namespace afc::vm

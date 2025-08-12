@@ -808,16 +808,18 @@ expr(OUT) ::= expr(A) OR expr(B). {
   std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
   std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
-      NewLogicalExpression(*compilation, false, std::move(a), std::move(b))));
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewLogicalExpression(
+          *compilation, false, OptionalRootToPtr(a), OptionalRootToPtr(b))));
 }
 
 expr(OUT) ::= expr(A) AND expr(B). {
   std::optional<gc::Root<Expression>> a = MoveOutAndDelete(A);
   std::optional<gc::Root<Expression>> b = MoveOutAndDelete(B);
 
-  OUT = new std::optional<gc::Root<Expression>>(language::OptionalFrom(
-      NewLogicalExpression(*compilation, true, std::move(a), std::move(b))));
+  OUT = new std::optional<gc::Root<Expression>>(
+      language::OptionalFrom(NewLogicalExpression(
+          *compilation, true, OptionalRootToPtr(a), OptionalRootToPtr(b))));
 }
 
 expr(OUT) ::= expr(A) PLUS expr(B). {

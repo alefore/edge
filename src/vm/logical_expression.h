@@ -12,11 +12,10 @@ namespace afc::vm {
 class Expression;
 struct Compilation;
 
-// TODO(trivial, 2025-08-04): a and b should be optional<Ptr<>>.
 language::ValueOrError<language::gc::Root<Expression>> NewLogicalExpression(
     Compilation& compilation, bool identity,
-    std::optional<language::gc::Root<Expression>> a,
-    std::optional<language::gc::Root<Expression>> b);
+    std::optional<language::gc::Ptr<Expression>> a,
+    std::optional<language::gc::Ptr<Expression>> b);
 
 }  // namespace afc::vm
 
