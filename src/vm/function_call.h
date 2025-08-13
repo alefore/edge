@@ -20,7 +20,7 @@ language::gc::Root<Expression> NewFunctionCall(
     language::gc::Ptr<Expression> func,
     std::vector<language::gc::Ptr<Expression>> args);
 
-std::optional<language::gc::Root<Expression>> NewFunctionCall(
+language::ValueOrError<language::gc::Root<Expression>> NewFunctionCall(
     Compilation& compilation, language::gc::Ptr<Expression> func,
     std::vector<language::gc::Ptr<Expression>> args);
 

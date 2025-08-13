@@ -218,8 +218,7 @@ gc::Root<Expression> NewFunctionCall(gc::Ptr<Expression> func,
           .ptr());
 }
 
-// TODO(trivial, 2025-08-01): Change to return ValueOrError?
-std::optional<language::gc::Root<Expression>> NewFunctionCall(
+ValueOrError<gc::Root<Expression>> NewFunctionCall(
     Compilation& compilation, gc::Ptr<Expression> func,
     std::vector<gc::Ptr<Expression>> args) {
   std::vector<Error> errors;
@@ -232,8 +231,7 @@ std::optional<language::gc::Root<Expression>> NewFunctionCall(
   }
 
   CHECK(!errors.empty());
-  compilation.AddError(MergeErrors(errors, L", "));
-  return std::nullopt;
+  return compilation.AddError(MergeErrors(errors, L", "));
 }
 
 ValueOrError<gc::Root<Expression>> NewMethodLookup(

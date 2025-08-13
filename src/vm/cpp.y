@@ -296,13 +296,11 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
             type_identifier))});
     OUT = nullptr;
   } else {
-    OUT = new std::optional<gc::Root<Expression>>(
-              NewDefineExpression(
-                  *compilation, type->value().ptr()->get_symbol(),
-                  name->value().ptr()->get_symbol(),
-                  NewFunctionCall(*compilation,
-                                  VALUE_OR_DIE(std::move(constructor)).ptr(),
-                                  {})));
+    OUT = new std::optional<gc::Root<Expression>>(NewDefineExpression(
+        *compilation, type->value().ptr()->get_symbol(),
+        name->value().ptr()->get_symbol(),
+        language::OptionalFrom(NewFunctionCall(
+            *compilation, VALUE_OR_DIE(std::move(constructor)).ptr(), {}))));
   }
 }
 
@@ -626,9 +624,9 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   OUT = new std::optional<gc::Root<Expression>>(
       (!b.has_value() || args == nullptr)
           ? std::nullopt
-          : NewFunctionCall(
+          : language::OptionalFrom(NewFunctionCall(
                 *compilation, std::move(b)->ptr(),
-                container::MaterializeVector(*args | gc::view::Ptr)));
+                container::MaterializeVector(*args | gc::view::Ptr))));
 }
 
 
