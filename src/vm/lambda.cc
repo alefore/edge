@@ -84,12 +84,11 @@ class LambdaExpression : public Expression {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
     return futures::Past(Success(EvaluationOutput::New(promotion_function(
-        BuildValue(trampoline.pool(), trampoline.environment().ToRoot())))));
+        BuildValue(trampoline.pool(), trampoline.environment())))));
   }
 
   gc::Root<Value> BuildValue(gc::Pool& pool,
-                             gc::Root<Environment> parent_environment_root) {
-    gc::Ptr<Environment> parent_environment = parent_environment_root.ptr();
+                             gc::Ptr<Environment> parent_environment) {
     const types::Function& function_type = std::get<types::Function>(type_);
     return Value::NewFunction(
         pool, body_->purity(), function_type.output.get(), function_type.inputs,
@@ -120,8 +119,7 @@ class LambdaExpression : public Expression {
         },
         [parent_environment_metadata = parent_environment.object_metadata(),
          body_metadata = body_.object_metadata()] {
-          return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
-              {parent_environment_metadata, body_metadata});
+          return std::vector({parent_environment_metadata, body_metadata});
         });
   }
 
@@ -194,7 +192,8 @@ ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
   DECLARE_OR_RETURN(
       gc::Root<LambdaExpression> expression,
       LambdaExpression::New(type_, argument_names_, std::move(body)));
-  return expression->BuildValue(compilation_.pool, compilation_.environment);
+  return expression->BuildValue(compilation_.pool,
+                                compilation_.environment.ptr());
 }
 
 ValueOrError<gc::Root<Expression>> UserFunction::BuildExpression(
