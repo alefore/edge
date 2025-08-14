@@ -13,7 +13,6 @@ extern "C" {
 }
 
 #include "src/concurrent/thread_pool.h"
-#include "src/cpp_parse_tree.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
@@ -23,8 +22,6 @@ extern "C" {
 #include "src/vm/default_environment.h"
 #include "src/vm/environment.h"
 #include "src/vm/vm.h"
-
-using namespace afc::editor;
 
 using afc::concurrent::OperationFactory;
 using afc::concurrent::ThreadPool;
@@ -43,7 +40,7 @@ int main(int, char** argv) {
           MakeNonNullShared<afc::concurrent::ThreadPool>(6))});
 
   afc::vm::CompileFile(
-      ValueOrDie(Path::New(LazyString{FromByteString(argv[1])})), pool,
-      afc::vm::NewDefaultEnvironment(pool));
+      ValueOrDie(Path::New(LazyString{FromByteString(argv[1])})),
+      afc::vm::NewDefaultEnvironment(pool).ptr());
   return 0;
 }

@@ -13,7 +13,6 @@ extern "C" {
 
 #include "src/args.h"
 #include "src/buffer_registry.h"
-#include "src/cpp_parse_tree.h"
 #include "src/editor.h"
 #include "src/infrastructure/audio.h"
 #include "src/language/lazy_string/char_buffer.h"

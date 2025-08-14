@@ -39,12 +39,12 @@ int main(int, char** argv) {
   ValueOrError<gc::Root<Expression>> expr = afc::vm::CompileFile(
       ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
                                                      "stdin")})),
-      pool, environment);
+      environment.ptr());
   if (IsError(expr)) return 0;
 
   std::optional<OnceOnlyFunction<void()>> resume;
   auto value =
-      afc::vm::Evaluate(VALUE_OR_DIE(std::move(expr)).ptr(), pool, environment,
+      afc::vm::Evaluate(VALUE_OR_DIE(std::move(expr)).ptr(), environment.ptr(),
                         [&resume](OnceOnlyFunction<void()> callback) {
                           resume = std::move(callback);
                         });
