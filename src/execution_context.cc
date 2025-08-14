@@ -83,7 +83,7 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
                 path](gc::Root<vm::Expression> expression) {
                  LOG(INFO) << "Evaluating file: " << path;
                  return Evaluate(
-                     expression.ptr(), environment.pool(), environment,
+                     expression.ptr(), environment.ptr(),
                      [path, work_queue](OnceOnlyFunction<void()> resume) {
                        LOG(INFO) << "Evaluation of file yields: " << path;
                        work_queue->Schedule(
@@ -124,7 +124,7 @@ gc::Ptr<vm::Expression> ExecutionContext::CompilationResult::expression()
 
 futures::ValueOrError<gc::Root<vm::Value>>
 ExecutionContext::CompilationResult::evaluate() const {
-  return Evaluate(expression_, environment_.pool(), environment_.ToRoot(),
+  return Evaluate(expression_, environment_,
                   [work_queue = work_queue_](OnceOnlyFunction<void()> resume) {
                     LOG(INFO) << "Evaluation of code yields.";
                     work_queue->Schedule(

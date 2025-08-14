@@ -139,7 +139,7 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
                     vm::NewFunctionCall(
                         NewConstantExpression(value_nested).ptr(), {})
                         .ptr(),
-                    environment_locked.pool(), environment_locked,
+                    environment_locked.ptr(),
                     [&editor_state](OnceOnlyFunction<void()> callback) {
                       editor_state.work_queue()->Schedule(
                           WorkQueue::Callback{.callback = std::move(callback)});

@@ -132,8 +132,8 @@ language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 // `expr` can be deleted as soon as this returns (even before a value is given
 // to the returned future).
 futures::ValueOrError<language::gc::Root<Value>> Evaluate(
-    const language::gc::Ptr<Expression>& expr, language::gc::Pool& pool,
-    language::gc::Root<Environment> environment,
+    const language::gc::Ptr<Expression>& expr,
+    const language::gc::Ptr<Environment>& environment,
     std::function<void(language::OnceOnlyFunction<void()>)> yield_callback);
 
 // If a value of `original` type can be promoted implicitly to a value of

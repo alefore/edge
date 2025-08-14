@@ -83,13 +83,13 @@ ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 }
 
 futures::ValueOrError<gc::Root<Value>> Evaluate(
-    const gc::Ptr<Expression>& expr, gc::Pool& pool,
-    gc::Root<Environment> environment,
+    const gc::Ptr<Expression>& expr, const gc::Ptr<Environment>& environment,
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
+  // TODO(2025-08-14, trivial): Change `trampoline` to a gc-managed object.
   NonNull<std::shared_ptr<Trampoline>> trampoline =
       MakeNonNullShared<Trampoline>(
-          Trampoline::Options{.pool = pool,
-                              .environment = std::move(environment),
+          Trampoline::Options{.pool = expr.pool(),
+                              .environment = std::move(environment).ToRoot(),
                               .yield_callback = std::move(yield_callback)});
   return OnError(trampoline->Bounce(expr, expr->Types()[0])
                      .Transform([trampoline](EvaluationOutput value)

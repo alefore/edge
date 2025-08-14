@@ -415,7 +415,7 @@ futures::ValueOrError<gc::Root<Value>> Call(
                   container::MaterializeVector(args_expr | gc::view::Ptr)))
               .ptr())
           .ptr(),
-      pool, Environment::New(pool), yield_callback);
+      Environment::New(pool).ptr(), yield_callback);
 }
 
 }  // namespace afc::vm

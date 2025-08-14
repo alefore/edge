@@ -283,7 +283,7 @@ bool tests_registration = tests::Register(
                gc::Root<Expression> expression = ValueOrDie(
                    Compile(SingleLine{LazyString{L"\"foo\""}}, SingleLine{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), pool, environment,
+               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
                                             nullptr)
                                        .Get()
                                        .value())
@@ -305,7 +305,7 @@ bool tests_registration = tests::Register(
                gc::Root<Expression> expression = ValueOrDie(Compile(
                    SingleLine{LazyString{L"SomeFunction"}}, SingleLine{},
                    environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), pool, environment,
+               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
                                             nullptr)
                                        .Get()
                                        .value())
@@ -332,7 +332,7 @@ bool tests_registration = tests::Register(
                    Compile(SingleLine{LazyString{L"Moo Moo"}}, SingleLine{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
-               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), pool, environment,
+               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
                                             nullptr)
                                        .Get()
                                        .value())
@@ -358,7 +358,7 @@ bool tests_registration = tests::Register(
                    SingleLine{LazyString{L"UnaryFunction bar"}}, SingleLine{},
                    environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), pool, environment, nullptr)
+                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
                              .Get()
                              .value())
                          .ptr()
@@ -382,7 +382,7 @@ bool tests_registration = tests::Register(
                    SingleLine{LazyString{L"UnaryFunction ba.r"}}, SingleLine{},
                    environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), pool, environment, nullptr)
+                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
                              .Get()
                              .value())
                          .ptr()
@@ -409,7 +409,7 @@ bool tests_registration = tests::Register(
                    SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
                    pool));
                CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), pool, environment, nullptr)
+                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
                              .Get()
                              .value())
                          .ptr()
@@ -431,7 +431,7 @@ bool tests_registration = tests::Register(
                SingleLine{LazyString{L"foo foo foo \"bar\" "}}, SingleLine{},
                environment.ptr().value(), {kEmptyNamespace}, pool));
            CHECK_EQ(
-               ValueOrDie(Evaluate(expression.ptr(), pool, environment, nullptr)
+               ValueOrDie(Evaluate(expression.ptr(), environment.ptr(), nullptr)
                               .Get()
                               .value())
                    .ptr()
