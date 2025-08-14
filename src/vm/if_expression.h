@@ -12,9 +12,9 @@ namespace afc::vm {
 struct Compilation;
 language::ValueOrError<language::gc::Root<Expression>> NewIfExpression(
     Compilation& compilation,
-    std::optional<language::gc::Ptr<Expression>> condition,
-    std::optional<language::gc::Ptr<Expression>> true_case,
-    std::optional<language::gc::Ptr<Expression>> false_case);
+    language::ValueOrError<language::gc::Ptr<Expression>> condition,
+    language::ValueOrError<language::gc::Ptr<Expression>> true_case,
+    language::ValueOrError<language::gc::Ptr<Expression>> false_case);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_INTERNAL_IF_EXPRESSION_H__

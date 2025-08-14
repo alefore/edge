@@ -81,12 +81,12 @@ class AppendExpression : public Expression {
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewAppendExpression(
-    Compilation& compilation, std::optional<gc::Ptr<Expression>> a,
-    std::optional<gc::Ptr<Expression>> b) {
-  if (!a.has_value() || !b.has_value()) {
-    return Error(LazyString{L"Missing input."});
-  }
-  return compilation.RegisterErrors(NewAppendExpression(a.value(), b.value()));
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> a_or_error,
+    ValueOrError<gc::Ptr<Expression>> b_or_error) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> a, std::move(a_or_error));
+  DECLARE_OR_RETURN(gc::Ptr<Expression> b, std::move(b_or_error));
+  return compilation.RegisterErrors(
+      NewAppendExpression(std::move(a), std::move(b)));
 }
 
 ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Ptr<Expression> a,

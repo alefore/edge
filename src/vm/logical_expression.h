@@ -14,8 +14,8 @@ struct Compilation;
 
 language::ValueOrError<language::gc::Root<Expression>> NewLogicalExpression(
     Compilation& compilation, bool identity,
-    std::optional<language::gc::Ptr<Expression>> a,
-    std::optional<language::gc::Ptr<Expression>> b);
+    language::ValueOrError<language::gc::Ptr<Expression>> a,
+    language::ValueOrError<language::gc::Ptr<Expression>> b);
 
 }  // namespace afc::vm
 

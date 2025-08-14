@@ -66,22 +66,20 @@ class NegateExpression : public Expression {
 };
 
 ValueOrError<gc::Root<Expression>> NewNegateExpression(
-    Compilation& compilation, std::optional<gc::Root<Expression>> expr,
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> expr_or_error,
     std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate,
     const Type& expected_type) {
-  if (expr == std::nullopt) return Error{LazyString{L"Missing input."}};
-  if (!expr.value()->SupportsType(expected_type)) {
-    Error error{LazyString{L"Can't negate an expression of type: \""} +
-                TypesToString(expr.value()->Types()) + LazyString{L"\""}};
-    compilation.AddError(error);
-    return error;
-  }
-  return NegateExpression::New(negate, std::move(expr)->ptr());
+  DECLARE_OR_RETURN(gc::Ptr<Expression> expr, std::move(expr_or_error));
+  if (!expr->SupportsType(expected_type))
+    return compilation.AddError(
+        Error{LazyString{L"Can't negate an expression of type: \""} +
+              TypesToString(expr->Types()) + LazyString{L"\""}});
+  return NegateExpression::New(negate, std::move(expr));
 }
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewNegateExpressionBool(
-    Compilation& compilation, std::optional<gc::Root<Expression>> expr) {
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> expr) {
   return NewNegateExpression(
       compilation, std::move(expr),
       [](gc::Pool& pool, Value& value) {
@@ -91,7 +89,7 @@ ValueOrError<gc::Root<Expression>> NewNegateExpressionBool(
 }
 
 ValueOrError<gc::Root<Expression>> NewNegateExpressionNumber(
-    Compilation& compilation, std::optional<gc::Root<Expression>> expr) {
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> expr) {
   return NewNegateExpression(
       compilation, std::move(expr),
       [](gc::Pool& pool, Value& value) {

@@ -9,11 +9,26 @@
 #include "src/vm/expression.h"
 
 namespace afc::vm {
+using RootExpressionOrError =
+    language::ValueOrError<language::gc::Root<Expression>>;
+
 std::optional<language::gc::Root<Expression>> PtrToOptionalRoot(
     language::gc::Pool& pool, std::unique_ptr<Expression> expr);
 
+language::ValueOrError<language::gc::Ptr<Expression>> ToPtr(
+    const RootExpressionOrError&);
+
 std::optional<language::gc::Ptr<Expression>> OptionalRootToPtr(
     const std::optional<language::gc::Root<Expression>>&);
+
+#define RULE_VAR(var_name, input_token) auto var_name = Pop(input_token)
+
+template <typename T>
+T* RuleReturn(T value) {
+  return new T(std::move(value));
+}
+
+RootExpressionOrError Pop(RootExpressionOrError* value_raw);
 
 template <typename T>
 std::optional<language::gc::Root<T>> MoveOutAndDelete(

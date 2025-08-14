@@ -22,10 +22,13 @@ namespace afc::vm {
 
 /*static*/
 ValueOrError<gc::Root<Expression>> BinaryOperator::New(
-    gc::Ptr<Expression> a, gc::Ptr<Expression> b, Type type,
+    ValueOrError<gc::Ptr<Expression>> a_or_error,
+    ValueOrError<gc::Ptr<Expression>> b_or_error, Type type,
     std::function<ValueOrError<gc::Root<Value>>(gc::Pool& pool, const Value&,
                                                 const Value&)>
         callback) {
+  ASSIGN_OR_RETURN(gc::Ptr<Expression> a, a_or_error);
+  ASSIGN_OR_RETURN(gc::Ptr<Expression> b, b_or_error);
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   gc::Pool& pool = a.pool();
@@ -81,23 +84,20 @@ BinaryOperator::Expand() const {
 }
 
 ValueOrError<gc::Root<Expression>> NewBinaryExpression(
-    Compilation& compilation, std::optional<gc::Root<Expression>> a_raw,
-    std::optional<gc::Root<Expression>> b_raw,
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> a_or_error,
+    ValueOrError<gc::Ptr<Expression>> b_or_error,
     std::function<ValueOrError<LazyString>(LazyString, LazyString)>
         str_operator,
     std::function<ValueOrError<math::numbers::Number>(math::numbers::Number,
                                                       math::numbers::Number)>
         number_operator,
     std::function<ValueOrError<LazyString>(LazyString, int)> str_int_operator) {
-  if (a_raw == std::nullopt || b_raw == std::nullopt)
-    return Error{LazyString{L"Missing input"}};
-
-  auto a = a_raw.value();
-  auto b = b_raw.value();
+  DECLARE_OR_RETURN(gc::Ptr<Expression> a, a_or_error);
+  DECLARE_OR_RETURN(gc::Ptr<Expression> b, b_or_error);
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
     return compilation.RegisterErrors(BinaryOperator::New(
-        a.ptr(), b.ptr(), types::String{},
+        std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           DECLARE_OR_RETURN(
@@ -109,7 +109,7 @@ ValueOrError<gc::Root<Expression>> NewBinaryExpression(
 
   if (number_operator != nullptr && a->IsNumber() && b->IsNumber()) {
     return compilation.RegisterErrors(BinaryOperator::New(
-        a.ptr(), b.ptr(), types::Number{},
+        std::move(a), std::move(b), types::Number{},
         [number_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {
@@ -122,7 +122,7 @@ ValueOrError<gc::Root<Expression>> NewBinaryExpression(
 
   if (str_int_operator != nullptr && a->IsString() && b->IsNumber()) {
     return compilation.RegisterErrors(BinaryOperator::New(
-        a.ptr(), b.ptr(), types::String{},
+        std::move(a), std::move(b), types::String{},
         [str_int_operator](
             gc::Pool& pool, const Value& a_value,
             const Value& b_value) -> ValueOrError<gc::Root<Value>> {

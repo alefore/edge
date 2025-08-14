@@ -89,39 +89,38 @@ class IfExpression : public Expression {
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewIfExpression(
-    Compilation& compilation, std::optional<gc::Ptr<Expression>> condition,
-    std::optional<gc::Ptr<Expression>> true_case,
-    std::optional<gc::Ptr<Expression>> false_case) {
-  if (condition == std::nullopt || true_case == std::nullopt ||
-      false_case == std::nullopt)
-    return Error{LazyString{L"Missing input parameter"}};
+    Compilation& compilation,
+    ValueOrError<gc::Ptr<Expression>> condition_or_error,
+    ValueOrError<gc::Ptr<Expression>> true_case_or_error,
+    ValueOrError<gc::Ptr<Expression>> false_case_or_error) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> condition, condition_or_error);
+  DECLARE_OR_RETURN(gc::Ptr<Expression> true_case, true_case_or_error);
+  DECLARE_OR_RETURN(gc::Ptr<Expression> false_case, false_case_or_error);
 
-  if (!condition.value()->IsBool()) {
+  if (!condition->IsBool()) {
     Error error{LazyString{L"Expected bool value for condition of \"if\" "
                            L"expression but found "} +
-                TypesToString(condition.value()->Types()) + LazyString{L"."}};
+                TypesToString(condition->Types()) + LazyString{L"."}};
     compilation.AddError(error);
     return error;
   }
 
-  if (!(true_case.value()->Types() == false_case.value()->Types())) {
+  if (!(true_case->Types() == false_case->Types())) {
     Error error{
         LazyString{
             L"Type mismatch between branches of conditional expression: "} +
-        TypesToString(true_case.value()->Types()) + LazyString{L" and "} +
-        TypesToString(false_case.value()->Types()) + LazyString{L"."}};
+        TypesToString(true_case->Types()) + LazyString{L" and "} +
+        TypesToString(false_case->Types()) + LazyString{L"."}};
     compilation.AddError(error);
     return error;
   }
 
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
-                   compilation.RegisterErrors(
-                       CombineReturnTypes(true_case.value()->ReturnTypes(),
-                                          false_case.value()->ReturnTypes())));
+                   compilation.RegisterErrors(CombineReturnTypes(
+                       true_case->ReturnTypes(), false_case->ReturnTypes())));
 
-  return IfExpression::New(
-      std::move(condition).value(), std::move(true_case).value(),
-      std::move(false_case).value(), std::move(return_types));
+  return IfExpression::New(std::move(condition), std::move(true_case),
+                           std::move(false_case), std::move(return_types));
 }
 
 }  // namespace afc::vm

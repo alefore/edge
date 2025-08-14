@@ -32,8 +32,8 @@ class BinaryOperator : public Expression {
 
  public:
   static language::ValueOrError<language::gc::Root<Expression>> New(
-      language::gc::Ptr<Expression> a, language::gc::Ptr<Expression> b,
-      Type type,
+      language::ValueOrError<language::gc::Ptr<Expression>> a,
+      language::ValueOrError<language::gc::Ptr<Expression>> b, Type type,
       std::function<language::ValueOrError<language::gc::Root<Value>>(
           language::gc::Pool& pool, const Value&, const Value&)>
           callback);
@@ -61,8 +61,9 @@ class BinaryOperator : public Expression {
 // A convenience wrapper of BinaryOperator that combines primitive types
 // according to the functions given.
 language::ValueOrError<language::gc::Root<Expression>> NewBinaryExpression(
-    Compilation& compilation, std::optional<language::gc::Root<Expression>> a,
-    std::optional<language::gc::Root<Expression>> b,
+    Compilation& compilation,
+    language::ValueOrError<language::gc::Ptr<Expression>> a,
+    language::ValueOrError<language::gc::Ptr<Expression>> b,
     std::function<language::ValueOrError<language::lazy_string::LazyString>(
         language::lazy_string::LazyString, language::lazy_string::LazyString)>
         str_operator,

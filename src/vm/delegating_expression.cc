@@ -27,6 +27,12 @@ using afc::vm::Type;
 namespace gc = afc::language::gc;
 
 namespace afc::vm {
+language::ValueOrError<language::gc::Ptr<Expression>> ToPtr(
+    const RootExpressionOrError& input) {
+  if (IsError(input)) return std::get<Error>(input);
+  return std::get<gc::Root<Expression>>(input).ptr();
+}
+
 std::optional<gc::Ptr<Expression>> OptionalRootToPtr(
     const std::optional<gc::Root<Expression>>& input) {
   return VisitOptional(
@@ -34,5 +40,11 @@ std::optional<gc::Ptr<Expression>> OptionalRootToPtr(
         return std::optional<gc::Ptr<Expression>>(input_root.ptr());
       },
       [] { return std::optional<gc::Ptr<Expression>>(); }, input);
+}
+
+RootExpressionOrError Pop(RootExpressionOrError* value_raw) {
+  std::unique_ptr<RootExpressionOrError> value{value_raw};
+  CHECK(value != nullptr);
+  return std::move(*value);
 }
 }  // namespace afc::vm

@@ -10,6 +10,7 @@ namespace gc = afc::language::gc;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
+using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 
 namespace afc::vm {
@@ -55,14 +56,10 @@ class ReturnExpression : public Expression {
 
 }  // namespace
 
-std::optional<gc::Root<Expression>> NewReturnExpression(
-    std::optional<gc::Ptr<Expression>> expr_input) {
-  return VisitOptional(
-      [](gc::Ptr<Expression> expr) -> std::optional<gc::Root<Expression>> {
-        return ReturnExpression::New(std::move(expr));
-      },
-      [] { return std::optional<gc::Root<Expression>>{}; },
-      std::move(expr_input));
+ValueOrError<gc::Root<Expression>> NewReturnExpression(
+    ValueOrError<gc::Ptr<Expression>> expr_input) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> expr, std::move(expr_input));
+  return ReturnExpression::New(std::move(expr));
 }
 
 }  // namespace afc::vm

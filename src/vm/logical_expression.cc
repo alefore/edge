@@ -88,11 +88,11 @@ class LogicalExpression : public Expression {
 
 ValueOrError<gc::Root<Expression>> NewLogicalExpression(
     Compilation& compilation, bool identity,
-    std::optional<gc::Ptr<Expression>> a,
-    std::optional<gc::Ptr<Expression>> b) {
-  if (a == std::nullopt || b == std::nullopt)
-    return Error{LazyString{L"Missing inputs"}};
+    ValueOrError<gc::Ptr<Expression>> a_or_error,
+    ValueOrError<gc::Ptr<Expression>> b_or_error) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> a, std::move(a_or_error));
+  DECLARE_OR_RETURN(gc::Ptr<Expression> b, std::move(b_or_error));
   return compilation.RegisterErrors(
-      LogicalExpression::New(identity, a.value(), b.value()));
+      LogicalExpression::New(identity, std::move(a), std::move(b)));
 }
 }  // namespace afc::vm

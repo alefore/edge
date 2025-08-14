@@ -219,8 +219,9 @@ gc::Root<Expression> NewFunctionCall(gc::Ptr<Expression> func,
 }
 
 ValueOrError<gc::Root<Expression>> NewFunctionCall(
-    Compilation& compilation, gc::Ptr<Expression> func,
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> func_or_error,
     std::vector<gc::Ptr<Expression>> args) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> func, std::move(func_or_error));
   std::vector<Error> errors;
   for (auto& type : func->Types()) {
     PossibleError check_results = CheckFunctionArguments(type, args);
@@ -235,187 +236,163 @@ ValueOrError<gc::Root<Expression>> NewFunctionCall(
 }
 
 ValueOrError<gc::Root<Expression>> NewMethodLookup(
-    Compilation& compilation, std::optional<gc::Root<Expression>> object_ptr,
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> object_or_error,
     Identifier method_name) {
-  return VisitOptional(
-      [&compilation, &method_name](
-          gc::Root<Expression> object) -> ValueOrError<gc::Root<Expression>> {
-        std::vector<Error> errors;
-        // TODO: Better support polymorphism: don't return early assuming one of
-        // the types of `object`.
-        for (const auto& type : object->Types()) {
-          types::ObjectName object_type_name = NameForType(type);
+  DECLARE_OR_RETURN(gc::Ptr<Expression> object, std::move(object_or_error));
+  std::vector<Error> errors;
+  // TODO: Better support polymorphism: don't return early assuming one of
+  // the types of `object`.
+  for (const auto& type : object->Types()) {
+    types::ObjectName object_type_name = NameForType(type);
 
-          const ObjectType* object_type =
-              compilation.environment.ptr()->LookupObjectType(object_type_name);
+    const ObjectType* object_type =
+        compilation.environment.ptr()->LookupObjectType(object_type_name);
 
-          if (object_type == nullptr) {
-            errors.push_back(Error{LazyString{L"Unknown type: "} +
-                                   ToQuotedSingleLine(type) +
-                                   LazyString{L"."}});
-            continue;
-          }
+    if (object_type == nullptr) {
+      errors.push_back(Error{LazyString{L"Unknown type: "} +
+                             ToQuotedSingleLine(type) + LazyString{L"."}});
+      continue;
+    }
 
-          std::vector<gc::Root<Value>> fields =
-              object_type->LookupField(method_name);
-          for (auto& field : fields) {
-            CHECK(field.ptr()->IsFunction());
-            CHECK_GE(
-                std::get<types::Function>(field.ptr()->type()).inputs.size(),
-                1ul);
-            CHECK(std::get<types::Function>(field.ptr()->type()).inputs[0] ==
-                  type);
-          }
-          if (fields.empty()) {
-            std::vector<Identifier> alternatives;
-            object_type->ForEachField(
-                [&](const Identifier& name, const Value&) {
-                  alternatives.push_back(name);
-                });
-            std::vector<Identifier> close_alternatives =
-                FilterSimilarNames(method_name, std::move(alternatives));
-            errors.push_back(Error{
-                LazyString{L"Unknown method: "} +
-                QuoteExpr(ToSingleLine(*object_type) +
-                          SINGLE_LINE_CONSTANT(L"::") +
-                          language::lazy_string::ToSingleLine(method_name)) +
-                (close_alternatives.empty()
-                     ? LazyString{}
-                     : (LazyString{L" (did you mean "} +
-                        QuoteExpr(language::lazy_string::ToSingleLine(
-                            close_alternatives[0])) +
-                        LazyString{L"?)"}))});
-            continue;
-          }
+    std::vector<gc::Root<Value>> fields = object_type->LookupField(method_name);
+    for (auto& field : fields) {
+      CHECK(field.ptr()->IsFunction());
+      CHECK_GE(std::get<types::Function>(field.ptr()->type()).inputs.size(),
+               1ul);
+      CHECK(std::get<types::Function>(field.ptr()->type()).inputs[0] == type);
+    }
+    if (fields.empty()) {
+      std::vector<Identifier> alternatives;
+      object_type->ForEachField([&](const Identifier& name, const Value&) {
+        alternatives.push_back(name);
+      });
+      std::vector<Identifier> close_alternatives =
+          FilterSimilarNames(method_name, std::move(alternatives));
+      errors.push_back(Error{
+          LazyString{L"Unknown method: "} +
+          QuoteExpr(ToSingleLine(*object_type) + SINGLE_LINE_CONSTANT(L"::") +
+                    language::lazy_string::ToSingleLine(method_name)) +
+          (close_alternatives.empty()
+               ? LazyString{}
+               : (LazyString{L" (did you mean "} +
+                  QuoteExpr(language::lazy_string::ToSingleLine(
+                      close_alternatives[0])) +
+                  LazyString{L"?)"}))});
+      continue;
+    }
 
-          // When evaluated, evaluates first `obj_expr` and then returns a
-          // callback that wraps `delegates`, inserting the value that
-          // `obj_expr` evaluated to and calling the right delegate (depending
-          // on the desired type).
-          class BindObjectExpression : public Expression {
-            struct ConstructorAccessTag {};
+    // When evaluated, evaluates first `obj_expr` and then returns a
+    // callback that wraps `delegates`, inserting the value that
+    // `obj_expr` evaluated to and calling the right delegate (depending
+    // on the desired type).
+    class BindObjectExpression : public Expression {
+      struct ConstructorAccessTag {};
 
-           public:
-            static language::gc::Root<BindObjectExpression> New(
-                gc::Ptr<Expression> obj_expr,
-                std::vector<gc::Root<Value>> delegates) {
-              gc::Pool& pool = obj_expr.pool();
-              return pool.NewRoot(
-                  language::MakeNonNullUnique<BindObjectExpression>(
-                      ConstructorAccessTag{}, obj_expr, delegates));
-            }
+     public:
+      static language::gc::Root<BindObjectExpression> New(
+          gc::Ptr<Expression> obj_expr,
+          std::vector<gc::Root<Value>> delegates) {
+        gc::Pool& pool = obj_expr.pool();
+        return pool.NewRoot(language::MakeNonNullUnique<BindObjectExpression>(
+            ConstructorAccessTag{}, obj_expr, delegates));
+      }
 
-            BindObjectExpression(ConstructorAccessTag,
-                                 gc::Ptr<Expression> obj_expr,
-                                 const std::vector<gc::Root<Value>>& delegates)
-                : delegates_(
-                      container::MaterializeVector(delegates | gc::view::Ptr)),
-                  external_types_(MakeNonNullShared<std::vector<Type>>(
-                      container::MaterializeVector(
-                          delegates_ | std::views::transform(
-                                           [](const gc::Ptr<Value>& delegate) {
-                                             return RemoveObjectFirstArgument(
-                                                 delegate->type());
-                                           })))),
-                  obj_expr_(std::move(obj_expr)) {}
+      BindObjectExpression(ConstructorAccessTag, gc::Ptr<Expression> obj_expr,
+                           const std::vector<gc::Root<Value>>& delegates)
+          : delegates_(container::MaterializeVector(delegates | gc::view::Ptr)),
+            external_types_(MakeNonNullShared<std::vector<Type>>(
+                container::MaterializeVector(
+                    delegates_ |
+                    std::views::transform([](const gc::Ptr<Value>& delegate) {
+                      return RemoveObjectFirstArgument(delegate->type());
+                    })))),
+            obj_expr_(std::move(obj_expr)) {}
 
-            std::vector<Type> Types() override {
-              return external_types_.value();
-            }
+      std::vector<Type> Types() override { return external_types_.value(); }
 
-            std::unordered_set<Type> ReturnTypes() const override { return {}; }
+      std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
-            PurityType purity() override {
-              return CombinePurityType(
-                  {obj_expr_->purity(),
-                   CombinePurityType(container::MaterializeVector(
-                       external_types_.value() |
-                       std::views::transform([](const Type& delegate_type) {
-                         return std::get<types::Function>(delegate_type)
-                             .function_purity;
-                       })))});
-            }
+      PurityType purity() override {
+        return CombinePurityType(
+            {obj_expr_->purity(),
+             CombinePurityType(container::MaterializeVector(
+                 external_types_.value() |
+                 std::views::transform([](const Type& delegate_type) {
+                   return std::get<types::Function>(delegate_type)
+                       .function_purity;
+                 })))});
+      }
 
-            futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-                Trampoline& trampoline, const Type& type) override {
-              std::optional<gc::Root<Value>> delegate;
-              for (const gc::Ptr<Value>& candidate : delegates_)
-                if (GetImplicitPromotion(
-                        RemoveObjectFirstArgument(candidate->type()), type) !=
-                    nullptr)
-                  delegate = candidate.ToRoot();
-              LOG_IF(FATAL, !delegate.has_value())
-                  << "Unable to find proper delegate with type: " << type
-                  << ", candidates: " << TypesToString(external_types_.value());
+      futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
+          Trampoline& trampoline, const Type& type) override {
+        std::optional<gc::Root<Value>> delegate;
+        for (const gc::Ptr<Value>& candidate : delegates_)
+          if (GetImplicitPromotion(RemoveObjectFirstArgument(candidate->type()),
+                                   type) != nullptr)
+            delegate = candidate.ToRoot();
+        LOG_IF(FATAL, !delegate.has_value())
+            << "Unable to find proper delegate with type: " << type
+            << ", candidates: " << TypesToString(external_types_.value());
 
-              return trampoline.Bounce(obj_expr_, obj_expr_->Types()[0])
-                  .Transform([type, external_types = external_types_,
-                              delegate = delegate.value(),
-                              &pool =
-                                  trampoline.pool()](EvaluationOutput output)
-                                 -> ValueOrError<EvaluationOutput> {
-                    switch (output.type) {
-                      case EvaluationOutput::OutputType::kReturn:
-                        return Success(std::move(output));
-                      case EvaluationOutput::OutputType::kContinue:
-                        const types::Function& function_type =
-                            std::get<types::Function>(type);
-                        return Success(EvaluationOutput::New(Value::NewFunction(
-                            pool, function_type.function_purity,
-                            function_type.output.get(), function_type.inputs,
-                            [obj = std::move(output.value),
-                             callback = delegate](
-                                std::vector<gc::Root<Value>> args,
-                                Trampoline& trampoline_inner) {
-                              args.emplace(args.begin(), obj);
-                              return callback.ptr()->RunFunction(
-                                  std::move(args), trampoline_inner);
-                            })));
-                    }
-                    language::Error error{
-                        LazyString{L"Unhandled OutputType case."}};
-                    LOG(FATAL) << error;
-                    return error;
-                  });
-            }
+        return trampoline.Bounce(obj_expr_, obj_expr_->Types()[0])
+            .Transform([type, external_types = external_types_,
+                        delegate = delegate.value(),
+                        &pool = trampoline.pool()](EvaluationOutput output)
+                           -> ValueOrError<EvaluationOutput> {
+              switch (output.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  return Success(std::move(output));
+                case EvaluationOutput::OutputType::kContinue:
+                  const types::Function& function_type =
+                      std::get<types::Function>(type);
+                  return Success(EvaluationOutput::New(Value::NewFunction(
+                      pool, function_type.function_purity,
+                      function_type.output.get(), function_type.inputs,
+                      [obj = std::move(output.value), callback = delegate](
+                          std::vector<gc::Root<Value>> args,
+                          Trampoline& trampoline_inner) {
+                        args.emplace(args.begin(), obj);
+                        return callback.ptr()->RunFunction(std::move(args),
+                                                           trampoline_inner);
+                      })));
+              }
+              language::Error error{LazyString{L"Unhandled OutputType case."}};
+              LOG(FATAL) << error;
+              return error;
+            });
+      }
 
-            std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-                const override {
-              std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
-                  container::MaterializeVector(delegates_ |
-                                               gc::view::ObjectMetadata);
-              output.push_back(obj_expr_.object_metadata());
-              return output;
-            }
+      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+          const override {
+        std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
+            container::MaterializeVector(delegates_ | gc::view::ObjectMetadata);
+        output.push_back(obj_expr_.object_metadata());
+        return output;
+      }
 
-           private:
-            static Type RemoveObjectFirstArgument(Type input) {
-              types::Function input_function = std::get<types::Function>(input);
-              CHECK(!input_function.inputs.empty());
-              input_function.inputs.erase(input_function.inputs.begin());
-              return input_function;
-            }
+     private:
+      static Type RemoveObjectFirstArgument(Type input) {
+        types::Function input_function = std::get<types::Function>(input);
+        CHECK(!input_function.inputs.empty());
+        input_function.inputs.erase(input_function.inputs.begin());
+        return input_function;
+      }
 
-            const std::vector<gc::Ptr<Value>> delegates_;
+      const std::vector<gc::Ptr<Value>> delegates_;
 
-            // The actual types that the expression can deliver. Basically, a
-            // function receiving the arguments that will be dispatched to a
-            // delegate (after inserting the result from evaluating
-            // `obj_expr_`).
-            const NonNull<std::shared_ptr<std::vector<Type>>> external_types_;
-            const gc::Ptr<Expression> obj_expr_;
-          };
+      // The actual types that the expression can deliver. Basically, a
+      // function receiving the arguments that will be dispatched to a
+      // delegate (after inserting the result from evaluating
+      // `obj_expr_`).
+      const NonNull<std::shared_ptr<std::vector<Type>>> external_types_;
+      const gc::Ptr<Expression> obj_expr_;
+    };
 
-          return BindObjectExpression::New(std::move(object).ptr(), fields);
-        }
+    return BindObjectExpression::New(std::move(object), fields);
+  }
 
-        CHECK(!errors.empty());
-        return compilation.AddError(MergeErrors(errors, L", "));
-      },
-      [] -> ValueOrError<gc::Root<Expression>> {
-        return Error{LazyString{L"Missing input"}};
-      },
-      std::move(object_ptr));
+  CHECK(!errors.empty());
+  return compilation.AddError(MergeErrors(errors, L", "));
 }
 
 futures::ValueOrError<gc::Root<Value>> Call(

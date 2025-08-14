@@ -21,7 +21,8 @@ language::gc::Root<Expression> NewFunctionCall(
     std::vector<language::gc::Ptr<Expression>> args);
 
 language::ValueOrError<language::gc::Root<Expression>> NewFunctionCall(
-    Compilation& compilation, language::gc::Ptr<Expression> func,
+    Compilation& compilation,
+    language::ValueOrError<language::gc::Ptr<Expression>> func,
     std::vector<language::gc::Ptr<Expression>> args);
 
 futures::ValueOrError<language::gc::Root<Value>> Call(
@@ -31,7 +32,7 @@ futures::ValueOrError<language::gc::Root<Value>> Call(
 
 language::ValueOrError<language::gc::Root<Expression>> NewMethodLookup(
     Compilation& compilation,
-    std::optional<language::gc::Root<Expression>> object,
+    language::ValueOrError<language::gc::Ptr<Expression>> object,
     Identifier method_name);
 
 }  // namespace vm

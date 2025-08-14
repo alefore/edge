@@ -177,82 +177,71 @@ ValueOrError<Type> DefineUninitializedVariable(
   return type_def;
 }
 
-std::optional<gc::Root<Expression>> NewDefineExpression(
+ValueOrError<gc::Root<Expression>> NewDefineExpression(
     Compilation& compilation, Identifier type, Identifier symbol,
-    std::optional<gc::Root<Expression>> value) {
-  if (value == std::nullopt) return std::nullopt;
+    ValueOrError<gc::Ptr<Expression>> value_or_error) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> value, std::move(value_or_error));
   std::optional<Type> default_type;
   if (type == IdentifierAuto()) {
-    if (auto types = value.value()->Types(); types.size() == 1)
+    if (auto types = value->Types(); types.size() == 1)
       default_type = *types.cbegin();
     else {
-      compilation.AddError(
+      return compilation.AddError(
           Error{LazyString{L"Unable to deduce type for symbol: `"} +
                 ToLazyString(symbol) + LazyString{L"`."}});
-      return std::nullopt;
     }
   }
   return std::visit(
       overload{
-          [&](Type final_type) -> std::optional<gc::Root<Expression>> {
-            if (!value.value()->SupportsType(final_type)) {
-              compilation.AddError(Error{
+          [&](Type final_type) -> RootExpressionOrError {
+            if (!value->SupportsType(final_type))
+              return compilation.AddError(Error{
                   LazyString{
                       L"Unable to assign a value to a variable of type "} +
                   ToQuotedSingleLine(final_type) +
                   LazyString{L". Value types: "} +
-                  TypesToString(value.value()->Types()) + LazyString{L"."}});
-              return std::nullopt;
-            }
+                  TypesToString(value->Types()) + LazyString{L"."}});
             return AssignExpression::New(
                 AssignExpression::AssignmentType::kDefine, std::move(symbol),
-                PurityType{.writes_local_variables = true},
-                std::move(value)->ptr());
+                PurityType{.writes_local_variables = true}, std::move(value));
           },
-          [&](Error error) -> std::optional<gc::Root<Expression>> {
-            compilation.AddError(error);
-            return std::nullopt;
+          [&](Error error) -> RootExpressionOrError {
+            return compilation.AddError(error);
           }},
       DefineUninitializedVariable(compilation.environment.value(), type, symbol,
                                   default_type));
 }
 
-std::optional<gc::Root<Expression>> NewAssignExpression(
+ValueOrError<gc::Root<Expression>> NewAssignExpression(
     Compilation& compilation, Identifier symbol,
-    std::optional<gc::Root<Expression>> value) {
-  if (value == std::nullopt) return std::nullopt;
-  gc::Pool& pool = value->pool();
+    ValueOrError<gc::Ptr<Expression>> value_or_error) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> value, std::move(value_or_error));
+  gc::Pool& pool = value.pool();
   if (std::optional<std::reference_wrapper<StackFrameHeader>> header =
           compilation.CurrentStackFrameHeader();
       header.has_value())
     if (std::optional<std::pair<size_t, Type>> argument_data =
             header->get().Find(symbol);
         argument_data.has_value()) {
-      if (value.value()->SupportsType(argument_data->second)) {
-        return StackFrameAssign::New(argument_data->first,
-                                     std::move(value)->ptr());
-      } else {
-        compilation.AddError(Error{
+      if (!value->SupportsType(argument_data->second))
+        return compilation.AddError(Error{
             LazyString{L"Unable to assign a value to an argument of type "} +
             ToQuotedSingleLine(argument_data->second) +
-            LazyString{L". Type found: "} +
-            TypesToString(value.value()->Types())});
-        return std::nullopt;
-      }
+            LazyString{L". Type found: "} + TypesToString(value->Types())});
+      return StackFrameAssign::New(argument_data->first, std::move(value));
     }
 
   static const vm::Namespace kEmptyNamespace;
   std::vector<Environment::LookupResult> variables =
       compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol);
-  if (variables.empty()) {
-    compilation.AddError(Error{LazyString{L"Variable not found: \""} +
-                               ToLazyString(symbol) + LazyString{L"\""}});
-    return std::nullopt;
-  }
+  if (variables.empty())
+    return compilation.AddError(Error{LazyString{L"Variable not found: \""} +
+                                      ToLazyString(symbol) +
+                                      LazyString{L"\""}});
 
   return VisitOptional(
       [&pool, &value, &symbol](const Environment::LookupResult& lookup_result)
-          -> std::optional<gc::Root<Expression>> {
+          -> RootExpressionOrError {
         return AssignExpression::New(
             AssignExpression::AssignmentType::kAssign, symbol,
             std::invoke([&lookup_result] {
@@ -265,22 +254,20 @@ std::optional<gc::Root<Expression>> NewAssignExpression(
               LOG(FATAL) << "Invalid scope.";
               return kPurityTypeUnknown;
             }),
-            std::move(value)->ptr());
+            std::move(value));
       },
-      [&] -> std::optional<gc::Root<Expression>> {
-        compilation.AddError(Error{
+      [&] -> RootExpressionOrError {
+        return compilation.AddError(Error{
             LazyString{L"Unable to assign a value to a variable supporting "
                        L"types: \""} +
-            TypesToString(value.value()->Types()) +
-            LazyString{L"\". Value types: "} +
+            TypesToString(value->Types()) + LazyString{L"\". Value types: "} +
             TypesToString(container::MaterializeVector(
                 std::move(variables) |
                 std::views::transform(&Environment::LookupResult::type)))});
-        return std::nullopt;
       },
       container::FindFirstIf(
           variables, [&value](const Environment::LookupResult& lookup_result) {
-            return value.value()->SupportsType(lookup_result.type);
+            return value->SupportsType(lookup_result.type);
           }));
 }
 }  // namespace afc::vm

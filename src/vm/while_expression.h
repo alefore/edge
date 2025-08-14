@@ -14,15 +14,15 @@ class Expression;
 
 language::ValueOrError<language::gc::Root<Expression>> NewWhileExpression(
     Compilation& compilation,
-    std::optional<language::gc::Root<Expression>> cond,
-    std::optional<language::gc::Root<Expression>> body);
+    language::ValueOrError<language::gc::Ptr<Expression>> cond,
+    language::ValueOrError<language::gc::Ptr<Expression>> body);
 
 language::ValueOrError<language::gc::Root<Expression>> NewForExpression(
     Compilation& compilation,
-    std::optional<language::gc::Root<Expression>> init,
-    std::optional<language::gc::Root<Expression>> condition,
-    std::optional<language::gc::Root<Expression>> update,
-    std::optional<language::gc::Root<Expression>> body);
+    language::ValueOrError<language::gc::Ptr<Expression>> init,
+    language::ValueOrError<language::gc::Ptr<Expression>> condition,
+    language::ValueOrError<language::gc::Ptr<Expression>> update,
+    language::ValueOrError<language::gc::Ptr<Expression>> body);
 
 }  // namespace afc::vm
 

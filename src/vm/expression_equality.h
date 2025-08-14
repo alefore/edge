@@ -10,8 +10,9 @@ struct Compilation;
 class Expression;
 
 language::ValueOrError<language::gc::Root<Expression>> ExpressionEquals(
-    Compilation& compilation, std::optional<language::gc::Ptr<Expression>> a,
-    std::optional<language::gc::Ptr<Expression>> b);
+    Compilation& compilation,
+    language::ValueOrError<language::gc::Ptr<Expression>> a,
+    language::ValueOrError<language::gc::Ptr<Expression>> b);
 
 }  // namespace afc::vm
 

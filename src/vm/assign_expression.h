@@ -21,14 +21,14 @@ language::ValueOrError<Type> DefineUninitializedVariable(
     std::optional<Type> default_type);
 
 // Declares a new variable of a given type and gives it an initial value.
-std::optional<language::gc::Root<Expression>> NewDefineExpression(
+language::ValueOrError<language::gc::Root<Expression>> NewDefineExpression(
     Compilation& compilation, Identifier type, Identifier symbol,
-    std::optional<language::gc::Root<Expression>> value);
+    language::ValueOrError<language::gc::Ptr<Expression>> value);
 
 // Returns an expression that assigns a given value to an existing variable.
-std::optional<language::gc::Root<Expression>> NewAssignExpression(
+language::ValueOrError<language::gc::Root<Expression>> NewAssignExpression(
     Compilation& compilation, Identifier symbol,
-    std::optional<language::gc::Root<Expression>> value);
+    language::ValueOrError<language::gc::Ptr<Expression>> value);
 
 }  // namespace afc::vm
 

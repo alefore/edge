@@ -6,8 +6,8 @@
 #include "src/vm/expression.h"
 
 namespace afc::vm {
-std::optional<language::gc::Root<Expression>> NewReturnExpression(
-    std::optional<language::gc::Ptr<Expression>> expr);
+language::ValueOrError<language::gc::Root<Expression>> NewReturnExpression(
+    language::ValueOrError<language::gc::Ptr<Expression>> expr);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_RETURN_EXPRESSION_H__

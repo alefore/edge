@@ -105,37 +105,29 @@ class WhileExpression : public Expression {
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> NewWhileExpression(
-    Compilation& compilation, std::optional<gc::Root<Expression>> condition,
-    std::optional<gc::Root<Expression>> body) {
-  if (condition == std::nullopt || body == std::nullopt)
-    return Error{LazyString{L"Input missing."}};
-  if (!condition.value()->IsBool()) {
-    Error error{LazyString{L"Expected bool value for condition of \"while\" "
-                           L"loop but found: "} +
-                TypesToString(condition.value()->Types()) + LazyString{L"."}};
-    compilation.AddError(error);
-    return error;
-  }
+    Compilation& compilation,
+    ValueOrError<gc::Ptr<Expression>> condition_or_error,
+    ValueOrError<gc::Ptr<Expression>> body_or_error) {
+  DECLARE_OR_RETURN(gc::Ptr<Expression> condition, condition_or_error)
+  DECLARE_OR_RETURN(gc::Ptr<Expression> body, body_or_error)
+  if (!condition->IsBool())
+    return compilation.AddError(
+        Error{LazyString{L"Expected bool value for condition of \"while\" "
+                         L"loop but found: "} +
+              TypesToString(condition->Types()) + LazyString{L"."}});
 
-  return WhileExpression::New(std::move(condition)->ptr(),
-                              std::move(body)->ptr());
+  return WhileExpression::New(std::move(condition), std::move(body));
 }
 
 ValueOrError<gc::Root<Expression>> NewForExpression(
-    Compilation& compilation, std::optional<gc::Root<Expression>> init,
-    std::optional<gc::Root<Expression>> condition,
-    std::optional<gc::Root<Expression>> update,
-    std::optional<gc::Root<Expression>> body) {
-  if (init == std::nullopt || condition == std::nullopt ||
-      update == std::nullopt || body == std::nullopt)
-    return Error{LazyString{L"Input missing."}};
-  ASSIGN_OR_RETURN(
-      language::gc::Root<Expression> body_expression,
-      NewAppendExpression(compilation, body->ptr(), update->ptr()));
-  ASSIGN_OR_RETURN(gc::Root<Expression> while_expression,
-                   NewWhileExpression(compilation, std::move(condition),
-                                      std::move(body_expression)));
-  return NewAppendExpression(compilation, std::move(init)->ptr(),
-                             std::move(while_expression).ptr());
+    Compilation& compilation, ValueOrError<gc::Ptr<Expression>> init,
+    ValueOrError<gc::Ptr<Expression>> condition,
+    ValueOrError<gc::Ptr<Expression>> update,
+    ValueOrError<gc::Ptr<Expression>> body) {
+  return NewAppendExpression(
+      compilation, std::move(init),
+      ToPtr(NewWhileExpression(
+          compilation, std::move(condition),
+          ToPtr(NewAppendExpression(compilation, body, update)))));
 }
 }  // namespace afc::vm
