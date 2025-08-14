@@ -96,7 +96,7 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
                      weak_status, ToLazyString(path), error,
                      ErrorHandling::kLogToStatus));
                }},
-      vm::CompileFile(path, environment_.pool(), environment_.ToRoot()));
+      vm::CompileFile(path, environment_));
 }
 
 ExecutionContext::CompilationResult::CompilationResult(
@@ -171,7 +171,7 @@ ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
                      weak_status, LazyString{L"🐜Compilation error"}, error,
                      error_handling);
                }},
-      afc::vm::CompileString(code, sub_environment.pool(), sub_environment));
+      afc::vm::CompileString(code, sub_environment.ptr()));
 }
 
 ValueOrError<gc::Root<ExecutionContext::CompilationResult>>

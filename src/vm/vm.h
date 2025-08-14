@@ -15,12 +15,11 @@
 
 namespace afc::vm {
 language::ValueOrError<language::gc::Root<Expression>> CompileFile(
-    infrastructure::Path path, language::gc::Pool& pool,
-    language::gc::Root<Environment> environment);
+    infrastructure::Path path, language::gc::Ptr<Environment> environment);
 
 language::ValueOrError<language::gc::Root<Expression>> CompileString(
-    const language::lazy_string::LazyString& str, language::gc::Pool& pool,
-    language::gc::Root<Environment> environment);
+    const language::lazy_string::LazyString& str,
+    language::gc::Ptr<Environment> environment);
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_VM_H__

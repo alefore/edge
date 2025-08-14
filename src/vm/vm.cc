@@ -628,16 +628,18 @@ ValueOrError<gc::Root<Expression>> ResultsFromCompilation(
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> CompileFile(
-    Path path, gc::Pool& pool, gc::Root<Environment> environment) {
+    Path path, gc::Ptr<Environment> environment) {
   TRACK_OPERATION(vm_CompileFile);
-  Compilation compilation(pool, std::move(environment));
+  gc::Pool& pool = environment.pool();
+  Compilation compilation(pool, environment.ToRoot());
   CompileFile(path, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
 }
 
 ValueOrError<gc::Root<Expression>> CompileString(
-    const LazyString& str, gc::Pool& pool, gc::Root<Environment> environment) {
-  Compilation compilation(pool, std::move(environment));
+    const LazyString& str, gc::Ptr<Environment> environment) {
+  gc::Pool& pool = environment.pool();
+  Compilation compilation(pool, environment.ToRoot());
   compilation.PushSource(std::nullopt);
   LineSequence::BreakLines(str).EveryLine(
       [&compilation, parser = GetParser(compilation)](LineNumber,
