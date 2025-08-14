@@ -1,8 +1,8 @@
 #include "src/buffer_syntax_parser.h"
 
-#include "src/cpp_parse_tree.h"
 #include "src/language/safe_types.h"
 #include "src/parse_tree.h"
+#include "src/parsers/cpp.h"
 #include "src/parsers/csv.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
@@ -26,9 +26,9 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
       data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
           options.symbol_characters, options.typos_set, NewNullTreeParser()));
     } else if (options.parser_name == ParserId::Cpp()) {
-      data.tree_parser =
-          NewCppTreeParser(options.language_keywords, options.typos_set,
-                           options.identifier_behavior);
+      data.tree_parser = parsers::NewCppTreeParser(options.language_keywords,
+                                                   options.typos_set,
+                                                   options.identifier_behavior);
     } else if (options.parser_name == ParserId::Diff()) {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == ParserId::Markdown()) {

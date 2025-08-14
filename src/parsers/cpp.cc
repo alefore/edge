@@ -1,4 +1,4 @@
-#include "src/cpp_parse_tree.h"
+#include "src/parsers/cpp.h"
 
 #include <glog/logging.h>
 
@@ -33,7 +33,7 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
-namespace afc::editor {
+namespace afc::editor::parsers {
 
 namespace {
 enum State {
@@ -346,4 +346,4 @@ NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
                                           identifier_behavior);
 }
 
-}  // namespace afc::editor
+}  // namespace afc::editor::parsers

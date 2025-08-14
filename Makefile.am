@@ -56,8 +56,6 @@ src/columns_vector.cc \
 src/columns_vector.h \
 src/command_argument_mode.h \
 src/cpp_command.cc \
-src/cpp_parse_tree.cc \
-src/cpp_parse_tree.h \
 src/command.cc \
 src/command.h \
 src/command_mode.cc \
@@ -269,6 +267,8 @@ src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \
 src/parse_tree.h \
+src/parsers/cpp.cc \
+src/parsers/cpp.h \
 src/parsers/csv.cc \
 src/parsers/csv.h \
 src/parsers/diff.cc \
