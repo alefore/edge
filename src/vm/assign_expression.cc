@@ -71,30 +71,28 @@ class AssignExpression : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
     return trampoline.Bounce(value_, type)
-        .Transform(
-            [&trampoline, symbol = symbol_,
-             assignment_type = assignment_type_](EvaluationOutput value_output)
-                -> language::ValueOrError<EvaluationOutput> {
-              switch (value_output.type) {
-                case EvaluationOutput::OutputType::kReturn:
-                  return Success(std::move(value_output));
-                case EvaluationOutput::OutputType::kContinue:
-                  DVLOG(3) << "Setting value for: " << symbol;
-                  DVLOG(4) << "Value: " << value_output.value.ptr().value();
-                  if (assignment_type == AssignmentType::kDefine) {
-                    trampoline.environment().ptr()->Define(symbol,
-                                                           value_output.value);
-                  } else {
-                    trampoline.environment().ptr()->Assign(symbol,
-                                                           value_output.value);
-                  }
-                  return Success(
-                      EvaluationOutput::New(std::move(value_output.value)));
+        .Transform([&trampoline, symbol = symbol_,
+                    assignment_type =
+                        assignment_type_](EvaluationOutput value_output)
+                       -> language::ValueOrError<EvaluationOutput> {
+          switch (value_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+              return Success(std::move(value_output));
+            case EvaluationOutput::OutputType::kContinue:
+              DVLOG(3) << "Setting value for: " << symbol;
+              DVLOG(4) << "Value: " << value_output.value.ptr().value();
+              if (assignment_type == AssignmentType::kDefine) {
+                trampoline.environment()->Define(symbol, value_output.value);
+              } else {
+                trampoline.environment()->Assign(symbol, value_output.value);
               }
-              language::Error error{LazyString{L"Unhandled OutputType case."}};
-              LOG(FATAL) << error;
-              return error;
-            });
+              return Success(
+                  EvaluationOutput::New(std::move(value_output.value)));
+          }
+          language::Error error{LazyString{L"Unhandled OutputType case."}};
+          LOG(FATAL) << error;
+          return error;
+        });
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()

@@ -84,7 +84,7 @@ class LambdaExpression : public Expression {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
     return futures::Past(Success(EvaluationOutput::New(promotion_function(
-        BuildValue(trampoline.pool(), trampoline.environment())))));
+        BuildValue(trampoline.pool(), trampoline.environment().ToRoot())))));
   }
 
   gc::Root<Value> BuildValue(gc::Pool& pool,
@@ -105,11 +105,9 @@ class LambdaExpression : public Expression {
                   .ptr());
           gc::Root<Environment> environment =
               Environment::New(parent_environment);
-          for (size_t i = 0; i < args.size(); i++) {
-            environment.ptr()->Define(argument_names->at(i),
-                                      std::move(args.at(i)));
-          }
-          trampoline.SetEnvironment(environment);
+          for (size_t i = 0; i < args.size(); i++)
+            environment->Define(argument_names->at(i), std::move(args.at(i)));
+          trampoline.SetEnvironment(std::move(environment).ptr());
           return trampoline.Bounce(body, body->Types()[0])
               .Transform([original_trampoline, &trampoline, promotion_function](
                              EvaluationOutput body_output) mutable {

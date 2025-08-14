@@ -62,15 +62,15 @@ const bool tests_registration = tests::Register(
                                      CHECK_EQ(b, true);
                                      return Number::FromInt64(4);
                                    }));
-               Trampoline trampoline(Trampoline::Options{
-                   .pool = pool,
-                   .environment = NewDefaultEnvironment(pool),
-                   .yield_callback = nullptr});
+               gc::Root<Trampoline> trampoline =
+                   Trampoline::New(Trampoline::Options{
+                       .environment = NewDefaultEnvironment(pool).ptr(),
+                       .yield_callback = nullptr});
                futures::ValueOrError<gc::Root<Value>> output =
                    promoted_function.ptr()->RunFunction(
                        {Value::NewString(pool, LazyString{L"alejo"}),
                         Value::NewBool(pool, true)},
-                       trampoline);
+                       trampoline.value());
                CHECK(ValueOrDie(output.Get().value())
                          .ptr()
                          ->get_number()

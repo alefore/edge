@@ -877,15 +877,14 @@ bool vector_tests_register = afc::tests::Register(
                 vm::Namespace{},
                 Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorBuffer")});
         CHECK_EQ(factory.size(), 1ul);
-        Trampoline trampoline{Trampoline::Options{
-            .pool = editor->gc_pool(),
-            .environment = editor->execution_context()->environment().ToRoot(),
+        gc::Root<Trampoline> trampoline = Trampoline::New(Trampoline::Options{
+            .environment = editor->execution_context()->environment(),
             .yield_callback = [](language::OnceOnlyFunction<void()>) {
               LOG(FATAL) << "Unexpected yield.";
-            }}};
+            }});
         gc::Root<vm::Value> vector_buffer =
             ValueOrDie(std::get<gc::Root<vm::Value>>(factory[0].value)
-                           ->RunFunction({}, trampoline)
+                           ->RunFunction({}, trampoline.value())
                            .Get()
                            .value());
         LOG(INFO) << "Convert.";

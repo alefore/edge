@@ -70,8 +70,7 @@ class VariableLookup : public Expression {
           return Error{LazyString{L"Unexpected: variable value is null: "} +
                        ToLazyString(symbol_) + LazyString{L"."}};
         },
-        trampoline.environment().ptr()->Lookup(symbol_namespace_, symbol_,
-                                               type)));
+        trampoline.environment()->Lookup(symbol_namespace_, symbol_, type)));
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()

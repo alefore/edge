@@ -54,20 +54,20 @@ class NamespaceExpression : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
     language::gc::Root<Environment> original_environment =
-        trampoline.environment();
+        trampoline.environment().ToRoot();
     std::optional<language::gc::Root<Environment>> namespace_environment =
         Environment::LookupNamespace(original_environment.ptr(), namespace_);
     CHECK(namespace_environment.has_value());
-    trampoline.SetEnvironment(*namespace_environment);
+    trampoline.SetEnvironment(namespace_environment->ptr());
 
     return OnError(trampoline.Bounce(body_, type)
                        .Transform([&trampoline, original_environment](
                                       EvaluationOutput output) {
-                         trampoline.SetEnvironment(original_environment);
+                         trampoline.SetEnvironment(original_environment.ptr());
                          return Success(std::move(output));
                        }),
                    [&trampoline, original_environment](Error error) {
-                     trampoline.SetEnvironment(original_environment);
+                     trampoline.SetEnvironment(original_environment.ptr());
                      return futures::Past(error);
                    });
   }

@@ -9,6 +9,7 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::Success;
@@ -18,10 +19,16 @@ using afc::language::lazy_string::LazyString;
 namespace afc::vm {
 using ::operator<<;
 
-Trampoline::Trampoline(Options options)
-    : pool_(NonNull<gc::Pool*>::AddressOf(options.pool)),
-      environment_(std::move(options.environment)),
-      stack_(Stack::New(pool_.value())),
+/* static */ gc::Root<Trampoline> Trampoline::New(Options options) {
+  gc::Pool& pool = options.environment.pool();
+  return pool.NewRoot(MakeNonNullUnique<Trampoline>(
+      ConstructorAccessTag{}, std::move(options), Stack::New(pool).ptr()));
+}
+
+Trampoline::Trampoline(ConstructorAccessTag, Options options,
+                       gc::Ptr<Stack> stack)
+    : environment_(std::move(options.environment)),
+      stack_(std::move(stack)),
       yield_callback_(std::move(options.yield_callback)) {}
 
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
@@ -44,17 +51,22 @@ futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
   return std::move(output.value);
 }
 
-void Trampoline::SetEnvironment(gc::Root<Environment> environment) {
+void Trampoline::SetEnvironment(gc::Ptr<Environment> environment) {
   environment_ = std::move(environment);
 }
 
-const gc::Root<Environment>& Trampoline::environment() const {
+const gc::Ptr<Environment>& Trampoline::environment() const {
   return environment_;
 }
 
 Stack& Trampoline::stack() { return stack_.value(); }
 
-gc::Pool& Trampoline::pool() const { return pool_.value(); }
+gc::Pool& Trampoline::pool() const { return environment_.pool(); }
+
+std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+Trampoline::Expand() const {
+  return {environment_.object_metadata(), stack_.object_metadata()};
+}
 
 bool Expression::SupportsType(const Type& type) {
   auto types = Types();
@@ -85,12 +97,9 @@ ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 futures::ValueOrError<gc::Root<Value>> Evaluate(
     const gc::Ptr<Expression>& expr, const gc::Ptr<Environment>& environment,
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
-  // TODO(2025-08-14, trivial): Change `trampoline` to a gc-managed object.
-  NonNull<std::shared_ptr<Trampoline>> trampoline =
-      MakeNonNullShared<Trampoline>(
-          Trampoline::Options{.pool = expr.pool(),
-                              .environment = std::move(environment).ToRoot(),
-                              .yield_callback = std::move(yield_callback)});
+  gc::Root<Trampoline> trampoline = Trampoline::New(
+      Trampoline::Options{.environment = std::move(environment),
+                          .yield_callback = std::move(yield_callback)});
   return OnError(trampoline->Bounce(expr, expr->Types()[0])
                      .Transform([trampoline](EvaluationOutput value)
                                     -> language::ValueOrError<gc::Root<Value>> {

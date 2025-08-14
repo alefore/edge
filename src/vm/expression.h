@@ -21,31 +21,34 @@ struct EvaluationOutput;
 class Expression;
 
 class Trampoline {
+  struct ConstructorAccessTag {};
+
   // We keep it by pointer (rather than by ref) to enable the assignment
   // operator.
-  language::NonNull<language::gc::Pool*> pool_;
   std::list<std::wstring> namespace_;
   // Remove `environment_`. Expressions shouldn't be accessing the environment
   // at runtime but, instead, should hold pointers that they obtain during
   // compilation. Of course that requires us to significantly extend
   // Environment.
-  language::gc::Root<Environment> environment_;
-  language::gc::Root<Stack> stack_;
+  language::gc::Ptr<Environment> environment_;
+  language::gc::Ptr<Stack> stack_;
 
   std::function<void(language::OnceOnlyFunction<void()>)> yield_callback_;
   size_t jumps_ = 0;
 
  public:
   struct Options {
-    language::gc::Pool& pool;
-    language::gc::Root<Environment> environment;
+    language::gc::Ptr<Environment> environment;
     std::function<void(language::OnceOnlyFunction<void()>)> yield_callback;
   };
 
-  Trampoline(Options options);
+  static language::gc::Root<Trampoline> New(Options options);
 
-  void SetEnvironment(language::gc::Root<Environment> environment);
-  const language::gc::Root<Environment>& environment() const;
+  Trampoline(ConstructorAccessTag, Options options,
+             language::gc::Ptr<Stack> stack);
+
+  void SetEnvironment(language::gc::Ptr<Environment> environment);
+  const language::gc::Ptr<Environment>& environment() const;
 
   Stack& stack();
 
@@ -58,6 +61,9 @@ class Trampoline {
       const language::gc::Ptr<Expression>& expression, Type expression_type);
 
   language::gc::Pool& pool() const;
+
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const;
 };
 
 class Expression {

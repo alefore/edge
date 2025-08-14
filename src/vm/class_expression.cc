@@ -136,7 +136,7 @@ PossibleError FinishClassDeclaration(
                 [&pool] { return Environment::New(pool); },
                 class_environment.ptr()->parent_environment());
             auto original_environment = trampoline.environment();
-            trampoline.SetEnvironment(instance_environment);
+            trampoline.SetEnvironment(instance_environment.ptr());
             return trampoline
                 .Bounce(constructor_expression.ptr(), types::Void{})
                 .Transform([constructor_expression, original_environment,
