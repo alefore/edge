@@ -82,17 +82,18 @@ class NamespaceExpression : public Expression {
 void StartNamespaceDeclaration(Compilation& compilation,
                                const Identifier& name) {
   compilation.current_namespace.push_back(name);
-  compilation.environment = Environment::NewNamespace(
-      compilation.environment.ptr(), Identifier(name));
+  compilation.environment =
+      Environment::NewNamespace(compilation.environment, Identifier(name))
+          .ptr();
 }
 
 language::ValueOrError<gc::Root<Expression>> NewNamespaceExpression(
     Compilation& compilation, std::optional<gc::Root<Expression>> body_ptr) {
   Namespace current_namespace = compilation.current_namespace;
   compilation.current_namespace.pop_back();
-  CHECK(compilation.environment.ptr()->parent_environment().has_value());
+  CHECK(compilation.environment->parent_environment().has_value());
   compilation.environment =
-      compilation.environment.ptr()->parent_environment()->ToRoot();
+      compilation.environment->parent_environment().value();
   return VisitPointer(
       std::move(body_ptr),
       [&](gc::Root<Expression> body) -> ValueOrError<gc::Root<Expression>> {

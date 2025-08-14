@@ -164,15 +164,15 @@ statement(A) ::= nesting_lbracket statement_list(L) nesting_rbracket. {
 }
 
 nesting_lbracket ::= LBRACKET. {
-  compilation->environment = Environment::New(compilation->environment.ptr());
+  compilation->environment = Environment::New(compilation->environment).ptr();
 }
 
 nesting_rbracket ::= RBRACKET. {
   // This is safe: nesting_rbracket always follows a corresponding
   // nesting_lbracket.
-  CHECK(compilation->environment.ptr()->parent_environment().has_value());
+  CHECK(compilation->environment->parent_environment().has_value());
   compilation->environment =
-      compilation->environment.ptr()->parent_environment()->ToRoot();
+      compilation->environment->parent_environment().value();
 }
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
@@ -343,7 +343,7 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
   std::unique_ptr<std::optional<gc::Root<Value>>> type(TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
-  const Type* type_def = compilation->environment.ptr()->LookupType(
+  const Type* type_def = compilation->environment->LookupType(
       // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
       Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
@@ -370,7 +370,7 @@ non_empty_function_declaration_arguments(OUT) ::=
   if (list == nullptr) {
     OUT = nullptr;
   } else {
-    const Type* type_def = compilation->environment.ptr()->LookupType(
+    const Type* type_def = compilation->environment->LookupType(
         // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
         Identifier(type->value().ptr()->get_symbol()));
     if (type_def == nullptr) {

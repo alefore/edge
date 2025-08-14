@@ -140,7 +140,7 @@ ValueOrError<gc::Root<Expression>> NewVariableLookup(
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
   std::vector<Environment::LookupResult> result =
-      compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol);
+      compilation.environment->PolyLookup(symbol_namespace, symbol);
   if (result.empty()) {
     Error error{LazyString{L"Unknown variable: `" + to_wstring(symbol) + L"`"}};
     compilation.AddError(error);

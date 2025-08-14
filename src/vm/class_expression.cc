@@ -41,7 +41,7 @@ struct Instance {
 void StartClassDeclaration(Compilation& compilation,
                            const types::ObjectName& name) {
   compilation.current_class.push_back(name);
-  compilation.environment = Environment::New(compilation.environment.ptr());
+  compilation.environment = Environment::New(compilation.environment).ptr();
 }
 
 namespace {
@@ -98,11 +98,10 @@ PossibleError FinishClassDeclaration(
   compilation.current_class.pop_back();
   gc::Root<ObjectType> class_object_type = ObjectType::New(pool, class_type);
 
-  gc::Root<Environment> class_environment = compilation.environment;
+  gc::Root<Environment> class_environment = compilation.environment.ToRoot();
   // This is safe because StartClassDeclaration creates a sub-environment.
-  CHECK(class_environment.ptr()->parent_environment().has_value());
-  compilation.environment =
-      class_environment.ptr()->parent_environment()->ToRoot();
+  CHECK(class_environment->parent_environment().has_value());
+  compilation.environment = class_environment->parent_environment().value();
 
   class_environment.ptr()->ForEachNonRecursive(
       [&class_object_type, class_type, &pool](
@@ -121,8 +120,8 @@ PossibleError FinishClassDeclaration(
                 [](UninitializedValue) {}},
             value_optional);
       });
-  compilation.environment.ptr()->DefineType(class_object_type.ptr());
-  compilation.environment.ptr()->Define(
+  compilation.environment->DefineType(class_object_type.ptr());
+  compilation.environment->Define(
       Identifier{NonEmptySingleLine{
           SingleLine{ToLazyString(std::get<types::ObjectName>(class_type))}}},
       Value::NewFunction(

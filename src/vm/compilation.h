@@ -24,6 +24,8 @@ class Environment;
 
 struct Compilation {
  private:
+  struct ConstructorAccessTag {};
+
   struct Source {
     std::optional<infrastructure::Path> path;
     language::text::LineColumn line_column = {};
@@ -37,6 +39,9 @@ struct Compilation {
   std::vector<StackFrameHeader> stack_headers_ = {};
 
  public:
+  static language::gc::Root<Compilation> New(
+      language::gc::Ptr<Environment> environment);
+
   size_t numbers_precision = 5;
 
   language::gc::Pool& pool;
@@ -45,11 +50,11 @@ struct Compilation {
 
   Namespace current_namespace;
   std::vector<Type> current_class = {};
-  language::gc::Root<Environment> environment;
+  language::gc::Ptr<Environment> environment;
   language::lazy_string::LazyString last_token;
 
-  Compilation(language::gc::Pool& input_pool,
-              language::gc::Root<Environment> input_environment);
+  Compilation(ConstructorAccessTag,
+              language::gc::Ptr<Environment> input_environment);
 
   // Enable move construction/assignment.
   Compilation(Compilation&&) = default;
@@ -82,6 +87,9 @@ struct Compilation {
   void IncrementLine();
   void SetSourceColumnInLine(language::lazy_string::ColumnNumber column);
   std::optional<infrastructure::Path> current_source_path() const;
+
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const;
 };
 
 }  // namespace afc::vm

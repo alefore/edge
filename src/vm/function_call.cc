@@ -246,7 +246,7 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
     types::ObjectName object_type_name = NameForType(type);
 
     const ObjectType* object_type =
-        compilation.environment.ptr()->LookupObjectType(object_type_name);
+        compilation.environment->LookupObjectType(object_type_name);
 
     if (object_type == nullptr) {
       errors.push_back(Error{LazyString{L"Unknown type: "} +

@@ -136,7 +136,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
     std::unique_ptr<std::vector<std::pair<Type, Identifier>>> args) {
   if (args == nullptr) return nullptr;
   const Type* return_type_def =
-      compilation.environment.ptr()->LookupType(return_type);
+      compilation.environment->LookupType(return_type);
   if (return_type_def == nullptr) {
     compilation.AddError(Error{LazyString{L"Unknown return type: \""} +
                                return_type.read().read() + LazyString{L"\""}});
@@ -168,7 +168,7 @@ UserFunction::UserFunction(Compilation& compilation,
               })))) {
   if (name_.has_value())
     compilation_.environment->DefineUninitialized(name_.value(), type_);
-  compilation_.environment = Environment::New(compilation_.environment.ptr());
+  compilation_.environment = Environment::New(compilation_.environment).ptr();
   for (const std::pair<Type, Identifier>& arg : args)
     compilation_.environment->DefineUninitialized(arg.second, arg.first);
   compilation.PushStackFrameHeader(
@@ -181,7 +181,7 @@ UserFunction::UserFunction(Compilation& compilation,
 
 gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
   if (std::optional<gc::Ptr<Environment>> parent_environment =
-          compilation.environment.ptr()->parent_environment();
+          compilation.environment->parent_environment();
       parent_environment.has_value())
     return parent_environment->ToRoot();
   return Environment::New(compilation.pool);
@@ -192,8 +192,7 @@ ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
   DECLARE_OR_RETURN(
       gc::Root<LambdaExpression> expression,
       LambdaExpression::New(type_, argument_names_, std::move(body)));
-  return expression->BuildValue(compilation_.pool,
-                                compilation_.environment.ptr());
+  return expression->BuildValue(compilation_.pool, compilation_.environment);
 }
 
 ValueOrError<gc::Root<Expression>> UserFunction::BuildExpression(
@@ -205,15 +204,14 @@ ValueOrError<gc::Root<Expression>> UserFunction::BuildExpression(
 }
 
 void UserFunction::Abort() {
-  if (name_.has_value())
-    compilation_.environment.ptr()->Remove(name_.value(), type_);
+  if (name_.has_value()) compilation_.environment->Remove(name_.value(), type_);
 }
 
 const std::optional<Identifier>& UserFunction::name() const { return name_; }
 const Type& UserFunction::type() const { return type_; }
 
 UserFunction::~UserFunction() {
-  compilation_.environment = GetOrCreateParentEnvironment(compilation_);
+  compilation_.environment = GetOrCreateParentEnvironment(compilation_).ptr();
   compilation_.PopStackFrameHeader();
 }
 }  // namespace afc::vm

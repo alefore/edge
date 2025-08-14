@@ -616,10 +616,9 @@ std::unique_ptr<void, std::function<void(void*)>> GetParser(
 }
 
 ValueOrError<gc::Root<Expression>> ResultsFromCompilation(
-    Compilation compilation) {
-  if (!compilation.errors().empty()) {
+    Compilation& compilation) {
+  if (!compilation.errors().empty())
     return MergeErrors(compilation.errors(), L", ");
-  }
   return VisitOptional(
       [](gc::Root<Expression> expr) { return Success(std::move(expr)); },
       []() { return Error{LazyString{L"Unexpected empty expression."}}; },
@@ -630,27 +629,25 @@ ValueOrError<gc::Root<Expression>> ResultsFromCompilation(
 ValueOrError<gc::Root<Expression>> CompileFile(
     Path path, gc::Ptr<Environment> environment) {
   TRACK_OPERATION(vm_CompileFile);
-  gc::Pool& pool = environment.pool();
-  Compilation compilation(pool, environment.ToRoot());
-  CompileFile(path, compilation, GetParser(compilation).get());
-  return ResultsFromCompilation(std::move(compilation));
+  gc::Root<Compilation> compilation = Compilation::New(environment);
+  CompileFile(path, compilation.value(), GetParser(compilation.value()).get());
+  return ResultsFromCompilation(compilation.value());
 }
 
 ValueOrError<gc::Root<Expression>> CompileString(
     const LazyString& str, gc::Ptr<Environment> environment) {
-  gc::Pool& pool = environment.pool();
-  Compilation compilation(pool, environment.ToRoot());
-  compilation.PushSource(std::nullopt);
+  gc::Root<Compilation> compilation = Compilation::New(environment);
+  compilation->PushSource(std::nullopt);
   LineSequence::BreakLines(str).EveryLine(
-      [&compilation, parser = GetParser(compilation)](LineNumber,
-                                                      const Line& line) {
+      [&compilation, parser = GetParser(compilation.value())](
+          LineNumber, const Line& line) {
         VLOG(4) << "Compiling line: [" << line << "]";
-        CompileLine(compilation, parser.get(), line.contents());
-        compilation.IncrementLine();
-        return compilation.errors().empty();
+        CompileLine(compilation.value(), parser.get(), line.contents());
+        compilation->IncrementLine();
+        return compilation->errors().empty();
       });
-  compilation.PopSource();
-  return ResultsFromCompilation(std::move(compilation));
+  compilation->PopSource();
+  return ResultsFromCompilation(compilation.value());
 }
 
 }  // namespace afc::vm

@@ -231,7 +231,7 @@ ValueOrError<gc::Root<Expression>> NewAssignExpression(
 
   static const vm::Namespace kEmptyNamespace;
   std::vector<Environment::LookupResult> variables =
-      compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol);
+      compilation.environment->PolyLookup(kEmptyNamespace, symbol);
   if (variables.empty())
     return compilation.AddError(Error{LazyString{L"Variable not found: \""} +
                                       ToLazyString(symbol) +

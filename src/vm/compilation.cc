@@ -2,6 +2,10 @@
 
 #include "src/language/lazy_string/lazy_string.h"
 
+namespace gc = afc::language::gc;
+
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -10,11 +14,17 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
 namespace afc::vm {
-using language::Error;
-namespace gc = language::gc;
-Compilation::Compilation(gc::Pool& input_pool,
-                         gc::Root<Environment> input_environment)
-    : pool(input_pool), environment(std::move(input_environment)) {}
+/* static */ gc::Root<Compilation> Compilation::New(
+    gc::Ptr<Environment> environment) {
+  gc::Pool& pool = environment.pool();
+  return pool.NewRoot(MakeNonNullUnique<Compilation>(ConstructorAccessTag{},
+                                                     std::move(environment)));
+}
+
+Compilation::Compilation(ConstructorAccessTag,
+                         gc::Ptr<Environment> input_environment)
+    : pool(input_environment.pool()),
+      environment(std::move(input_environment)) {}
 
 void Compilation::PushStackFrameHeader(StackFrameHeader header) {
   stack_headers_.push_back(std::move(header));
@@ -78,6 +88,11 @@ void Compilation::SetSourceColumnInLine(ColumnNumber column) {
 std::optional<infrastructure::Path> Compilation::current_source_path() const {
   CHECK(!source_.empty());
   return source_.back().path;
+}
+
+std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>
+Compilation::Expand() const {
+  return {environment.object_metadata()};
 }
 
 }  // namespace afc::vm
