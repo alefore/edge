@@ -1238,11 +1238,10 @@ void OpenBuffer::AppendToLastLine(Line line) {
                        MutableLineSequence::ObserverBehavior::kHide);
 }
 
-// TODO(2025-08-14, trivial): Receive environment as gc::Ptr.
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
-    const gc::Ptr<Expression>& expr, gc::Root<Environment> environment) {
+    const gc::Ptr<Expression>& expr, const gc::Ptr<Environment>& environment) {
   // TODO(2025-05-26, trivial): Replace with a method from execution_context.
-  return Evaluate(expr, environment.ptr(),
+  return Evaluate(expr, environment,
                   [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
                       OnceOnlyFunction<void()> callback) {
                     work_queue->Schedule(

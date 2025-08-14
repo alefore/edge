@@ -318,7 +318,7 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
         Error{LazyString{L"Unable to compile (type mismatch)."}});
   }
   return buffer.EvaluateExpression(parsed_command.expression.ptr(),
-                                   buffer.environment().ToRoot());
+                                   buffer.environment());
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(EditorState& editor_state,

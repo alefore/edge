@@ -818,7 +818,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                            .ptr())
                                        .ptr()})
                                   .ptr(),
-                              buffer->environment().ToRoot())
+                              buffer->environment())
                           .Transform([](gc::Root<vm::Value> value) {
                             std::ostringstream oss;
                             oss << value.ptr().value();

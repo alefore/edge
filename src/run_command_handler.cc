@@ -565,9 +565,8 @@ class ForkEditorCommand : public Command {
           .context = ColorizePromptOptions::ContextClear()});
     }
     return prompt_state.original_buffer.ptr()
-        ->EvaluateExpression(
-            context_command_expression.ptr(),
-            prompt_state.original_buffer.ptr()->environment().ToRoot())
+        ->EvaluateExpression(context_command_expression.ptr(),
+                             prompt_state.original_buffer.ptr()->environment())
         .Transform([&prompt_state,
                     &editor](gc::Root<vm::Value> context_command_output)
                        -> ValueOrError<ColorizePromptOptions> {

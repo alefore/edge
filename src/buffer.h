@@ -382,10 +382,9 @@ class OpenBuffer {
 
   const language::gc::Ptr<vm::Environment>& environment() const;
 
-  // `expr` can be deleted as soon as we return.
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateExpression(
       const language::gc::Ptr<vm::Expression>& expr,
-      language::gc::Root<vm::Environment> environment);
+      const language::gc::Ptr<vm::Environment>& environment);
 
   language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue() const;
 
