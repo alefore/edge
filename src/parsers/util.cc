@@ -35,20 +35,19 @@ size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {
 }
 }  // namespace
 
-void ParseDoubleQuotedString(ParseData* result,
-                             LineModifierSet string_modifiers,
-                             std::unordered_set<ParseTreeProperty> properties) {
+void ParseQuotedString(ParseData* result, wchar_t quote_char,
+                       LineModifierSet string_modifiers,
+                       std::unordered_set<ParseTreeProperty> properties) {
   LineColumn original_position = result->position();
   CHECK_GT(original_position.column, ColumnNumber(0));
 
   Seek seek = result->seek();
-  while (seek.read() != L'"' && seek.read() != L'\n' && !seek.AtRangeEnd()) {
-    if (seek.read() == '\\') {
-      seek.Once();
-    }
+  while (seek.read() != quote_char && seek.read() != L'\n' &&
+         !seek.AtRangeEnd()) {
+    if (seek.read() == '\\') seek.Once();
     seek.Once();
   }
-  if (seek.read() == L'"') {
+  if (seek.read() == quote_char) {
     LineColumn final_quote_position = result->position();
     CHECK_EQ(result->position().line, original_position.line);
 

@@ -55,9 +55,9 @@ class CsvParser : public LineOrientedTreeParser {
     switch (seek.read()) {
       case L'\"':
         seek.Once();
-        ParseDoubleQuotedString(result, modifiers,
-                                {ParseTreeProperty::TableCell(csv_column),
-                                 ParseTreeProperty::StringValue()});
+        ParseQuotedString(result, L'"', modifiers,
+                          {ParseTreeProperty::TableCell(csv_column),
+                           ParseTreeProperty::StringValue()});
         break;
       default:
         if (isdigit(seek.read())) {

@@ -6,9 +6,9 @@
 
 namespace afc::editor::parsers {
 // `result` should be after the initial double-quoted string.
-void ParseDoubleQuotedString(
-    ParseData* result, infrastructure::screen::LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreeProperty> properties);
+void ParseQuotedString(ParseData* result, wchar_t quote_char,
+                       infrastructure::screen::LineModifierSet string_modifiers,
+                       std::unordered_set<ParseTreeProperty> properties);
 
 // `result` should be after the initial digit.
 void ParseNumber(ParseData* result,

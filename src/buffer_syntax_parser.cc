@@ -6,6 +6,7 @@
 #include "src/parsers/csv.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
+#include "src/parsers/py.h"
 
 using afc::futures::DeleteNotification;
 using afc::language::MakeNonNullShared;
@@ -36,6 +37,10 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
           options.symbol_characters, options.dictionary);
     } else if (options.parser_name == ParserId::Csv()) {
       data.tree_parser = parsers::NewCsvTreeParser();
+    } else if (options.parser_name == ParserId::Py()) {
+      data.tree_parser =
+          parsers::NewPyTreeParser(options.language_keywords, options.typos_set,
+                                   options.identifier_behavior);
     } else {
       data.tree_parser = NewNullTreeParser();
     }

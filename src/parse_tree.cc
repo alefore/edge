@@ -58,24 +58,34 @@ namespace afc::editor {
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"text")};
   return *output;
 }
+
 /* static */ const ParserId& ParserId::Cpp() {
   static const ParserId* output =
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cpp")};
   return *output;
 }
+
 /* static */ const ParserId& ParserId::Diff() {
   static const ParserId* output =
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"diff")};
   return *output;
 }
+
 /* static */ const ParserId& ParserId::Markdown() {
   static const ParserId* output =
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"md")};
   return *output;
 }
+
 /* static */ const ParserId& ParserId::Csv() {
   static const ParserId* output =
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"csv")};
+  return *output;
+}
+
+/* static */ const ParserId& ParserId::Py() {
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"py")};
   return *output;
 }
 

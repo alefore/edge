@@ -275,6 +275,8 @@ src/parsers/diff.cc \
 src/parsers/diff.h \
 src/parsers/markdown.cc \
 src/parsers/markdown.h \
+src/parsers/py.cc \
+src/parsers/py.h \
 src/parsers/util.cc \
 src/parsers/util.h \
 src/path_flags.cc \

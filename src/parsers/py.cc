@@ -1,4 +1,4 @@
-#include "src/parsers/cpp.h"
+#include "src/parsers/py.h"
 
 #include <glog/logging.h>
 
@@ -14,7 +14,6 @@
 
 namespace container = afc::language::container;
 
-using afc::editor::parsers::ParseQuotedString;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::Error;
@@ -37,18 +36,15 @@ namespace afc::editor::parsers {
 
 namespace {
 enum State {
-  DEFAULT_AT_START_OF_LINE,
   DEFAULT,
-  AFTER_SLASH,
-  COMMENT,
+  AFTER_HASH,
+  IN_TRIPLE_SINGLE_QUOTE_STRING,
+  IN_TRIPLE_DOUBLE_QUOTE_STRING,
 
-  BRACKET_DEFAULT_AT_START_OF_LINE,
+  // States for matching parentheses/brackets/braces
   BRACKET_DEFAULT,
-  BRACKET_AFTER_SLASH,
-
-  PARENS_DEFAULT_AT_START_OF_LINE,
   PARENS_DEFAULT,
-  PARENS_AFTER_SLASH,
+  BRACE_DEFAULT,
 };
 
 static const std::unordered_set<wchar_t> identifier_chars =
@@ -68,16 +64,16 @@ bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
                     NonEmptySingleLine::New(pattern));
 }
 
-class CppTreeParser : public parsers::LineOrientedTreeParser {
+class PyTreeParser : public parsers::LineOrientedTreeParser {
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;
   const std::unordered_set<NonEmptySingleLine> keywords_;
   const std::unordered_set<NonEmptySingleLine> typos_;
   const IdentifierBehavior identifier_behavior_;
 
  public:
-  CppTreeParser(std::unordered_set<NonEmptySingleLine> keywords,
-                std::unordered_set<NonEmptySingleLine> typos,
-                IdentifierBehavior identifier_behavior)
+  PyTreeParser(std::unordered_set<NonEmptySingleLine> keywords,
+               std::unordered_set<NonEmptySingleLine> typos,
+               IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
             LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"},
             typos, NewNullTreeParser())),
@@ -92,130 +88,51 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       LineColumn original_position = result->position();  // For validation.
       done = result->seek().read() == L'\n';
       switch (result->state()) {
-        case DEFAULT_AT_START_OF_LINE:
-          DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH, true,
-                       result);
-          break;
-
-        case BRACKET_DEFAULT_AT_START_OF_LINE:
-          DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, true, result);
-          break;
-
-        case PARENS_DEFAULT_AT_START_OF_LINE:
-          DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, true, result);
-          break;
-
         case DEFAULT:
-          DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH, false,
-                       result);
+          DefaultState(DEFAULT, result);
           break;
-
+        case IN_TRIPLE_SINGLE_QUOTE_STRING:
+          InsideTripleQuoteString(L'\'', result);
+          break;
+        case IN_TRIPLE_DOUBLE_QUOTE_STRING:
+          InsideTripleQuoteString(L'"', result);
+          break;
         case BRACKET_DEFAULT:
-          DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, false, result);
+          DefaultState(BRACKET_DEFAULT, result);
           break;
-
         case PARENS_DEFAULT:
-          DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, false, result);
+          DefaultState(PARENS_DEFAULT, result);
           break;
-
-        case AFTER_SLASH:
-          AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, result);
-          break;
-
-        case BRACKET_AFTER_SLASH:
-          AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE, result);
-          break;
-
-        case PARENS_AFTER_SLASH:
-          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, result);
-          break;
-
-        case COMMENT:
-          InsideComment(result);
+        case BRACE_DEFAULT:
+          DefaultState(BRACE_DEFAULT, result);
           break;
       }
-
       CHECK_LE(original_position, result->position());
     }
   }
 
  private:
-  void AfterSlash(State state_default, State state_default_at_start_of_line,
-                  ParseData* result) {
-    auto seek = result->seek();
-    switch (seek.read()) {
-      case '/':
-        result->SetState(state_default_at_start_of_line);
-        CommentToEndOfLine(result);
-        break;
-      case '*':
-        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::kBlue}, {});
-        seek.Once();
-        break;
-      default:
-        result->SetState(state_default);
-    }
-  }
-
-  void CommentToEndOfLine(ParseData* result) {
-    LineColumn original_position = result->position();
-    CHECK_GT(original_position.column, ColumnNumber(0));
-    result->seek().ToEndOfLine();
-    result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
-                           original_position.column,
-                       {LineModifier::kBlue});
-    // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
-  }
-
-  void InsideComment(ParseData* result) {
-    auto seek = result->seek();
-    auto c = seek.read();
-    seek.Once();
-    if (c == '*' && seek.read() == '/') {
-      seek.Once();
-      result->PopBack();
-    }
-  }
-
-  void LiteralCharacter(ParseData* result) {
+  void InsideTripleQuoteString(wchar_t quote_char, ParseData* result) {
     Seek seek = result->seek();
-    ColumnNumberDelta rewind_column(1);
-    auto original_position = result->position();
-    if (seek.read() == '\\') {
+    while (true) {
+      wchar_t c = seek.read();
       seek.Once();
-      ++rewind_column;
+
+      if (c == quote_char) {
+        if (seek.read() == quote_char) {  // Second quote.
+          seek.Once();
+          if (seek.read() == quote_char) {  // Third quote.
+            seek.Once();
+            result->PopBack();
+            return;
+          }
+        }
+      } else if (c == L'\\') {
+        seek.Once();
+      } else if (c == L'\n') {
+        return;
+      }
     }
-
-    seek.Once();  // Skip the character.
-    ++rewind_column;
-
-    if (seek.read() == '\'') {
-      seek.Once();
-      ++rewind_column;
-      result->PushAndPop(rewind_column, {LineModifier::kYellow});
-    } else {
-      result->set_position(original_position);
-      result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
-    }
-  }
-
-  void LiteralString(ParseData* result) {
-    ParseQuotedString(result, L'\"', {LineModifier::kYellow}, {});
-  }
-
-  void PreprocessorDirective(ParseData* result) {
-    LineColumn original_position = result->position();
-    CHECK_GE(original_position.column, ColumnNumber(1));
-    --original_position.column;
-
-    result->seek().ToEndOfLine();
-    CHECK_GT(result->position().column, original_position.column);
-    result->PushAndPop(result->position().column - original_position.column,
-                       {LineModifier::kYellow});
   }
 
   void Identifier(ParseData* result) {
@@ -248,27 +165,22 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     result->PushAndPop(length, std::move(modifiers));
   }
 
-  void DefaultState(State state_default, State state_default_at_start_of_line,
-                    State state_after_slash, bool after_newline,
-                    ParseData* result) {
+  void DefaultState(State current_state, ParseData* result) {
     Seek seek = result->seek();
 
     // The most common transition (but sometimes overriden below).
-    result->SetState(state_default);
+    result->SetState(current_state);
 
     auto c = seek.read();
     seek.Once();
-    if (c == L'\n') {
-      result->SetState(state_default_at_start_of_line);
-      return;
-    }
-    if (c == L'\t' || c == L' ') {
-      return;
-    }
+    if (c == L'\n' || c == L'\t' || c == L' ') return;
 
-    if (after_newline && c == '#') {
-      PreprocessorDirective(result);
-      result->SetState(state_default_at_start_of_line);
+    if (c == '#') {
+      LineColumn original_position = result->position();
+      result->seek().ToEndOfLine();
+      result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
+                             original_position.column,
+                         {LineModifier::kBlue});
       return;
     }
 
@@ -277,31 +189,46 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
-    if (c == '/') {
-      result->SetState(state_after_slash);
+    if (c == L'"' || c == L'\'') {
+      auto position_after_first_quote = result->position();
+      if (seek.read() == c) {
+        seek.Once();
+        if (seek.read() == c) {
+          seek.Once();
+          result->Push(c == L'"' ? IN_TRIPLE_DOUBLE_QUOTE_STRING
+                                 : IN_TRIPLE_SINGLE_QUOTE_STRING,
+                       ColumnNumberDelta(3), {LineModifier::kYellow}, {});
+          return;
+        }
+      }
+      result->set_position(position_after_first_quote);
+      ParseQuotedString(result, c, {LineModifier::kYellow}, {});
       return;
     }
 
-    if (c == L'"') {
-      LiteralString(result);
-      return;
-    }
-
-    if (c == L'\'') {
-      LiteralCharacter(result);
-      return;
-    }
-
-    if (c == L'{' || c == L'(') {
-      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT,
-                   ColumnNumberDelta(1), {}, {});
+    if (c == L'[' || c == L'(' || c == L'{') {
+      State next_state;
+      if (c == L'[')
+        next_state = BRACKET_DEFAULT;
+      else if (c == L'(')
+        next_state = PARENS_DEFAULT;
+      else
+        next_state = BRACE_DEFAULT;
+      result->Push(next_state, ColumnNumberDelta(1), {}, {});
       result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
       return;
     }
 
-    if (c == L'}' || c == ')') {
-      if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
-          (c == L')' && state_default == PARENS_DEFAULT)) {
+    if (c == L']' || c == L')' || c == L'}') {
+      State expected_state;
+      if (c == L']')
+        expected_state = BRACKET_DEFAULT;
+      else if (c == L')')
+        expected_state = PARENS_DEFAULT;
+      else
+        expected_state = BRACE_DEFAULT;
+
+      if (result->state() == expected_state) {
         auto modifiers = HashToModifiers(result->AddAndGetNesting(),
                                          HashToModifiersBold::kSometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
@@ -338,12 +265,12 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 
 }  // namespace
 
-NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
+NonNull<std::unique_ptr<TreeParser>> NewPyTreeParser(
     std::unordered_set<NonEmptySingleLine> keywords,
     std::unordered_set<NonEmptySingleLine> typos,
     IdentifierBehavior identifier_behavior) {
-  return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),
-                                          identifier_behavior);
+  return MakeNonNullUnique<PyTreeParser>(std::move(keywords), std::move(typos),
+                                         identifier_behavior);
 }
 
 }  // namespace afc::editor::parsers

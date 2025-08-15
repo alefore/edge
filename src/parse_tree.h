@@ -33,6 +33,7 @@ class ParserId
   static const ParserId& Diff();
   static const ParserId& Markdown();
   static const ParserId& Csv();
+  static const ParserId& Py();
 };
 
 class ParseTreeProperty
