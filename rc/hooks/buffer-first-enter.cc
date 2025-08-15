@@ -11,6 +11,7 @@
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/lib/strings.cc"
 #include "../editor_commands/prompt-context.cc"
+#include "../editor_commands/py-mode.cc"
 
 // Optimizes the buffer for visualizing a patch (output of a `diff` command).
 void DiffMode() { buffer.set_tree_parser("diff"); }
@@ -34,6 +35,13 @@ void HandleFileTypes(Buffer buffer, string basename, string extension) {
     CppMode(buffer);
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
     buffer.set_completion_model_paths("format/cpp iso-639/en");
+    return;
+  }
+
+  if (extension == "py") {
+    PyMode(buffer);
+    buffer.SetStatus("🔡 Py file (" + extension + ")");
+    buffer.set_completion_model_paths("format/py iso-639/en");
     return;
   }
 
