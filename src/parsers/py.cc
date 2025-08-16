@@ -64,6 +64,36 @@ bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
                     NonEmptySingleLine::New(pattern));
 }
 
+static const std::unordered_set<NonEmptySingleLine>
+    kPythonBuiltinFunctionsAndTypes =
+        container::MaterializeUnorderedSet(std::array<NonEmptySingleLine, 25>{{
+            NonEmptySingleLine{SingleLine{LazyString{L"print"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"len"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"str"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"int"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"list"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"dict"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"set"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"tuple"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"range"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"abs"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"min"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"max"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"sum"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"open"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"bool"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"float"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"object"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"type"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"enumerate"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"zip"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"map"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"filter"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"sorted"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"reversed"}}},
+            NonEmptySingleLine{SingleLine{LazyString{L"__init__"}}},
+        }});
+
 class PyTreeParser : public parsers::LineOrientedTreeParser {
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;
   const std::unordered_set<NonEmptySingleLine> keywords_;
@@ -155,7 +185,9 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
                          .contents()
                          .Substring(original_position.column, length);
     LineModifierSet modifiers;
-    if (Contains(keywords_, str)) {
+    if (Contains(kPythonBuiltinFunctionsAndTypes, str)) {
+      modifiers.insert(LineModifier::kBlue);
+    } else if (Contains(keywords_, str)) {
       modifiers.insert(LineModifier::kCyan);
     } else if (Contains(typos_, str)) {
       modifiers.insert(LineModifier::kRed);
@@ -175,6 +207,24 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     wchar_t c = seek.read();
     seek.Once();
     if (c == L'\n' || c == L'\t' || c == L' ') return;
+
+    if (c == L'@') {
+      LineColumn decorator_name_start_position = result->position();
+
+      static const std::unordered_set<wchar_t> identifier_and_digit_chars =
+          container::MaterializeUnorderedSet(
+              std::array{identifier_chars, digit_chars} |
+              std::ranges::views::join);
+      result->seek().UntilCurrentCharNotIn(identifier_and_digit_chars);
+
+      CHECK_EQ(decorator_name_start_position.line, result->position().line);
+      CHECK_GT(result->position().column, decorator_name_start_position.column);
+      ColumnNumberDelta length =
+          result->position().column - decorator_name_start_position.column;
+
+      result->PushAndPop(length + ColumnNumberDelta(1), {LineModifier::kGreen});
+      return;
+    }
 
     if (c == '#') {
       LineColumn original_position = result->position();
