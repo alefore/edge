@@ -148,7 +148,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
 
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
-    auto length = result->position().column - original_position.column;
+    ColumnNumberDelta length =
+        result->position().column - original_position.column;
     SingleLine str = result->buffer()
                          .at(original_position.line)
                          .contents()
@@ -171,7 +172,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     // The most common transition (but sometimes overriden below).
     result->SetState(current_state);
 
-    auto c = seek.read();
+    wchar_t c = seek.read();
     seek.Once();
     if (c == L'\n' || c == L'\t' || c == L' ') return;
 
@@ -190,7 +191,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (c == L'"' || c == L'\'') {
-      auto position_after_first_quote = result->position();
+      LineColumn position_after_first_quote = result->position();
       if (seek.read() == c) {
         seek.Once();
         if (seek.read() == c) {
@@ -229,8 +230,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
         expected_state = BRACE_DEFAULT;
 
       if (result->state() == expected_state) {
-        auto modifiers = HashToModifiers(result->AddAndGetNesting(),
-                                         HashToModifiersBold::kSometimes);
+        LineModifierSet modifiers = HashToModifiers(
+            result->AddAndGetNesting(), HashToModifiersBold::kSometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
