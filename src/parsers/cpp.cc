@@ -69,16 +69,19 @@ bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
 }
 
 class CppTreeParser : public parsers::LineOrientedTreeParser {
+  const ParserId parser_id_;
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;
   const std::unordered_set<NonEmptySingleLine> keywords_;
   const std::unordered_set<NonEmptySingleLine> typos_;
   const IdentifierBehavior identifier_behavior_;
 
  public:
-  CppTreeParser(std::unordered_set<NonEmptySingleLine> keywords,
+  CppTreeParser(ParserId parser_id,
+                std::unordered_set<NonEmptySingleLine> keywords,
                 std::unordered_set<NonEmptySingleLine> typos,
                 IdentifierBehavior identifier_behavior)
-      : words_parser_(NewWordsTreeParser(
+      : parser_id_(parser_id),
+        words_parser_(NewWordsTreeParser(
             LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"},
             typos, NewNullTreeParser())),
         keywords_(std::move(keywords)),
@@ -266,7 +269,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
-    if (after_newline && c == '#') {
+    if (after_newline && c == '#' && parser_id_ == ParserId::Cpp()) {
       PreprocessorDirective(result);
       result->SetState(state_default_at_start_of_line);
       return;
@@ -339,11 +342,11 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
-    std::unordered_set<NonEmptySingleLine> keywords,
+    ParserId parser_id, std::unordered_set<NonEmptySingleLine> keywords,
     std::unordered_set<NonEmptySingleLine> typos,
     IdentifierBehavior identifier_behavior) {
-  return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),
-                                          identifier_behavior);
+  return MakeNonNullUnique<CppTreeParser>(
+      parser_id, std::move(keywords), std::move(typos), identifier_behavior);
 }
 
 }  // namespace afc::editor::parsers

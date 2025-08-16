@@ -29,6 +29,7 @@ using afc::language::text::MutableLineSequence;
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
   auto parser = parsers::NewCppTreeParser(
+      ParserId::Cpp(),
       {NonEmptySingleLine{SingleLine{LazyString{L"auto"}}},
        NonEmptySingleLine{SingleLine{LazyString{L"int"}}},
        NonEmptySingleLine{SingleLine{LazyString{L"char"}}},

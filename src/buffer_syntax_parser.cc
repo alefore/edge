@@ -26,10 +26,11 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
     if (options.parser_name == ParserId::Text()) {
       data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
           options.symbol_characters, options.typos_set, NewNullTreeParser()));
-    } else if (options.parser_name == ParserId::Cpp()) {
-      data.tree_parser = parsers::NewCppTreeParser(options.language_keywords,
-                                                   options.typos_set,
-                                                   options.identifier_behavior);
+    } else if (options.parser_name == ParserId::Cpp() ||
+               options.parser_name == ParserId::Java()) {
+      data.tree_parser = parsers::NewCppTreeParser(
+          options.parser_name.value(), options.language_keywords,
+          options.typos_set, options.identifier_behavior);
     } else if (options.parser_name == ParserId::Diff()) {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == ParserId::Markdown()) {
