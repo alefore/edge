@@ -23,9 +23,8 @@ class FileTags {
   language::text::LineNumber start_line_;
   language::text::LineNumber end_line_;
 
-  // TODO(2025-06-06, trivial): Use NonEmptySingleLine for the key.
   using TagsMap =
-      std::map<language::lazy_string::LazyString,
+      std::map<language::lazy_string::NonEmptySingleLine,
                language::NonNull<std::shared_ptr<concurrent::Protected<
                    std::vector<language::lazy_string::LazyString>>>>>;
   TagsMap tags_ = {};
@@ -45,11 +44,11 @@ class FileTags {
 
   language::NonNull<std::shared_ptr<
       concurrent::Protected<std::vector<language::lazy_string::LazyString>>>>
-  Find(language::lazy_string::LazyString tag_name);
+  Find(language::lazy_string::NonEmptySingleLine tag_name);
 
   const language::gc::Ptr<OpenBuffer>& buffer() const;
 
-  void Add(language::lazy_string::SingleLine name,
+  void Add(language::lazy_string::NonEmptySingleLine name,
            language::lazy_string::SingleLine value);
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
@@ -60,7 +59,7 @@ class FileTags {
       const language::text::LineSequence& contents,
       language::text::LineNumber tags_position);
 
-  static void AddTag(language::lazy_string::SingleLine name,
+  static void AddTag(language::lazy_string::NonEmptySingleLine name,
                      language::lazy_string::SingleLine value,
                      TagsMap& output_tags_map);
 };

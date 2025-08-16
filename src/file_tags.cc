@@ -32,6 +32,8 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -78,7 +80,7 @@ FileTags::FileTags(gc::Ptr<OpenBuffer> buffer, LineNumber start_line,
       tags_(std::move(load_tags_output).tags_map) {}
 
 NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
-    LazyString tag_name) {
+    NonEmptySingleLine tag_name) {
   if (auto it = tags_.find(LowerCase(tag_name)); it != tags_.end())
     return it->second;
   static const auto kEmptyValues =
@@ -89,7 +91,7 @@ NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
 
 const gc::Ptr<OpenBuffer>& FileTags::buffer() const { return buffer_; }
 
-void FileTags::Add(language::lazy_string::SingleLine name,
+void FileTags::Add(language::lazy_string::NonEmptySingleLine name,
                    language::lazy_string::SingleLine value) {
   // TODO(2025-06-08, trivial): Consider saving it right away? Or maybe the best
   // would be to schedule that it gets saved in two seconds, to coallesce saves?
@@ -108,6 +110,17 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
   return {buffer_.object_metadata()};
 }
 
+// TODO(trivial, 2025-08-17): Move to src/language/error/value_or_error.h.
+template <typename T>
+ValueOrError<T> CaptureErrors(ValueOrError<T> input,
+                              std::vector<Error>& output) {
+  std::visit(
+      overload{[&output](const Error& error) { output.push_back(error); },
+               [](const T&) {}},
+      input);
+  return input;
+}
+
 /* static */ ValueOrError<FileTags::LoadTagsOutput> FileTags::LoadTags(
     const LineSequence& contents, const LineNumber tags_start_line) {
   LoadTagsOutput output;
@@ -118,21 +131,27 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
          !StartsWith(contents.at(line_number).contents(), LazyString{L"#"})) {
     SingleLine line = contents.at(line_number).contents();
     ++line_number;
-    if (!line.empty())
-      VisitOptional(
-          [&output, &line](ColumnNumber colon) {
-            SingleLine tag =
-                LowerCase(line.Substring(ColumnNumber{}, colon.ToDelta()));
-            colon += ColumnNumberDelta{1};
-            SingleLine value = Trim(line.Substring(colon), {L' '});
-            DVLOG(5) << "Found tag: " << tag << ": " << value;
-            AddTag(tag, value, output.tags_map);
-          },
-          [&errors, &line] {
-            errors.push_back(
-                Error(LazyString{L"Unable to parse line: "} + line));
-          },
-          FindFirstOf(line, {L':'}));
+    if (line.empty()) continue;
+    CaptureErrors(
+        AugmentError(
+            ToLazyString(line),
+            VisitOptional(
+                [&output, &errors, &line](ColumnNumber colon) -> PossibleError {
+                  DECLARE_OR_RETURN(
+                      NonEmptySingleLine tag,
+                      NonEmptySingleLine::New(LowerCase(
+                          line.Substring(ColumnNumber{}, colon.ToDelta()))));
+                  colon += ColumnNumberDelta{1};
+                  SingleLine value = Trim(line.Substring(colon), {L' '});
+                  DVLOG(5) << "Found tag: " << tag << ": " << value;
+                  AddTag(tag, value, output.tags_map);
+                  return Success();
+                },
+                [&errors, &line] -> PossibleError {
+                  return Error{LazyString{L"Unable to parse line"}};
+                },
+                FindFirstOf(line, {L':'}))),
+        errors);
   }
 
   output.end_line = line_number;
@@ -145,14 +164,13 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
 }
 
 /* static */
-void FileTags::AddTag(SingleLine name, SingleLine value,
+void FileTags::AddTag(NonEmptySingleLine name, SingleLine value,
                       TagsMap& output_tags_map) {
-  if (auto it = output_tags_map.find(ToLazyString(name));
-      it != output_tags_map.end())
+  if (auto it = output_tags_map.find(name); it != output_tags_map.end())
     it->second->lock()->push_back(ToLazyString(value));
   else
     output_tags_map.insert(std::pair(
-        ToLazyString(name),
+        name,
         MakeNonNullShared<Protected<std::vector<LazyString>>>(
             MakeProtected(std::vector<LazyString>{ToLazyString(value)}))));
 }
@@ -208,15 +226,28 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
           .ptr());
   file_tags_object_type->AddField(
       IDENTIFIER_CONSTANT(L"get"),
-      vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<FileTags>> file_tags,
-                         LazyString tag) { return file_tags->Find(tag); })
+      vm::NewCallback(
+          pool, vm::kPurityTypePure,
+          [](NonNull<std::shared_ptr<FileTags>> file_tags, LazyString tag_raw)
+              -> ValueOrError<
+                  language::NonNull<std::shared_ptr<concurrent::Protected<
+                      std::vector<language::lazy_string::LazyString>>>>> {
+            DECLARE_OR_RETURN(
+                NonEmptySingleLine tag,
+                NonEmptySingleLine::New(SingleLine::New(tag_raw)));
+            return file_tags->Find(tag);
+          })
           .ptr());
   file_tags_object_type->AddField(
       IDENTIFIER_CONSTANT(L"get_first"),
       vm::NewCallback(
           pool, vm::kPurityTypePure,
-          [](NonNull<std::shared_ptr<FileTags>> file_tags, LazyString tag) {
+          [](NonNull<std::shared_ptr<FileTags>> file_tags, LazyString tag_raw)
+              -> ValueOrError<
+                  NonNull<std::shared_ptr<std::optional<LazyString>>>> {
+            DECLARE_OR_RETURN(
+                NonEmptySingleLine tag,
+                NonEmptySingleLine::New(SingleLine::New(tag_raw)));
             return file_tags->Find(tag)->lock(
                 [](const std::vector<LazyString>& values) {
                   return MakeNonNullShared<std::optional<LazyString>>(

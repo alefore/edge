@@ -166,7 +166,7 @@ class FlashcardReviewLog {
     CHECK(score_strs.contains(score));
     static const auto kSeparator = NON_EMPTY_SINGLE_LINE_CONSTANT(L" ");
     ASSIGN_OR_RETURN(NonEmptySingleLine date, HumanReadableDate(Now()));
-    file_tags_.Add(SINGLE_LINE_CONSTANT(L"Cloze"),
+    file_tags_.Add(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Cloze"),
                    (date + kSeparator + score_strs.find(score)->second).read());
     return Success();
   }
