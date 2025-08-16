@@ -269,6 +269,27 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
+    if (parser_id_ == ParserId::Java() && c == L'@') {
+      LineColumn annotation_name_start_position = result->position();
+
+      static const std::unordered_set<wchar_t> identifier_and_digit_chars =
+          container::MaterializeUnorderedSet(
+              std::array{identifier_chars, digit_chars} |
+              std::ranges::views::join);
+      result->seek().UntilCurrentCharNotIn(identifier_and_digit_chars);
+
+      CHECK_EQ(annotation_name_start_position.line, result->position().line);
+      CHECK_GT(result->position().column,
+               annotation_name_start_position.column);
+      ColumnNumberDelta length =
+          result->position().column - annotation_name_start_position.column;
+
+      // Apply magenta to the annotation name (including the @).
+      result->PushAndPop(length + ColumnNumberDelta(1),
+                         {LineModifier::kMagenta});
+      return;
+    }
+
     if (after_newline && c == '#' && parser_id_ == ParserId::Cpp()) {
       PreprocessorDirective(result);
       result->SetState(state_default_at_start_of_line);
