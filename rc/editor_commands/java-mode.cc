@@ -4,7 +4,9 @@ void JavaMode(Buffer buffer) {
   buffer.set_line_width(100);
   buffer.set_language_keywords(
       "class interface extends implements this new "
+      "super instanceof abstract "
       "public private protected static "
+      "package import enum "
       "final "
       "void "
       // Flow control.
@@ -13,9 +15,12 @@ void JavaMode(Buffer buffer) {
       "for while do "
       "break continue "
       "return "
+      "try catch finally throws throw "
+      "synchronized "
       // Types
-      "double long int String Object Integer Boolean Double "
+      "double long int boolean byte short char float "
+      "String Object Integer Boolean Double "
       // Values
       "true false null");
-  buffer.set_tree_parser("cpp");
+  buffer.set_tree_parser("java");
 }
