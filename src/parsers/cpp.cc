@@ -303,14 +303,12 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       result->seek().UntilCurrentCharNotIn(identifier_and_digit_chars);
 
       CHECK_EQ(annotation_name_start_position.line, result->position().line);
-      CHECK_GT(result->position().column,
+      CHECK_GE(result->position().column,
                annotation_name_start_position.column);
       ColumnNumberDelta length =
           result->position().column - annotation_name_start_position.column;
 
-      // Apply magenta to the annotation name (including the @).
-      result->PushAndPop(length + ColumnNumberDelta(1),
-                         {LineModifier::kMagenta});
+      result->PushAndPop(length + ColumnNumberDelta(1), {LineModifier::kGreen});
       return;
     }
 

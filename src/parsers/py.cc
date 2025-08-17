@@ -218,7 +218,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       result->seek().UntilCurrentCharNotIn(identifier_and_digit_chars);
 
       CHECK_EQ(decorator_name_start_position.line, result->position().line);
-      CHECK_GT(result->position().column, decorator_name_start_position.column);
+      CHECK_GE(result->position().column, decorator_name_start_position.column);
       ColumnNumberDelta length =
           result->position().column - decorator_name_start_position.column;
 
