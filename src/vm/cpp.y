@@ -42,10 +42,8 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
   RULE_VAR(a, A);
   RULE_VAR(b, B);
 
-  OUT = new RootExpressionOrError(
-      NewAppendExpression(*compilation,
-                          ToPtr(std::move(a)),
-                          ToPtr(std::move(b))));
+  OUT = RuleReturn(NewAppendExpression(*compilation, ToPtr(std::move(a)),
+                                       ToPtr(std::move(b))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,18 +57,15 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
 %destructor statement_list { delete $$; }
 
 statement_list(L) ::= . {
-  L = new RootExpressionOrError(
-      NewVoidExpression(compilation->pool));
+  L = RuleReturn(Success(NewVoidExpression(compilation->pool)));
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
   RULE_VAR(a, A);
   RULE_VAR(b, B);
 
-  OUT = RuleReturn(
-      NewAppendExpression(*compilation,
-                          ToPtr(std::move(a)),
-                          ToPtr(std::move(b))));
+  OUT = RuleReturn(NewAppendExpression(*compilation, ToPtr(std::move(a)),
+                                       ToPtr(std::move(b))));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +86,8 @@ statement(OUT) ::= namespace_declaration
     LBRACKET statement_list(A) RBRACKET. {
   RULE_VAR(a, A);
 
-  OUT = RuleReturn(NewNamespaceExpression(*compilation, language::OptionalFrom(std::move(a))));
+  OUT = RuleReturn(NewNamespaceExpression(
+      *compilation, language::OptionalFrom(std::move(a))));
 }
 
 namespace_declaration ::= NAMESPACE SYMBOL(NAME). {
@@ -540,42 +536,42 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
-  ValueOrError<gc::Root<Expression>> var =
-      NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()});
-  if (IsError(var)) {
-    OUT = nullptr;
-  } else if (std::get<gc::Root<Expression>>(var)->IsNumber()) {
-    OUT = RuleReturn(NewAssignExpression(
+  OUT = RuleReturn(std::invoke([&] -> RootExpressionOrError {
+    DECLARE_OR_RETURN(
+        gc::Root<Expression> var,
+        NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()}));
+    if (!var->IsNumber())
+      return compilation->AddError(
+          Error{name->value().ptr()->get_symbol() +
+                LazyString{L"++: Type not supported: "} +
+                TypesToString(std::move(var)->Types())});
+    return NewAssignExpression(
         *compilation, name->value().ptr()->get_symbol(),
         ToPtr(BinaryOperator::New(
-            NewVoidExpression(compilation->pool).ptr(), ToPtr(var),
+            NewVoidExpression(compilation->pool).ptr(), var.ptr(),
             types::Number{}, [](gc::Pool& pool, const Value&, const Value& a) {
               return Value::NewNumber(pool, numbers::Number(a.get_number()) +
                                                 numbers::Number::FromInt64(1));
-            }))));
-  } else {
-    compilation->AddError(
-        Error{LazyString{L"++: Type not supported: "} +
-              TypesToString(VALUE_OR_DIE(std::move(var))->Types())});
-    OUT = nullptr;
-  }
+            })));
+  }));
 }
 
 expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
-  ValueOrError<gc::Root<Expression>> var =
-      NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()});
   OUT = RuleReturn(std::invoke([&] -> RootExpressionOrError {
-    DECLARE_OR_RETURN(gc::Root<Expression> var_expr, var);
-    if (!var_expr->IsNumber())
+    DECLARE_OR_RETURN(
+        gc::Root<Expression> var,
+        NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()}));
+    if (!var->IsNumber())
       return compilation->AddError(
-          Error{LazyString{L"--: Type not supported: "} +
-                TypesToString(VALUE_OR_DIE(std::move(var))->Types())});
+          Error{name->value().ptr()->get_symbol() +
+                LazyString{L"--: Type not supported: "} +
+                TypesToString(std::move(var)->Types())});
     return NewAssignExpression(
         *compilation, name->value().ptr()->get_symbol(),
         ToPtr(BinaryOperator::New(
-            NewVoidExpression(compilation->pool).ptr(), ToPtr(var),
+            NewVoidExpression(compilation->pool).ptr(), var.ptr(),
             types::Number{}, [](gc::Pool& pool, const Value&, const Value& a) {
               return Value::NewNumber(pool, numbers::Number(a.get_number()) -
                                                 numbers::Number::FromInt64(1));
@@ -842,13 +838,12 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   RULE_VAR(a, A);
   RULE_VAR(b, B);
 
-  OUT = RuleReturn(
-      NewBinaryExpression(
-          *compilation, ToPtr(a), ToPtr(b), nullptr,
-          [](numbers::Number a_number, numbers::Number b_number) {
-            return std::move(a_number) / std::move(b_number);
-          },
-          nullptr));
+  OUT = RuleReturn(NewBinaryExpression(
+      *compilation, ToPtr(a), ToPtr(b), nullptr,
+      [](numbers::Number a_number, numbers::Number b_number) {
+        return std::move(a_number) / std::move(b_number);
+      },
+      nullptr));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
