@@ -42,9 +42,13 @@ enum State {
   AFTER_SLASH,
   COMMENT,
 
-  BRACKET_DEFAULT_AT_START_OF_LINE,
-  BRACKET_DEFAULT,
-  BRACKET_AFTER_SLASH,
+  CURLY_BRACKET_DEFAULT_AT_START_OF_LINE,
+  CURLY_BRACKET_DEFAULT,
+  CURLY_BRACKET_AFTER_SLASH,
+
+  SQUARE_BRACKET_DEFAULT_AT_START_OF_LINE,
+  SQUARE_BRACKET_DEFAULT,
+  SQUARE_BRACKET_AFTER_SLASH,
 
   PARENS_DEFAULT_AT_START_OF_LINE,
   PARENS_DEFAULT,
@@ -100,9 +104,16 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                        result);
           break;
 
-        case BRACKET_DEFAULT_AT_START_OF_LINE:
-          DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, true, result);
+        case CURLY_BRACKET_DEFAULT_AT_START_OF_LINE:
+          DefaultState(CURLY_BRACKET_DEFAULT,
+                       CURLY_BRACKET_DEFAULT_AT_START_OF_LINE,
+                       CURLY_BRACKET_AFTER_SLASH, true, result);
+          break;
+
+        case SQUARE_BRACKET_DEFAULT_AT_START_OF_LINE:
+          DefaultState(SQUARE_BRACKET_DEFAULT,
+                       SQUARE_BRACKET_DEFAULT_AT_START_OF_LINE,
+                       SQUARE_BRACKET_AFTER_SLASH, true, result);
           break;
 
         case PARENS_DEFAULT_AT_START_OF_LINE:
@@ -115,9 +126,16 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                        result);
           break;
 
-        case BRACKET_DEFAULT:
-          DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, false, result);
+        case CURLY_BRACKET_DEFAULT:
+          DefaultState(CURLY_BRACKET_DEFAULT,
+                       CURLY_BRACKET_DEFAULT_AT_START_OF_LINE,
+                       CURLY_BRACKET_AFTER_SLASH, false, result);
+          break;
+
+        case SQUARE_BRACKET_DEFAULT:
+          DefaultState(SQUARE_BRACKET_DEFAULT,
+                       SQUARE_BRACKET_DEFAULT_AT_START_OF_LINE,
+                       SQUARE_BRACKET_AFTER_SLASH, false, result);
           break;
 
         case PARENS_DEFAULT:
@@ -129,8 +147,14 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
           AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, result);
           break;
 
-        case BRACKET_AFTER_SLASH:
-          AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE, result);
+        case CURLY_BRACKET_AFTER_SLASH:
+          AfterSlash(CURLY_BRACKET_DEFAULT,
+                     CURLY_BRACKET_DEFAULT_AT_START_OF_LINE, result);
+          break;
+
+        case SQUARE_BRACKET_AFTER_SLASH:
+          AfterSlash(SQUARE_BRACKET_DEFAULT,
+                     SQUARE_BRACKET_DEFAULT_AT_START_OF_LINE, result);
           break;
 
         case PARENS_AFTER_SLASH:
@@ -316,15 +340,22 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
-    if (c == L'{' || c == L'(') {
-      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT,
+    if (c == L'{' || c == L'[' || c == L'(') {
+      result->Push(std::invoke([c] {
+                     if (c == L'{') return CURLY_BRACKET_DEFAULT;
+                     if (c == L'[') return SQUARE_BRACKET_DEFAULT;
+                     if (c == L'(') return PARENS_DEFAULT;
+                     LOG(FATAL) << "Invalid char";
+                     return CURLY_BRACKET_DEFAULT;  // Never reached.
+                   }),
                    ColumnNumberDelta(1), {}, {});
       result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
       return;
     }
 
-    if (c == L'}' || c == ')') {
-      if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
+    if (c == L'}' || c == ']' || c == ')') {
+      if ((c == L'}' && state_default == CURLY_BRACKET_DEFAULT) ||
+          (c == L']' && state_default == SQUARE_BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
         auto modifiers = HashToModifiers(result->AddAndGetNesting(),
                                          HashToModifiersBold::kSometimes);
