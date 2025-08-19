@@ -6,6 +6,7 @@
 #include "../editor_commands/compiler.cc"
 #include "../editor_commands/cpp-mode.cc"
 #include "../editor_commands/java-mode.cc"
+#include "../editor_commands/javascript-mode.cc"
 #include "../editor_commands/lib/clang-format.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
@@ -54,6 +55,12 @@ void HandleFileTypes(Buffer buffer, string basename, string extension) {
   if (extension == "java") {
     JavaMode(buffer);
     buffer.SetStatus("🔡 Java file (" + extension + ")");
+    return;
+  }
+
+  if (extension == "js") {
+    JavaScriptMode(buffer);
+    buffer.SetStatus("🔡 JavaScript file (" + extension + ")");
     return;
   }
 
