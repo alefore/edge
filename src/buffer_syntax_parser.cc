@@ -27,7 +27,8 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
       data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
           options.symbol_characters, options.typos_set, NewNullTreeParser()));
     } else if (options.parser_name == ParserId::Cpp() ||
-               options.parser_name == ParserId::Java()) {
+               options.parser_name == ParserId::Java() ||
+               options.parser_name == ParserId::JavaScript()) {
       data.tree_parser = parsers::NewCppTreeParser(
           options.parser_name.value(), options.language_keywords,
           options.typos_set, options.identifier_behavior);

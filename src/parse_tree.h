@@ -31,6 +31,7 @@ class ParserId
   static const ParserId& Text();
   static const ParserId& Cpp();
   static const ParserId& Java();
+  static const ParserId& JavaScript();
   static const ParserId& Diff();
   static const ParserId& Markdown();
   static const ParserId& Csv();

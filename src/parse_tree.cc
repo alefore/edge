@@ -71,6 +71,12 @@ namespace afc::editor {
   return *output;
 }
 
+/* static */ const ParserId& ParserId::JavaScript() {
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"javascript")};
+  return *output;
+}
+
 /* static */ const ParserId& ParserId::Diff() {
   static const ParserId* output =
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"diff")};
