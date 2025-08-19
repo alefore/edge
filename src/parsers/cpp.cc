@@ -333,6 +333,14 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
+    if (c == L'`') {
+      if (parser_id_ == ParserId::JavaScript()) {
+        ParseQuotedString(result, L'`', {LineModifier::kYellow}, {});
+        return;
+      }
+      // Fall-through for C++ or other languages.
+    }
+
     if (c == L'\'') {
       if (parser_id_ == ParserId::JavaScript()) {
         ParseQuotedString(result, L'\'', {LineModifier::kYellow}, {});
