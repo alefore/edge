@@ -8,6 +8,8 @@
 
 namespace afc::editor {
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::NonEmptySingleLine;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
@@ -40,6 +42,17 @@ Range Seek::range() const { return range_; }
 bool Seek::AtRangeEnd() const { return *position_ >= range_.end(); }
 
 wchar_t Seek::read() const { return contents_.character_at(*position_); }
+
+bool Seek::Matches(const NonEmptySingleLine& search_string) const {
+  LineColumn current_pos = *position_;
+  for (ColumnNumberDelta i; i < search_string.size(); ++i)
+    if (current_pos >= range_.end() ||
+        contents_.character_at(current_pos) !=
+            search_string.get(ColumnNumber{} + i) ||
+        (i < search_string.size() - 1 && !Advance(&current_pos)))
+      return false;
+  return true;
+}
 
 Seek::Result Seek::Once() const {
   ADVANCE_OR_RETURN(position_);

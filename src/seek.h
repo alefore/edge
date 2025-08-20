@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_SEEK_H__
 
 #include "src/direction.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 
@@ -24,6 +25,9 @@ class Seek {
   bool AtRangeEnd() const;
 
   wchar_t read() const;
+
+  bool Matches(
+      const language::lazy_string::NonEmptySingleLine& search_string) const;
 
   Result Once() const;
   // If seeking backwards, leaves the position at the end of the previous line.
