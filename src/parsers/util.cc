@@ -11,6 +11,7 @@ using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -42,51 +43,99 @@ void ParseQuotedString(ParseData* result, wchar_t quote_char,
                     std::nullopt);
 }
 
-void ParseQuotedString(ParseData* result, wchar_t quote_char,
-                       LineModifierSet string_modifiers,
-                       std::unordered_set<ParseTreeProperty> properties,
-                       std::optional<NestedExpressionSyntax>) {
+void ParseQuotedString(
+    ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
+    std::unordered_set<ParseTreeProperty> properties,
+    std::optional<NestedExpressionSyntax> nested_expression_syntax) {
   LineColumn original_position = result->position();
   CHECK_GT(original_position.column, ColumnNumber(0));
 
   Seek seek = result->seek();
+  // If nested_expression_syntax is present, holds alternating positions of the
+  // start of a prefix and a suffix.
+  std::vector<ColumnNumber> nested_expression_columns;
+
   while (seek.read() != quote_char && seek.read() != L'\n' &&
          !seek.AtRangeEnd()) {
-    if (seek.read() == '\\') seek.Once();
+    if (seek.read() == '\\') {
+      seek.Once();
+    } else if (nested_expression_syntax.has_value()) {
+      const NonEmptySingleLine& token =
+          nested_expression_columns.size() % 2 == 0
+              ? nested_expression_syntax->prefix
+              : nested_expression_syntax->suffix;
+      if (seek.Matches(token)) {
+        nested_expression_columns.push_back(result->position().column);
+        result->set_position(result->position() + token.size());
+        continue;
+      }
+    }
     seek.Once();
   }
-  if (seek.read() == quote_char) {
-    LineColumn final_quote_position = result->position();
-    CHECK_EQ(result->position().line, original_position.line);
 
-    size_t ignored_state = 0;
-
-    // Parent tree: a parent tree containing everything.
-    seek.Once();
-    result->Push(ignored_state,
-                 final_quote_position.column + ColumnNumberDelta(2) -
-                     original_position.column,
-                 {}, {});
-
-    // Open quote.
-    result->set_position(original_position);
-    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
-
-    // Content tree.
-    result->set_position(final_quote_position);
-    result->PushAndPop(final_quote_position.column - original_position.column,
-                       string_modifiers, properties);
-
-    // Close quote.
-    seek.Once();
-    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
-
-    result->PopBack();  // Parent tree.
-    // TODO: words_parser_->FindChildren(result->contents(), tree);
-  } else {
+  if (seek.read() != quote_char) {
     result->set_position(original_position);
     result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
+    return;
   }
+
+  const LineColumn final_quote_position = result->position();
+  CHECK_EQ(result->position().line, original_position.line);
+
+  static const size_t kIgnoredState = 0;
+
+  // Parent tree: a parent tree containing everything.
+  seek.Once();  // Consume the closing quote
+  result->Push(kIgnoredState,
+               final_quote_position.column + ColumnNumberDelta(1) -
+                   original_position.column,
+               {}, {});
+
+  // Open quote.
+  result->set_position(original_position);
+  result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+
+  LineColumn content_start_position = original_position;
+  result->set_position(content_start_position);
+
+  for (size_t i = 0; i < nested_expression_columns.size(); ++i) {
+    ColumnNumber token_position = nested_expression_columns[i];
+    bool at_prefix = i % 2 == 0;
+
+    if (token_position > result->position().column) {
+      // Contents before token.
+      ColumnNumberDelta len = token_position - result->position().column;
+      CHECK_GE(len, ColumnNumberDelta{});
+      result->set_position(LineColumn{result->position().line, token_position});
+      result->PushAndPop(
+          len,
+          at_prefix ? string_modifiers : nested_expression_syntax->modifiers,
+          at_prefix ? properties : std::unordered_set<ParseTreeProperty>{});
+    }
+
+    const NonEmptySingleLine& token = at_prefix
+                                          ? nested_expression_syntax->prefix
+                                          : nested_expression_syntax->suffix;
+    // Token:
+    result->set_position(result->position() + token.size());
+    result->PushAndPop(token.size(),
+                       nested_expression_syntax->prefix_suffix_modifiers, {});
+  }
+
+  // Remaining content after all nested expressions before the closing quote.
+  ColumnNumberDelta len =
+      final_quote_position.column - result->position().column;
+  if (len > ColumnNumberDelta{}) {
+    result->set_position(final_quote_position);
+    result->PushAndPop(len, string_modifiers, properties);
+  }
+
+  // Close quote.
+  result->set_position(final_quote_position + ColumnNumberDelta{1});
+  result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+
+  result->PopBack();  // Parent tree.
+  // TODO: words_parser_->FindChildren(result->contents(), tree);
 }
 
 void ParseNumber(ParseData* result, LineModifierSet number_modifiers,

@@ -184,6 +184,18 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
                          .at(original_position.line)
                          .contents()
                          .Substring(original_position.column, length);
+
+    if (str == SINGLE_LINE_CONSTANT(L"f") && result->seek().read() == L'"') {
+      result->seek().Once();
+      return ParseQuotedString(
+          result, L'"', {LineModifier::kYellow}, {},
+          NestedExpressionSyntax{
+              .prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"{"),
+              .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
+              .prefix_suffix_modifiers = {LineModifier::kDim},
+              .modifiers = {LineModifier::kGreen}});
+    }
+
     LineModifierSet modifiers;
     if (Contains(kPythonBuiltinFunctionsAndTypes, str)) {
       modifiers.insert(LineModifier::kBlue);
