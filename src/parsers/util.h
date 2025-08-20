@@ -1,14 +1,27 @@
 #ifndef __AFC_EDITOR_PARSERS_UTIL_H__
 #define __AFC_EDITOR_PARSERS_UTIL_H__
 
+#include "src/language/lazy_string/single_line.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
 
 namespace afc::editor::parsers {
-// `result` should be after the initial double-quoted string.
 void ParseQuotedString(ParseData* result, wchar_t quote_char,
                        infrastructure::screen::LineModifierSet string_modifiers,
                        std::unordered_set<ParseTreeProperty> properties);
+
+struct NestedExpressionSyntax {
+  language::lazy_string::NonEmptySingleLine prefix;
+  language::lazy_string::NonEmptySingleLine suffix;
+  infrastructure::screen::LineModifierSet modifiers;
+};
+
+// `result` should be after the initial double-quoted string.
+void ParseQuotedString(
+    ParseData* result, wchar_t quote_char,
+    infrastructure::screen::LineModifierSet string_modifiers,
+    std::unordered_set<ParseTreeProperty> properties,
+    std::optional<NestedExpressionSyntax> nested_expression_syntax);
 
 // `result` should be after the initial digit.
 void ParseNumber(ParseData* result,

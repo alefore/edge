@@ -38,6 +38,14 @@ size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {
 void ParseQuotedString(ParseData* result, wchar_t quote_char,
                        LineModifierSet string_modifiers,
                        std::unordered_set<ParseTreeProperty> properties) {
+  ParseQuotedString(result, quote_char, string_modifiers, properties,
+                    std::nullopt);
+}
+
+void ParseQuotedString(ParseData* result, wchar_t quote_char,
+                       LineModifierSet string_modifiers,
+                       std::unordered_set<ParseTreeProperty> properties,
+                       std::optional<NestedExpressionSyntax>) {
   LineColumn original_position = result->position();
   CHECK_GT(original_position.column, ColumnNumber(0));
 
