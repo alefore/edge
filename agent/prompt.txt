@@ -21,6 +21,23 @@ Headers should be guarded in #ifndef guards like this, where `XXXX` corresponds 
 
 All code should be in the `afc` namespace. If it's inside `src/language/`, `src/infrastructure/`, `src/concurrent/` or `src/futures/` it will be in `afc::SUBDIR` (e.g., `afc::concurrent`) or even more specific namespaces. Everything directly in `src/` is in `afc::editor`.
 
+#### Namespaces
+
+Headers should not contain namespace alias statements. They should also not contain any `using` statements (other than aliases within classes). For symbols inside afc::language, afc::concurrent or afc::infrastructure, CC files should declare `using` statements at the top-level, right below the #include lines.
+
+In a header:
+
+  class Foo {
+    void Method(language::lazy_string::LazyString input);
+  }
+
+In the CC file:
+
+  // Right below the #includes, at the top-level:
+  using afc::language::lazy_string::LazyString;
+  ...
+  void Foo::Method(LazyString input) { ... }
+
 ## Workflow instructions
 
 Before applying any actual code changes, please:
