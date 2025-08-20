@@ -91,7 +91,7 @@ class LineSequence {
 
   LineSequence Map(const std::function<Line(const Line&)>&) const;
 
-  wint_t character_at(const LineColumn& position) const;
+  wchar_t character_at(const LineColumn& position) const;
 
   LineColumn AdjustLineColumn(LineColumn position) const;
 

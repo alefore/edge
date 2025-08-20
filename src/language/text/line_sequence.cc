@@ -284,7 +284,7 @@ LineSequence LineSequence::Map(
   return LineSequence(lines_->Map(transformer));
 }
 
-wint_t LineSequence::character_at(const LineColumn& position) const {
+wchar_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
   const Line& line = at(position.line);
   return position.column >= line.EndColumn() ? L'\n'
