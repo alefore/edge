@@ -13,6 +13,8 @@ void ParseQuotedString(ParseData* result, wchar_t quote_char,
 struct NestedExpressionSyntax {
   language::lazy_string::NonEmptySingleLine prefix;
   language::lazy_string::NonEmptySingleLine suffix;
+  infrastructure::screen::LineModifierSet prefix_suffix_modifiers;
+  // Applied to the string between (excluding) prefix and suffix.
   infrastructure::screen::LineModifierSet modifiers;
 };
 
