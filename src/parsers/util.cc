@@ -36,28 +36,42 @@ size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {
 }
 }  // namespace
 
-void ParseQuotedString(ParseData* result, wchar_t quote_char,
-                       LineModifierSet string_modifiers,
-                       std::unordered_set<ParseTreeProperty> properties) {
-  ParseQuotedString(result, quote_char, string_modifiers, properties,
-                    std::nullopt);
+ParseQuotedStringState ParseQuotedString(
+    ParseData* result, wchar_t quote_char,
+    infrastructure::screen::LineModifierSet string_modifiers,
+    std::unordered_set<ParseTreeProperty> properties) {
+  return ParseQuotedString(result, quote_char, std::move(string_modifiers),
+                           std::move(properties), MultipleLinesSupport::kReject,
+                           CurrentState::kStart);
 }
 
-void ParseQuotedString(
+ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
     std::unordered_set<ParseTreeProperty> properties,
-    std::optional<NestedExpressionSyntax> nested_expression_syntax) {
+    MultipleLinesSupport multiple_lines_support, CurrentState current_state) {
+  return ParseQuotedString(result, quote_char, string_modifiers, properties,
+                           std::nullopt, multiple_lines_support, current_state);
+}
+
+ParseQuotedStringState ParseQuotedString(
+    ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
+    std::unordered_set<ParseTreeProperty> properties,
+    std::optional<NestedExpressionSyntax> nested_expression_syntax,
+    MultipleLinesSupport multiple_lines_support, CurrentState current_state) {
   LineColumn original_position = result->position();
-  CHECK_GT(original_position.column, ColumnNumber(0));
+  if (current_state == CurrentState::kStart)
+    CHECK_GT(original_position.column, ColumnNumber{0});
 
   Seek seek = result->seek();
   // If nested_expression_syntax is present, holds alternating positions of the
   // start of a prefix and a suffix.
   std::vector<ColumnNumber> nested_expression_columns;
+  if (current_state == CurrentState::kContinuationInNestedExpression)
+    nested_expression_columns.push_back(ColumnNumber{});  // Dummy value.
 
   while (seek.read() != quote_char && seek.read() != L'\n' &&
          !seek.AtRangeEnd()) {
-    if (seek.read() == '\\') {
+    if (seek.read() == L'\\') {
       seek.Once();
     } else if (nested_expression_syntax.has_value()) {
       const NonEmptySingleLine& token =
@@ -73,32 +87,33 @@ void ParseQuotedString(
     seek.Once();
   }
 
-  if (seek.read() != quote_char) {
+  bool at_quote = seek.read() == quote_char;
+
+  if (!at_quote && multiple_lines_support == MultipleLinesSupport::kReject) {
     result->set_position(original_position);
     result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
-    return;
+    return ParseQuotedStringState::kDone;
   }
 
-  const LineColumn final_quote_position = result->position();
-  CHECK_EQ(result->position().line, original_position.line);
+  const LineColumn final_position = result->position();
 
-  static const size_t kIgnoredState = 0;
+  if (current_state == CurrentState::kStart) {
+    // Parent tree: a parent tree containing everything.
+    static const size_t kIgnoredState = 0;
+    result->Push(kIgnoredState,
+                 final_position.column - original_position.column, {}, {});
 
-  // Parent tree: a parent tree containing everything.
-  seek.Once();  // Consume the closing quote
-  result->Push(kIgnoredState,
-               final_quote_position.column + ColumnNumberDelta(1) -
-                   original_position.column,
-               {}, {});
-
-  // Open quote.
-  result->set_position(original_position);
-  result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
-
-  LineColumn content_start_position = original_position;
-  result->set_position(content_start_position);
-
+    result->set_position(original_position);
+    // Open quote.
+    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+  } else {
+    result->set_position(original_position);
+  }
   for (size_t i = 0; i < nested_expression_columns.size(); ++i) {
+    if (i == 0 &&
+        current_state == CurrentState::kContinuationInNestedExpression)
+      continue;  // Skip dummy value.
+
     ColumnNumber token_position = nested_expression_columns[i];
     bool at_prefix = i % 2 == 0;
 
@@ -122,20 +137,34 @@ void ParseQuotedString(
                        nested_expression_syntax->prefix_suffix_modifiers, {});
   }
 
-  // Remaining content after all nested expressions before the closing quote.
-  ColumnNumberDelta len =
-      final_quote_position.column - result->position().column;
+  // Remaining content after all nested expressions before the closing
+  // quote.
+  ColumnNumberDelta len = final_position.column - result->position().column;
   if (len > ColumnNumberDelta{}) {
-    result->set_position(final_quote_position);
-    result->PushAndPop(len, string_modifiers, properties);
+    result->set_position(final_position);
+    result->PushAndPop(len,
+                       nested_expression_columns.size() % 2 == 0
+                           ? string_modifiers
+                           : nested_expression_syntax->modifiers,
+                       nested_expression_columns.size() % 2 == 0
+                           ? properties
+                           : std::unordered_set<ParseTreeProperty>{});
   }
 
+  if (!at_quote)
+    return nested_expression_columns.size() % 2 == 0
+               ? ParseQuotedStringState::kInDefaultState
+               : ParseQuotedStringState::kInNestedExpression;
+
+  CHECK_EQ(result->position().line, original_position.line);
+
   // Close quote.
-  result->set_position(final_quote_position + ColumnNumberDelta{1});
+  result->set_position(final_position + ColumnNumberDelta{1});
   result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
 
   result->PopBack();  // Parent tree.
   // TODO: words_parser_->FindChildren(result->contents(), tree);
+  return ParseQuotedStringState::kDone;
 }
 
 void ParseNumber(ParseData* result, LineModifierSet number_modifiers,

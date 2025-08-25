@@ -36,6 +36,7 @@ using afc::language::text::Range;
 namespace afc::editor::parsers {
 
 namespace {
+// TODO(trivial, 2025-08-25): Turn into an enum class.
 enum State {
   DEFAULT_AT_START_OF_LINE,
   DEFAULT,
@@ -53,6 +54,9 @@ enum State {
   PARENS_DEFAULT_AT_START_OF_LINE,
   PARENS_DEFAULT,
   PARENS_AFTER_SLASH,
+
+  MULTIPLE_LINE_STRING_IN_NESTED_EXPRESSION,
+  MULTIPLE_LINE_STRING_IN_DEFAULT_STATE,
 };
 
 static const std::unordered_set<wchar_t> identifier_chars =
@@ -163,6 +167,14 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 
         case COMMENT:
           InsideComment(result);
+          break;
+
+        case MULTIPLE_LINE_STRING_IN_NESTED_EXPRESSION:
+          ParseJavaScriptString(result,
+                                CurrentState::kContinuationInNestedExpression);
+          break;
+        case MULTIPLE_LINE_STRING_IN_DEFAULT_STATE:
+          ParseJavaScriptString(result, CurrentState::kContinuationInDefault);
           break;
       }
 
@@ -275,6 +287,26 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     result->PushAndPop(length, std::move(modifiers));
   }
 
+  void ParseJavaScriptString(ParseData* result, CurrentState state) {
+    CHECK_EQ(parser_id_, ParserId::JavaScript());
+    switch (ParseQuotedString(
+        result, L'`', {LineModifier::kYellow}, {},
+        NestedExpressionSyntax{.prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"${"),
+                               .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
+                               .prefix_suffix_modifiers = {LineModifier::kDim},
+                               .modifiers = {LineModifier::kGreen}},
+        MultipleLinesSupport::kAccept, state)) {
+      case ParseQuotedStringState::kDone:
+        return;
+      case ParseQuotedStringState::kInNestedExpression:
+        result->SetState(MULTIPLE_LINE_STRING_IN_NESTED_EXPRESSION);
+        return;
+      case ParseQuotedStringState::kInDefaultState:
+        result->SetState(MULTIPLE_LINE_STRING_IN_DEFAULT_STATE);
+        return;
+    }
+  }
+
   void DefaultState(State state_default, State state_default_at_start_of_line,
                     State state_after_slash, bool after_newline,
                     ParseData* result) {
@@ -334,12 +366,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (c == L'`' && parser_id_ == ParserId::JavaScript()) {
-      ParseQuotedString(result, L'`', {LineModifier::kYellow}, {},
-                        NestedExpressionSyntax{
-                            .prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"${"),
-                            .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
-                            .prefix_suffix_modifiers = {LineModifier::kDim},
-                            .modifiers = {LineModifier::kGreen}});
+      ParseJavaScriptString(result, CurrentState::kStart);
       return;
     }
 
