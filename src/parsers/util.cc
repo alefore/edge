@@ -69,6 +69,7 @@ ParseQuotedStringState ParseQuotedString(
   if (current_state == CurrentState::kContinuationInNestedExpression)
     nested_expression_columns.push_back(ColumnNumber{});  // Dummy value.
 
+  LOG(INFO) << "XXXX: Start first loop.";
   while (seek.read() != quote_char && seek.read() != L'\n' &&
          !seek.AtRangeEnd()) {
     if (seek.read() == L'\\') {
@@ -87,6 +88,7 @@ ParseQuotedStringState ParseQuotedString(
     seek.Once();
   }
 
+  LOG(INFO) << "XXXX: After first loop.";
   bool at_quote = seek.read() == quote_char;
 
   if (!at_quote && multiple_lines_support == MultipleLinesSupport::kReject) {

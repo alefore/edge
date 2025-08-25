@@ -279,6 +279,7 @@ src/parsers/py.cc \
 src/parsers/py.h \
 src/parsers/util.cc \
 src/parsers/util.h \
+src/parsers/util_test.cc \
 src/path_flags.cc \
 src/path_flags.h \
 src/predictor.cc \
