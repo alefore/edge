@@ -98,18 +98,14 @@ ParseQuotedStringState ParseQuotedString(
   }
 
   const LineColumn final_position = result->position();
-
+  result->set_position(original_position);
   if (current_state == CurrentState::kStart) {
-    // Parent tree: a parent tree containing everything.
-    static const size_t kIgnoredState = 0;
-    result->Push(kIgnoredState,
-                 final_position.column - original_position.column, {}, {});
-
-    result->set_position(original_position);
     // Open quote.
     result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
-  } else {
-    result->set_position(original_position);
+
+    // Parent tree: a parent tree containing everything.
+    static const size_t kIgnoredState = 0;
+    result->Push(kIgnoredState, ColumnNumberDelta{}, {}, {});
   }
   for (size_t i = 0; i < nested_expression_columns.size(); ++i) {
     if (i == 0 &&
@@ -160,11 +156,12 @@ ParseQuotedStringState ParseQuotedString(
 
   CHECK_EQ(result->position().line, original_position.line);
 
+  result->PopBack();  // Parent tree.
+
   // Close quote.
   result->set_position(final_position + ColumnNumberDelta{1});
   result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
 
-  result->PopBack();  // Parent tree.
   // TODO: words_parser_->FindChildren(result->contents(), tree);
   return ParseQuotedStringState::kDone;
 }
