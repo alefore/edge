@@ -93,6 +93,8 @@ class ParseTree {
   void set_properties(std::unordered_set<ParseTreeProperty> properties);
   const std::unordered_set<ParseTreeProperty>& properties() const;
 
+  bool operator==(const ParseTree& other) const;
+
  private:
   void XorChildHash(size_t position);
 

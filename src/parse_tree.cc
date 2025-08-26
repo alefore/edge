@@ -230,6 +230,13 @@ const std::unordered_set<ParseTreeProperty>& ParseTree::properties() const {
   return properties_;
 }
 
+bool ParseTree::operator==(const ParseTree& other) const {
+  return range_ == other.range() &&
+         modifiers_ == other.modifiers() &&
+         properties_ == other.properties() &&
+         children_ == other.children();
+}
+
 ParseTree SimplifyTree(const ParseTree& tree) {
   ParseTree output(tree.range());
   for (const auto& child : tree.children()) {
