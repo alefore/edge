@@ -5,6 +5,8 @@
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
 
+#include <ostream> // For operator<< overload
+
 namespace afc::editor::parsers {
 
 // Specifies what should be done if the line finishes before the closing
@@ -32,6 +34,20 @@ enum class ParseQuotedStringState {
   // Only returned when MultipleLinesSupport::kAccept.
   kInNestedExpression
 };
+
+// Overload operator<< for ParseQuotedStringState to enable streaming to ostream.
+inline std::ostream& operator<<(std::ostream& os,
+                                  const ParseQuotedStringState& state) {
+  switch (state) {
+    case ParseQuotedStringState::kDone:
+      return os << "kDone";
+    case ParseQuotedStringState::kInDefaultState:
+      return os << "kInDefaultState";
+    case ParseQuotedStringState::kInNestedExpression:
+      return os << "kInNestedExpression";
+  }
+  return os; // Should not reach here
+}
 
 // Original ParseQuotedString function modified to use the new enums and return
 // type
