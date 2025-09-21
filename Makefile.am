@@ -269,6 +269,8 @@ src/parse_tree.cc \
 src/parse_tree.h \
 src/parsers/cpp.cc \
 src/parsers/cpp.h \
+src/parsers/css.cc \
+src/parsers/css.h \
 src/parsers/csv.cc \
 src/parsers/csv.h \
 src/parsers/diff.cc \
