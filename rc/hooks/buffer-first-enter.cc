@@ -5,6 +5,7 @@
 
 #include "../editor_commands/compiler.cc"
 #include "../editor_commands/cpp-mode.cc"
+#include "../editor_commands/css-mode.cc"
 #include "../editor_commands/java-mode.cc"
 #include "../editor_commands/javascript-mode.cc"
 #include "../editor_commands/lib/clang-format.cc"
@@ -67,6 +68,12 @@ void HandleFileTypes(Buffer buffer, string basename, string extension) {
   if (extension == "ts") {
     JavaScriptMode(buffer);
     buffer.SetStatus("🔡 TypeScript file (" + extension + ")");
+    return;
+  }
+
+  if (extension == "css") {
+    CssMode(buffer);
+    buffer.SetStatus("🔡 CSS file (" + extension + ")");
     return;
   }
 
