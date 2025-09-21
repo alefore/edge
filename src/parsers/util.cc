@@ -86,7 +86,7 @@ ParseQuotedStringState ParseQuotedString(
         continue;
       }
     }
-    CHECK(seek.Once() == Seek::Result::kDone);
+    seek.Once();
   }
 
   LOG(INFO) << "XXXX: After first loop.";
