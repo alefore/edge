@@ -3,6 +3,7 @@
 #include "src/language/safe_types.h"
 #include "src/parse_tree.h"
 #include "src/parsers/cpp.h"
+#include "src/parsers/css.h"
 #include "src/parsers/csv.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
@@ -39,6 +40,8 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
           options.symbol_characters, options.dictionary);
     } else if (options.parser_name == ParserId::Csv()) {
       data.tree_parser = parsers::NewCsvTreeParser();
+    } else if (options.parser_name == ParserId::Css()) {
+      data.tree_parser = parsers::NewCssTreeParser(options.parser_name.value());
     } else if (options.parser_name == ParserId::Py()) {
       data.tree_parser =
           parsers::NewPyTreeParser(options.language_keywords, options.typos_set,
