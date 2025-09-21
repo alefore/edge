@@ -1,21 +1,21 @@
 #ifndef __AFC_EDITOR_PARSERS_UTIL_H__
 #define __AFC_EDITOR_PARSERS_UTIL_H__
 
+#include <ostream>  // For operator<< overload
+
 #include "src/language/lazy_string/single_line.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
 
-#include <ostream> // For operator<< overload
-
 namespace afc::editor::parsers {
 
-// Specifies what should be done if the line finishes before the closing
-// quote_char is found.
+// What should be done if the line finishes before the closing quote_char is
+// found?
 enum class MultipleLinesSupport { kAccept, kReject };
 
-// Specifies the current state of the parser for multi-line strings.
+// What's the current state of the parser (for multi-line strings)?
 enum class CurrentState {
-  // Very first call at the start of the quoted line.
+  // Very first call (at the start of the quoted line).
   kStart,
   // Continuing a quoted string in a new line, not inside a nested expression.
   kContinuationInDefault,
@@ -23,7 +23,7 @@ enum class CurrentState {
   kContinuationInNestedExpression
 };
 
-// Specifies the state of the parsed quoted string after processing one line.
+// What's the state of the parser (when `ParseQuotedString` returns)?
 enum class ParseQuotedStringState {
   // The quoted string was fully consumed (including `quote_char`).
   kDone,
@@ -35,9 +35,8 @@ enum class ParseQuotedStringState {
   kInNestedExpression
 };
 
-// Overload operator<< for ParseQuotedStringState to enable streaming to ostream.
 inline std::ostream& operator<<(std::ostream& os,
-                                  const ParseQuotedStringState& state) {
+                                const ParseQuotedStringState& state) {
   switch (state) {
     case ParseQuotedStringState::kDone:
       return os << "kDone";
@@ -46,11 +45,9 @@ inline std::ostream& operator<<(std::ostream& os,
     case ParseQuotedStringState::kInNestedExpression:
       return os << "kInNestedExpression";
   }
-  return os; // Should not reach here
+  return os;  // Should not reach here
 }
 
-// Original ParseQuotedString function modified to use the new enums and return
-// type
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
     infrastructure::screen::LineModifierSet string_modifiers,
@@ -70,9 +67,7 @@ struct NestedExpressionSyntax {
   infrastructure::screen::LineModifierSet modifiers;
 };
 
-// `result` should be after the initial double-quoted string.
-// Original ParseQuotedString function modified to use the new enums and return
-// type
+// `result` should be *immediately after* the initial `quote_char` string.
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
     infrastructure::screen::LineModifierSet string_modifiers,
@@ -80,7 +75,7 @@ ParseQuotedStringState ParseQuotedString(
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state);
 
-// `result` should be after the initial digit.
+// `result` should be *immediately after* the initial digit.
 void ParseNumber(ParseData* result,
                  infrastructure::screen::LineModifierSet number_modifiers,
                  std::unordered_set<ParseTreeProperty> properties);
