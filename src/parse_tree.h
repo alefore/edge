@@ -34,6 +34,7 @@ class ParserId
   static const ParserId& JavaScript();
   static const ParserId& Diff();
   static const ParserId& Markdown();
+  static const ParserId& Css();
   static const ParserId& Csv();
   static const ParserId& Py();
 };

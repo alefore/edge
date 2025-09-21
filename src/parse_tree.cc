@@ -95,6 +95,12 @@ namespace afc::editor {
   return *output;
 }
 
+/* static */ const ParserId& ParserId::Css() {
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"css")};
+  return *output;
+}
+
 /* static */ const ParserId& ParserId::Py() {
   static const ParserId* output =
       new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"py")};
@@ -231,10 +237,8 @@ const std::unordered_set<ParseTreeProperty>& ParseTree::properties() const {
 }
 
 bool ParseTree::operator==(const ParseTree& other) const {
-  return range_ == other.range() &&
-         modifiers_ == other.modifiers() &&
-         properties_ == other.properties() &&
-         children_ == other.children();
+  return range_ == other.range() && modifiers_ == other.modifiers() &&
+         properties_ == other.properties() && children_ == other.children();
 }
 
 ParseTree SimplifyTree(const ParseTree& tree) {
