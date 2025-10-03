@@ -114,7 +114,18 @@ bool tests_registration = tests::Register(
       .property =
           L"Assigning a new root to an existing root correctly releases the "
           L"old object immediately (without needing to call `Collect`).",
-      .callback = [] { /* {{🍄}} */ }},
+      .callback =
+          [] {
+            // ✨ RootAssignmentReleasesOld
+            gc::Pool pool({});
+            gc::Root<Node> root_0 = pool.NewRoot(MakeNonNullUnique<Node>());
+            DeleteNotification::Value delete_notification_0 =
+                root_0.ptr()->delete_notification.listenable_value();
+            gc::Root<Node> root_1 = pool.NewRoot(MakeNonNullUnique<Node>());
+            root_0 = std::move(root_1);
+            CHECK(delete_notification_0.has_value());
+            // ✨
+          }},
      {.name = L"PoolRootsStartsAtZero",
       .property = L"FullCollect on an empty pool returns a stats with 0 roots.",
       .callback = [] { /* {{🍄}} */ }},

@@ -110,9 +110,11 @@ bool tests_registration = tests::Register(
             CHECK(delete_notification.has_value());
           }},
      {.name = L"RootAssignmentReleasesOld",
-      .property =
-          L"Assigning a new root to an existing root correctly releases the "
-          L"old object immediately (without needing to call `Collect`).",
+      .property = L"Assigning a new root to an existing root "
+                  L"correctly releases the old object immediately "
+                  L"(without needing to call `Collect`): "
+                  L"the delete notification for the old object "
+                  L"must have a value *immediately* after the assignment.",
       .callback = [] { /* {{🍄}} */ }},
      {.name = L"PoolRootsStartsAtZero",
       .property = L"FullCollect on an empty pool returns a stats with 0 roots.",
