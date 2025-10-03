@@ -31,6 +31,15 @@ Trampoline::Trampoline(ConstructorAccessTag, Options options,
       stack_(std::move(stack)),
       yield_callback_(std::move(options.yield_callback)) {}
 
+gc::Root<Trampoline> Trampoline::Copy() const {
+  gc::Root<Trampoline> output = New(
+      Options{.environment = environment_, .yield_callback = yield_callback_});
+  output->namespace_ = namespace_;
+  output->stack_ = stack_;
+  output->jumps_ = jumps_;
+  return output;
+}
+
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
     const gc::Ptr<Expression>& expression, Type type) {
   if (!expression->SupportsType(type)) {

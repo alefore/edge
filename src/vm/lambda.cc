@@ -97,7 +97,7 @@ class LambdaExpression : public Expression {
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
-          auto original_trampoline = trampoline;
+          gc::Root<Trampoline> original_trampoline = trampoline.Copy();
           trampoline.stack().Push(
               StackFrame::New(trampoline.pool(), container::MaterializeVector(
                                                      args | gc::view::Ptr))
@@ -113,7 +113,7 @@ class LambdaExpression : public Expression {
                 gc::Root<Value> promoted_value =
                     promotion_function(std::move(body_output.value));
                 trampoline.stack().Pop();
-                trampoline = std::move(original_trampoline);
+                trampoline = std::move(original_trampoline.value());
                 return Success(promoted_value);
               });
         },

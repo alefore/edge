@@ -47,8 +47,16 @@ class Trampoline {
   Trampoline(ConstructorAccessTag, Options options,
              language::gc::Ptr<Stack> stack);
 
+  // Force explicit use of `Copy`.
+  Trampoline(const Trampoline&) = delete;
+  Trampoline(Trampoline&&) = delete;
+
+  Trampoline& operator=(Trampoline&&) = default;
+
   void SetEnvironment(language::gc::Ptr<Environment> environment);
   const language::gc::Ptr<Environment>& environment() const;
+
+  language::gc::Root<Trampoline> Copy() const;
 
   Stack& stack();
 
