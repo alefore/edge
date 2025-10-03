@@ -36,9 +36,9 @@
 namespace afc::tests {
 struct Test {
   std::wstring name;
-  // A description of what this test does.
+  // A description of the property of the software that this test validates.
   // TODO(2025-10-03, easy): Make this non-optional.
-  std::wstring description = L"";
+  std::wstring property = L"";
   // How many times should this test be run by default?
   //
   // If set to 0, the test will only be run if it's selected explicitly (through
