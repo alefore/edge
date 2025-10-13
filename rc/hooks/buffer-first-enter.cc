@@ -64,6 +64,12 @@ void HandleFileTypes(Buffer buffer, string basename, string extension) {
     return;
   }
 
+  if (extension == "ts") {
+    JavaScriptMode(buffer);
+    buffer.SetStatus("🔡 TypeScript file (" + extension + ")");
+    return;
+  }
+
   if (basename == "COMMIT_EDITMSG") {
     buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
     buffer.set_paragraph_line_prefix_characters(" #");
