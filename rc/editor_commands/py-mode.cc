@@ -1,6 +1,6 @@
 void PyMode(Buffer buffer) {
-  buffer.set_paragraph_line_prefix_characters(" /*");
-  buffer.set_line_prefix_characters(" /*");
+  buffer.set_paragraph_line_prefix_characters(" #");
+  buffer.set_line_prefix_characters(" #");
   buffer.set_language_keywords(
       "None True False "
       "and or not "
