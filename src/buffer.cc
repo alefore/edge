@@ -2572,8 +2572,8 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 OpenBuffer::Expand() const {
-  return {environment().object_metadata(), default_commands_.object_metadata(),
-          mode_.object_metadata(), execution_context_.object_metadata()};
+  return {default_commands_.object_metadata(), mode_.object_metadata(),
+          execution_context_.object_metadata()};
 }
 
 const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
