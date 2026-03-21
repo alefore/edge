@@ -134,6 +134,8 @@ Fix problem with first read of prompt history (at start); doesn't refresh list o
 
 Automatically save prompt buffers after a few seconds of inactivity.
 
+P0: For opening a file: support globs. If multiple files match, open them all.
+
 ## Commands
 
 Improve "af":
@@ -223,3 +225,5 @@ Improve the help document:
 * Add documentation string for VM functions/variables.
 
 When a file doesn't exist, don't attempt to run clang-tidy on it.
+
+P0: On the directory view, if Enter is pressed, support multiple cursors.
