@@ -54,7 +54,7 @@ futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor_state,
-                 .path = OptionalFrom(Path::New(name.read())),
+                 .path = name.read(),
                  .insertion_type = BuffersList::AddBufferType::kVisit})
       .Transform(
           [](std::vector<gc::Root<OpenBuffer>>) { return EmptyValue(); });
@@ -66,16 +66,14 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.predictor_output.found_exact_match) {
-    ValueOrError<Path> path_or_error = Path::New(line.read());
-    Path* path = std::get_if<Path>(&path_or_error);
-    if (path == nullptr) {
+    if (line.empty()) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
     }
     output =
         OpenFileIfFound(
             OpenFileOptions{
                 .editor_state = editor,
-                .path = *path,
+                .path = ToLazyString(line),
                 .insertion_type = BuffersList::AddBufferType::kIgnore})
             .Transform([](std::vector<gc::Root<OpenBuffer>> buffer) {
               CHECK_GT(buffer.size(), 0ul);

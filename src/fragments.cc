@@ -23,6 +23,7 @@ using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedMap;
@@ -43,8 +44,8 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                    {.editor_state = editor,
                     .name = FragmentsBuffer{},
                     .path = editor.edge_path().empty()
-                                ? std::nullopt
-                                : std::make_optional(Path::Join(
+                                ? LazyString{}
+                                : ToLazyString(Path::Join(
                                       editor.edge_path().front(),
                                       PathComponent::FromString(L"fragments"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})

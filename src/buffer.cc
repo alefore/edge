@@ -753,14 +753,11 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  futures::Past(Path::New(Read(buffer_variables::dictionary)))
-      .Transform([&](Path dictionary_path) {
-        return OpenFileIfFound(OpenFileOptions{
-            .editor_state = editor(),
-            .path = dictionary_path,
-            .insertion_type = BuffersList::AddBufferType::kIgnore,
-            .use_search_paths = false});
-      })
+  OpenFileIfFound(
+      OpenFileOptions{.editor_state = editor(),
+                      .path = Read(buffer_variables::dictionary),
+                      .insertion_type = BuffersList::AddBufferType::kIgnore,
+                      .use_search_paths = false})
       .Transform([](std::vector<gc::Root<OpenBuffer>> dictionary_root) {
         CHECK_EQ(dictionary_root.size(), 1ul);
         return dictionary_root[0]->WaitForEndOfFile().Transform(
@@ -2144,7 +2141,10 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      return OpenFileIfFound(
                                 OpenFileOptions{
                                     .editor_state = editor,
-                                    .path = std::get<Path>(path),
+                                    .path = ToLazyString(
+                                        ValueOrDie(std::move(path))),
+                                    .glob_behavior =
+                                        OpenFileGlobBehavior::kLiteralPath,
                                     .insertion_type =
                                         BuffersList::AddBufferType::kIgnore,
                                     .use_search_paths = false,

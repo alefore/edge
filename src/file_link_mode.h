@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "src/editor.h"
@@ -22,14 +23,19 @@ futures::Value<language::PossibleError> SaveContentsToFile(
     concurrent::ThreadPoolWithWorkQueue& thread_pool,
     infrastructure::FileSystemDriver& file_system_driver);
 
+// TODO: Add globbing.
+enum class OpenFileGlobBehavior { kLiteralPath };
+
 struct OpenFileOptions {
   EditorState& editor_state;
 
   // Name can be absent, in which case the name will come from the path.
   std::optional<BufferName> name = std::nullopt;
 
-  // The path of the file to open.
-  std::optional<infrastructure::Path> path;
+  // The pattern for the path of the file to open.
+  language::lazy_string::LazyString path;
+
+  OpenFileGlobBehavior glob_behavior = OpenFileGlobBehavior::kLiteralPath;
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;

@@ -84,6 +84,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -338,7 +339,9 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor,
-                 .path = Path::Join(editor.edge_path().front(), path),
+                 .path =
+                     ToLazyString(Path::Join(editor.edge_path().front(), path)),
+                 .glob_behavior = OpenFileGlobBehavior::kLiteralPath,
                  .insertion_type = BuffersList::AddBufferType::kIgnore,
                  .use_search_paths = false})
       .Transform([](std::vector<gc::Root<OpenBuffer>> buffers) {

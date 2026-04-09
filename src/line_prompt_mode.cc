@@ -78,6 +78,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -144,11 +145,11 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
              {.editor_state = editor_state,
               .name = buffer_name,
               .path = editor_state.edge_path().empty()
-                          ? std::nullopt
-                          : std::make_optional(
+                          ? LazyString{}
+                          : ToLazyString(
                                 Path::Join(editor_state.edge_path().front(),
                                            ValueOrDie(PathComponent::New(
-                                               name.read().read().read() +
+                                               ToLazyString(name) +
                                                LazyString{L"_history"})))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([&editor_state](std::vector<gc::Root<OpenBuffer>> buffers) {

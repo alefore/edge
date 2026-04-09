@@ -479,7 +479,7 @@ gc::Root<Environment> BuildEditorEnvironment(
             return OpenOrCreateFile(
                        OpenFileOptions{
                            .editor_state = editor_arg,
-                           .path = OptionalFrom(Path::New(path_str)),
+                           .path = path_str,
                            .insertion_type =
                                visit ? BuffersList::AddBufferType::kVisit
                                      : BuffersList::AddBufferType::kIgnore})
@@ -520,8 +520,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                                    return OpenOrCreateFile(
                                               OpenFileOptions{
                                                   .editor_state = editor_arg,
-                                                  .path = OptionalFrom(
-                                                      Path::New(path)),
+                                                  .path = path,
                                                   .insertion_type =
                                                       visit
                                                           ? BuffersList::

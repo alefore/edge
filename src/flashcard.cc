@@ -58,6 +58,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -109,7 +110,8 @@ class FlashcardReviewLog {
     return OpenOrCreateFile(
                OpenFileOptions{
                    .editor_state = editor,
-                   .path = review_log_path,
+                   .path = ToLazyString(review_log_path),
+                   .glob_behavior = OpenFileGlobBehavior::kLiteralPath,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
         .Transform([answer](std::vector<gc::Root<OpenBuffer>> buffers) {

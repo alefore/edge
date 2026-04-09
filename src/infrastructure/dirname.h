@@ -61,6 +61,7 @@ struct PathValidator {
       const language::lazy_string::LazyString& path);
 };
 
+// Make the LazyString default constructor private? Path{LazyString{...}}.
 class AbsolutePath;
 class Path : public language::GhostType<Path, language::lazy_string::LazyString,
                                         PathValidator> {

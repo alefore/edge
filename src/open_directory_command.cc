@@ -10,17 +10,21 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 
 namespace gc = afc::language::gc;
 
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
+using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::editor {
 namespace {
@@ -42,15 +46,18 @@ class OpenDirectoryCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     OpenOrCreateFile(OpenFileOptions{
         .editor_state = editor_state_,
-        .path = OptionalFrom(VisitPointer(
-            editor_state_.current_buffer(),
-            [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
-              ASSIGN_OR_RETURN(
-                  Path path,
-                  Path::New(buffer.ptr()->Read(buffer_variables::name)));
-              return path.Dirname();
-            },
-            [] { return Path::LocalDirectory(); }))});
+        .path = std::visit(
+            overload{[](Error) { return LazyString{}; },
+                     [](Path path) { return ToLazyString(path); }},
+            VisitPointer(
+                editor_state_.current_buffer(),
+                [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
+                  ASSIGN_OR_RETURN(
+                      Path path,
+                      Path::New(buffer.ptr()->Read(buffer_variables::name)));
+                  return path.Dirname();
+                },
+                [] { return Path::LocalDirectory(); }))});
   }
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>

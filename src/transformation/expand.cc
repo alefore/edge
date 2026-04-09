@@ -24,6 +24,7 @@ namespace container = afc::language::container;
 
 using afc::futures::OnError;
 using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -40,6 +41,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindLastNotOf;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -228,15 +230,14 @@ class ReadAndInsert : public CompositeTransformation {
                    "edge_path.";
       return futures::Past(Output());
     }
-    auto edge_path_front = input.buffer.editor().edge_path().front();
-    auto full_path = Path::Join(
-        edge_path_front,
-        Path::Join(ValueOrDie(Path::New(LazyString{L"expand"})), path_));
+    Path full_path =
+        Path::Join(input.buffer.editor().edge_path().front(),
+                   Path::Join(PathComponent::FromString(L"expand"), path_));
 
     return open_file_callback_(
                OpenFileOptions{
                    .editor_state = input.buffer.editor(),
-                   .path = full_path,
+                   .path = ToLazyString(full_path),
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
         .Transform([full_path, input = std::move(input)](
@@ -274,7 +275,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
                    Path{LazyString{L"/home/edge-test-user/.edge"}});
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-               std::optional<Path> path_opened;
+               std::optional<LazyString> path_opened;
                futures::Value<CompositeTransformation::Output> output =
                    ReadAndInsert(
                        ValueOrDie(Path::New(LazyString{L"unexistent"})),
@@ -288,9 +289,9 @@ const bool read_and_insert_tests_registration = tests::Register(
                            .buffer = buffer.ptr().value()});
                CHECK(output.has_value());
                CHECK(path_opened.has_value());
-               CHECK_EQ(path_opened.value(),
-                        ValueOrDie(Path::New(LazyString{
-                            L"/home/edge-test-user/.edge/expand/unexistent"})));
+               CHECK_EQ(
+                   path_opened.value(),
+                   LazyString{L"/home/edge-test-user/.edge/expand/unexistent"});
              }},
     });
 
@@ -363,14 +364,14 @@ class ExpandTransformation : public CompositeTransformation {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           futures::Value<Predictor> predictor_future =
               futures::Past(SyntaxBasedPredictor);
-          if (ValueOrError<Path> path =
-                  Path::New(input.buffer.Read(buffer_variables::dictionary));
-              !IsError(path)) {
+          if (LazyString dictionary_path =
+                  input.buffer.Read(buffer_variables::dictionary);
+              !dictionary_path.empty()) {
             predictor_future =
                 OpenFileIfFound(
                     OpenFileOptions{
                         .editor_state = input.buffer.editor(),
-                        .path = ValueOrDie(std::move(path)),
+                        .path = std::move(dictionary_path),
                         .insertion_type = BuffersList::AddBufferType::kIgnore,
                         .use_search_paths = false})
                     .Transform(
