@@ -676,17 +676,15 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
               buffer->default_commands()->Add(
                   keys_values,
                   [buffer, path]() {
-                    ResolvePathOptions<EmptyValue>::New(
-                        buffer->editor(), MakeNonNullShared<FileSystemDriver>(
-                                              buffer->editor().thread_pool()))
-                        .Transform([buffer, path](
-                                       ResolvePathOptions<EmptyValue> options) {
+                    ResolvePathOptions::New(buffer->editor(),
+                                            MakeNonNullShared<FileSystemDriver>(
+                                                buffer->editor().thread_pool()))
+                        .Transform([buffer, path](ResolvePathOptions options) {
                           options.path = path;
                           return futures::OnError(
                               ResolvePath(std::move(options))
-                                  .Transform([buffer, path](
-                                                 ResolvePathOutput<EmptyValue>
-                                                     results) {
+                                  .Transform([buffer,
+                                              path](ResolvePathOutput results) {
                                     buffer->execution_context()->EvaluateFile(
                                         results.path);
                                     return Success();

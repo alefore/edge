@@ -56,21 +56,19 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   }
 
   buffer->ptr()->ResetMode();
-  return OnError(
-             ResolvePathOptions<EmptyValue>::New(
-                 editor_state, MakeNonNullShared<FileSystemDriver>(
-                                   editor_state.thread_pool()))
-                 .Transform([input](ResolvePathOptions<EmptyValue> options) {
-                   options.path = input.read();
-                   return ResolvePath(std::move(options));
-                 }),
-             [buffer, input](Error error) {
-               buffer->ptr()->status().InsertError(
-                   Error{LazyString{L"🗱  File not found: "} + input.read()});
-               return futures::Past(error);
-             })
-      .Transform([buffer,
-                  &editor_state](ResolvePathOutput<EmptyValue> resolved_path)
+  return OnError(ResolvePathOptions::New(editor_state,
+                                         MakeNonNullShared<FileSystemDriver>(
+                                             editor_state.thread_pool()))
+                     .Transform([input](ResolvePathOptions options) {
+                       options.path = input.read();
+                       return ResolvePath(std::move(options));
+                     }),
+                 [buffer, input](Error error) {
+                   buffer->ptr()->status().InsertError(Error{
+                       LazyString{L"🗱  File not found: "} + input.read()});
+                   return futures::Past(error);
+                 })
+      .Transform([buffer, &editor_state](ResolvePathOutput resolved_path)
                      -> futures::Value<PossibleError> {
         using futures::IterationControlCommand;
         auto index = MakeNonNullShared<size_t>(0);
