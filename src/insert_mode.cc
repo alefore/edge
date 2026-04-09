@@ -333,6 +333,23 @@ NewInsertion(EditorState& editor) {
       });
 }
 
+futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
+                                                            Path path) {
+  return OpenOrCreateFile(
+             OpenFileOptions{
+                 .editor_state = editor,
+                 .path = Path::Join(editor.edge_path().front(), path),
+                 .insertion_type = BuffersList::AddBufferType::kIgnore,
+                 .use_search_paths = false})
+      .Transform([](std::vector<gc::Root<OpenBuffer>> buffers) {
+        CHECK_EQ(buffers.size(), 1ul);
+        gc::Root<OpenBuffer> buffer = std::move(buffers[0]);
+        buffer->Set(buffer_variables::allow_dirty_delete, true);
+        return buffer->WaitForEndOfFile().Transform(
+            [buffer](EmptyValue) { return buffer->contents().snapshot(); });
+      });
+}
+
 class InsertMode : public InputReceiver {
   const InsertModeOptions options_;
 
@@ -368,24 +385,8 @@ class InsertMode : public InputReceiver {
         buffers_(std::move(buffers)),
         current_insertion_(NewInsertion(options_.editor_state)),
         completion_model_supplier_(MakeNonNullShared<DictionaryManager>(
-            [&editor = options_.editor_state](Path path) {
-              return OpenOrCreateFile(
-                         OpenFileOptions{
-                             .editor_state = editor,
-                             .path =
-                                 Path::Join(editor.edge_path().front(), path),
-                             .insertion_type =
-                                 BuffersList::AddBufferType::kIgnore,
-                             .use_search_paths = false})
-                  .Transform([](gc::Root<OpenBuffer> buffer) {
-                    buffer.ptr()->Set(buffer_variables::allow_dirty_delete,
-                                      true);
-                    return buffer.ptr()->WaitForEndOfFile().Transform(
-                        [buffer](EmptyValue) {
-                          return buffer.ptr()->contents().snapshot();
-                        });
-                  });
-            })) {
+            std::bind_front(OpenBufferForDictionaryManager,
+                            std::ref(options_.editor_state)))) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
     CHECK(!options_.buffers.value().empty());

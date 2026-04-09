@@ -108,7 +108,7 @@ std::optional<std::ranges::range_value_t<Range>> FindFirstIf(Range&& range,
 }
 
 // Convenience function. Hopefully we'll be able to do this with native C++
-// soon, and then we can just get rid of this.
+// soon (with std::ranges::to<...>(), and then we can just get rid of this.
 template <typename Container>
 Container Materialize(auto&& view) {
   return Container(std::ranges::begin(view), std::ranges::end(view));

@@ -48,26 +48,26 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                                       editor.edge_path().front(),
                                       PathComponent::FromString(L"fragments"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-            .Transform([&editor](gc::Root<OpenBuffer> buffer_root) {
+            .Transform([&editor](std::vector<gc::Root<OpenBuffer>> buffers) {
+              CHECK(!buffers.empty());
               VLOG(6) << "Preparing fragments buffer (will wait for EOF).";
-              OpenBuffer& buffer = buffer_root.ptr().value();
-              buffer.Set(buffer_variables::save_on_close, true);
-              buffer.Set(buffer_variables::trigger_reload_on_buffer_write,
-                         false);
-              buffer.Set(buffer_variables::show_in_buffers_list, false);
-              buffer.Set(buffer_variables::atomic_lines, true);
-              buffer.Set(buffer_variables::close_after_idle_seconds, 20.0);
-              buffer.Set(buffer_variables::vm_lines_evaluation, false);
+              gc::Root<OpenBuffer>& buffer = buffers[0];
+              buffer->Set(buffer_variables::save_on_close, true);
+              buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
+                          false);
+              buffer->Set(buffer_variables::show_in_buffers_list, false);
+              buffer->Set(buffer_variables::atomic_lines, true);
+              buffer->Set(buffer_variables::close_after_idle_seconds, 20.0);
+              buffer->Set(buffer_variables::vm_lines_evaluation, false);
               if (!editor.has_current_buffer()) {
                 // Seems lame, but what can we do?
-                editor.set_current_buffer(buffer_root,
+                editor.set_current_buffer(buffer,
                                           CommandArgumentModeApplyMode::kFinal);
               }
-              return buffer_root.ptr()->WaitForEndOfFile().Transform(
-                  [buffer_root](EmptyValue) {
-                    VLOG(6) << "Fragments buffer: EOF received.";
-                    return buffer_root;
-                  });
+              return buffer->WaitForEndOfFile().Transform([buffer](EmptyValue) {
+                VLOG(6) << "Fragments buffer: EOF received.";
+                return buffer;
+              });
             });
       },
       editor.buffer_registry().Find(FragmentsBuffer{}));

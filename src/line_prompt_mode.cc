@@ -151,20 +151,21 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
                                                name.read().read().read() +
                                                LazyString{L"_history"})))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
-      .Transform([&editor_state](gc::Root<OpenBuffer> buffer_root) {
-        OpenBuffer& buffer = buffer_root.ptr().value();
-        buffer.Set(buffer_variables::save_on_close, true);
-        buffer.Set(buffer_variables::trigger_reload_on_buffer_write, false);
-        buffer.Set(buffer_variables::show_in_buffers_list, false);
-        buffer.Set(buffer_variables::atomic_lines, true);
-        buffer.Set(buffer_variables::close_after_idle_seconds, 20.0);
-        buffer.Set(buffer_variables::vm_lines_evaluation, false);
+      .Transform([&editor_state](std::vector<gc::Root<OpenBuffer>> buffers) {
+        CHECK(!buffers.empty());
+        gc::Root<OpenBuffer>& buffer = buffers[0];
+        buffer->Set(buffer_variables::save_on_close, true);
+        buffer->Set(buffer_variables::trigger_reload_on_buffer_write, false);
+        buffer->Set(buffer_variables::show_in_buffers_list, false);
+        buffer->Set(buffer_variables::atomic_lines, true);
+        buffer->Set(buffer_variables::close_after_idle_seconds, 20.0);
+        buffer->Set(buffer_variables::vm_lines_evaluation, false);
         if (!editor_state.has_current_buffer()) {
           // Seems lame, but what can we do?
-          editor_state.set_current_buffer(buffer_root,
+          editor_state.set_current_buffer(buffer,
                                           CommandArgumentModeApplyMode::kFinal);
         }
-        return buffer_root;
+        return buffer;
       });
 }
 

@@ -56,7 +56,8 @@ futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                  .editor_state = editor_state,
                  .path = OptionalFrom(Path::New(name.read())),
                  .insertion_type = BuffersList::AddBufferType::kVisit})
-      .Transform([](gc::Root<OpenBuffer>) { return EmptyValue(); });
+      .Transform(
+          [](std::vector<gc::Root<OpenBuffer>>) { return EmptyValue(); });
 }
 
 // Returns the buffer to show for context, or nullptr.
@@ -70,17 +71,19 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
     if (path == nullptr) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
     }
-    output = OpenFileIfFound(
-                 OpenFileOptions{
-                     .editor_state = editor,
-                     .path = *path,
-                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-                 .Transform([](gc::Root<OpenBuffer> buffer) {
-                   return Success(std::optional<gc::Root<OpenBuffer>>(buffer));
-                 })
-                 .ConsumeErrors([](Error) {
-                   return futures::Past(std::optional<gc::Root<OpenBuffer>>());
-                 });
+    output =
+        OpenFileIfFound(
+            OpenFileOptions{
+                .editor_state = editor,
+                .path = *path,
+                .insertion_type = BuffersList::AddBufferType::kIgnore})
+            .Transform([](std::vector<gc::Root<OpenBuffer>> buffer) {
+              CHECK_GT(buffer.size(), 0ul);
+              return Success(std::optional<gc::Root<OpenBuffer>>(buffer[0]));
+            })
+            .ConsumeErrors([](Error) {
+              return futures::Past(std::optional<gc::Root<OpenBuffer>>());
+            });
   }
   return std::move(output).Transform(
       [results](std::optional<gc::Root<OpenBuffer>> buffer)

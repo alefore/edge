@@ -523,26 +523,30 @@ const bool buffer_reloads_tests_registration = tests::Register(
      {.name = L"CloseBufferDeletes",
       .callback =
           [] {
+            LOG(INFO) << "Test starts.";
             NonNull<std::unique_ptr<EditorState>> editor =
                 EditorForTests(std::nullopt);
-            futures::Value<gc::Root<OpenBuffer>> future_buffer =
+            LOG(INFO) << "Editor created.";
+            futures::Value<std::vector<gc::Root<OpenBuffer>>> future_buffers =
                 OpenOrCreateFile(OpenFileOptions{
                     .editor_state = editor.value(),
                     .name = BufferName{LazyString{L"- test buffer"}},
                     .path = Path{LazyString{
                         L"/tmp/edge-test.close-buffer-deletes.txt"}},
                     .insertion_type = BuffersList::AddBufferType::kIgnore});
-            AdvanceUntilValue(editor.value(), future_buffer);
+            LOG(INFO) << "Buffers future created.";
+            AdvanceUntilValue(editor.value(), future_buffers);
             LOG(INFO) << "Buffer registry size (before delete): "
                       << editor->buffer_registry().buffers().size();
             std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
-            std::move(future_buffer)
-                .Transform([&editor,
-                            &weak_buffer](gc::Root<OpenBuffer> buffer) {
+            std::move(future_buffers)
+                .Transform([&editor, &weak_buffer](
+                               std::vector<gc::Root<OpenBuffer>> buffers) {
+                  CHECK_EQ(buffers.size(), 1ul);
                   LOG(INFO) << "File is opened.";
-                  weak_buffer = buffer.ptr().ToWeakPtr();
-                  buffer.ptr()->Reload();
-                  buffer.ptr()->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+                  weak_buffer = buffers[0].ptr().ToWeakPtr();
+                  buffers[0]->Reload();
+                  buffers[0]->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
                   return Success();
                 });
 
@@ -562,23 +566,25 @@ const bool buffer_reloads_tests_registration = tests::Register(
      {.name = L"CloseBufferDeletesListed", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
-        futures::Value<gc::Root<OpenBuffer>> future_buffer =
+        futures::Value<std::vector<gc::Root<OpenBuffer>>> future_buffers =
             OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor.value(),
                 .name = BufferName{LazyString{L"- test buffer"}},
                 .path = Path{LazyString{
                     L"/tmp/edge-test.close-buffer-deletes-listed.txt"}},
                 .insertion_type = BuffersList::AddBufferType::kVisit});
-        AdvanceUntilValue(editor.value(), future_buffer);
+        AdvanceUntilValue(editor.value(), future_buffers);
         LOG(INFO) << "Buffer registry size (before delete): "
                   << editor->buffer_registry().buffers().size();
         std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
-        std::move(future_buffer)
-            .Transform([&editor, &weak_buffer](gc::Root<OpenBuffer> buffer) {
+        std::move(future_buffers)
+            .Transform([&editor, &weak_buffer](
+                           std::vector<gc::Root<OpenBuffer>> buffers) {
+              CHECK_EQ(buffers.size(), 1ul);
               LOG(INFO) << "File is opened.";
-              weak_buffer = buffer.ptr().ToWeakPtr();
-              buffer.ptr()->Reload();
-              buffer.ptr()->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+              weak_buffer = buffers[0].ptr().ToWeakPtr();
+              buffers[0]->Reload();
+              buffers[0]->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
               return Success();
             });
 

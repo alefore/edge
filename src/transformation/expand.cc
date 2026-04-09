@@ -206,10 +206,13 @@ bool predictor_transformation_tests_register = tests::Register(
 }  // namespace
 
 using OpenFileCallback =
-    std::function<futures::ValueOrError<gc::Root<OpenBuffer>>(
+    std::function<futures::ValueOrError<std::vector<gc::Root<OpenBuffer>>>(
         const OpenFileOptions& options)>;
 
 class ReadAndInsert : public CompositeTransformation {
+  const Path path_;
+  const OpenFileCallback open_file_callback_;
+
  public:
   ReadAndInsert(Path path, OpenFileCallback open_file_callback)
       : path_(std::move(path)),
@@ -236,33 +239,30 @@ class ReadAndInsert : public CompositeTransformation {
                    .path = full_path,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
-        .Transform(
-            [full_path, input = std::move(input)](gc::Root<OpenBuffer> buffer) {
-              return buffer.ptr()->WaitForEndOfFile().Transform(
-                  [buffer_to_insert = buffer,
-                   input = std::move(input)](EmptyValue) {
-                    Output output;
-                    output.Push(transformation::Insert{
-                        .contents_to_insert =
-                            buffer_to_insert.ptr()->contents().snapshot()});
-                    LineColumn position = buffer_to_insert.ptr()->position();
-                    if (position.line.IsZero()) {
-                      position.column += input.position.column.ToDelta();
-                    }
-                    position.line += input.position.line.ToDelta();
-                    output.Push(transformation::SetPosition(position));
-                    return Success(std::move(output));
-                  });
-            })
+        .Transform([full_path, input = std::move(input)](
+                       std::vector<gc::Root<OpenBuffer>> buffer) {
+          CHECK_EQ(buffer.size(), 1ul);
+          return buffer[0]->WaitForEndOfFile().Transform(
+              [buffer_to_insert = buffer[0],
+               input = std::move(input)](EmptyValue) {
+                Output output;
+                output.Push(transformation::Insert{
+                    .contents_to_insert =
+                        buffer_to_insert.ptr()->contents().snapshot()});
+                LineColumn position = buffer_to_insert.ptr()->position();
+                if (position.line.IsZero()) {
+                  position.column += input.position.column.ToDelta();
+                }
+                position.line += input.position.line.ToDelta();
+                output.Push(transformation::SetPosition(position));
+                return Success(std::move(output));
+              });
+        })
         .ConsumeErrors([full_path](Error) {
           LOG(INFO) << "Unable to open file: " << full_path;
           return futures::Past(Output());
         });
   }
-
- private:
-  const Path path_;
-  const OpenFileCallback open_file_callback_;
 };
 
 const bool read_and_insert_tests_registration = tests::Register(
@@ -373,11 +373,13 @@ class ExpandTransformation : public CompositeTransformation {
                         .path = ValueOrDie(std::move(path)),
                         .insertion_type = BuffersList::AddBufferType::kIgnore,
                         .use_search_paths = false})
-                    .Transform([](gc::Root<OpenBuffer> dictionary) {
-                      return Success(ComposePredictors(
-                          DictionaryPredictor(std::move(dictionary)),
-                          SyntaxBasedPredictor));
-                    })
+                    .Transform(
+                        [](std::vector<gc::Root<OpenBuffer>> dictionary) {
+                          CHECK_EQ(dictionary.size(), 1ul);
+                          return Success(ComposePredictors(
+                              DictionaryPredictor(std::move(dictionary[0])),
+                              SyntaxBasedPredictor));
+                        })
                     .ConsumeErrors([](Error) -> futures::Value<Predictor> {
                       return futures::Past(SyntaxBasedPredictor);
                     });

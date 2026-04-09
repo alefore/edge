@@ -5,7 +5,7 @@
 namespace afc::language::lazy_string {
 namespace {
 const bool starts_with_tests_registration = tests::Register(
-    L"LazyString.StartsWith",
+    L"LazyString::StartsWith",
     {
         {.name = L"AllEmpty",
          .callback = [] { CHECK(StartsWith(LazyString{}, LazyString{})); }},
@@ -26,6 +26,25 @@ const bool starts_with_tests_registration = tests::Register(
                CHECK(!StartsWith(LazyString{L"foobar"}, LazyString{L"foab"}));
              }},
     });
+
+const bool find_first_of_tests_registration = tests::Register(
+    L"LazyString::FindFirstOf",
+    {{.name = L"WithColumnFind",
+      .callback =
+          [] {
+            CHECK_EQ(FindFirstOf(LazyString{L"/home/alejo/edge-clang/edge/src/"
+                                            L"futures::ValueOrError"},
+                                 {L':'}, ColumnNumber{40})
+                         .value(),
+                     ColumnNumber{40});
+          }},
+     {.name = L"WithColumnNotFound", .callback = [] {
+        CHECK(!FindFirstOf(LazyString{L"/home/alejo/edge-clang/edge/src/"
+                                      L"futures::ValueOrError"},
+                           {L':'}, ColumnNumber{41})
+                   .has_value());
+      }}});
+
 }  // namespace
 std::vector<LazyString> SplitAt(LazyString input, wchar_t separator) {
   std::vector<LazyString> output;
