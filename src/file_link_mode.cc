@@ -520,14 +520,12 @@ futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
     input.search_paths.push_back(Path::LocalDirectory());
   }
 
-  std::visit(
-      overload{
-          IgnoreErrors{},
-          [&](Path path) {
-            input.path =
-                Path::ExpandHomeDirectory(input.home_directory, path).read();
-          }},
-      Path::New(input.path));
+  std::visit(overload{IgnoreErrors{},
+                      [&](Path path) {
+                        input.path = ToLazyString(Path::ExpandHomeDirectory(
+                            input.home_directory, path));
+                      }},
+             Path::New(input.path));
   if (StartsWith(input.path, LazyString{L"/"}))
     input.search_paths = {Path::Root()};
 
