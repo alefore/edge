@@ -894,17 +894,26 @@ void OpenBuffer::AppendLines(
           for (LineNumberDelta i; i < lines_added; ++i) {
             auto source_line = LineNumber() + start_new_section + i;
             options.path = ToLazyString(contents.at(source_line));
-            ResolvePath(options).Transform([&editor, buffer_name, source_line](
-                                               ResolvePathOutput results) {
-              LineMarks::Mark mark{.source_buffer = buffer_name,
-                                   .source_line = source_line,
-                                   .target_buffer = BufferFileId(results.path),
-                                   .target_line_column =
-                                       results.position.value_or(LineColumn())};
-              LOG(INFO) << "Found a mark: " << mark;
-              editor.line_marks().AddMark(std::move(mark));
-              return Success();
-            });
+            ResolvePath(options).Transform(
+                [&editor, buffer_name, source_line](ResolvePathOutput results) {
+                  std::ranges::for_each(
+                      results.entries |
+                          std::views::transform(
+                              [&buffer_name, &source_line,
+                               &editor](ResolvePathOutput::Entry& entry) {
+                                return LineMarks::Mark{
+                                    .source_buffer = buffer_name,
+                                    .source_line = source_line,
+                                    .target_buffer = BufferFileId(entry.path),
+                                    .target_line_column =
+                                        entry.position.value_or(LineColumn())};
+                              }),
+                      [&editor](LineMarks::Mark mark) {
+                        LOG(INFO) << "Found a mark: " << mark;
+                        editor.line_marks().AddMark(std::move(mark));
+                      });
+                  return Success();
+                });
           }
           return Success();
         });

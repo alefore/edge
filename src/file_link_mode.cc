@@ -92,6 +92,7 @@ futures::ValueOrError<ResolvePathOptions::ValidatorOutput> CanStatPath(
       .Transform(stat_validator)
       .Transform(
           [](EmptyValue) -> ValueOrError<ResolvePathOptions::ValidatorOutput> {
+            VLOG(5) << "Path stat succeeded.";
             return Success(ResolvePathOptions::ValidatorOutput{});
           });
 }
@@ -348,6 +349,9 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
                    });
              })
       .Transform([search_paths](futures::IterationControlCommand) mutable {
+        LOG(INFO) << "Got search paths: " << search_paths->size();
+        std::ranges::for_each(search_paths.value(),
+                              [](Path path) { LOG(INFO) << "Path: " << path; });
         return std::move(search_paths.value());
       });
 }
@@ -373,9 +377,11 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
   return ResolvePath(resolve_path_options)
       .Transform([](ResolvePathOutput input)
                      -> futures::ValueOrError<ResolvePathOutput> {
-        if (input.position.has_value()) {
-          input.validator_output.value()->set_position(input.position.value());
-        }
+        for (auto& entry : input.entries)
+          if (entry.position.has_value()) {
+            entry.validator_output.value()->set_position(
+                entry.position.value());
+          }
         // TODO: Apply pattern.
         return futures::Past(Success(std::move(input)));
       });
@@ -383,7 +389,7 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
 
 gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
-    std::optional<ResolvePathOutput> resolve_path_output) {
+    std::optional<ResolvePathOutput::Entry> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
   const std::optional<Path> buffer_options_path =
       std::invoke([&resolve_path_output, &options] -> std::optional<Path> {
@@ -496,7 +502,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                           [](struct stat) { return language::Success(); })};
 }
 
-futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
+futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
     input.search_paths.push_back(Path::LocalDirectory());
@@ -513,9 +519,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (StartsWith(input.path, LazyString{L"/"}))
     input.search_paths = {Path::Root()};
 
-  language::NonNull<
-      std::shared_ptr<std::optional<language::ValueOrError<ResolvePathOutput>>>>
-      output;
+  auto output = MakeNonNullShared<ResolvePathOutput>();
   return futures::ForEachWithCopy(
              input.search_paths.begin(), input.search_paths.end(),
              [input, output](Path search_path) {
@@ -523,6 +527,7 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                  const Path search_path;
                  std::optional<ColumnNumber> str_end;
                };
+               VLOG(4) << "ResolvePath in search path: " << search_path;
                auto state = std::make_shared<State>(
                    State{.search_path = std::move(search_path),
                          .str_end = ColumnNumber{} + input.path.size()});
@@ -612,11 +617,12 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                   OptionalFrom(path_with_prefix.Resolve());
                               Path final_resolved_path =
                                   resolved_path.value_or(path_with_prefix);
-                              output.value() = ResolvePathOutput{
-                                  .path = final_resolved_path,
-                                  .position = output_position,
-                                  .pattern = output_pattern,
-                                  .validator_output = validator_output};
+                              output->entries.push_back(
+                                  ResolvePathOutput::Entry{
+                                      .path = final_resolved_path,
+                                      .position = output_position,
+                                      .pattern = output_pattern,
+                                      .validator_output = validator_output});
                               VLOG(4)
                                   << "Resolved path: " << final_resolved_path;
                               return Success(IterationControlCommand::kStop);
@@ -628,34 +634,33 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                               return Past(IterationControlCommand::kContinue);
                             });
                       })
-                   .Transform([output](IterationControlCommand) {
-                     return output->has_value()
-                                ? IterationControlCommand::kStop
-                                : IterationControlCommand::kContinue;
+                   .Transform([](IterationControlCommand) {
+                     return IterationControlCommand::kContinue;
                    });
              })
-      .Transform(
-          [output](IterationControlCommand) -> ValueOrError<ResolvePathOutput> {
-            if (output->has_value()) return output->value();
-
-            // TODO(easy): Give a better error. Perhaps include the paths in
-            // which we searched? Perhaps the last result of the validator?
-            return Error{
-                language::lazy_string::LazyString{L"Unable to resolve file."}};
-          });
+      .Transform([output](IterationControlCommand) -> ResolvePathOutput {
+        VLOG(4) << "Iteration finished with outputs: "
+                << output->entries.size();
+        return std::move(output.value());
+      });
 }
 
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options) {
-  return OnError(
-      FindAlreadyOpenBuffer(options.editor_state, options.path)
-          .Transform([options](ResolvePathOutput input) {
-            gc::Root<OpenBuffer> buffer =
-                std::move(input.validator_output.value());
-            options.editor_state.AddBuffer(buffer, options.insertion_type);
-            return futures::Past(Success(buffer));
-          }),
-      [options](Error) {
+  return FindAlreadyOpenBuffer(options.editor_state, options.path)
+      .Transform([options](ResolvePathOutput already_open_buffers) {
+        if (!already_open_buffers.entries.empty()) {
+          gc::Root<OpenBuffer> output =
+              already_open_buffers.entries[0].validator_output.value();
+          std::ranges::for_each(already_open_buffers.entries,
+                                [&options](ResolvePathOutput::Entry& entry) {
+                                  gc::Root<OpenBuffer> buffer =
+                                      std::move(entry.validator_output.value());
+                                  options.editor_state.AddBuffer(
+                                      buffer, options.insertion_type);
+                                });
+          return futures::Past(Success(output));
+        }
         return (options.use_search_paths ? GetSearchPaths(options.editor_state)
                                          : futures::Past(std::vector<Path>()))
             .Transform([options](std::vector<Path> search_paths)
@@ -682,8 +687,11 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                   .Transform(
                       [options](ResolvePathOutput input)
                           -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+                        if (input.entries.empty())
+                          return futures::Past(
+                              Error{LazyString{L"No files matched."}});
                         return futures::Past(
-                            Success(CreateBuffer(options, input)));
+                            Success(CreateBuffer(options, input.entries[0])));
                       });
             });
       });

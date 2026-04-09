@@ -80,19 +80,23 @@ struct ResolvePathOptions {
 };
 
 struct ResolvePathOutput {
-  // The absolute path pointing to the file.
-  infrastructure::Path path;
+  struct Entry {
+    // The absolute path pointing to the file.
+    infrastructure::Path path;
 
-  // The position to jump to.
-  std::optional<language::text::LineColumn> position;
+    // The position to jump to.
+    std::optional<language::text::LineColumn> position;
 
-  // The pattern to jump to (after jumping to `position`).
-  language::lazy_string::SingleLine pattern;
+    // The pattern to jump to (after jumping to `position`).
+    language::lazy_string::SingleLine pattern;
 
-  ResolvePathOptions::ValidatorOutput validator_output;
+    ResolvePathOptions::ValidatorOutput validator_output;
+  };
+
+  std::vector<Entry> entries;
 };
 
-futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input);
+futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input);
 
 futures::ValueOrError<language::gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options);

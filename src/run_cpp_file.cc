@@ -56,24 +56,27 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   }
 
   buffer->ptr()->ResetMode();
-  return OnError(ResolvePathOptions::New(editor_state,
-                                         MakeNonNullShared<FileSystemDriver>(
-                                             editor_state.thread_pool()))
-                     .Transform([input](ResolvePathOptions options) {
-                       options.path = input.read();
-                       return ResolvePath(std::move(options));
-                     }),
-                 [buffer, input](Error error) {
-                   buffer->ptr()->status().InsertError(Error{
-                       LazyString{L"🗱  File not found: "} + input.read()});
-                   return futures::Past(error);
-                 })
-      .Transform([buffer, &editor_state](ResolvePathOutput resolved_path)
+  return ResolvePathOptions::New(
+             editor_state,
+             MakeNonNullShared<FileSystemDriver>(editor_state.thread_pool()))
+      .Transform([input](ResolvePathOptions options) {
+        options.path = input.read();
+        return ResolvePath(std::move(options));
+      })
+      .Transform([buffer, input, &editor_state](ResolvePathOutput resolved_path)
                      -> futures::Value<PossibleError> {
+        if (resolved_path.entries.empty()) {
+          Error error{LazyString{L"🗱  File not found: "} + input.read()};
+          buffer->ptr()->status().InsertError(error);
+          return futures::Past(error);
+        }
         using futures::IterationControlCommand;
         auto index = MakeNonNullShared<size_t>(0);
+        // TODO(P1, multiple-files, 2026-04-09, trivial): Honor all entries, not
+        // just the first one.
         return futures::While([buffer, total = editor_state.repetitions(),
-                               adjusted_input = resolved_path.path, index]() {
+                               adjusted_input = resolved_path.entries[0].path,
+                               index]() {
                  if (index.value() >= total)
                    return futures::Past(IterationControlCommand::kStop);
                  ++index.value();
