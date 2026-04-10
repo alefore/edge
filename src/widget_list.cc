@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <ctgmath>
 #include <iostream>
 #include <numeric>
 
