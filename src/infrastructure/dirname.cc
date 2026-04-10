@@ -198,17 +198,15 @@ const bool path_component_extension_tests_registration = tests::Register(
 Path::Path(PathComponent path_component) : Path(path_component.read()) {}
 
 /* static */ Path Path::Join(Path a, Path b) {
-  if (a.IsRoot() && b.IsRoot()) {
+  if (b.GetRootType() == Path::RootType::kAbsolute ||
+      a == ValueOrDie(Path::New(LazyString{L"."})) ||
+      a == ValueOrDie(Path::New(LazyString{L"./"})))
     return b;
-  }
-  if (a == LocalDirectory() && b.read().get(ColumnNumber{}) != L'/') {
-    return b;
-  }
-  bool has_slash = a.read().get(ColumnNumber{} + a.read().size() -
-                                ColumnNumberDelta(1)) == L'/' ||
-                   b.read().get(ColumnNumber{}) == L'/';
+  bool a_ends_in_slash = a.read().get(ColumnNumber{} + a.read().size() -
+                                      ColumnNumberDelta(1)) == L'/';
   return ValueOrDie(
-      Path::New(a.read() + (has_slash ? LazyString{L""} : LazyString{L"/"}) +
+      Path::New(a.read() +
+                (a_ends_in_slash ? LazyString{L""} : LazyString{L"/"}) +
                 b.read()),
       L"Path::Join");
 }
@@ -223,11 +221,19 @@ const bool path_join_tests_registration = tests::Register(
                                            L"tests")),
                      ValueOrDie(Path::New(LazyString{L"alejo.txt"}), L"tests"));
           }},
-     {.name = L"LocalImportant", .callback = [] {
-        CHECK_EQ(Path::Join(Path::LocalDirectory(),
-                            ValueOrDie(Path::New(LazyString{L"/alejo.txt"}),
-                                       L"tests")),
-                 ValueOrDie(Path::New(LazyString{L"./alejo.txt"}), L"tests"));
+     {.name = L"LocalImportant",
+      .callback =
+          [] {
+            CHECK_EQ(
+                Path::Join(
+                    Path::LocalDirectory(),
+                    ValueOrDie(Path::New(LazyString{L"/alejo.txt"}), L"tests")),
+                ValueOrDie(Path::New(LazyString{L"/alejo.txt"}), L"tests"));
+          }},
+     {.name = L"RootRedundant", .callback = [] {
+        CHECK_EQ(Path::Join(Path::Root(),
+                            ValueOrDie(Path::New(LazyString{L"/foo/bar"}))),
+                 ValueOrDie(Path::New(LazyString{L"/foo/bar"})));
       }}});
 
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {

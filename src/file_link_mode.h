@@ -94,7 +94,7 @@ struct ResolvePathOutput {
     std::optional<language::text::LineColumn> position;
 
     // The pattern to jump to (after jumping to `position`).
-    language::lazy_string::SingleLine pattern;
+    std::optional<language::lazy_string::NonEmptySingleLine> pattern;
 
     ResolvePathOptions::ValidatorOutput validator_output;
   };

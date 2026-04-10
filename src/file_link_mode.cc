@@ -49,6 +49,7 @@ namespace gc = afc::language::gc;
 using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
+using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
@@ -61,6 +62,7 @@ using afc::language::IfObj;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -72,6 +74,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
@@ -365,6 +368,7 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
 futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
     EditorState& editor_state, LazyString path) {
   TRACK_OPERATION(FindAlreadyOpenBuffer);
+  if (path.empty()) return futures::Past(Success(ResolvePathOutput{}));
   return ResolvePath(
              ResolvePathOptions{
                  .path = path,
@@ -376,8 +380,9 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
                    if (std::vector<gc::Root<OpenBuffer>> buffers =
                            editor_state.buffer_registry()
                                .FindBuffersPathEndingIn(path_to_validate);
-                       !buffers.empty())
+                       !buffers.empty()) {
                      return futures::Past(buffers.at(0));
+                   }
                    return futures::Past(
                        Error{LazyString{L"Unable to find buffer"}});
                  }})
@@ -485,18 +490,18 @@ gc::Root<OpenBuffer> CreateBuffer(
   options.editor_state.AddBuffer(buffer, options.insertion_type);
 
   if (resolve_path_output.has_value() &&
-      !resolve_path_output->pattern.empty()) {
+      resolve_path_output->pattern.has_value()) {
     std::visit(
         overload{[&](LineColumn position) { buffer->set_position(position); },
                  [&buffer](Error error) {
                    buffer->status().SetInformationText(Line(
                        LineSequence::BreakLines(error.read()).FoldLines()));
                  }},
-        GetNextMatch(
-            options.editor_state.modifiers().direction,
-            SearchOptions{.starting_position = buffer->position(),
-                          .search_query = resolve_path_output->pattern},
-            buffer->contents().snapshot()));
+        GetNextMatch(options.editor_state.modifiers().direction,
+                     SearchOptions{.starting_position = buffer->position(),
+                                   .search_query = ToSingleLine(
+                                       resolve_path_output->pattern.value())},
+                     buffer->contents().snapshot()));
   }
   return buffer;
 }
@@ -515,111 +520,230 @@ gc::Root<OpenBuffer> CreateBuffer(
 }
 
 namespace {
+struct PathWithPosition {
+  Path path;
+  LineColumn position;
+
+  static std::optional<PathWithPosition> New(Path path,
+                                             std::vector<LazyString> inputs) {
+    if (inputs.size() != 1 && inputs.size() != 2) return std::nullopt;
+    LineColumn position = {};
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      size_t value;
+      try {
+        value = stoi(inputs[i].ToString());
+        if (value > 0) {
+          value--;
+        }
+      } catch (const std::invalid_argument& ia) {
+        LOG(INFO) << "stoi failed: invalid argument: " << inputs[i];
+        return std::nullopt;
+      } catch (const std::out_of_range& ia) {
+        LOG(INFO) << "stoi failed: out of range: " << inputs[i];
+        return std::nullopt;
+      }
+      if (i == 0) {
+        position.line = LineNumber(value);
+      } else {
+        position.column = ColumnNumber(value);
+      }
+    }
+    return PathWithPosition{.path = path, .position = position};
+  }
+};
+
+std::ostream& operator<<(std::ostream& os, const PathWithPosition& p) {
+  os << "[" << p.path << ":" << p.position.line << ":" << p.position.column
+     << "]";
+  return os;
+}
+
+struct PathWithPattern {
+  Path path;
+  NonEmptySingleLine pattern;
+
+  static std::optional<PathWithPattern> New(Path path,
+                                            std::vector<LazyString> inputs) {
+    if (inputs.size() != 1 || !StartsWith(inputs[0], LazyString{L"/"}))
+      return std::nullopt;
+    if (std::optional<NonEmptySingleLine> pattern =
+            OptionalFrom(NonEmptySingleLine::New(
+                SingleLine::New(inputs[0].Substring(ColumnNumber{1}))));
+        pattern.has_value()) {
+      return PathWithPattern{.path = path, .pattern = pattern.value()};
+    }
+    return std::nullopt;
+  }
+};
+
+std::ostream& operator<<(std::ostream& os, const PathWithPattern& p) {
+  os << "[" << p.path << ":/" << p.pattern << "]";
+  return os;
+}
+
+using ParsedPath = std::variant<Path, PathWithPosition, PathWithPattern>;
+
+std::ostream& operator<<(std::ostream& os, const ParsedPath& v) {
+  std::visit([&os](auto&& arg) { os << arg; }, v);
+  return os;
+}
+
+const Path& GetPath(const ParsedPath& input) {
+  return std::visit(
+      overload{[](const Path& path) -> const Path& { return path; },
+               [](const auto& obj) -> const Path& { return obj.path; }},
+      input);
+}
+
+std::vector<ParsedPath> ParsePathSpec(Path search_path, LazyString input_path) {
+  // We gradually peel off suffixes from input_path into suffixes. As we do
+  // this, we append entries to output.
+  std::vector<ParsedPath> output;
+  ColumnNumberDelta str_end = input_path.size();
+  std::vector<LazyString> suffixes = {};
+  while (true) {
+    std::visit(
+        overload{IgnoreErrors{},
+                 [&](Path current_local_path) {
+                   Path path = Path::Join(search_path, current_local_path);
+                   LOG(INFO) << "Join(" << search_path << ", "
+                             << current_local_path << ") => " << path;
+                   if (suffixes.empty())
+                     output.push_back(path);
+                   else if (std::optional<PathWithPattern> path_with_pattern =
+                                PathWithPattern::New(path, suffixes);
+                            path_with_pattern.has_value())
+                     output.push_back(path_with_pattern.value());
+                   else if (std::optional<PathWithPosition> path_with_position =
+                                PathWithPosition::New(path, suffixes);
+                            path_with_position.has_value())
+                     output.push_back(path_with_position.value());
+                   else
+                     LOG(INFO) << "Invalid parse: " << path << ": "
+                               << suffixes.size() << ": " << input_path;
+                 }},
+        Path::New(input_path.Substring(ColumnNumber{}, str_end)));
+    if (suffixes.size() == 2) {
+      CHECK(!output.empty());
+      return output;
+    }
+    std::optional<ColumnNumber> new_colon = FindLastOf(
+        input_path, {L':'}, ColumnNumber{} + str_end - ColumnNumberDelta{1});
+    if (new_colon == std::nullopt) {
+      CHECK(!output.empty());
+      return output;
+    }
+    ColumnNumberDelta new_colon_delta = new_colon->ToDelta();
+    CHECK_LT(new_colon_delta, str_end);
+    suffixes.insert(suffixes.begin(),
+                    input_path.Substring(
+                        new_colon.value() + ColumnNumberDelta{1},
+                        str_end - (new_colon_delta + ColumnNumberDelta{1})));
+    str_end = new_colon_delta;
+  }
+}
+
+const bool get_candidates_tests_registration = tests::Register(
+    L"ParsePathSpec",
+    {{.name = L"Simple",
+      .callback =
+          [] {
+            auto output = ParsePathSpec(PathComponent::FromString(L"foo"),
+                                        LazyString{L"bar"});
+            CHECK_EQ(output.size(), 1ul);
+            CHECK_EQ(ToLazyString(std::get<Path>(output[0])),
+                     LazyString{L"foo/bar"});
+          }},
+     {.name = L"Pattern",
+      .callback =
+          [] {
+            auto output = ParsePathSpec(PathComponent::FromString(L"foo"),
+                                        LazyString{L"bar:/quux"});
+            CHECK_EQ(output.size(), 2ul);
+            std::invoke(
+                [](PathWithPattern item) {
+                  CHECK_EQ(ToLazyString(item.path), LazyString{L"foo/bar"});
+                  CHECK_EQ(item.pattern,
+                           NON_EMPTY_SINGLE_LINE_CONSTANT(L"quux"));
+                },
+                std::get<PathWithPattern>(output[1]));
+          }},
+     {.name = L"Multiple", .callback = [] {
+        auto output = ParsePathSpec(PathComponent::FromString(L"foo"),
+                                    LazyString{L"bar:quux::meh:25:43"});
+        CHECK_EQ(output.size(), 3ul);
+
+        CHECK_EQ(ToLazyString(std::get<Path>(output[0])),
+                 LazyString{L"foo/bar:quux::meh:25:43"});
+
+        std::invoke(
+            [](PathWithPosition pos) {
+              CHECK_EQ(ToLazyString(pos.path),
+                       LazyString{L"foo/bar:quux::meh:25"});
+              CHECK_EQ(pos.position, LineColumn{LineNumber{42}});
+            },
+            std::get<PathWithPosition>(output[1]));
+
+        std::invoke(
+            [](PathWithPosition pos) {
+              CHECK_EQ(ToLazyString(pos.path),
+                       LazyString{L"foo/bar:quux::meh"});
+              CHECK_EQ(pos.position,
+                       (LineColumn{LineNumber{24}, ColumnNumber{42}}));
+            },
+            std::get<PathWithPosition>(output[2]));
+      }}});
+
 futures::Value<std::vector<ResolvePathOutput::Entry>> GetEntriesInSearchPath(
     ResolvePathOptions input, Path search_path) {
-  struct State {
-    const Path search_path;
-    std::optional<ColumnNumber> str_end;
-    std::vector<ResolvePathOutput::Entry> output = {};
-  };
-  VLOG(4) << "ResolvePath in search path: " << search_path;
-  auto state = std::make_shared<State>(
-      State{.search_path = std::move(search_path),
-            .str_end = ColumnNumber{} + input.path.size()});
-  return futures::While([input, state]() {
-           if (state->str_end == std::nullopt || state->str_end->IsZero()) {
-             return futures::Past(IterationControlCommand::kStop);
-           }
-
-           ValueOrError<Path> input_path = Path::New(
-               input.path.Substring(ColumnNumber{}, state->str_end->ToDelta()));
-           if (IsError(input_path)) {
-             state->str_end = FindLastOf(
-                 input.path, {L':'}, *state->str_end - ColumnNumberDelta{1});
-             return futures::Past(IterationControlCommand::kContinue);
-           }
-           auto path_with_prefix = Path::Join(
-               state->search_path, ValueOrDie(std::move(input_path)));
-           CHECK(input.validator != nullptr);
-           return input.validator(path_with_prefix)
-               .Transform(
-                   [input, state, path_with_prefix](
-                       ResolvePathOptions::ValidatorOutput validator_output) {
-                     SingleLine output_pattern;
-                     std::optional<language::text::LineColumn> output_position;
-                     for (size_t i = 0; i < 2; i++) {
-                       while (state->str_end->ToDelta() < input.path.size() &&
-                              input.path.get(*state->str_end) == L':')
-                         ++(*state->str_end);
-                       if (state->str_end->ToDelta() == input.path.size())
-                         break;
-                       std::optional<ColumnNumber> next_str_end =
-                           FindFirstOf(input.path, {L':'}, *state->str_end);
-                       if (!next_str_end.has_value()) break;
-                       CHECK_GE(*next_str_end, *state->str_end);
-                       const LazyString arg = input.path.Substring(
-                           *state->str_end, *next_str_end - *state->str_end);
-                       if (i == 0 && StartsWith(arg, LazyString{L"/"})) {
-                         output_pattern = language::OptionalFrom(
-                                              SingleLine::New(arg.Substring(
-                                                  ColumnNumber{1})))
-                                              .value_or(SingleLine{});
-                         break;
-                       } else {
-                         size_t value;
-                         try {
-                           value = stoi(arg.ToString());
-                           if (value > 0) {
-                             value--;
-                           }
-                         } catch (const std::invalid_argument& ia) {
-                           LOG(INFO)
-                               << "stoi failed: invalid argument: " << arg;
-                           break;
-                         } catch (const std::out_of_range& ia) {
-                           LOG(INFO) << "stoi failed: out of range: " << arg;
-                           break;
-                         }
-                         if (!output_position.has_value()) {
-                           output_position = language::text::LineColumn();
-                         }
-                         if (i == 0) {
-                           output_position->line =
-                               language::text::LineNumber(value);
-                         } else {
-                           output_position->column = ColumnNumber(value);
-                         }
-                       }
-                       state->str_end = next_str_end;
-                       if (state->str_end == std::nullopt) break;
-                     }
-                     std::optional<Path> resolved_path =
-                         OptionalFrom(path_with_prefix.Resolve());
-                     Path final_resolved_path =
-                         resolved_path.value_or(path_with_prefix);
-                     state->output.push_back(ResolvePathOutput::Entry{
-                         .path = final_resolved_path,
-                         .position = output_position,
-                         .pattern = output_pattern,
-                         .validator_output = validator_output});
-                     VLOG(4) << "Resolved path: " << final_resolved_path;
-                     return Success(IterationControlCommand::kStop);
-                   })
-               .ConsumeErrors([state, input](Error) {
-                 state->str_end =
-                     FindLastOf(input.path, {L':'},
-                                *state->str_end - ColumnNumberDelta{1});
-                 return Past(IterationControlCommand::kContinue);
-               });
-         })
-      .Transform([state](IterationControlCommand) {
-        LOG(INFO) << "Done with one search path.";
-        return std::move(state->output);
+  LOG(INFO) << "GetEntriesInSearchPath: " << search_path << ": " << input.path;
+  return UnwrapVectorFuture(
+             MakeNonNullShared<std::vector<
+                 futures::Value<std::vector<ResolvePathOutput::Entry>>>>(
+                 ParsePathSpec(search_path, input.path) |
+                 std::views::transform([input](ParsedPath parse) {
+                   VLOG(5) << "Running validator: " << parse;
+                   return input.validator(GetPath(parse))
+                       .Transform([parse](ResolvePathOptions::ValidatorOutput
+                                              validator_output)
+                                      -> ValueOrError<std::vector<
+                                          ResolvePathOutput::Entry>> {
+                         VLOG(4) << "Validtor done: " << parse;
+                         return Success(std::vector{ResolvePathOutput::Entry{
+                             .path = GetPath(parse),
+                             .position =
+                                 std::holds_alternative<PathWithPosition>(parse)
+                                     ? std::make_optional(
+                                           std::get<PathWithPosition>(parse)
+                                               .position)
+                                     : std::optional<LineColumn>(),
+                             .pattern =
+                                 std::holds_alternative<PathWithPattern>(parse)
+                                     ? std::make_optional(
+                                           std::get<PathWithPattern>(parse)
+                                               .pattern)
+                                     : std::optional<NonEmptySingleLine>(),
+                             .validator_output = validator_output}});
+                       })
+                       .ConsumeErrors([](Error) {
+                         return futures::Past(
+                             std::vector<ResolvePathOutput::Entry>{});
+                       });
+                 }) |
+                 std::ranges::to<std::vector>()))
+      .Transform([](std::vector<std::vector<ResolvePathOutput::Entry>>
+                        nested_outputs) {
+        VLOG(5) << "Nested outputs: " << nested_outputs.size();
+        return nested_outputs | std::views::join |
+               std::ranges::to<std::vector>();
       });
 }
 }  // namespace
 
 futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
+  LOG(INFO) << "Resolve path: " << input.path;
+  if (input.path.empty()) return futures::Past(ResolvePathOutput{});
+
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
     input.search_paths.push_back(Path::LocalDirectory());

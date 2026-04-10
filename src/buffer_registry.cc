@@ -47,6 +47,9 @@ gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
           previous_buffer.has_value())
         return previous_buffer.value();
 
+    // TODO(2026-04-10, difficult, deadlock): `factory` could trigger other
+    // methods of the BufferRegistry, which leads to deadlocks.
+    LOG(INFO) << "Creating buffer: " << id;
     gc::Root<OpenBuffer> buffer = std::move(factory)();
     Add(data, id, buffer.ptr().ToWeakPtr());
     return buffer;
@@ -219,6 +222,7 @@ void BufferRegistry::SetListedSortOrder(BufferComparePredicate predicate) {
 /* static */
 void BufferRegistry::Add(Data& data, const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
+  LOG(INFO) << "Adding buffer: " << name;
   // TODO(2024-05-30, trivial): Detect errors if a server already was there.
   if (std::holds_alternative<FuturePasteBuffer>(name) ||
       std::holds_alternative<HistoryBufferName>(name) ||
