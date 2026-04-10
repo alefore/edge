@@ -1,7 +1,6 @@
 #include "buffers_list.h"
 
 #include <algorithm>
-#include <ctgmath>
 
 #include "src/buffer.h"
 #include "src/buffer_registry.h"
