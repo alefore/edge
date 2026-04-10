@@ -514,6 +514,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                           [](struct stat) { return language::Success(); })};
 }
 
+namespace {
 futures::Value<std::vector<ResolvePathOutput::Entry>> GetEntriesInSearchPath(
     ResolvePathOptions input, Path search_path) {
   struct State {
@@ -616,6 +617,8 @@ futures::Value<std::vector<ResolvePathOutput::Entry>> GetEntriesInSearchPath(
         return std::move(state->output);
       });
 }
+}  // namespace
+
 futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
@@ -631,22 +634,17 @@ futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (StartsWith(input.path, LazyString{L"/"}))
     input.search_paths = {Path::Root()};
 
-  auto output = MakeNonNullShared<ResolvePathOutput>();
-  return futures::ForEachWithCopy(
-             input.search_paths.begin(), input.search_paths.end(),
-             [input, output](Path search_path) {
-               return GetEntriesInSearchPath(input, search_path)
-                   .Transform(
-                       [output](std::vector<ResolvePathOutput::Entry> entries) {
-                         for (auto& entry : entries)
-                           output->entries.push_back(std::move(entry));
-                         return IterationControlCommand::kContinue;
-                       });
-             })
-      .Transform([output](IterationControlCommand) -> ResolvePathOutput {
-        VLOG(4) << "Iteration finished with outputs: "
-                << output->entries.size();
-        return std::move(output.value());
+  return UnwrapVectorFuture(
+             MakeNonNullShared<std::vector<
+                 futures::Value<std::vector<ResolvePathOutput::Entry>>>>(
+                 input.search_paths |
+                 std::views::transform(
+                     std::bind_front(GetEntriesInSearchPath, input)) |
+                 std::ranges::to<std::vector>()))
+      .Transform([](std::vector<std::vector<ResolvePathOutput::Entry>>
+                        nested_entries) {
+        return ResolvePathOutput{.entries = nested_entries | std::views::join |
+                                            std::ranges::to<std::vector>()};
       });
 }
 
