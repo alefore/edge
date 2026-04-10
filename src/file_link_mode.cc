@@ -514,6 +514,108 @@ gc::Root<OpenBuffer> CreateBuffer(
                           [](struct stat) { return language::Success(); })};
 }
 
+futures::Value<std::vector<ResolvePathOutput::Entry>> GetEntriesInSearchPath(
+    ResolvePathOptions input, Path search_path) {
+  struct State {
+    const Path search_path;
+    std::optional<ColumnNumber> str_end;
+    std::vector<ResolvePathOutput::Entry> output = {};
+  };
+  VLOG(4) << "ResolvePath in search path: " << search_path;
+  auto state = std::make_shared<State>(
+      State{.search_path = std::move(search_path),
+            .str_end = ColumnNumber{} + input.path.size()});
+  return futures::While([input, state]() {
+           if (state->str_end == std::nullopt || state->str_end->IsZero()) {
+             return futures::Past(IterationControlCommand::kStop);
+           }
+
+           ValueOrError<Path> input_path = Path::New(
+               input.path.Substring(ColumnNumber{}, state->str_end->ToDelta()));
+           if (IsError(input_path)) {
+             state->str_end = FindLastOf(
+                 input.path, {L':'}, *state->str_end - ColumnNumberDelta{1});
+             return futures::Past(IterationControlCommand::kContinue);
+           }
+           auto path_with_prefix = Path::Join(
+               state->search_path, ValueOrDie(std::move(input_path)));
+           CHECK(input.validator != nullptr);
+           return input.validator(path_with_prefix)
+               .Transform(
+                   [input, state, path_with_prefix](
+                       ResolvePathOptions::ValidatorOutput validator_output) {
+                     SingleLine output_pattern;
+                     std::optional<language::text::LineColumn> output_position;
+                     for (size_t i = 0; i < 2; i++) {
+                       while (state->str_end->ToDelta() < input.path.size() &&
+                              input.path.get(*state->str_end) == L':')
+                         ++(*state->str_end);
+                       if (state->str_end->ToDelta() == input.path.size())
+                         break;
+                       std::optional<ColumnNumber> next_str_end =
+                           FindFirstOf(input.path, {L':'}, *state->str_end);
+                       if (!next_str_end.has_value()) break;
+                       CHECK_GE(*next_str_end, *state->str_end);
+                       const LazyString arg = input.path.Substring(
+                           *state->str_end, *next_str_end - *state->str_end);
+                       if (i == 0 && StartsWith(arg, LazyString{L"/"})) {
+                         output_pattern = language::OptionalFrom(
+                                              SingleLine::New(arg.Substring(
+                                                  ColumnNumber{1})))
+                                              .value_or(SingleLine{});
+                         break;
+                       } else {
+                         size_t value;
+                         try {
+                           value = stoi(arg.ToString());
+                           if (value > 0) {
+                             value--;
+                           }
+                         } catch (const std::invalid_argument& ia) {
+                           LOG(INFO)
+                               << "stoi failed: invalid argument: " << arg;
+                           break;
+                         } catch (const std::out_of_range& ia) {
+                           LOG(INFO) << "stoi failed: out of range: " << arg;
+                           break;
+                         }
+                         if (!output_position.has_value()) {
+                           output_position = language::text::LineColumn();
+                         }
+                         if (i == 0) {
+                           output_position->line =
+                               language::text::LineNumber(value);
+                         } else {
+                           output_position->column = ColumnNumber(value);
+                         }
+                       }
+                       state->str_end = next_str_end;
+                       if (state->str_end == std::nullopt) break;
+                     }
+                     std::optional<Path> resolved_path =
+                         OptionalFrom(path_with_prefix.Resolve());
+                     Path final_resolved_path =
+                         resolved_path.value_or(path_with_prefix);
+                     state->output.push_back(ResolvePathOutput::Entry{
+                         .path = final_resolved_path,
+                         .position = output_position,
+                         .pattern = output_pattern,
+                         .validator_output = validator_output});
+                     VLOG(4) << "Resolved path: " << final_resolved_path;
+                     return Success(IterationControlCommand::kStop);
+                   })
+               .ConsumeErrors([state, input](Error) {
+                 state->str_end =
+                     FindLastOf(input.path, {L':'},
+                                *state->str_end - ColumnNumberDelta{1});
+                 return Past(IterationControlCommand::kContinue);
+               });
+         })
+      .Transform([state](IterationControlCommand) {
+        LOG(INFO) << "Done with one search path.";
+        return std::move(state->output);
+      });
+}
 futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
@@ -533,122 +635,13 @@ futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   return futures::ForEachWithCopy(
              input.search_paths.begin(), input.search_paths.end(),
              [input, output](Path search_path) {
-               struct State {
-                 const Path search_path;
-                 std::optional<ColumnNumber> str_end;
-               };
-               VLOG(4) << "ResolvePath in search path: " << search_path;
-               auto state = std::make_shared<State>(
-                   State{.search_path = std::move(search_path),
-                         .str_end = ColumnNumber{} + input.path.size()});
-               return futures::While([input, output, state]() {
-                        if (state->str_end == std::nullopt ||
-                            state->str_end->IsZero()) {
-                          return futures::Past(IterationControlCommand::kStop);
-                        }
-
-                        ValueOrError<Path> input_path =
-                            Path::New(input.path.Substring(
-                                ColumnNumber{}, state->str_end->ToDelta()));
-                        if (IsError(input_path)) {
-                          state->str_end = FindLastOf(
-                              input.path, {L':'},
-                              *state->str_end - ColumnNumberDelta{1});
-                          return futures::Past(
-                              IterationControlCommand::kContinue);
-                        }
-                        auto path_with_prefix =
-                            Path::Join(state->search_path,
-                                       ValueOrDie(std::move(input_path)));
-                        CHECK(input.validator != nullptr);
-                        return input.validator(path_with_prefix)
-                            .Transform([input, output, state, path_with_prefix](
-                                           ResolvePathOptions::ValidatorOutput
-                                               validator_output) {
-                              SingleLine output_pattern;
-                              std::optional<language::text::LineColumn>
-                                  output_position;
-                              for (size_t i = 0; i < 2; i++) {
-                                while (state->str_end->ToDelta() <
-                                           input.path.size() &&
-                                       input.path.get(*state->str_end) == L':')
-                                  ++(*state->str_end);
-                                if (state->str_end->ToDelta() ==
-                                    input.path.size())
-                                  break;
-                                std::optional<ColumnNumber> next_str_end =
-                                    FindFirstOf(input.path, {L':'},
-                                                *state->str_end);
-                                if (!next_str_end.has_value()) break;
-                                CHECK_GE(*next_str_end, *state->str_end);
-                                const LazyString arg = input.path.Substring(
-                                    *state->str_end,
-                                    *next_str_end - *state->str_end);
-                                if (i == 0 &&
-                                    StartsWith(arg, LazyString{L"/"})) {
-                                  output_pattern =
-                                      language::OptionalFrom(
-                                          SingleLine::New(
-                                              arg.Substring(ColumnNumber{1})))
-                                          .value_or(SingleLine{});
-                                  break;
-                                } else {
-                                  size_t value;
-                                  try {
-                                    value = stoi(arg.ToString());
-                                    if (value > 0) {
-                                      value--;
-                                    }
-                                  } catch (const std::invalid_argument& ia) {
-                                    LOG(INFO)
-                                        << "stoi failed: invalid argument: "
-                                        << arg;
-                                    break;
-                                  } catch (const std::out_of_range& ia) {
-                                    LOG(INFO)
-                                        << "stoi failed: out of range: " << arg;
-                                    break;
-                                  }
-                                  if (!output_position.has_value()) {
-                                    output_position =
-                                        language::text::LineColumn();
-                                  }
-                                  if (i == 0) {
-                                    output_position->line =
-                                        language::text::LineNumber(value);
-                                  } else {
-                                    output_position->column =
-                                        ColumnNumber(value);
-                                  }
-                                }
-                                state->str_end = next_str_end;
-                                if (state->str_end == std::nullopt) break;
-                              }
-                              std::optional<Path> resolved_path =
-                                  OptionalFrom(path_with_prefix.Resolve());
-                              Path final_resolved_path =
-                                  resolved_path.value_or(path_with_prefix);
-                              output->entries.push_back(
-                                  ResolvePathOutput::Entry{
-                                      .path = final_resolved_path,
-                                      .position = output_position,
-                                      .pattern = output_pattern,
-                                      .validator_output = validator_output});
-                              VLOG(4)
-                                  << "Resolved path: " << final_resolved_path;
-                              return Success(IterationControlCommand::kStop);
-                            })
-                            .ConsumeErrors([state, input](Error) {
-                              state->str_end = FindLastOf(
-                                  input.path, {L':'},
-                                  *state->str_end - ColumnNumberDelta{1});
-                              return Past(IterationControlCommand::kContinue);
-                            });
-                      })
-                   .Transform([](IterationControlCommand) {
-                     LOG(INFO) << "Done with one search path.";
-                     return IterationControlCommand::kContinue;
-                   });
+               return GetEntriesInSearchPath(input, search_path)
+                   .Transform(
+                       [output](std::vector<ResolvePathOutput::Entry> entries) {
+                         for (auto& entry : entries)
+                           output->entries.push_back(std::move(entry));
+                         return IterationControlCommand::kContinue;
+                       });
              })
       .Transform([output](IterationControlCommand) -> ResolvePathOutput {
         VLOG(4) << "Iteration finished with outputs: "
