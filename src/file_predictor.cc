@@ -178,9 +178,11 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
                    Path next_path = Path::Join(
                        previous_match.full_path,
                        ValueOrDie(PathComponent::New(next_component_match)));
-                   LazyString next_pattern = previous_match.path_pattern +
-                                             LazyString{L"/"} +
-                                             next_component_match;
+                   LazyString next_pattern =
+                       (previous_match.path_pattern.empty()
+                            ? LazyString{}
+                            : previous_match.path_pattern + LazyString{L"/"}) +
+                       next_component_match;
                    VLOG(8) << "Considering: " << next_path;
                    DECLARE_OR_RETURN(PathPatternMatch::Dir dir,
                                      open_dir(next_path));
