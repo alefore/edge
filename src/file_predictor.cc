@@ -290,7 +290,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                   path_input.get(ColumnNumber{}) == L'/') {
                 search_paths = {Path::Root()};
               } else {
-                search_paths = container::MaterializeVector(
+                search_paths =
                     search_paths | std::views::transform([](Path path) {
                       return std::visit(
                           overload{[](infrastructure::AbsolutePath output)
@@ -300,14 +300,14 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                    }},
                           path.Resolve());
                     }) |
-                    SkipErrors);
+                    SkipErrors | std::ranges::to<std::vector>();
 
                 std::set<Path> already_seen;
-                search_paths = container::MaterializeVector(
-                    std::move(search_paths) |
-                    std::views::filter([&already_seen](const Path& path) {
-                      return already_seen.insert(path).second;
-                    }));
+                auto [ret, _] = std::ranges::remove_if(
+                    search_paths, [&already_seen](const Path& path) {
+                      return !already_seen.insert(path).second;
+                    });
+                search_paths.erase(ret, search_paths.end());
               }
 
               PredictorOutput predictor_output;
