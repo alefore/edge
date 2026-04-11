@@ -199,7 +199,7 @@ futures::Value<PossibleError> Save(
                   for (const auto& dir : editor.edge_path()) {
                     options.buffer->execution_context()->EvaluateFile(
                         Path::Join(dir, ValueOrDie(Path::New(LazyString{
-                                            L"/hooks/buffer-save.cc"}))));
+                                            L"hooks/buffer-save.cc"}))));
                   }
                   stat(path.ToBytes().c_str(), &stat_buffer.value());
                   break;
@@ -302,7 +302,7 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                               .name = buffer_name,
                               .path = ToLazyString(Path::Join(
                                   edge_path, ValueOrDie(Path::New(LazyString{
-                                                 L"/search_paths"})))),
+                                                 L"search_paths"})))),
                               .glob_behavior =
                                   OpenFileGlobBehavior::kLiteralPath,
                               .insertion_type =
