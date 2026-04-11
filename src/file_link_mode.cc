@@ -603,25 +603,29 @@ std::vector<ParsedPath> ParsePathSpec(Path search_path, LazyString input_path) {
   std::vector<LazyString> suffixes = {};
   while (true) {
     std::visit(
-        overload{IgnoreErrors{},
-                 [&](Path current_local_path) {
-                   Path path = Path::Join(search_path, current_local_path);
-                   LOG(INFO) << "Join(" << search_path << ", "
-                             << current_local_path << ") => " << path;
-                   if (suffixes.empty())
-                     output.push_back(path);
-                   else if (std::optional<PathWithPattern> path_with_pattern =
-                                PathWithPattern::New(path, suffixes);
-                            path_with_pattern.has_value())
-                     output.push_back(path_with_pattern.value());
-                   else if (std::optional<PathWithPosition> path_with_position =
-                                PathWithPosition::New(path, suffixes);
-                            path_with_position.has_value())
-                     output.push_back(path_with_position.value());
-                   else
-                     LOG(INFO) << "Invalid parse: " << path << ": "
-                               << suffixes.size() << ": " << input_path;
-                 }},
+        overload{
+            IgnoreErrors{},
+            [&](Path current_local_path) {
+              Path resolved_full_path = std::invoke([&search_path,
+                                                     &current_local_path] {
+                Path full_path = Path::Join(search_path, current_local_path);
+                return std::optional<Path>(OptionalFrom(full_path.Resolve()))
+                    .value_or(full_path);
+              });
+              if (suffixes.empty())
+                output.push_back(resolved_full_path);
+              else if (std::optional<PathWithPattern> path_with_pattern =
+                           PathWithPattern::New(resolved_full_path, suffixes);
+                       path_with_pattern.has_value())
+                output.push_back(path_with_pattern.value());
+              else if (std::optional<PathWithPosition> path_with_position =
+                           PathWithPosition::New(resolved_full_path, suffixes);
+                       path_with_position.has_value())
+                output.push_back(path_with_position.value());
+              else
+                LOG(INFO) << "Invalid parse: " << resolved_full_path << ": "
+                          << suffixes.size() << ": " << input_path;
+            }},
         Path::New(input_path.Substring(ColumnNumber{}, str_end)));
     if (suffixes.size() == 2) {
       CHECK(!output.empty());
@@ -643,7 +647,7 @@ std::vector<ParsedPath> ParsePathSpec(Path search_path, LazyString input_path) {
   }
 }
 
-const bool get_candidates_tests_registration = tests::Register(
+const bool parse_path_spec_tests_registration = tests::Register(
     L"ParsePathSpec",
     {{.name = L"Simple",
       .callback =
