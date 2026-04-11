@@ -6,6 +6,7 @@ extern "C" {
 #include <sys/types.h>
 }
 
+#include <filesystem>
 #include <functional>
 #include <regex>
 #include <set>
@@ -100,6 +101,37 @@ struct DescendDirectoryTreeOutput {
   ColumnNumberDelta valid_proper_prefix_length;
 };
 
+// Empty structure to tag the case where no glob is needed.
+struct NoSpecialCharacterFound {};
+
+using MatchFunction = std::function<bool(LazyString)>;
+
+// Returns nullptr if pattern doesn't have special characters.
+MatchFunction GetComponentMatcher(const LazyString& pattern) {
+  if (pattern != LazyString{L"*"}) return nullptr;
+  // TODO: Improve this.
+  std::wregex regex_filter{L".*"};
+  return [regex_filter](LazyString candidate) {
+    return static_cast<bool>(
+        std::regex_match(candidate.ToString(), regex_filter));
+  };
+}
+
+std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
+                                       LazyString pattern_component) {
+  if (MatchFunction filter = GetComponentMatcher(pattern_component);
+      filter != nullptr) {
+    std::filesystem::path dir_path = state.full_path.ToBytes();
+    return std::filesystem::directory_iterator{dir_path} |
+           std::views::transform([](auto& entry) {
+             return LazyString{
+                 FromByteString(entry.path().filename().string())};
+           }) |
+           std::ranges::to<std::vector>();
+  }
+  return {pattern_component};
+}
+
 DescendDirectoryTreeOutput DescendDirectoryTree(
     Path search_path, LazyString path,
     std::function<ValueOrError<PathPatternMatch::Dir>(Path)> open_dir) {
@@ -112,7 +144,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
                                              .full_path = search_path,
                                              .path_pattern = {}});
                       }},
-             OpenDir(search_path));
+             open_dir(search_path));
   if (output.matches.empty()) {
     VLOG(5) << "Unable to open search_path: " << search_path;
     return output;
@@ -132,32 +164,36 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
       ++output.valid_prefix_length;
       continue;  // Skip consecutive slash.
     }
-    std::vector<PathPatternMatch> next_matches;
     LazyString next_component =
         path.Substring(ColumnNumber{} + output.valid_prefix_length,
                        component_end - output.valid_prefix_length);
-    std::ranges::for_each(
-        output.matches, [&](const PathPatternMatch& input_match) {
-          Path next_path =
-              Path::Join(input_match.full_path,
-                         ValueOrDie(PathComponent::New(next_component)));
-          LazyString next_pattern =
-              input_match.path_pattern + LazyString{L"/"} + next_component;
-          VLOG(8) << "Considering: " << next_path;
-          ValueOrError<PathPatternMatch::Dir> value = open_dir(next_path);
-          std::visit(overload{IgnoreErrors{},
-                              [&next_matches, &next_path,
-                               &next_pattern](PathPatternMatch::Dir dir) {
-                                next_matches.push_back(PathPatternMatch{
-                                    .dir = std::move(dir),
-                                    .full_path = next_path,
-                                    .path_pattern = next_pattern});
-                              }},
-                     open_dir(next_path));
-        });
+    std::vector<PathPatternMatch> next_matches =
+        output.matches |
+        std::views::transform([&](const PathPatternMatch& previous_match) {
+          return MatchComponent(previous_match, next_component) |
+                 std::views::transform([&open_dir, &previous_match,
+                                        &next_matches](
+                                           LazyString next_component_match)
+                                           -> ValueOrError<PathPatternMatch> {
+                   Path next_path = Path::Join(
+                       previous_match.full_path,
+                       ValueOrDie(PathComponent::New(next_component_match)));
+                   LazyString next_pattern = previous_match.path_pattern +
+                                             LazyString{L"/"} +
+                                             next_component_match;
+                   VLOG(8) << "Considering: " << next_path;
+                   DECLARE_OR_RETURN(PathPatternMatch::Dir dir,
+                                     open_dir(next_path));
+                   return PathPatternMatch{.dir = std::move(dir),
+                                           .full_path = next_path,
+                                           .path_pattern = next_pattern};
+                 });
+        }) |
+        std::views::join | SkipErrors | std::ranges::to<std::vector>();
     if (next_matches.empty()) return output;
     output.matches = std::move(next_matches);
-    output.valid_prefix_length = component_end + ColumnNumberDelta{1};
+    output.valid_prefix_length =
+        std::min(component_end + ColumnNumberDelta{1}, path.size());
   }
   return output;
 }
