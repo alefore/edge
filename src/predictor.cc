@@ -43,6 +43,7 @@ using afc::futures::DeleteNotification;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
 using afc::infrastructure::PathJoin;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -198,20 +199,36 @@ futures::Value<std::optional<PredictResults>> Predict(
           [](auto) { return futures::Past(std::optional<PredictResults>()); });
 }
 
+struct PathPatternMatch {
+  using Dir = NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>;
+  Dir dir;
+  // Includes the search_path.
+  Path full_path;
+  // Excludes the search path.
+  LazyString path_pattern;
+};
+
 struct DescendDirectoryTreeOutput {
-  ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> dir;
-  // The length of the longest prefix of path that corresponds to a valid
-  // directory.
+  std::vector<PathPatternMatch> matches;
+  // The length of the longest prefix of path that matches a valid directory.
   ColumnNumberDelta valid_prefix_length;
   ColumnNumberDelta valid_proper_prefix_length;
 };
 
-DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
-                                                LazyString path) {
+DescendDirectoryTreeOutput DescendDirectoryTree(
+    Path search_path, LazyString path,
+    std::function<ValueOrError<PathPatternMatch::Dir>(Path)> open_dir) {
   VLOG(6) << "Starting search at: " << search_path;
   DescendDirectoryTreeOutput output;
-  output.dir = OpenDir(search_path);
-  if (IsError(output.dir)) {
+  std::visit(overload{IgnoreErrors{},
+                      [&search_path, &output](PathPatternMatch::Dir dir) {
+                        output.matches.push_back(
+                            PathPatternMatch{.dir = std::move(dir),
+                                             .full_path = search_path,
+                                             .path_pattern = {}});
+                      }},
+             OpenDir(search_path));
+  if (output.matches.empty()) {
     VLOG(5) << "Unable to open search_path: " << search_path;
     return output;
   }
@@ -221,29 +238,41 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
     output.valid_proper_prefix_length = output.valid_prefix_length;
     VLOG(6) << "Iterating at: "
             << path.Substring(ColumnNumber{}, output.valid_prefix_length);
-    std::optional<ColumnNumber> next_candidate = FindFirstOf(
-        path.Substring(ColumnNumber{} + output.valid_prefix_length), {L'/'});
-    if (next_candidate != std::nullopt)
-      *next_candidate += output.valid_prefix_length;
-
-    if (next_candidate == std::nullopt) {
-      next_candidate = ColumnNumber{} + path.size();
-    } else if (next_candidate->ToDelta() == output.valid_prefix_length) {
+    ColumnNumberDelta component_end =
+        FindFirstOf(path, {L'/'}, ColumnNumber{} + output.valid_prefix_length)
+            .value_or(ColumnNumber{} + path.size())
+            .ToDelta();
+    CHECK_GE(component_end, output.valid_prefix_length);
+    if (component_end == output.valid_prefix_length) {
       ++output.valid_prefix_length;
-      continue;
-    } else {
-      ++*next_candidate;
+      continue;  // Skip consecutive slash.
     }
-    auto path_next_candidate =
-        Path::New(path.Substring(ColumnNumber{}, next_candidate->ToDelta()));
-    if (IsError(path_next_candidate)) continue;
-    Path test_path =
-        Path::Join(search_path, ValueOrDie(std::move(path_next_candidate)));
-    VLOG(8) << "Considering: " << test_path;
-    auto subdir = OpenDir(test_path);
-    if (IsError(subdir)) return output;
-    output.dir = std::move(subdir);
-    output.valid_prefix_length = next_candidate->ToDelta();
+    std::vector<PathPatternMatch> next_matches;
+    LazyString next_component =
+        path.Substring(ColumnNumber{} + output.valid_prefix_length,
+                       component_end - output.valid_prefix_length);
+    std::ranges::for_each(
+        output.matches, [&](const PathPatternMatch& input_match) {
+          Path next_path =
+              Path::Join(input_match.full_path,
+                         ValueOrDie(PathComponent::New(next_component)));
+          LazyString next_pattern =
+              input_match.path_pattern + LazyString{L"/"} + next_component;
+          VLOG(8) << "Considering: " << next_path;
+          ValueOrError<PathPatternMatch::Dir> value = open_dir(next_path);
+          std::visit(overload{IgnoreErrors{},
+                              [&next_matches, &next_path,
+                               &next_pattern](PathPatternMatch::Dir dir) {
+                                next_matches.push_back(PathPatternMatch{
+                                    .dir = std::move(dir),
+                                    .full_path = next_path,
+                                    .path_pattern = next_pattern});
+                              }},
+                     open_dir(next_path));
+        });
+    if (next_matches.empty()) return output;
+    output.matches = std::move(next_matches);
+    output.valid_prefix_length = component_end + ColumnNumberDelta{1};
   }
   return output;
 }
@@ -364,8 +393,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               for (const auto& search_path : search_paths) {
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
-                    DescendDirectoryTree(search_path, path_input);
-                if (IsError(descend_results.dir)) {
+                    DescendDirectoryTree(search_path, path_input, &OpenDir);
+                if (descend_results.matches.empty()) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
                 }
@@ -375,20 +404,23 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                  descend_results.valid_proper_prefix_length));
                 CHECK_LE(descend_results.valid_prefix_length,
                          path_input.size());
-                // TODO(trivial, 2024-08-26): Get rid of ToString.
-                ScanDirectory(
-                    ValueOrDie(std::move(descend_results.dir)).value(),
-                    noise_regex,
-                    path_input
-                        .Substring(ColumnNumber{} +
-                                   descend_results.valid_prefix_length)
-                        .ToString(),
-                    path_input
-                        .Substring(ColumnNumber{},
-                                   descend_results.valid_prefix_length)
-                        .ToString(),
-                    &matches, progress_channel.value(), abort_value,
-                    predictions, predictor_output);
+                std::ranges::for_each(
+                    descend_results.matches,
+                    [&](const PathPatternMatch& match) {
+                      // TODO(trivial, 2024-08-26): Get rid of ToString.
+                      ScanDirectory(
+                          match.dir.value(), noise_regex,
+                          path_input
+                              .Substring(ColumnNumber{} +
+                                         descend_results.valid_prefix_length)
+                              .ToString(),
+                          path_input
+                              .Substring(ColumnNumber{},
+                                         descend_results.valid_prefix_length)
+                              .ToString(),
+                          &matches, progress_channel.value(), abort_value,
+                          predictions, predictor_output);
+                    });
                 if (abort_value.has_value()) return PredictorOutput{};
               }
               predictions.MaybeEraseEmptyFirstLine();
@@ -568,18 +600,19 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
 
   return [contents](PredictorInput input) {
     Line input_line{input.input};
-    // TODO: This has complexity N log N. We could instead extend BufferContents
-    // to expose a wrapper around `Suffix`, allowing this to have complexity N
-    // (just take the suffix once, and then walk it, with `ConstTree::Every`).
+    // TODO: This has complexity N log N. We could instead extend
+    // BufferContents to expose a wrapper around `Suffix`, allowing this to
+    // have complexity N (just take the suffix once, and then walk it, with
+    // `ConstTree::Every`).
     const LineSequenceIterator begin = contents.read().upper_bound(input_line);
     LineSequenceIterator end = begin;
     while (end != contents.read().lines().end() &&
            StartsWith((*end).contents(), input.input))
       ++end;
 
-    // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
-    // methods to SortedLineSequence that allows us to extract a sub-range view,
-    // and filter. There shouldn't be a need to re-sort.
+    // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead,
+    // add methods to SortedLineSequence that allows us to extract a sub-range
+    // view, and filter. There shouldn't be a need to re-sort.
     TRACK_OPERATION(DictionaryPredictor_Sorting);
     return futures::Past(
         PredictorOutput({.contents = SortedLineSequenceUniqueLines{
