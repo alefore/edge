@@ -205,11 +205,9 @@ struct ScanDirectoryInput {
   std::wstring pattern;
   // The part of the pattern that matched a directory.
   std::wstring prefix;
-  int* matches;
-  ProgressChannel& progress_channel;
   DeleteNotification::Value& abort_value;
-  MutableLineSequence& output_lines;
   PredictorOutput& predictor_output;
+  std::function<void(Line)> push_output;
 };
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
@@ -245,22 +243,11 @@ void ScanDirectory(ScanDirectoryInput input) {
     auto full_path = PathJoin(input.prefix, FromByteString(entry->d_name)) +
                      (entry->d_type == DT_DIR ? L"/" : L"");
     if (std::regex_match(full_path, input.noise_regex)) continue;
-    input.output_lines.push_back(
+    input.push_output(
         LineBuilder{EscapedString::FromString(LazyString{std::move(full_path)})
                         .EscapedRepresentation()}
-            .Build(),
-        MutableLineSequence::ObserverBehavior::kHide);
-    ++*input.matches;
-    if (*input.matches % 100 == 0)
-      input.progress_channel.Push(ProgressInformation{
-          .values = {
-              {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-               NonEmptySingleLine(*input.matches).read()}}});
+            .Build());
   }
-
-  input.progress_channel.Push(ProgressInformation{
-      .values = {{VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-                  NonEmptySingleLine(*input.matches).read()}}});
 
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
@@ -356,11 +343,27 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                             ColumnNumber{},
                                             descend_results.valid_prefix_length)
                                         .ToString(),
-                          .matches = &matches,
-                          .progress_channel = progress_channel.value(),
                           .abort_value = abort_value,
-                          .output_lines = predictions,
-                          .predictor_output = predictor_output});
+                          .predictor_output = predictor_output,
+                          .push_output = [&predictions, &matches,
+                                          &progress_channel](Line line) {
+                            predictions.push_back(
+                                line,
+                                MutableLineSequence::ObserverBehavior::kHide);
+                            ++matches;
+                            if (matches % 100 == 0)
+                              progress_channel->Push(ProgressInformation{
+                                  .values = {
+                                      {VersionPropertyKey{
+                                           NON_EMPTY_SINGLE_LINE_CONSTANT(
+                                               L"files")},
+                                       NonEmptySingleLine(matches).read()}}});
+                          }});
+                      progress_channel->Push(ProgressInformation{
+                          .values = {
+                              {VersionPropertyKey{
+                                   NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
+                               NonEmptySingleLine(matches).read()}}});
                     });
                 if (abort_value.has_value()) return PredictorOutput{};
               }
