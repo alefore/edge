@@ -202,9 +202,14 @@ struct ScanDirectoryInput {
   DIR& dir;
   const std::wregex& noise_regex;
   // The remaining of the pattern after `prefix`, to look up in the directory.
-  std::wstring pattern;
-  // The part of the pattern that matched a directory.
-  std::wstring prefix;
+  // May include globs.
+  std::wstring pattern_suffix;
+
+  // The actual path to `dir`. If the pattern includes matched glob characters,
+  // that's not visible here (i.e., they are expanded).
+  LazyString path_prefix;
+
+  ColumnNumberDelta pattern_prefix_size;
   DeleteNotification::Value& abort_value;
   PredictorOutput& predictor_output;
   std::function<void(Line)> push_output;
@@ -215,8 +220,8 @@ struct ScanDirectoryInput {
 void ScanDirectory(ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
-  VLOG(5) << "Scanning directory \"" << input.prefix
-          << "\" looking for: " << input.pattern;
+  VLOG(5) << "Scanning directory \"" << input.path_prefix
+          << "\" looking for: " << input.pattern_suffix;
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
@@ -225,12 +230,12 @@ void ScanDirectory(ScanDirectoryInput input) {
     if (input.abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
     auto mismatch_results =
-        std::mismatch(input.pattern.begin(), input.pattern.end(),
+        std::mismatch(input.pattern_suffix.begin(), input.pattern_suffix.end(),
                       entry_path.begin(), entry_path.end());
-    if (mismatch_results.first != input.pattern.end()) {
+    if (mismatch_results.first != input.pattern_suffix.end()) {
       longest_pattern_match = std::max<int>(
           longest_pattern_match,
-          std::distance(input.pattern.begin(), mismatch_results.first));
+          std::distance(input.pattern_suffix.begin(), mismatch_results.first));
       VLOG(20) << "The entry " << entry_path
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
@@ -239,9 +244,10 @@ void ScanDirectory(ScanDirectoryInput input) {
     if (mismatch_results.second == entry_path.end()) {
       input.predictor_output.found_exact_match = true;
     }
-    longest_pattern_match = input.pattern.size();
-    auto full_path = PathJoin(input.prefix, FromByteString(entry->d_name)) +
-                     (entry->d_type == DT_DIR ? L"/" : L"");
+    longest_pattern_match = input.pattern_suffix.size();
+    std::wstring full_path =
+        PathJoin(input.path_prefix.ToString(), FromByteString(entry->d_name)) +
+        (entry->d_type == DT_DIR ? L"/" : L"");
     if (std::regex_match(full_path, input.noise_regex)) continue;
     input.push_output(
         LineBuilder{EscapedString::FromString(LazyString{std::move(full_path)})
@@ -251,8 +257,9 @@ void ScanDirectory(ScanDirectoryInput input) {
 
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
-               ColumnNumberDelta(input.prefix.size() + longest_pattern_match));
-  if (input.pattern.empty()) {
+               input.pattern_prefix_size +
+                   ColumnNumberDelta{static_cast<int>(longest_pattern_match)});
+  if (input.pattern_suffix.empty()) {
     input.predictor_output.found_exact_match = true;
   }
 }
@@ -332,17 +339,15 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                       ScanDirectory(ScanDirectoryInput{
                           .dir = match.dir.value(),
                           .noise_regex = noise_regex,
-                          .pattern =
+                          .pattern_suffix =
                               path_input
                                   .Substring(
                                       ColumnNumber{} +
                                       descend_results.valid_prefix_length)
                                   .ToString(),
-                          .prefix = path_input
-                                        .Substring(
-                                            ColumnNumber{},
-                                            descend_results.valid_prefix_length)
-                                        .ToString(),
+                          .path_prefix = match.path_pattern,
+                          .pattern_prefix_size =
+                              descend_results.valid_prefix_length,
                           .abort_value = abort_value,
                           .predictor_output = predictor_output,
                           .push_output = [&predictions, &matches,
