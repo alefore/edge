@@ -198,64 +198,75 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
   return output;
 }
 
+struct ScanDirectoryInput {
+  DIR& dir;
+  const std::wregex& noise_regex;
+  // The remaining of the pattern after `prefix`, to look up in the directory.
+  std::wstring pattern;
+  // The part of the pattern that matched a directory.
+  std::wstring prefix;
+  int* matches;
+  ProgressChannel& progress_channel;
+  DeleteNotification::Value& abort_value;
+  MutableLineSequence& output_lines;
+  PredictorOutput& predictor_output;
+};
+
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
-void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
-                   std::wstring pattern, std::wstring prefix, int* matches,
-                   ProgressChannel& progress_channel,
-                   DeleteNotification::Value& abort_value,
-                   MutableLineSequence& output_lines,
-                   PredictorOutput& predictor_output) {
+void ScanDirectory(ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
-  VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
+  VLOG(5) << "Scanning directory \"" << input.prefix
+          << "\" looking for: " << input.pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
 
-  while ((entry = readdir(&dir)) != nullptr) {
-    if (abort_value.has_value()) return;
+  while ((entry = readdir(&input.dir)) != nullptr) {
+    if (input.abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
-    auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
-                                          entry_path.begin(), entry_path.end());
-    if (mismatch_results.first != pattern.end()) {
-      longest_pattern_match =
-          std::max<int>(longest_pattern_match,
-                        std::distance(pattern.begin(), mismatch_results.first));
+    auto mismatch_results =
+        std::mismatch(input.pattern.begin(), input.pattern.end(),
+                      entry_path.begin(), entry_path.end());
+    if (mismatch_results.first != input.pattern.end()) {
+      longest_pattern_match = std::max<int>(
+          longest_pattern_match,
+          std::distance(input.pattern.begin(), mismatch_results.first));
       VLOG(20) << "The entry " << entry_path
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
       continue;
     }
     if (mismatch_results.second == entry_path.end()) {
-      predictor_output.found_exact_match = true;
+      input.predictor_output.found_exact_match = true;
     }
-    longest_pattern_match = pattern.size();
-    auto full_path = PathJoin(prefix, FromByteString(entry->d_name)) +
+    longest_pattern_match = input.pattern.size();
+    auto full_path = PathJoin(input.prefix, FromByteString(entry->d_name)) +
                      (entry->d_type == DT_DIR ? L"/" : L"");
-    if (std::regex_match(full_path, noise_regex)) continue;
-    output_lines.push_back(
+    if (std::regex_match(full_path, input.noise_regex)) continue;
+    input.output_lines.push_back(
         LineBuilder{EscapedString::FromString(LazyString{std::move(full_path)})
                         .EscapedRepresentation()}
             .Build(),
         MutableLineSequence::ObserverBehavior::kHide);
-    ++*matches;
-    if (*matches % 100 == 0)
-      progress_channel.Push(ProgressInformation{
+    ++*input.matches;
+    if (*input.matches % 100 == 0)
+      input.progress_channel.Push(ProgressInformation{
           .values = {
               {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-               NonEmptySingleLine(*matches).read()}}});
+               NonEmptySingleLine(*input.matches).read()}}});
   }
 
-  progress_channel.Push(ProgressInformation{
+  input.progress_channel.Push(ProgressInformation{
       .values = {{VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-                  NonEmptySingleLine(*matches).read()}}});
+                  NonEmptySingleLine(*input.matches).read()}}});
 
-  predictor_output.longest_prefix =
-      std::max(predictor_output.longest_prefix,
-               ColumnNumberDelta(prefix.size() + longest_pattern_match));
-  if (pattern.empty()) {
-    predictor_output.found_exact_match = true;
+  input.predictor_output.longest_prefix =
+      std::max(input.predictor_output.longest_prefix,
+               ColumnNumberDelta(input.prefix.size() + longest_pattern_match));
+  if (input.pattern.empty()) {
+    input.predictor_output.found_exact_match = true;
   }
 }
 
@@ -331,18 +342,25 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     descend_results.matches,
                     [&](const PathPatternMatch& match) {
                       // TODO(trivial, 2024-08-26): Get rid of ToString.
-                      ScanDirectory(
-                          match.dir.value(), noise_regex,
-                          path_input
-                              .Substring(ColumnNumber{} +
-                                         descend_results.valid_prefix_length)
-                              .ToString(),
-                          path_input
-                              .Substring(ColumnNumber{},
-                                         descend_results.valid_prefix_length)
-                              .ToString(),
-                          &matches, progress_channel.value(), abort_value,
-                          predictions, predictor_output);
+                      ScanDirectory(ScanDirectoryInput{
+                          .dir = match.dir.value(),
+                          .noise_regex = noise_regex,
+                          .pattern =
+                              path_input
+                                  .Substring(
+                                      ColumnNumber{} +
+                                      descend_results.valid_prefix_length)
+                                  .ToString(),
+                          .prefix = path_input
+                                        .Substring(
+                                            ColumnNumber{},
+                                            descend_results.valid_prefix_length)
+                                        .ToString(),
+                          .matches = &matches,
+                          .progress_channel = progress_channel.value(),
+                          .abort_value = abort_value,
+                          .output_lines = predictions,
+                          .predictor_output = predictor_output});
                     });
                 if (abort_value.has_value()) return PredictorOutput{};
               }
