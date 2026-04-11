@@ -94,6 +94,8 @@ src/fragments.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
+src/file_predictor.cc \
+src/file_predictor.h \
 src/file_tags.cc \
 src/file_tags.h \
 src/find_mode.cc \

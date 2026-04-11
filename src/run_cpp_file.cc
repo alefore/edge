@@ -8,6 +8,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/file_predictor.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/single_line.h"

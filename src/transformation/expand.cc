@@ -3,6 +3,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/file_link_mode.h"
+#include "src/file_predictor.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"

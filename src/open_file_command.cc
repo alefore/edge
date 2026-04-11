@@ -9,6 +9,7 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/file_predictor.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/char_buffer.h"

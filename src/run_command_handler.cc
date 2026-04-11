@@ -23,6 +23,7 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/file_predictor.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/file_descriptor_reader.h"
 #include "src/infrastructure/time.h"

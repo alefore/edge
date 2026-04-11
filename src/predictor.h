@@ -121,8 +121,6 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 futures::Value<std::optional<PredictResults>> Predict(
     const Predictor& predictor, PredictorInput predict_options);
 
-futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
-
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input);
 
 Predictor PrecomputedPredictor(

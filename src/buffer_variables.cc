@@ -1,5 +1,7 @@
 #include "src/buffer_variables.h"
 
+#include "src/file_predictor.h"
+
 using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 
@@ -386,7 +388,8 @@ EdgeVariable<bool>* const flow_mode =
          ->Add()
          .Name(L"flow_mode")
          .Description(
-             L"If true, enables flow mode, hiding all information except the last "
+             L"If true, enables flow mode, hiding all information except the "
+             L"last "
              L"few lines to encourage continuous writing.")
          .DefaultValue(false)
          .Build();
