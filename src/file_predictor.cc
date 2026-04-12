@@ -207,7 +207,7 @@ struct ScanDirectoryInput {
   const std::wregex& noise_regex;
   // The remaining of the pattern after `prefix`, to look up in the directory.
   // May include globs.
-  std::wstring pattern_suffix;
+  LazyString pattern_suffix;
 
   // The actual path to `dir`. If the pattern includes matched glob characters,
   // that's not visible here (i.e., they are expanded).
@@ -227,19 +227,21 @@ void ScanDirectory(const ScanDirectoryInput input) {
   VLOG(5) << "Scanning directory \"" << input.path_prefix
           << "\" looking for: " << input.pattern_suffix;
   // The length of the longest prefix of `pattern` that matches an entry.
-  size_t longest_pattern_match = 0;
+  ColumnNumberDelta longest_pattern_match;
   struct dirent* entry;
 
+  const std::wstring pattern_suffix_str = input.pattern_suffix.ToString();
   while ((entry = readdir(&input.dir)) != nullptr) {
     if (input.abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
     auto mismatch_results =
-        std::mismatch(input.pattern_suffix.begin(), input.pattern_suffix.end(),
+        std::mismatch(pattern_suffix_str.begin(), pattern_suffix_str.end(),
                       entry_path.begin(), entry_path.end());
-    if (mismatch_results.first != input.pattern_suffix.end()) {
-      longest_pattern_match = std::max<int>(
-          longest_pattern_match,
-          std::distance(input.pattern_suffix.begin(), mismatch_results.first));
+    if (mismatch_results.first != pattern_suffix_str.end()) {
+      longest_pattern_match =
+          std::max(longest_pattern_match,
+                   ColumnNumberDelta{static_cast<int>(std::distance(
+                       pattern_suffix_str.begin(), mismatch_results.first))});
       VLOG(20) << "The entry " << entry_path
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
@@ -263,8 +265,7 @@ void ScanDirectory(const ScanDirectoryInput input) {
 
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
-               input.pattern_prefix_size +
-                   ColumnNumberDelta{static_cast<int>(longest_pattern_match)});
+               input.pattern_prefix_size + longest_pattern_match);
 }
 
 futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
@@ -342,16 +343,12 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                 std::ranges::for_each(
                     descend_results.matches,
                     [&](const PathPatternMatch& match) {
-                      // TODO(trivial, 2024-08-26): Get rid of ToString.
                       ScanDirectory(ScanDirectoryInput{
                           .dir = match.dir.value(),
                           .noise_regex = noise_regex,
-                          .pattern_suffix =
-                              path_input
-                                  .Substring(
-                                      ColumnNumber{} +
-                                      descend_results.valid_prefix_length)
-                                  .ToString(),
+                          .pattern_suffix = path_input.Substring(
+                              ColumnNumber{} +
+                              descend_results.valid_prefix_length),
                           .path_prefix = match.path_pattern,
                           .pattern_prefix_size =
                               descend_results.valid_prefix_length,
