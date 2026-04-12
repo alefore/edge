@@ -111,7 +111,6 @@ class FlashcardReviewLog {
                OpenFileOptions{
                    .editor_state = editor,
                    .path = ToLazyString(review_log_path),
-                   .glob_behavior = OpenFileGlobBehavior::kLiteralPath,
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
         .Transform([answer](std::vector<gc::Root<OpenBuffer>> buffers) {

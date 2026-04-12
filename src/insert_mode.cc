@@ -341,7 +341,6 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
                  .editor_state = editor,
                  .path =
                      ToLazyString(Path::Join(editor.edge_path().front(), path)),
-                 .glob_behavior = OpenFileGlobBehavior::kLiteralPath,
                  .insertion_type = BuffersList::AddBufferType::kIgnore,
                  .use_search_paths = false})
       .Transform([](std::vector<gc::Root<OpenBuffer>> buffers) {

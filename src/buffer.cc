@@ -2143,8 +2143,6 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                     .editor_state = editor,
                                     .path = ToLazyString(
                                         ValueOrDie(std::move(path))),
-                                    .glob_behavior =
-                                        OpenFileGlobBehavior::kLiteralPath,
                                     .insertion_type =
                                         BuffersList::AddBufferType::kIgnore,
                                     .use_search_paths = false,

@@ -23,9 +23,6 @@ futures::Value<language::PossibleError> SaveContentsToFile(
     concurrent::ThreadPoolWithWorkQueue& thread_pool,
     infrastructure::FileSystemDriver& file_system_driver);
 
-// TODO: Add globbing.
-enum class OpenFileGlobBehavior { kLiteralPath };
-
 struct OpenFileOptions {
   EditorState& editor_state;
 
@@ -34,8 +31,6 @@ struct OpenFileOptions {
 
   // The pattern for the path of the file to open.
   language::lazy_string::LazyString path;
-
-  OpenFileGlobBehavior glob_behavior = OpenFileGlobBehavior::kLiteralPath;
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;

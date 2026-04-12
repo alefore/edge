@@ -303,8 +303,6 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                               .path = ToLazyString(Path::Join(
                                   edge_path, ValueOrDie(Path::New(LazyString{
                                                  L"search_paths"})))),
-                              .glob_behavior =
-                                  OpenFileGlobBehavior::kLiteralPath,
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore,
                               .use_search_paths = false})
@@ -840,7 +838,6 @@ futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
              OpenFileOptions{
                  .editor_state = editor_state,
                  .path = LazyString{},
-                 .glob_behavior = OpenFileGlobBehavior::kLiteralPath,
                  .insertion_type = BuffersList::AddBufferType::kIgnore,
                  .use_search_paths = false})
       .Transform([](std::vector<gc::Root<OpenBuffer>> buffers) {
