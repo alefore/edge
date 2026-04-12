@@ -54,6 +54,7 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::IsError;
+using afc::language::LazyValue;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::OptionalFrom;
@@ -70,9 +71,13 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LineMetadataKey;
+using afc::language::text::LineMetadataMap;
+using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
@@ -224,6 +229,8 @@ struct ScanDirectoryInput {
 void ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
+  namespace fop = file_open_position;
+
   VLOG(5) << "Scanning directory \"" << input.path_prefix
           << "\" looking for: " << input.pattern_suffix;
   // The length of the longest prefix of `pattern` that matches an entry.
@@ -238,30 +245,32 @@ void ScanDirectory(const ScanDirectoryInput input) {
         std::ranges::mismatch(pattern_suffix_str, entry_path);
     ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
         std::distance(pattern_suffix_str.begin(), pattern_it))};
-    LazyString unmatched_suffix =
-        input.pattern_suffix.Substring(ColumnNumber{} + match_len);
-    if (!unmatched_suffix.empty()) {
+    if (std::optional<fop::Spec> spec = fop::Parse(
+            input.pattern_suffix.Substring(ColumnNumber{} + match_len));
+        spec.has_value()) {
+      MatchType match_type = entry_it == entry_path.end() ? MatchType::kExact
+                                                          : MatchType::kPartial;
+      input.predictor_output.found_exact_match |=
+          match_type == MatchType::kExact;
+      longest_pattern_match = input.pattern_suffix.size();
+      std::wstring full_path = PathJoin(input.path_prefix.ToString(),
+                                        FromByteString(entry->d_name)) +
+                               (entry->d_type == DT_DIR ? L"/" : L"");
+      if (std::regex_match(full_path, input.noise_regex)) continue;
+      LineBuilder line_builder{
+          EscapedString::FromString(LazyString{std::move(full_path)})
+              .EscapedRepresentation()};
+      line_builder.SetMetadata(LazyValue<LineMetadataMap>{
+          [&spec] { return GetLineMetadata(spec.value()); }});
+      input.push_output(std::move(line_builder).Build(), match_type);
+    } else {
       longest_pattern_match = std::max(longest_pattern_match, match_len);
       VLOG(20) << "The entry " << entry_path
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
       continue;
     }
-    MatchType match_type =
-        entry_it == entry_path.end() ? MatchType::kExact : MatchType::kPartial;
-    input.predictor_output.found_exact_match |= match_type == MatchType::kExact;
-    longest_pattern_match = input.pattern_suffix.size();
-    std::wstring full_path =
-        PathJoin(input.path_prefix.ToString(), FromByteString(entry->d_name)) +
-        (entry->d_type == DT_DIR ? L"/" : L"");
-    if (std::regex_match(full_path, input.noise_regex)) continue;
-    input.push_output(
-        LineBuilder{EscapedString::FromString(LazyString{std::move(full_path)})
-                        .EscapedRepresentation()}
-            .Build(),
-        match_type);
   }
-
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
                input.pattern_prefix_size + longest_pattern_match);
@@ -275,9 +284,10 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         LazyString path_input = std::visit(
-            overload{[&](Error) { return predictor_input.input.read(); },
+            overload{[&](Error) { return ToLazyString(predictor_input.input); },
                      [&](Path path) {
-                       return predictor_input.editor.expand_path(path).read();
+                       return ToLazyString(
+                           predictor_input.editor.expand_path(path));
                      }},
             Path::New(ToLazyString(predictor_input.input)));
 

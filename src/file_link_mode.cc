@@ -84,6 +84,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
+using afc::language::view::SkipErrors;
 
 namespace afc::editor {
 namespace {
@@ -365,14 +366,15 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
 }
 
 futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
-    EditorState& editor_state, LazyString path) {
+    const OpenFileOptions& options, LazyString path) {
   TRACK_OPERATION(FindAlreadyOpenBuffer);
   if (path.empty()) return futures::Past(Success(ResolvePathOutput{}));
   return ResolvePath(
              ResolvePathOptions{
                  .path = path,
-                 .home_directory = editor_state.home_directory(),
-                 .validator = [&editor_state](const Path& path_to_validate)
+                 .home_directory = options.editor_state.home_directory(),
+                 .validator = [&editor_state = options.editor_state](
+                                  const Path& path_to_validate)
                      -> futures::ValueOrError<
                          ResolvePathOptions::ValidatorOutput> {
                    TRACK_OPERATION(FindAlreadyOpenBuffer_InnerLoop);
@@ -385,13 +387,13 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
                    return futures::Past(
                        Error{LazyString{L"Unable to find buffer"}});
                  }})
-      .Transform([](ResolvePathOutput input)
+      .Transform([options_position = options.position](ResolvePathOutput input)
                      -> futures::ValueOrError<ResolvePathOutput> {
-        for (auto& entry : input.entries)
-          if (entry.position.has_value()) {
-            entry.validator_output.value()->set_position(
-                entry.position.value());
-          }
+        if (const LineColumn* position =
+                std::get_if<LineColumn>(&options_position);
+            position != nullptr)
+          for (auto& entry : input.entries)
+            entry.validator_output.value()->set_position(*position);
         // TODO: Apply pattern.
         return futures::Past(Success(std::move(input)));
       });
@@ -481,27 +483,32 @@ gc::Root<OpenBuffer> CreateBuffer(
       buffer_options->path);
   buffer->ResetMode();
 
-  if (resolve_path_output.has_value() &&
-      resolve_path_output->position.has_value()) {
-    buffer->set_position(*resolve_path_output->position);
-  }
+  std::visit(
+      overload{
+          [](const file_open_position::Default&) {},
+          [&buffer, &options](const file_open_position::Search& search) {
+            std::visit(
+                overload{
+                    [&](LineColumn position) {
+                      buffer->set_position(position);
+                    },
+                    [&buffer](Error error) {
+                      buffer->status().SetInformationText(Line(
+                          LineSequence::BreakLines(error.read()).FoldLines()));
+                    }},
+                GetNextMatch(
+                    options.editor_state.modifiers().direction,
+                    SearchOptions{.starting_position = buffer->position(),
+                                  .search_query = ToSingleLine(search.read())},
+                    buffer->contents().snapshot()));
+          },
+          [&buffer](const LineColumn& line_column) {
+            buffer->set_position(line_column);
+          }},
+      options.position);
 
   options.editor_state.AddBuffer(buffer, options.insertion_type);
 
-  if (resolve_path_output.has_value() &&
-      resolve_path_output->pattern.has_value()) {
-    std::visit(
-        overload{[&](LineColumn position) { buffer->set_position(position); },
-                 [&buffer](Error error) {
-                   buffer->status().SetInformationText(Line(
-                       LineSequence::BreakLines(error.read()).FoldLines()));
-                 }},
-        GetNextMatch(options.editor_state.modifiers().direction,
-                     SearchOptions{.starting_position = buffer->position(),
-                                   .search_query = ToSingleLine(
-                                       resolve_path_output->pattern.value())},
-                     buffer->contents().snapshot()));
-  }
   return buffer;
 }
 
@@ -519,54 +526,22 @@ gc::Root<OpenBuffer> CreateBuffer(
 }
 
 namespace {
-
-futures::Value<std::vector<ResolvePathOutput::Entry>> GetEntriesInSearchPath(
+futures::ValueOrError<ResolvePathOutput::Entry> GetEntriesInSearchPath(
     ResolvePathOptions input, Path search_path) {
   LOG(INFO) << "GetEntriesInSearchPath: " << search_path << ": " << input.path;
   namespace ofp = file_open_position;
-  return UnwrapVectorFuture(
-             MakeNonNullShared<std::vector<
-                 futures::Value<std::vector<ResolvePathOutput::Entry>>>>(
-                 file_open_position::Parse(input.path) |
-                 std::views::transform([search_path,
-                                        input](file_open_position::PathAndSpec
-                                                   parse) {
-                   Path full_path = Path::Join(search_path, parse.path);
-                   Path resolved_full_path =
-                       std::optional<Path>(OptionalFrom(full_path.Resolve()))
-                           .value_or(full_path);
-                   return input.validator(resolved_full_path)
-                       .Transform([parse, resolved_full_path](
-                                      ResolvePathOptions::ValidatorOutput
-                                          validator_output)
-                                      -> ValueOrError<std::vector<
-                                          ResolvePathOutput::Entry>> {
-                         return Success(std::vector{ResolvePathOutput::Entry{
-                             .path = resolved_full_path,
-                             .position =
-                                 std::holds_alternative<LineColumn>(parse.spec)
-                                     ? std::make_optional(
-                                           std::get<LineColumn>(parse.spec))
-                                     : std::optional<LineColumn>(),
-                             .pattern =
-                                 std::holds_alternative<ofp::Search>(parse.spec)
-                                     ? std::make_optional(
-                                           std::get<ofp::Search>(parse.spec)
-                                               .read())
-                                     : std::optional<NonEmptySingleLine>(),
-                             .validator_output = validator_output}});
-                       })
-                       .ConsumeErrors([](Error) {
-                         return futures::Past(
-                             std::vector<ResolvePathOutput::Entry>{});
-                       });
-                 }) |
-                 std::ranges::to<std::vector>()))
-      .Transform([](std::vector<std::vector<ResolvePathOutput::Entry>>
-                        nested_outputs) {
-        VLOG(5) << "Nested outputs: " << nested_outputs.size();
-        return nested_outputs | std::views::join |
-               std::ranges::to<std::vector>();
+  // TODO(trivial, p2): Rename to FUTURES_DECLARE_OR_RETURN.
+  FUTURES_ASSIGN_OR_RETURN(Path input_path, Path::New(input.path));
+  Path full_path = Path::Join(search_path, input_path);
+  Path resolved_full_path =
+      std::optional<Path>(OptionalFrom(full_path.Resolve()))
+          .value_or(full_path);
+  return input.validator(resolved_full_path)
+      .Transform([resolved_full_path](
+                     ResolvePathOptions::ValidatorOutput validator_output)
+                     -> ValueOrError<ResolvePathOutput::Entry> {
+        return Success(ResolvePathOutput::Entry{
+            .path = resolved_full_path, .validator_output = validator_output});
       });
 }
 }  // namespace
@@ -589,23 +564,41 @@ futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (StartsWith(input.path, LazyString{L"/"}))
     input.search_paths = {Path::Root()};
 
+  // TODO(P2, easy, 2026-04-12): Simplify this. The following expression is way
+  // more complex than it should be.
   return UnwrapVectorFuture(
-             MakeNonNullShared<std::vector<
-                 futures::Value<std::vector<ResolvePathOutput::Entry>>>>(
-                 input.search_paths |
-                 std::views::transform(
-                     std::bind_front(GetEntriesInSearchPath, input)) |
-                 std::ranges::to<std::vector>()))
-      .Transform([](std::vector<std::vector<ResolvePathOutput::Entry>>
-                        nested_entries) {
-        return ResolvePathOutput{.entries = nested_entries | std::views::join |
-                                            std::ranges::to<std::vector>()};
-      });
+             input.search_paths |
+             std::views::transform([input](Path search_path) {
+               // It's lame that we have to handle errors here. However, if we
+               // don't, UnwrapVectorFuture gets confused (due to future's
+               // special handling of errors).
+               return GetEntriesInSearchPath(input, search_path)
+                   .Transform([](ResolvePathOutput::Entry entry) {
+                     return Success(std::make_optional(entry));
+                   })
+                   .ConsumeErrors([](Error) {
+                     return futures::Past(
+                         std::optional<ResolvePathOutput::Entry>());
+                   });
+             }) |
+             std::ranges::to<std::vector<
+                 futures::Value<std::optional<ResolvePathOutput::Entry>>>>())
+      .Transform(
+          [](std::vector<std::optional<ResolvePathOutput::Entry>> entries) {
+            return futures::Past(ResolvePathOutput{
+                .entries = entries | std::views::filter([](const auto& entry) {
+                             return entry.has_value();
+                           }) |
+                           std::views::transform([](const auto& entry) {
+                             return entry.value();
+                           }) |
+                           std::ranges::to<std::vector>()});
+          });
 }
 
 futures::ValueOrError<std::vector<gc::Root<OpenBuffer>>> OpenFileIfFound(
     const OpenFileOptions& options) {
-  return FindAlreadyOpenBuffer(options.editor_state, options.path)
+  return FindAlreadyOpenBuffer(options, options.path)
       .Transform([options](ResolvePathOutput already_open_buffers) {
         if (!already_open_buffers.entries.empty()) {
           return futures::Past(Success(

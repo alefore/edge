@@ -59,8 +59,7 @@ struct ResolvePathOptions {
   using Validator = std::function<futures::ValueOrError<ValidatorOutput>(
       const infrastructure::Path&)>;
 
-  // This is not a Path because it may contain various embedded tokens such as
-  // a ':LINE:COLUMN' suffix. A Path will be extracted from it.
+  // TODO(trivial, P2, 2026-04-12): This should be a Path.
   language::lazy_string::LazyString path = {};
   std::vector<infrastructure::Path> search_paths = {};
   infrastructure::Path home_directory;
@@ -87,13 +86,6 @@ struct ResolvePathOutput {
   struct Entry {
     // The absolute path pointing to the file.
     infrastructure::Path path;
-
-    // The position to jump to.
-    std::optional<language::text::LineColumn> position;
-
-    // The pattern to jump to (after jumping to `position`).
-    std::optional<language::lazy_string::NonEmptySingleLine> pattern;
-
     ResolvePathOptions::ValidatorOutput validator_output;
   };
 

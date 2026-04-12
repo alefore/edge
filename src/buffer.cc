@@ -27,12 +27,14 @@ extern "C" {
 #include "src/buffer_vm.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/file_predictor.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_descriptor_reader.h"
 #include "src/infrastructure/regular_file_adapter.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/error/view.h"
 #include "src/language/gc_util.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -151,6 +153,7 @@ using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
+using afc::language::view::SkipErrors;
 using gc::LockAndVisitCallback;
 
 namespace afc::editor {
@@ -884,37 +887,44 @@ void OpenBuffer::AppendLines(
       observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
     TRACK_OPERATION(OpenBuffer_StartNewLine_ScanForMarks);
-    ResolvePathOptions::New(
-        editor(), MakeNonNullShared<FileSystemDriver>(editor().thread_pool()))
-        .Transform([buffer_name = name(), lines_added,
-                    contents = contents_.snapshot(), start_new_section,
-                    &editor = editor()](ResolvePathOptions options) {
-          for (LineNumberDelta i; i < lines_added; ++i) {
-            auto source_line = LineNumber() + start_new_section + i;
-            options.path = ToLazyString(contents.at(source_line));
-            ResolvePath(options).Transform(
-                [&editor, buffer_name, source_line](ResolvePathOutput results) {
-                  std::ranges::for_each(
-                      results.entries |
-                          std::views::transform(
-                              [&buffer_name, &source_line,
-                               &editor](ResolvePathOutput::Entry& entry) {
-                                return LineMarks::Mark{
-                                    .source_buffer = buffer_name,
-                                    .source_line = source_line,
-                                    .target_buffer = BufferFileId(entry.path),
-                                    .target_line_column =
-                                        entry.position.value_or(LineColumn())};
-                              }),
-                      [&editor](LineMarks::Mark mark) {
-                        LOG(INFO) << "Found a mark: " << mark;
-                        editor.line_marks().AddMark(std::move(mark));
-                      });
-                  return Success();
+    for (LineNumberDelta i; i < lines_added; ++i) {
+      LineNumber source_line = LineNumber{} + start_new_section + i;
+      GetFilePredictor(FilePredictorOptions{})(
+          PredictorInput{.editor = editor(),
+                         .input = contents_.at(source_line).contents(),
+                         .input_column = {},
+                         .source_buffers = {}})
+          .Transform([buffer_name = name(), &editor = editor(),
+                      &source_line](PredictorOutput output) {
+            std::ranges::for_each(
+                output.contents.read().lines() |
+                    std::views::transform(
+                        [&buffer_name, &editor, &source_line](
+                            const Line& line) -> ValueOrError<LineMarks::Mark> {
+                          DECLARE_OR_RETURN(
+                              Path target_buffer,
+                              Path::New(ToLazyString(line.contents())));
+                          file_open_position::Spec spec =
+                              file_open_position::SpecFromLineMetadata(
+                                  line.metadata().get());
+                          return LineMarks::Mark{
+                              .source_buffer = buffer_name,
+                              .source_line = source_line,
+                              .target_buffer = BufferFileId(target_buffer),
+                              .target_line_column =
+                                  std::holds_alternative<LineColumn>(spec)
+                                      ? std::get<LineColumn>(spec)
+                                      : LineColumn{}};
+                        }) |
+                    SkipErrors,
+                [&editor](LineMarks::Mark mark) {
+                  LOG(INFO) << "Found a mark: " << mark;
+                  editor.line_marks().AddMark(std::move(mark));
                 });
-          }
-          return Success();
-        });
+            return Success();
+            return Success();
+          });
+    }
   }
 }
 

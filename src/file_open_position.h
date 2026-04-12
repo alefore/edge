@@ -13,10 +13,15 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
 namespace afc::editor::file_open_position {
 struct Default {};
+
+bool operator==(const Default& a, const Default& b);
+
+std::ostream& operator<<(std::ostream& os, const Default&);
 
 class Search
     : public language::GhostType<Search,
@@ -26,11 +31,18 @@ class Search
 
 using Spec = std::variant<Default, Search, language::text::LineColumn>;
 
+std::ostream& operator<<(std::ostream& os, const Spec& spec);
+
 struct PathAndSpec {
   infrastructure::Path path;
   Spec spec;
 };
-std::vector<PathAndSpec> Parse(language::lazy_string::LazyString path_spec);
+// `path_suffix` will be a string like `:93`.
+std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix);
+
+language::text::LineMetadataMap GetLineMetadata(Spec spec);
+Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values);
+
 }  // namespace afc::editor::file_open_position
 
 #endif  // __AFC_EDITOR_OPEN_POSITION_H__

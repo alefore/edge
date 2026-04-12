@@ -30,10 +30,13 @@ struct LineMetadataKey
 };
 
 struct LineMetadataValue {
-  lazy_string::SingleLine get_value() const;
-
+  // Prefer reading through `get_value` than directly.
   lazy_string::SingleLine initial_value;
   futures::ListenableValue<lazy_string::SingleLine> value;
+
+  static LineMetadataValue FromSingleLine(lazy_string::SingleLine);
+
+  lazy_string::SingleLine get_value() const;
 };
 
 struct LineMetadataMap

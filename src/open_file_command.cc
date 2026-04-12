@@ -58,6 +58,11 @@ using afc::vm::EscapedString;
 namespace afc::editor {
 namespace {
 
+struct PathAndOpenFilePositionSpec {
+  Path path;
+  file_open_position::Spec spec;
+};
+
 futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                                            SingleLine name) {
   return GetFilePredictor(FilePredictorOptions{
@@ -67,21 +72,27 @@ futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                             .input_column = {},
                             .source_buffers = {}})
       .Transform([&editor_state, name](PredictorOutput predictor_output) {
-        if (std::vector<Path> paths =
+        if (std::vector<PathAndOpenFilePositionSpec> paths =
                 predictor_output.contents.read().lines() |
-                std::views::transform([](Line line) {
-                  return Path::New(ToLazyString(line.contents()));
-                }) |
+                std::views::transform(
+                    [](Line line) -> ValueOrError<PathAndOpenFilePositionSpec> {
+                      DECLARE_OR_RETURN(
+                          Path path, Path::New(ToLazyString(line.contents())));
+                      file_open_position::Spec spec =
+                          file_open_position::Default{};
+                      return PathAndOpenFilePositionSpec{.path = path,
+                                                         .spec = spec};
+                    }) |
                 SkipErrors | std::ranges::to<std::vector>();
             !paths.empty())
           return UnwrapVectorFuture(
               paths |
               std::views::transform(
-                  [&editor_state](Path path)
+                  [&editor_state](PathAndOpenFilePositionSpec input)
                       -> futures::Value<std::vector<gc::Root<OpenBuffer>>> {
                     return OpenOrCreateFile(OpenFileOptions{
                         .editor_state = editor_state,
-                        .path = ToLazyString(path),
+                        .path = ToLazyString(input.path),
                         .insertion_type = BuffersList::AddBufferType::kVisit});
                   }) |
               std::ranges::to<std::vector>());
