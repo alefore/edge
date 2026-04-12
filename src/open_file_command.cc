@@ -66,12 +66,12 @@ struct PathAndOpenFilePositionSpec {
 
 futures::Value<EmptyValue> LowLevelOpenFile(
     const OpenFileOptions& options,
-    ResolveAndOpenFileOptions::NotFoundHandler not_found_handler) {
+    OpenFilesOptions::NotFoundHandler not_found_handler) {
   switch (not_found_handler) {
-    case ResolveAndOpenFileOptions::NotFoundHandler::kCreate:
+    case OpenFilesOptions::NotFoundHandler::kCreate:
       return OpenOrCreateFile(options).Transform(
           [](gc::Root<OpenBuffer>) { return EmptyValue{}; });
-    case ResolveAndOpenFileOptions::NotFoundHandler::kIgnore:
+    case OpenFilesOptions::NotFoundHandler::kIgnore:
       return OpenFileIfFound(options)
           .Transform([](gc::Root<OpenBuffer>) { return Success(); })
           .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); });
@@ -80,12 +80,11 @@ futures::Value<EmptyValue> LowLevelOpenFile(
 }
 }  // namespace
 
-futures::Value<EmptyValue> ResolveAndOpenFile(
-    ResolveAndOpenFileOptions options) {
+futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
   return GetFilePredictor(FilePredictorOptions{
       .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch})(
              PredictorInput{.editor = options.editor,
-                            .input = options.path,
+                            .input = options.path_pattern,
                             .input_column = {},
                             .source_buffers = {}})
       .Transform([options](PredictorOutput predictor_output)
@@ -116,11 +115,11 @@ futures::Value<EmptyValue> ResolveAndOpenFile(
               }) |
               std::ranges::to<std::vector>());
         LOG(INFO) << "No completion found; passing specified path: "
-                  << options.path;
+                  << options.path_pattern;
         return LowLevelOpenFile(
                    OpenFileOptions{
                        .editor_state = options.editor,
-                       .path = ToLazyString(options.path),
+                       .path = ToLazyString(options.path_pattern),
                        .insertion_type = BuffersList::AddBufferType::kVisit},
                    options.not_found_handler)
             .Transform([](EmptyValue) { return std::vector{EmptyValue{}}; });
@@ -378,11 +377,11 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
             std::bind_front(AdjustPath, std::ref(editor)),
         .handler =
             [&editor](SingleLine value) {
-              return ResolveAndOpenFile(ResolveAndOpenFileOptions{
+              return OpenFiles(OpenFilesOptions{
                   .editor = editor,
                   .not_found_handler =
-                      ResolveAndOpenFileOptions::NotFoundHandler::kCreate,
-                  .path = value});
+                      OpenFilesOptions::NotFoundHandler::kCreate,
+                  .path_pattern = value});
             },
         .cancel_handler =
             [&editor]() {
