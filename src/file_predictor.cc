@@ -235,8 +235,7 @@ void ScanDirectory(const ScanDirectoryInput input) {
     if (input.abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
     auto [pattern_it, entry_it] =
-        std::mismatch(pattern_suffix_str.begin(), pattern_suffix_str.end(),
-                      entry_path.begin(), entry_path.end());
+        std::ranges::mismatch(pattern_suffix_str, entry_path);
     ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
         std::distance(pattern_suffix_str.begin(), pattern_it))};
     LazyString unmatched_suffix =

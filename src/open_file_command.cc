@@ -50,11 +50,14 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::SortedLineSequence;
+using afc::language::text::SortedLineSequenceUniqueLines;
 using afc::language::view::SkipErrors;
 using afc::vm::EscapedString;
-
 namespace afc::editor {
 namespace {
+
 futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                                            SingleLine name) {
   return GetFilePredictor(FilePredictorOptions{
@@ -63,22 +66,35 @@ futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                             .input = name,
                             .input_column = {},
                             .source_buffers = {}})
-      .Transform([&editor_state](PredictorOutput predictor_output) {
-        return UnwrapVectorFuture(
-            predictor_output.contents.read().lines() |
-            std::views::transform([](Line line) {
-              return Path::New(ToLazyString(line.contents()));
-            }) |
-            SkipErrors |
-            std::views::transform(
-                [&editor_state](Path path)
-                    -> futures::Value<std::vector<gc::Root<OpenBuffer>>> {
-                  return OpenOrCreateFile(OpenFileOptions{
-                      .editor_state = editor_state,
-                      .path = ToLazyString(path),
-                      .insertion_type = BuffersList::AddBufferType::kVisit});
+      .Transform([&editor_state, name](PredictorOutput predictor_output) {
+        if (std::vector<Path> paths =
+                predictor_output.contents.read().lines() |
+                std::views::transform([](Line line) {
+                  return Path::New(ToLazyString(line.contents()));
                 }) |
-            std::ranges::to<std::vector>());
+                SkipErrors | std::ranges::to<std::vector>();
+            !paths.empty())
+          return UnwrapVectorFuture(
+              paths |
+              std::views::transform(
+                  [&editor_state](Path path)
+                      -> futures::Value<std::vector<gc::Root<OpenBuffer>>> {
+                    return OpenOrCreateFile(OpenFileOptions{
+                        .editor_state = editor_state,
+                        .path = ToLazyString(path),
+                        .insertion_type = BuffersList::AddBufferType::kVisit});
+                  }) |
+              std::ranges::to<std::vector>());
+        LOG(INFO) << "No completion found; passing specified path: " << name;
+        return OpenOrCreateFile(
+                   OpenFileOptions{
+                       .editor_state = editor_state,
+                       .path = ToLazyString(name),
+                       .insertion_type = BuffersList::AddBufferType::kVisit})
+            .Transform(
+                [](auto) -> std::vector<std::vector<gc::Root<OpenBuffer>>> {
+                  return {};
+                });
       })
       .Transform([](auto) { return EmptyValue(); });
 }
