@@ -420,6 +420,23 @@ futures::Value<std::vector<Value>> UnwrapVectorFuture(
       .Transform(
           [output](IterationControlCommand) mutable { return output.value(); });
 }
+
+template <typename Value>
+futures::Value<std::vector<Value>> UnwrapVectorFuture(
+    std::vector<futures::Value<Value>> input) {
+  language::NonNull<std::shared_ptr<std::vector<Value>>> output;
+  return futures::ForEach(
+             language::MakeNonNullShared<std::vector<futures::Value<Value>>>(
+                 std::move(input)),
+             [output](futures::Value<Value>& future_item) {
+               return std::move(future_item).Transform([output](Value item) {
+                 output->push_back(std::move(item));
+                 return IterationControlCommand::kContinue;
+               });
+             })
+      .Transform(
+          [output](IterationControlCommand) mutable { return output.value(); });
+}
 }  // namespace afc::futures
 
 #endif  // __AFC_EDITOR_FUTURES_FUTURES_H__
