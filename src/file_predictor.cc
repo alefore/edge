@@ -234,22 +234,22 @@ void ScanDirectory(const ScanDirectoryInput input) {
   while ((entry = readdir(&input.dir)) != nullptr) {
     if (input.abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
-    auto mismatch_results =
+    auto [pattern_it, entry_it] =
         std::mismatch(pattern_suffix_str.begin(), pattern_suffix_str.end(),
                       entry_path.begin(), entry_path.end());
-    if (mismatch_results.first != pattern_suffix_str.end()) {
-      longest_pattern_match =
-          std::max(longest_pattern_match,
-                   ColumnNumberDelta{static_cast<int>(std::distance(
-                       pattern_suffix_str.begin(), mismatch_results.first))});
+    ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
+        std::distance(pattern_suffix_str.begin(), pattern_it))};
+    LazyString unmatched_suffix =
+        input.pattern_suffix.Substring(ColumnNumber{} + match_len);
+    if (!unmatched_suffix.empty()) {
+      longest_pattern_match = std::max(longest_pattern_match, match_len);
       VLOG(20) << "The entry " << entry_path
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
       continue;
     }
-    MatchType match_type = mismatch_results.second == entry_path.end()
-                               ? MatchType::kExact
-                               : MatchType::kPartial;
+    MatchType match_type =
+        entry_it == entry_path.end() ? MatchType::kExact : MatchType::kPartial;
     input.predictor_output.found_exact_match |= match_type == MatchType::kExact;
     longest_pattern_match = input.pattern_suffix.size();
     std::wstring full_path =
