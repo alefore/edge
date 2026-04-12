@@ -200,6 +200,8 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
   return output;
 }
 
+enum class MatchType { kExact, kPartial };
+
 struct ScanDirectoryInput {
   DIR& dir;
   const std::wregex& noise_regex;
@@ -214,12 +216,12 @@ struct ScanDirectoryInput {
   ColumnNumberDelta pattern_prefix_size;
   DeleteNotification::Value& abort_value;
   PredictorOutput& predictor_output;
-  std::function<void(Line)> push_output;
+  std::function<void(Line, MatchType)> push_output;
 };
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
-void ScanDirectory(ScanDirectoryInput input) {
+void ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
   VLOG(5) << "Scanning directory \"" << input.path_prefix
@@ -243,9 +245,10 @@ void ScanDirectory(ScanDirectoryInput input) {
                << longest_pattern_match;
       continue;
     }
-    if (mismatch_results.second == entry_path.end()) {
-      input.predictor_output.found_exact_match = true;
-    }
+    MatchType match_type = mismatch_results.second == entry_path.end()
+                               ? MatchType::kExact
+                               : MatchType::kPartial;
+    input.predictor_output.found_exact_match |= match_type == MatchType::kExact;
     longest_pattern_match = input.pattern_suffix.size();
     std::wstring full_path =
         PathJoin(input.path_prefix.ToString(), FromByteString(entry->d_name)) +
@@ -254,23 +257,21 @@ void ScanDirectory(ScanDirectoryInput input) {
     input.push_output(
         LineBuilder{EscapedString::FromString(LazyString{std::move(full_path)})
                         .EscapedRepresentation()}
-            .Build());
+            .Build(),
+        match_type);
   }
 
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
                input.pattern_prefix_size +
                    ColumnNumberDelta{static_cast<int>(longest_pattern_match)});
-  if (input.pattern_suffix.empty()) {
-    input.predictor_output.found_exact_match = true;
-  }
 }
 
-futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions,
+futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                               PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   return GetSearchPaths(predictor_input.editor)
-      .Transform([predictor_input](std::vector<Path> search_paths) {
+      .Transform([options, predictor_input](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         LazyString path_input = std::visit(
@@ -289,7 +290,7 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions,
                                   ->Read(buffer_variables::directory_noise)
                                   .ToString());
         return predictor_input.editor.thread_pool().Run(std::bind_front(
-            [path_input, search_paths, noise_regex](
+            [options, path_input, search_paths, noise_regex](
                 NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
                 DeleteNotification::Value abort_value) mutable {
               if (!path_input.empty() &&
@@ -333,6 +334,11 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions,
                                  descend_results.valid_proper_prefix_length));
                 CHECK_LE(descend_results.valid_prefix_length,
                          path_input.size());
+                if (descend_results.valid_prefix_length == path_input.size()) {
+                  predictor_output.found_exact_match = true;
+                  // TODO(P0, trivial, 2026-04-12): Handle
+                  // options.match_behavior.
+                }
                 std::ranges::for_each(
                     descend_results.matches,
                     [&](const PathPatternMatch& match) {
@@ -351,8 +357,14 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions,
                               descend_results.valid_prefix_length,
                           .abort_value = abort_value,
                           .predictor_output = predictor_output,
-                          .push_output = [&predictions, &matches,
-                                          &progress_channel](Line line) {
+                          .push_output = [&options, &predictions, &matches,
+                                          &progress_channel](
+                                             Line line, MatchType match_type) {
+                            if (options.match_behavior ==
+                                    FilePredictorMatchBehavior::
+                                        kOnlyExactMatch &&
+                                match_type == MatchType::kPartial)
+                              return;
                             predictions.push_back(
                                 line,
                                 MutableLineSequence::ObserverBehavior::kHide);
