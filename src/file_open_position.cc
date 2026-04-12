@@ -6,9 +6,11 @@
 #include "src/tests/tests.h"
 
 using afc::infrastructure::Path;
+using afc::language::Error;
 using afc::language::IgnoreErrors;
 using afc::language::OptionalFrom;
 using afc::language::overload;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -35,24 +37,25 @@ std::ostream& operator<<(std::ostream& os, const Spec& spec) {
 }
 
 namespace {
-std::optional<Spec> TryPosition(LazyString input) {
+// TODO(P1, trivial, 2026-04-12): Move to a central location.
+ValueOrError<int> AsNumber(LazyString value) {
+  try {
+    return stoi(value.ToString());
+  } catch (const std::invalid_argument& ia) {
+    return Error{LazyString{L"stoi failed: invalid argument: "} + value};
+  } catch (const std::out_of_range& ia) {
+    return Error{LazyString{L"stoi failed: out of range: "} + value};
+  }
+}
+
+ValueOrError<Spec> TryPosition(LazyString input) {
   std::vector<LazyString> tokens = SplitAt(input, L':');
-  if (tokens.size() < 1 || tokens.size() > 2) return std::nullopt;
+  if (tokens.size() < 1 || tokens.size() > 2)
+    return Error{LazyString{L"Unexpected number of tokens"}};
   LineColumn position = {};
   for (size_t i = 0; i < tokens.size(); ++i) {
-    size_t value;
-    try {
-      value = stoi(tokens[i].ToString());
-      if (value > 0) {
-        value--;
-      }
-    } catch (const std::invalid_argument& ia) {
-      LOG(INFO) << "stoi failed: invalid argument: " << tokens[i];
-      return std::nullopt;
-    } catch (const std::out_of_range& ia) {
-      LOG(INFO) << "stoi failed: out of range: " << tokens[i];
-      return std::nullopt;
-    }
+    DECLARE_OR_RETURN(int value, AsNumber(tokens[i]));
+    if (value > 0) value--;
     if (i == 0) {
       position.line = LineNumber(value);
     } else {
@@ -62,15 +65,13 @@ std::optional<Spec> TryPosition(LazyString input) {
   return position;
 }
 
-std::optional<Spec> TrySearchPattern(LazyString input) {
-  if (!StartsWith(input, LazyString{L"/"})) return std::nullopt;
-  if (std::optional<NonEmptySingleLine> pattern =
-          OptionalFrom(NonEmptySingleLine::New(
-              SingleLine::New(input.Substring(ColumnNumber{1}))));
-      pattern.has_value()) {
-    return Search{pattern.value()};
-  }
-  return std::nullopt;
+ValueOrError<Spec> TrySearchPattern(LazyString input) {
+  if (!StartsWith(input, LazyString{L"/"}))
+    return Error{LazyString{L"Input doesn't start with slash."}};
+  DECLARE_OR_RETURN(NonEmptySingleLine pattern,
+                    NonEmptySingleLine::New(
+                        SingleLine::New(input.Substring(ColumnNumber{1}))));
+  return Search{pattern};
 }
 }  // namespace
 
@@ -78,12 +79,12 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix) {
   if (path_suffix.empty()) return Default{};
   if (path_suffix.get(ColumnNumber{0}) != L':') return std::nullopt;
   LazyString input = path_suffix.Substring(ColumnNumber{1});
-  if (std::optional<Spec> search_candidate = TrySearchPattern(input);
-      search_candidate.has_value())
-    return search_candidate.value();
-  if (std::optional<Spec> position_candidate = TryPosition(input);
-      position_candidate.has_value())
-    return position_candidate.value();
+  if (ValueOrError<Spec> search_candidate = TrySearchPattern(input);
+      std::holds_alternative<Spec>(search_candidate))
+    return std::get<Spec>(search_candidate);
+  if (ValueOrError<Spec> position_candidate = TryPosition(input);
+      std::holds_alternative<Spec>(position_candidate))
+    return std::get<Spec>(position_candidate);
   LOG(INFO) << "Invalid parse: " << path_suffix;
   return std::nullopt;
 }
@@ -138,9 +139,18 @@ LineMetadataMap GetLineMetadata(Spec spec) {
       spec);
 }
 
-Spec SpecFromLineMetadata(const language::text::LineMetadataMap&) {
-  // TODO(P1, trivial): Implement.
+ValueOrError<Spec> SpecFromLineMetadataInternal(
+    const language::text::LineMetadataMap& values) {
+  if (auto it = values.find(kLineKey); it != values.end()) {
+    DECLARE_OR_RETURN(int line_int,
+                      AsNumber(ToLazyString(it->second.get_value())));
+    return LineColumn{LineNumber{static_cast<size_t>(line_int)}};
+  }
   return Default{};
+}
+
+Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values) {
+  return OptionalFrom(SpecFromLineMetadataInternal(values)).value_or(Default{});
 }
 
 }  // namespace afc::editor::file_open_position

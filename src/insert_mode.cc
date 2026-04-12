@@ -343,9 +343,7 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
                      ToLazyString(Path::Join(editor.edge_path().front(), path)),
                  .insertion_type = BuffersList::AddBufferType::kIgnore,
                  .use_search_paths = false})
-      .Transform([](std::vector<gc::Root<OpenBuffer>> buffers) {
-        CHECK_EQ(buffers.size(), 1ul);
-        gc::Root<OpenBuffer> buffer = std::move(buffers[0]);
+      .Transform([](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::allow_dirty_delete, true);
         return buffer->WaitForEndOfFile().Transform(
             [buffer](EmptyValue) { return buffer->contents().snapshot(); });

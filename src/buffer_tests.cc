@@ -527,7 +527,7 @@ const bool buffer_reloads_tests_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor =
                 EditorForTests(std::nullopt);
             LOG(INFO) << "Editor created.";
-            futures::Value<std::vector<gc::Root<OpenBuffer>>> future_buffers =
+            futures::Value<gc::Root<OpenBuffer>> future_buffer =
                 OpenOrCreateFile(OpenFileOptions{
                     .editor_state = editor.value(),
                     .name = BufferName{LazyString{L"- test buffer"}},
@@ -535,20 +535,19 @@ const bool buffer_reloads_tests_registration = tests::Register(
                         LazyString{L"/tmp/edge-test.close-buffer-deletes.txt"},
                     .insertion_type = BuffersList::AddBufferType::kIgnore});
             LOG(INFO) << "Buffers future created.";
-            AdvanceUntilValue(editor.value(), future_buffers);
+            AdvanceUntilValue(editor.value(), future_buffer);
             LOG(INFO) << "Buffer registry size (before delete): "
                       << editor->buffer_registry().buffers().size();
             std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
-            std::move(future_buffers)
-                .Transform([&editor, &weak_buffer](
-                               std::vector<gc::Root<OpenBuffer>> buffers) {
-                  CHECK_EQ(buffers.size(), 1ul);
-                  LOG(INFO) << "File is opened.";
-                  weak_buffer = buffers[0].ptr().ToWeakPtr();
-                  buffers[0]->Reload();
-                  buffers[0]->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
-                  return Success();
-                });
+            std::move(future_buffer)
+                .Transform(
+                    [&editor, &weak_buffer](gc::Root<OpenBuffer> buffer) {
+                      LOG(INFO) << "File is opened.";
+                      weak_buffer = buffer.ptr().ToWeakPtr();
+                      buffer->Reload();
+                      buffer->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+                      return Success();
+                    });
 
             CHECK(weak_buffer->Lock().has_value());
             editor->CloseBuffer(weak_buffer->Lock()->ptr().value());
@@ -566,7 +565,7 @@ const bool buffer_reloads_tests_registration = tests::Register(
      {.name = L"CloseBufferDeletesListed", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
-        futures::Value<std::vector<gc::Root<OpenBuffer>>> future_buffers =
+        futures::Value<gc::Root<OpenBuffer>> future_buffer =
             OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor.value(),
                 .name = BufferName{LazyString{L"- test buffer"}},
@@ -574,18 +573,16 @@ const bool buffer_reloads_tests_registration = tests::Register(
                     LazyString{
                         L"/tmp/edge-test.close-buffer-deletes-listed.txt"},
                 .insertion_type = BuffersList::AddBufferType::kVisit});
-        AdvanceUntilValue(editor.value(), future_buffers);
+        AdvanceUntilValue(editor.value(), future_buffer);
         LOG(INFO) << "Buffer registry size (before delete): "
                   << editor->buffer_registry().buffers().size();
         std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
-        std::move(future_buffers)
-            .Transform([&editor, &weak_buffer](
-                           std::vector<gc::Root<OpenBuffer>> buffers) {
-              CHECK_EQ(buffers.size(), 1ul);
+        std::move(future_buffer)
+            .Transform([&editor, &weak_buffer](gc::Root<OpenBuffer> buffer) {
               LOG(INFO) << "File is opened.";
-              weak_buffer = buffers[0].ptr().ToWeakPtr();
-              buffers[0]->Reload();
-              buffers[0]->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+              weak_buffer = buffer.ptr().ToWeakPtr();
+              buffer->Reload();
+              buffer->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
               return Success();
             });
 

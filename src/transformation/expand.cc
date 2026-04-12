@@ -209,7 +209,7 @@ bool predictor_transformation_tests_register = tests::Register(
 }  // namespace
 
 using OpenFileCallback =
-    std::function<futures::ValueOrError<std::vector<gc::Root<OpenBuffer>>>(
+    std::function<futures::ValueOrError<gc::Root<OpenBuffer>>(
         const OpenFileOptions& options)>;
 
 class ReadAndInsert : public CompositeTransformation {
@@ -242,11 +242,9 @@ class ReadAndInsert : public CompositeTransformation {
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
         .Transform([full_path, input = std::move(input)](
-                       std::vector<gc::Root<OpenBuffer>> buffer) {
-          CHECK_EQ(buffer.size(), 1ul);
-          return buffer[0]->WaitForEndOfFile().Transform(
-              [buffer_to_insert = buffer[0],
-               input = std::move(input)](EmptyValue) {
+                       gc::Root<OpenBuffer> buffer_to_insert) {
+          return buffer_to_insert->WaitForEndOfFile().Transform(
+              [buffer_to_insert, input = std::move(input)](EmptyValue) {
                 Output output;
                 output.Push(transformation::Insert{
                     .contents_to_insert =
@@ -376,13 +374,11 @@ class ExpandTransformation : public CompositeTransformation {
                         .path = std::move(dictionary_path),
                         .insertion_type = BuffersList::AddBufferType::kIgnore,
                         .use_search_paths = false})
-                    .Transform(
-                        [](std::vector<gc::Root<OpenBuffer>> dictionary) {
-                          CHECK_EQ(dictionary.size(), 1ul);
-                          return Success(ComposePredictors(
-                              DictionaryPredictor(std::move(dictionary[0])),
-                              SyntaxBasedPredictor));
-                        })
+                    .Transform([](gc::Root<OpenBuffer> dictionary) {
+                      return Success(ComposePredictors(
+                          DictionaryPredictor(std::move(dictionary)),
+                          SyntaxBasedPredictor));
+                    })
                     .ConsumeErrors([](Error) -> futures::Value<Predictor> {
                       return futures::Past(SyntaxBasedPredictor);
                     });

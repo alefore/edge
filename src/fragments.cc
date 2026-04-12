@@ -20,7 +20,7 @@ using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::overload;
-using afc::language::ValueOrError;
+using afc::language::Success;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::ToLazyString;
@@ -49,10 +49,8 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                                       editor.edge_path().front(),
                                       PathComponent::FromString(L"fragments"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-            .Transform([&editor](std::vector<gc::Root<OpenBuffer>> buffers) {
-              CHECK(!buffers.empty());
+            .Transform([&editor](gc::Root<OpenBuffer> buffer) {
               VLOG(6) << "Preparing fragments buffer (will wait for EOF).";
-              gc::Root<OpenBuffer>& buffer = buffers[0];
               buffer->Set(buffer_variables::save_on_close, true);
               buffer->Set(buffer_variables::trigger_reload_on_buffer_write,
                           false);
@@ -83,14 +81,15 @@ void AddFragment(EditorState& editor, LineSequence fragment) {
                                {HistoryIdentifierValue(),
                                 EscapedString{fragment.ToLazyString()}}}}
                 .Serialize());
-        return futures::Past(EmptyValue{});
+        return futures::Past(Success());
       });
 }
 
 futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
     EditorState& editor, FindFragmentQuery query) {
   return GetFragmentsBuffer(editor).Transform(
-      [&editor, filter = query.filter](gc::Root<OpenBuffer> fragments_buffer) {
+      [&editor, filter = query.filter](gc::Root<OpenBuffer> fragments_buffer)
+          -> futures::Value<std::vector<FilterSortBufferOutput::Match>> {
         const LineSequence history =
             fragments_buffer.ptr()->contents().snapshot();
         if (filter.empty()) {

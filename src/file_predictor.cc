@@ -261,7 +261,7 @@ void ScanDirectory(const ScanDirectoryInput input) {
           EscapedString::FromString(LazyString{std::move(full_path)})
               .EscapedRepresentation()};
       line_builder.SetMetadata(LazyValue<LineMetadataMap>{
-          [&spec] { return GetLineMetadata(spec.value()); }});
+          [spec] { return GetLineMetadata(spec.value()); }});
       input.push_output(std::move(line_builder).Build(), match_type);
     } else {
       longest_pattern_match = std::max(longest_pattern_match, match_len);

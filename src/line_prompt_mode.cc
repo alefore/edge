@@ -152,9 +152,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
                                                ToLazyString(name) +
                                                LazyString{L"_history"})))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
-      .Transform([&editor_state](std::vector<gc::Root<OpenBuffer>> buffers) {
-        CHECK(!buffers.empty());
-        gc::Root<OpenBuffer>& buffer = buffers[0];
+      .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::save_on_close, true);
         buffer->Set(buffer_variables::trigger_reload_on_buffer_write, false);
         buffer->Set(buffer_variables::show_in_buffers_list, false);

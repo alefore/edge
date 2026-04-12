@@ -94,10 +94,10 @@ struct ResolvePathOutput {
 
 futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input);
 
-futures::ValueOrError<std::vector<language::gc::Root<OpenBuffer>>>
-OpenFileIfFound(const OpenFileOptions& options);
+futures::ValueOrError<language::gc::Root<OpenBuffer>> OpenFileIfFound(
+    const OpenFileOptions& options);
 
-futures::Value<std::vector<language::gc::Root<OpenBuffer>>> OpenOrCreateFile(
+futures::Value<language::gc::Root<OpenBuffer>> OpenOrCreateFile(
     const OpenFileOptions& options);
 
 futures::Value<language::gc::Root<OpenBuffer>> OpenAnonymousBuffer(

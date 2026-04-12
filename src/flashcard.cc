@@ -113,9 +113,7 @@ class FlashcardReviewLog {
                    .path = ToLazyString(review_log_path),
                    .insertion_type = BuffersList::AddBufferType::kIgnore,
                    .use_search_paths = false})
-        .Transform([answer](std::vector<gc::Root<OpenBuffer>> buffers) {
-          CHECK(!buffers.empty());
-          gc::Root<OpenBuffer>& buffer = buffers[0];
+        .Transform([answer](gc::Root<OpenBuffer> buffer) {
           buffer->Set(buffer_variables::save_on_close, true);
           return buffer->WaitForEndOfFile().Transform(
               [buffer, answer](

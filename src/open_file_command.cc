@@ -13,6 +13,7 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/error/view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -63,15 +64,32 @@ struct PathAndOpenFilePositionSpec {
   file_open_position::Spec spec;
 };
 
-futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
-                                           SingleLine name) {
+futures::Value<EmptyValue> LowLevelOpenFile(
+    const OpenFileOptions& options,
+    ResolveAndOpenFileOptions::NotFoundHandler not_found_handler) {
+  switch (not_found_handler) {
+    case ResolveAndOpenFileOptions::NotFoundHandler::kCreate:
+      return OpenOrCreateFile(options).Transform(
+          [](gc::Root<OpenBuffer>) { return EmptyValue{}; });
+    case ResolveAndOpenFileOptions::NotFoundHandler::kIgnore:
+      return OpenFileIfFound(options)
+          .Transform([](gc::Root<OpenBuffer>) { return Success(); })
+          .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); });
+  }
+  LOG(FATAL) << "Invalid value for not_found_handler.";
+}
+}  // namespace
+
+futures::Value<EmptyValue> ResolveAndOpenFile(
+    ResolveAndOpenFileOptions options) {
   return GetFilePredictor(FilePredictorOptions{
       .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch})(
-             PredictorInput{.editor = editor_state,
-                            .input = name,
+             PredictorInput{.editor = options.editor,
+                            .input = options.path,
                             .input_column = {},
                             .source_buffers = {}})
-      .Transform([&editor_state, name](PredictorOutput predictor_output) {
+      .Transform([options](PredictorOutput predictor_output)
+                     -> futures::Value<std::vector<EmptyValue>> {
         if (std::vector<PathAndOpenFilePositionSpec> paths =
                 predictor_output.contents.read().lines() |
                 std::views::transform(
@@ -87,51 +105,49 @@ futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
             !paths.empty())
           return UnwrapVectorFuture(
               paths |
-              std::views::transform(
-                  [&editor_state](PathAndOpenFilePositionSpec input)
-                      -> futures::Value<std::vector<gc::Root<OpenBuffer>>> {
-                    return OpenOrCreateFile(OpenFileOptions{
-                        .editor_state = editor_state,
+              std::views::transform([options](PathAndOpenFilePositionSpec input)
+                                        -> futures::Value<EmptyValue> {
+                return LowLevelOpenFile(
+                    OpenFileOptions{
+                        .editor_state = options.editor,
                         .path = ToLazyString(input.path),
-                        .insertion_type = BuffersList::AddBufferType::kVisit});
-                  }) |
+                        .insertion_type = BuffersList::AddBufferType::kVisit},
+                    options.not_found_handler);
+              }) |
               std::ranges::to<std::vector>());
-        LOG(INFO) << "No completion found; passing specified path: " << name;
-        return OpenOrCreateFile(
+        LOG(INFO) << "No completion found; passing specified path: "
+                  << options.path;
+        return LowLevelOpenFile(
                    OpenFileOptions{
-                       .editor_state = editor_state,
-                       .path = ToLazyString(name),
-                       .insertion_type = BuffersList::AddBufferType::kVisit})
-            .Transform(
-                [](auto) -> std::vector<std::vector<gc::Root<OpenBuffer>>> {
-                  return {};
-                });
+                       .editor_state = options.editor,
+                       .path = ToLazyString(options.path),
+                       .insertion_type = BuffersList::AddBufferType::kVisit},
+                   options.not_found_handler)
+            .Transform([](EmptyValue) { return std::vector{EmptyValue{}}; });
       })
-      .Transform([](auto) { return EmptyValue(); });
+      .Transform([](auto) { return Success(); })
+      .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
 }
 
+namespace {
 // Returns the buffer to show for context, or nullptr.
 futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
     EditorState& editor, const PredictResults& results, SingleLine line) {
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.predictor_output.found_exact_match) {
-    if (line.empty()) {
-      return futures::Past(std::optional<gc::Root<OpenBuffer>>());
-    }
-    output =
-        OpenFileIfFound(
-            OpenFileOptions{
-                .editor_state = editor,
-                .path = ToLazyString(line),
-                .insertion_type = BuffersList::AddBufferType::kIgnore})
-            .Transform([](std::vector<gc::Root<OpenBuffer>> buffer) {
-              CHECK_GT(buffer.size(), 0ul);
-              return Success(std::optional<gc::Root<OpenBuffer>>(buffer[0]));
-            })
-            .ConsumeErrors([](Error) {
-              return futures::Past(std::optional<gc::Root<OpenBuffer>>());
-            });
+    if (line.empty()) return output;
+    output = OpenFileIfFound(
+                 OpenFileOptions{
+                     .editor_state = editor,
+                     .path = ToLazyString(line),
+                     .insertion_type = BuffersList::AddBufferType::kIgnore})
+                 .Transform([](gc::Root<OpenBuffer> buffer) {
+                   return Success(std::optional<gc::Root<OpenBuffer>>(buffer));
+                 })
+                 .ConsumeErrors([](Error) {
+                   return futures::Past(std::optional<gc::Root<OpenBuffer>>());
+                 });
   }
   return std::move(output).Transform(
       [results](std::optional<gc::Root<OpenBuffer>> buffer)
@@ -360,7 +376,14 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
                       source_buffers[0].ptr()->Read(buffer_variables::path)),
         .colorize_options_provider =
             std::bind_front(AdjustPath, std::ref(editor)),
-        .handler = std::bind_front(OpenFileHandler, std::ref(editor)),
+        .handler =
+            [&editor](SingleLine value) {
+              return ResolveAndOpenFile(ResolveAndOpenFileOptions{
+                  .editor = editor,
+                  .not_found_handler =
+                      ResolveAndOpenFileOptions::NotFoundHandler::kCreate,
+                  .path = value});
+            },
         .cancel_handler =
             [&editor]() {
               VisitPointer(

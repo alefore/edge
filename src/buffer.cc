@@ -761,12 +761,11 @@ void OpenBuffer::UpdateTreeParser() {
                       .path = Read(buffer_variables::dictionary),
                       .insertion_type = BuffersList::AddBufferType::kIgnore,
                       .use_search_paths = false})
-      .Transform([](std::vector<gc::Root<OpenBuffer>> dictionary_root) {
-        CHECK_EQ(dictionary_root.size(), 1ul);
-        return dictionary_root[0]->WaitForEndOfFile().Transform(
+      .Transform([](gc::Root<OpenBuffer> dictionary_root) {
+        return dictionary_root->WaitForEndOfFile().Transform(
             [dictionary_root](EmptyValue) {
-              return dictionary_root[0]->editor().thread_pool().Run(
-                  [contents = dictionary_root[0]->contents().snapshot()] {
+              return dictionary_root->editor().thread_pool().Run(
+                  [contents = dictionary_root->contents().snapshot()] {
                     return Success(SortedLineSequence(contents));
                   });
             });
@@ -2157,12 +2156,11 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                         BuffersList::AddBufferType::kIgnore,
                                     .use_search_paths = false,
                                     .stat_validator = CheckLocalFile})
-                         .Transform([data](std::vector<gc::Root<OpenBuffer>>
-                                               buffer_context) {
-                           CHECK_EQ(buffer_context.size(), 1ul);
-                           data->output = buffer_context[0];
-                           return futures::Past(Success(ICC::kStop));
-                         })
+                         .Transform(
+                             [data](gc::Root<OpenBuffer> buffer_context) {
+                               data->output = buffer_context;
+                               return futures::Past(Success(ICC::kStop));
+                             })
                          .ConsumeErrors([adjusted_position, data](Error) {
                            return VisitPointer(
                                data->source.Lock(),
