@@ -437,7 +437,7 @@ EdgeVariable<LazyString>* const path =
          ->Add()
          .Name(L"path")
          .Description(L"String with the path of the current file.")
-         .Predictor(FilePredictor)
+         .Predictor(GetFilePredictor(FilePredictorOptions{}))
          .Build();
 
 EdgeVariable<LazyString>* const pts_path =
@@ -447,7 +447,7 @@ EdgeVariable<LazyString>* const pts_path =
          .Description(
              L"String with the path of the terminal used by the current buffer "
              L"(or empty if the user is not using a terminal).")
-         .Predictor(FilePredictor)
+         .Predictor(GetFilePredictor(FilePredictorOptions{}))
          .Build();
 
 EdgeVariable<LazyString>* const children_path =
@@ -461,7 +461,7 @@ EdgeVariable<LazyString>* const children_path =
              L"command will inherit the current working directory that Edge "
              L"was "
              L"run in.")
-         .Predictor(FilePredictor)
+         .Predictor(GetFilePredictor(FilePredictorOptions{}))
          .Build();
 
 EdgeVariable<LazyString>* const command =
@@ -471,7 +471,7 @@ EdgeVariable<LazyString>* const command =
          .Description(
              L"String with the current command. Empty if the buffer is not a "
              L"sub-process (e.g. a regular file).")
-         .Predictor(FilePredictor)
+         .Predictor(GetFilePredictor(FilePredictorOptions{}))
          .Build();
 
 EdgeVariable<LazyString>* const editor_commands_path =
@@ -483,7 +483,7 @@ EdgeVariable<LazyString>* const editor_commands_path =
              L"prompting the user for an editor command to run. It does not "
              L"affect in any way the execution of these commands (simply the "
              L"prompting).")
-         .Predictor(FilePredictor)
+         .Predictor(GetFilePredictor(FilePredictorOptions{}))
          .Build();
 
 EdgeVariable<LazyString>* const line_prefix_characters =
@@ -537,7 +537,7 @@ EdgeVariable<LazyString>* const dictionary =
              L"Pressing TAB again iterates through all completions.\n\n"
              L"The dictionary file must be a text file containing one word per "
              L"line and sorted alphabetically.")
-         .Predictor(FilePredictor)
+         .Predictor(GetFilePredictor(FilePredictorOptions{}))
          .Build();
 
 // TODO(easy, 2023-09-16): Maintain a registry of available parsers, so that the

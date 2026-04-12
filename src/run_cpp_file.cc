@@ -130,7 +130,7 @@ class RunCppFileCommand : public Command {
                });
              },
          .cancel_handler = []() { /* Nothing. */ },
-         .predictor = FilePredictor});
+         .predictor = GetFilePredictor(FilePredictorOptions{})});
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()

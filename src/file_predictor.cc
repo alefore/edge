@@ -266,9 +266,8 @@ void ScanDirectory(ScanDirectoryInput input) {
   }
 }
 
-}  // namespace
-
-futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
+futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions,
+                                              PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   return GetSearchPaths(predictor_input.editor)
       .Transform([predictor_input](std::vector<Path> search_paths) {
@@ -384,4 +383,11 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
             std::move(predictor_input.abort_value)));
       });
 }
+}  // namespace
+
+std::function<futures::Value<PredictorOutput>(PredictorInput input)>
+GetFilePredictor(FilePredictorOptions options) {
+  return std::bind_front(FilePredictor, options);
+}
+
 }  // namespace afc::editor

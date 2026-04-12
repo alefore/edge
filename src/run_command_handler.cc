@@ -503,7 +503,8 @@ class ForkEditorCommand : public Command {
                 return RunCommandHandler(
                     editor, 0, 1, OptionalFrom(children_path), input.read());
               },
-          .predictor = TokenPredictor(FilePredictor)});
+          .predictor =
+              TokenPredictor(GetFilePredictor(FilePredictorOptions{}))});
     } else if (editor_state_.structure() == Structure::kLine) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();

@@ -354,8 +354,9 @@ class ExpandTransformation : public CompositeTransformation {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           transformation_future =
               futures::Past(std::make_unique<PredictorTransformation>(
-                  FilePredictor, vm::EscapedString::FromString(path.read())
-                                     .EscapedRepresentation()));
+                  GetFilePredictor(FilePredictorOptions{}),
+                  vm::EscapedString::FromString(path.read())
+                      .EscapedRepresentation()));
         }
         break;
       case ' ':

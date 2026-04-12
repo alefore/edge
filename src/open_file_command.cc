@@ -57,10 +57,12 @@ namespace afc::editor {
 namespace {
 futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                                            SingleLine name) {
-  return FilePredictor(PredictorInput{.editor = editor_state,
-                                      .input = name,
-                                      .input_column = {},
-                                      .source_buffers = {}})
+  return GetFilePredictor(FilePredictorOptions{
+      .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch})(
+             PredictorInput{.editor = editor_state,
+                            .input = name,
+                            .input_column = {},
+                            .source_buffers = {}})
       .Transform([&editor_state](PredictorOutput predictor_output) {
         return UnwrapVectorFuture(
             predictor_output.contents.read().lines() |
@@ -165,7 +167,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState& editor, const SingleLine& line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
-  return Predict(FilePredictor,
+  return Predict(GetFilePredictor(FilePredictorOptions{}),
                  PredictorInput{.editor = editor,
                                 .input = line,
                                 .input_column = ColumnNumber() + line.size(),
@@ -341,7 +343,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
                   },
                   [] {});
             },
-        .predictor = FilePredictor,
+        .predictor = GetFilePredictor(FilePredictorOptions{}),
         .source_buffers = source_buffers};
   });
 }
