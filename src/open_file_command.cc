@@ -11,7 +11,9 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/file_predictor.h"
 #include "src/futures/delete_notification.h"
+#include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/error/view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -24,6 +26,7 @@ extern "C" {
 namespace gc = afc::language::gc;
 
 using afc::futures::DeleteNotification;
+using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::screen::LineModifier;
@@ -42,23 +45,40 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::view::SkipErrors;
 using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
 futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
                                            SingleLine name) {
-  return OpenOrCreateFile(
-             OpenFileOptions{
-                 .editor_state = editor_state,
-                 .path = name.read(),
-                 .insertion_type = BuffersList::AddBufferType::kVisit})
-      .Transform(
-          [](std::vector<gc::Root<OpenBuffer>>) { return EmptyValue(); });
+  return FilePredictor(PredictorInput{.editor = editor_state,
+                                      .input = name,
+                                      .input_column = {},
+                                      .source_buffers = {}})
+      .Transform([&editor_state](PredictorOutput predictor_output) {
+        return UnwrapVectorFuture(
+            predictor_output.contents.read().lines() |
+            std::views::transform([](Line line) {
+              return Path::New(ToLazyString(line.contents()));
+            }) |
+            SkipErrors |
+            std::views::transform(
+                [&editor_state](Path path)
+                    -> futures::Value<std::vector<gc::Root<OpenBuffer>>> {
+                  return OpenOrCreateFile(OpenFileOptions{
+                      .editor_state = editor_state,
+                      .path = ToLazyString(path),
+                      .insertion_type = BuffersList::AddBufferType::kVisit});
+                }) |
+            std::ranges::to<std::vector>());
+      })
+      .Transform([](auto) { return EmptyValue(); });
 }
 
 // Returns the buffer to show for context, or nullptr.
