@@ -172,14 +172,14 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
         std::views::transform([&](const PathPatternMatch& previous_match) {
           return MatchComponent(previous_match, next_component) |
                  std::views::transform([&open_dir, &previous_match,
-                                        &next_matches](
+                                        &next_matches, &output](
                                            LazyString next_component_match)
                                            -> ValueOrError<PathPatternMatch> {
                    Path next_path = Path::Join(
                        previous_match.full_path,
                        ValueOrDie(PathComponent::New(next_component_match)));
                    LazyString next_pattern =
-                       (previous_match.path_pattern.empty()
+                       (output.valid_prefix_length.IsZero()
                             ? LazyString{}
                             : previous_match.path_pattern + LazyString{L"/"}) +
                        next_component_match;
