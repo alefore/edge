@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/editor.h"
+#include "src/file_open_position.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
@@ -31,6 +32,8 @@ struct OpenFileOptions {
 
   // The pattern for the path of the file to open.
   language::lazy_string::LazyString path;
+
+  file_open_position::Spec position = file_open_position::Default{};
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;
