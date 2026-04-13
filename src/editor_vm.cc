@@ -497,24 +497,20 @@ gc::Root<Environment> BuildEditorEnvironment(
             return protected_paths->lock([&editor_arg, visit](
                                              std::vector<LazyString> paths) {
               return UnwrapVectorFuture(
-                         MakeNonNullShared<
-                             std::vector<futures::Value<gc::Root<OpenBuffer>>>>(
-                             container::MaterializeVector(
-                                 paths |
-                                 std::views::transform(
-                                     [&editor_arg, visit](LazyString path)
-                                         -> futures::Value<
-                                             gc::Root<OpenBuffer>> {
-                                       return OpenOrCreateFile(OpenFileOptions{
-                                           .editor_state = editor_arg,
-                                           .path = path,
-                                           .insertion_type =
-                                               visit ? BuffersList::
-                                                           AddBufferType::kVisit
-                                                     : BuffersList::
-                                                           AddBufferType::
-                                                               kIgnore});
-                                     }))))
+                         paths |
+                         std::views::transform([&editor_arg,
+                                                visit](LazyString path)
+                                                   -> futures::Value<
+                                                       gc::Root<OpenBuffer>> {
+                           return OpenOrCreateFile(OpenFileOptions{
+                               .editor_state = editor_arg,
+                               .path = path,
+                               .insertion_type =
+                                   visit
+                                       ? BuffersList::AddBufferType::kVisit
+                                       : BuffersList::AddBufferType::kIgnore});
+                         }) |
+                         std::ranges::to<std::vector>())
                   .Transform(
                       [](std::vector<gc::Root<OpenBuffer>> vector_buffer) {
                         return MakeNonNullShared<
