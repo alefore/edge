@@ -246,7 +246,8 @@ void ScanDirectory(const ScanDirectoryInput input) {
     ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
         std::distance(pattern_suffix_str.begin(), pattern_it))};
     if (std::optional<fop::Spec> spec = fop::Parse(
-            input.pattern_suffix.Substring(ColumnNumber{} + match_len));
+            input.pattern_suffix.Substring(ColumnNumber{} + match_len),
+            fop::SuffixMode::Disallow);
         spec.has_value()) {
       MatchType match_type = entry_it == entry_path.end() ? MatchType::kExact
                                                           : MatchType::kPartial;

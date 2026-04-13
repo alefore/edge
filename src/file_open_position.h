@@ -34,7 +34,9 @@ using Spec = std::variant<Default, Search, language::text::LineColumn>;
 std::ostream& operator<<(std::ostream& os, const Spec& spec);
 
 // `path_suffix` will be a string like `:93`.
-std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix);
+enum class SuffixMode { Allow, Disallow };
+std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
+                          SuffixMode suffix_mode);
 
 language::text::LineMetadataMap GetLineMetadata(Spec spec);
 Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values);

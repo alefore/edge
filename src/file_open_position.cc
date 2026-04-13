@@ -48,12 +48,13 @@ ValueOrError<int> AsNumber(LazyString value) {
   }
 }
 
-ValueOrError<Spec> TryPosition(LazyString input) {
+ValueOrError<Spec> TryPosition(LazyString input, SuffixMode suffix_mode) {
   std::vector<LazyString> tokens = SplitAt(input, L':');
-  if (tokens.size() < 1 || tokens.size() > 2)
+  if (tokens.size() < 1 ||
+      (suffix_mode == SuffixMode::Disallow && tokens.size() > 2))
     return Error{LazyString{L"Unexpected number of tokens"}};
   LineColumn position = {};
-  for (size_t i = 0; i < tokens.size(); ++i) {
+  for (size_t i = 0; i < std::min(tokens.size(), 2ul); ++i) {
     DECLARE_OR_RETURN(int value, AsNumber(tokens[i]));
     if (value > 0) value--;
     if (i == 0) {
@@ -75,7 +76,8 @@ ValueOrError<Spec> TrySearchPattern(LazyString input) {
 }
 }  // namespace
 
-std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix) {
+std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
+                          SuffixMode suffix_mode) {
   VLOG(5) << "Attempt parse: " << path_suffix;
   if (path_suffix.empty()) return Default{};
   if (path_suffix.get(ColumnNumber{0}) != L':') return std::nullopt;
@@ -83,7 +85,7 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix) {
   if (ValueOrError<Spec> search_candidate = TrySearchPattern(input);
       std::holds_alternative<Spec>(search_candidate))
     return std::get<Spec>(search_candidate);
-  if (ValueOrError<Spec> position_candidate = TryPosition(input);
+  if (ValueOrError<Spec> position_candidate = TryPosition(input, suffix_mode);
       std::holds_alternative<Spec>(position_candidate))
     return std::get<Spec>(position_candidate);
   LOG(INFO) << "Invalid parse: " << path_suffix;
@@ -94,26 +96,44 @@ namespace {
 const bool parse_path_spec_tests_registration = tests::Register(
     L"file_open_position_Parse",
     {{.name = L"NoParse",
-      .callback = [] { CHECK(Parse(LazyString{L"foo"}) == std::nullopt); }},
+      .callback =
+          [] {
+            CHECK(Parse(LazyString{L"foo"}, SuffixMode::Disallow) ==
+                  std::nullopt);
+          }},
      {.name = L"Empty",
       .callback =
           [] {
-            CHECK(std::holds_alternative<Default>(Parse(LazyString{}).value()));
+            CHECK(std::holds_alternative<Default>(
+                Parse(LazyString{}, SuffixMode::Disallow).value()));
           }},
      {.name = L"Pattern",
       .callback =
           [] {
-            CHECK_EQ(Parse(LazyString{L":/quux"}).value(),
+            CHECK_EQ(Parse(LazyString{L":/quux"}, SuffixMode::Disallow).value(),
                      Spec{Search{NON_EMPTY_SINGLE_LINE_CONSTANT(L"quux")}});
           }},
      {.name = L"LineColumn",
       .callback =
           [] {
-            CHECK_EQ(Parse(LazyString{L":25:43"}).value(),
+            CHECK_EQ(Parse(LazyString{L":25:43"}, SuffixMode::Disallow).value(),
+                     (Spec{LineColumn{LineNumber{24}, ColumnNumber{42}}}));
+          }},
+     {.name = L"LineColumnSuffixDisallow",
+      .callback =
+          [] {
+            CHECK(Parse(LazyString{L":25:43: error blah"},
+                        SuffixMode::Disallow) == std::nullopt);
+          }},
+     {.name = L"LineColumnSuffixAllow",
+      .callback =
+          [] {
+            CHECK_EQ(Parse(LazyString{L":25:43: error blah"}, SuffixMode::Allow)
+                         .value(),
                      (Spec{LineColumn{LineNumber{24}, ColumnNumber{42}}}));
           }},
      {.name = L"Line", .callback = [] {
-        CHECK_EQ(Parse(LazyString{L":2543"}).value(),
+        CHECK_EQ(Parse(LazyString{L":2543"}, SuffixMode::Disallow).value(),
                  Spec{LineColumn{LineNumber{2542}}});
       }}});
 
