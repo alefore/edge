@@ -76,6 +76,7 @@ ValueOrError<Spec> TrySearchPattern(LazyString input) {
 }  // namespace
 
 std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix) {
+  VLOG(5) << "Attempt parse: " << path_suffix;
   if (path_suffix.empty()) return Default{};
   if (path_suffix.get(ColumnNumber{0}) != L':') return std::nullopt;
   LazyString input = path_suffix.Substring(ColumnNumber{1});
@@ -116,6 +117,8 @@ const bool parse_path_spec_tests_registration = tests::Register(
                  Spec{LineColumn{LineNumber{2542}}});
       }}});
 
+const LineMetadataKey kSearchKey =
+    LineMetadataKey{SINGLE_LINE_CONSTANT(L"search")};
 const LineMetadataKey kLineKey = LineMetadataKey{SINGLE_LINE_CONSTANT(L"line")};
 }  // namespace
 
@@ -125,7 +128,7 @@ LineMetadataMap GetLineMetadata(Spec spec) {
           [](Default) { return LineMetadataMap{}; },
           [](Search search) {
             return LineMetadataMap{
-                {{LineMetadataKey{SINGLE_LINE_CONSTANT(L"search")},
+                {{kSearchKey,
                   LineMetadataValue::FromSingleLine(search.read().read())}}};
           },
           [](LineColumn position) {
@@ -145,6 +148,11 @@ ValueOrError<Spec> SpecFromLineMetadataInternal(
     DECLARE_OR_RETURN(int line_int,
                       AsNumber(ToLazyString(it->second.get_value())));
     return LineColumn{LineNumber{static_cast<size_t>(line_int)}};
+  }
+  if (auto it = values.find(kSearchKey); it != values.end()) {
+    DECLARE_OR_RETURN(NonEmptySingleLine pattern,
+                      NonEmptySingleLine::New(it->second.get_value()));
+    return Search{pattern};
   }
   return Default{};
 }
