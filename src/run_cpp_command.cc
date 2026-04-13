@@ -324,8 +324,8 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
 futures::Value<EmptyValue> RunCppCommandShellHandler(EditorState& editor_state,
                                                      SingleLine command) {
   return RunCppCommandShell(command, editor_state)
-      .Transform([](auto) { return Success(); })
-      .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
+      .template Transform<futures::ErrorHandling::Disable>(
+          [](auto) { return EmptyValue{}; });
 }
 
 void MaybePushTokenAndModifiers(SingleLine line, LineModifierSet modifiers,
