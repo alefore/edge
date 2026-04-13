@@ -208,9 +208,9 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
 enum class MatchType { kExact, kPartial };
 
 struct ScanDirectoryInput {
+  const FilePredictorOptions& options;
   DIR& dir;
   const std::wregex& noise_regex;
-  open_file_position::SuffixMode suffix_mode;
   // The remaining of the pattern after `prefix`, to look up in the directory.
   // May include globs.
   LazyString pattern_suffix;
@@ -225,17 +225,83 @@ struct ScanDirectoryInput {
   std::function<void(Line, MatchType)> push_output;
 };
 
+// Simplified view of lower-level Unix semantics. Good enough for us.
+enum class FileType { Directory, Regular, Special };
+
+bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
+  switch (file_type) {
+    using enum FileType;
+    case Directory:
+      return options.directory_filter == FilePredictorOptions::Filter::Include;
+    case Regular:
+      return true;
+    case Special:
+      return options.special_file_filter ==
+             FilePredictorOptions::Filter::Include;
+  }
+  LOG(FATAL) << "Invalid file_type value.";
+  return true;
+}
+
+bool HandlePossibleMatch(const ScanDirectoryInput& input,
+                         ColumnNumberDelta match_len, MatchType match_type,
+                         std::optional<PathComponent> entry_name,
+                         FileType file_type,
+                         ColumnNumberDelta& longest_pattern_match) {
+  namespace ofp = open_file_position;
+  std::optional<ofp::Spec> spec =
+      ofp::Parse(input.pattern_suffix.Substring(ColumnNumber{} + match_len),
+                 input.options.open_file_position_suffix_mode);
+  if (!spec.has_value()) {
+    LOG(INFO) << "open_file_position didn't allow match.";
+    return false;
+  }
+  input.predictor_output.found_exact_match |= match_type == MatchType::kExact;
+  longest_pattern_match = input.pattern_suffix.size();
+  ValueOrError<Path> path_prefix_or_error = Path::New(input.path_prefix);
+  if (IsError(path_prefix_or_error) && entry_name == std::nullopt) {
+    LOG(INFO) << "No path prefix and no entry name.";
+    return false;
+  }
+  Path full_path = std::visit(
+      overload{[&entry_name](Path path_prefix) {
+                 return entry_name.has_value()
+                            ? Path::Join(path_prefix, entry_name.value())
+                            : path_prefix;
+               },
+               [&entry_name](Error) -> Path { return entry_name.value(); }},
+      path_prefix_or_error);
+  VLOG(10) << "Interesting entry: " << full_path
+           << " exact: " << (match_type == MatchType::kExact)
+           << " full: " << full_path << ", spec: " << spec.value();
+  if (!FilterAllows(file_type, input.options) ||
+      std::regex_match(ToLazyString(full_path).ToString(), input.noise_regex))
+    return true;
+
+  LineBuilder line_builder{
+      EscapedString::FromString(
+          ToLazyString(full_path) +
+          (file_type == FileType::Directory ? LazyString{L"/"} : LazyString{}))
+          .EscapedRepresentation()};
+  line_builder.SetMetadata(LazyValue<LineMetadataMap>{
+      [spec] { return GetLineMetadata(spec.value()); }});
+  input.push_output(std::move(line_builder).Build(), match_type);
+  return true;
+}
+
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
 void ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
-  namespace ofp = open_file_position;
-
   VLOG(5) << "Scanning directory \"" << input.path_prefix
           << "\" looking for: " << input.pattern_suffix;
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
+
+  HandlePossibleMatch(input, ColumnNumberDelta{}, MatchType::kExact,
+                      std::nullopt, FileType::Directory, longest_pattern_match);
+
   struct dirent* entry;
 
   const std::wstring pattern_suffix_str = input.pattern_suffix.ToString();
@@ -246,34 +312,26 @@ void ScanDirectory(const ScanDirectoryInput input) {
         std::ranges::mismatch(pattern_suffix_str, entry_path);
     ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
         std::distance(pattern_suffix_str.begin(), pattern_it))};
-    if (std::optional<ofp::Spec> spec = ofp::Parse(
-            input.pattern_suffix.Substring(ColumnNumber{} + match_len),
-            input.suffix_mode);
-        spec.has_value()) {
-      MatchType match_type = entry_it == entry_path.end() ? MatchType::kExact
-                                                          : MatchType::kPartial;
-      input.predictor_output.found_exact_match |=
-          match_type == MatchType::kExact;
-      longest_pattern_match = input.pattern_suffix.size();
-      std::wstring full_path = PathJoin(input.path_prefix.ToString(),
-                                        FromByteString(entry->d_name)) +
-                               (entry->d_type == DT_DIR ? L"/" : L"");
-      VLOG(10) << "Interesting entry: " << entry_path
-               << " exact: " << (match_type == MatchType::kExact)
-               << " full: " << full_path << ", spec: " << spec.value();
-      if (std::regex_match(full_path, input.noise_regex)) continue;
-      LineBuilder line_builder{
-          EscapedString::FromString(LazyString{std::move(full_path)})
-              .EscapedRepresentation()};
-      line_builder.SetMetadata(LazyValue<LineMetadataMap>{
-          [spec] { return GetLineMetadata(spec.value()); }});
-      input.push_output(std::move(line_builder).Build(), match_type);
-    } else {
+    if (!HandlePossibleMatch(input, match_len,
+                             entry_it == entry_path.end() ? MatchType::kExact
+                                                          : MatchType::kPartial,
+                             OptionalFrom(PathComponent::New(
+                                 LazyString{FromByteString(entry->d_name)})),
+                             std::invoke([&entry] {
+                               switch (entry->d_type) {
+                                 case DT_DIR:
+                                   return FileType::Directory;
+                                 case DT_REG:
+                                   return FileType::Regular;
+                                 default:
+                                   return FileType::Special;
+                               }
+                             }),
+                             longest_pattern_match)) {
       longest_pattern_match = std::max(longest_pattern_match, match_len);
       VLOG(20) << "The entry " << entry_path
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
-      continue;
     }
   }
   input.predictor_output.longest_prefix =
@@ -358,9 +416,9 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                     descend_results.matches,
                     [&](const PathPatternMatch& match) {
                       ScanDirectory(ScanDirectoryInput{
+                          .options = options,
                           .dir = match.dir.value(),
                           .noise_regex = noise_regex,
-                          .suffix_mode = options.open_file_position_suffix_mode,
                           .pattern_suffix = path_input.Substring(
                               ColumnNumber{} +
                               descend_results.valid_prefix_length),

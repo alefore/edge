@@ -85,12 +85,13 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
     OpenFilesOptions options) {
   return GetFilePredictor(FilePredictorOptions{
       .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch,
-      .open_file_position_suffix_mode =
-          options.open_file_position_suffix_mode})(
-             PredictorInput{.editor = options.editor,
-                            .input = options.path_pattern,
-                            .input_column = {},
-                            .source_buffers = {}})
+      .open_file_position_suffix_mode = options.open_file_position_suffix_mode,
+      .directory_filter = options.directory_filter,
+      .special_file_filter = options.special_file_filter,
+  })(PredictorInput{.editor = options.editor,
+                    .input = options.path_pattern,
+                    .input_column = {},
+                    .source_buffers = {}})
       .Transform([options](PredictorOutput predictor_output)
                      -> futures::Value<
                          std::vector<ValueOrError<gc::Root<OpenBuffer>>>> {
@@ -114,26 +115,28 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
                   [options](PathAndOpenFilePositionSpec input)
                       -> futures::ValueOrError<gc::Root<OpenBuffer>> {
                     return LowLevelOpenFile(
-                        OpenFileOptions{.editor_state = options.editor,
-                                        .path = input.path,
-                                        .position = input.spec,
-                                        .insertion_type =
-                                            BuffersList::AddBufferType::kVisit},
+                        OpenFileOptions{
+                            .editor_state = options.editor,
+                            .path = input.path,
+                            .position = input.spec,
+                            .insertion_type = options.insertion_type,
+                        },
                         options.not_found_handler);
                   }) |
               std::ranges::to<std::vector>());
+        if (options.not_found_handler ==
+            OpenFilesOptions::NotFoundHandler::kIgnore)
+          return std::vector<ValueOrError<gc::Root<OpenBuffer>>>{};
         LOG(INFO) << "No completion found; passing specified path: "
                   << options.path_pattern;
         ValueOrError<Path> path_or_error =
             Path::New(ToLazyString(options.path_pattern));
         if (IsError(path_or_error))
-          return futures::Past(
-              std::vector<ValueOrError<gc::Root<OpenBuffer>>>{});
+          return std::vector<ValueOrError<gc::Root<OpenBuffer>>>{};
         return LowLevelOpenFile(
-                   OpenFileOptions{
-                       .editor_state = options.editor,
-                       .path = ValueOrDie(std::move(path_or_error)),
-                       .insertion_type = BuffersList::AddBufferType::kVisit},
+                   OpenFileOptions{.editor_state = options.editor,
+                                   .path = ValueOrDie(std::move(path_or_error)),
+                                   .insertion_type = options.insertion_type},
                    options.not_found_handler)
             .Transform<futures::ErrorHandling::Disable>(
                 [](ValueOrError<gc::Root<OpenBuffer>> value) {

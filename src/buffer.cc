@@ -52,6 +52,7 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
+#include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/seek.h"
 #include "src/server.h"
@@ -1999,8 +2000,9 @@ void OpenBuffer::set_position(const LineColumn& position) {
 
 namespace {
 std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
-  auto adjusted_position =
+  LineColumn adjusted_position =
       buffer.contents().AdjustLineColumn(buffer.position());
+  LOG(INFO) << "Lookup URL at: " << adjusted_position;
   std::optional<URL> initial_url;
 
   NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
@@ -2072,29 +2074,6 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   }
   return urls;
 }
-
-language::PossibleError CheckLocalFile(struct stat st) {
-  switch (st.st_mode & S_IFMT) {
-    case S_IFBLK:
-      return Error{
-          LazyString{L"Path for URL has unexpected type: block device\n"}};
-    case S_IFCHR:
-      return Error{
-          LazyString{L"Path for URL has unexpected type: character device\n"}};
-    case S_IFIFO:
-      return Error{
-          LazyString{L"Path for URL has unexpected type: FIFO/pipe\n"}};
-    case S_IFSOCK:
-      return Error{LazyString{L"Path for URL has unexpected type: socket\n"}};
-    case S_IFLNK:
-    case S_IFREG:
-    case S_IFDIR:
-      return EmptyValue{};
-    default:
-      return Error{LazyString{L"Path for URL has unexpected type: unknown\n"}};
-  }
-}
-
 }  // namespace
 
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
@@ -2151,19 +2130,38 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      ValueOrError<Path> path = url.GetLocalFilePath();
                      if (std::holds_alternative<Error>(path))
                        return ICC::kContinue;
-                     VLOG(4) << "Calling open file: " << std::get<Path>(path);
-                     return OpenFileIfFound(
-                                OpenFileOptions{
-                                    .editor_state = editor,
-                                    .path = ValueOrDie(std::move(path)),
+                     // Converting it to SingleLine (rather than LazyString) is
+                     // suboptimal: it would be good, in theory, to support
+                     // paths that have a \n in them. However,
+                     // OpenFilesOptions::path_pattern is a SingleLine. It
+                     // probably doesn't matter in practice since the URLs come
+                     // from lines in the buffer.
+                     ValueOrError<SingleLine> path_str = SingleLine::New(
+                         ToLazyString(ValueOrDie(std::move(path))));
+                     if (std::holds_alternative<Error>(path_str))
+                       return ICC::kContinue;
+                     VLOG(4) << "Calling open file: "
+                             << std::get<SingleLine>(path_str);
+                     return OpenFiles(
+                                OpenFilesOptions{
+                                    .editor = editor,
+                                    .not_found_handler = OpenFilesOptions::
+                                        NotFoundHandler::kIgnore,
+                                    .path_pattern =
+                                        ValueOrDie(std::move(path_str)),
+                                    .open_file_position_suffix_mode =
+                                        open_file_position::SuffixMode::Allow,
                                     .insertion_type =
                                         BuffersList::AddBufferType::kIgnore,
-                                    .stat_validator = CheckLocalFile})
-                         .Transform([data](gc::Root<OpenBuffer> buffer_context)
-                                        -> futures::ValueOrError<ICC> {
-                           data->output = buffer_context;
-                           return ICC::kStop;
-                         })
+                                    .special_file_filter =
+                                        FilePredictorOptions::Filter::Exclude})
+                         .Transform(
+                             [data](std::vector<gc::Root<OpenBuffer>> buffers)
+                                 -> futures::ValueOrError<ICC> {
+                               if (buffers.empty()) return ICC ::kContinue;
+                               data->output = buffers[0];
+                               return ICC::kStop;
+                             })
                          .ConsumeErrors([adjusted_position, data](Error) {
                            return VisitPointer(
                                data->source.Lock(),

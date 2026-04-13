@@ -16,6 +16,10 @@ struct FilePredictorOptions {
 
   open_file_position::SuffixMode open_file_position_suffix_mode =
       open_file_position::SuffixMode::Disallow;
+
+  enum class Filter { Include, Exclude };
+  Filter directory_filter = Filter::Include;
+  Filter special_file_filter = Filter::Include;
 };
 
 std::function<futures::Value<PredictorOutput>(PredictorInput input)>
