@@ -564,35 +564,16 @@ futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   if (StartsWith(input.path, LazyString{L"/"}))
     input.search_paths = {Path::Root()};
 
-  // TODO(P2, easy, 2026-04-12): Simplify this. The following expression is way
-  // more complex than it should be.
-  return UnwrapVectorFuture(
-             input.search_paths |
-             std::views::transform([input](Path search_path) {
-               // It's lame that we have to handle errors here. However, if we
-               // don't, UnwrapVectorFuture gets confused (due to future's
-               // special handling of errors).
-               return GetEntriesInSearchPath(input, search_path)
-                   .Transform([](ResolvePathOutput::Entry entry) {
-                     return Success(std::make_optional(entry));
-                   })
-                   .ConsumeErrors([](Error) {
-                     return futures::Past(
-                         std::optional<ResolvePathOutput::Entry>());
-                   });
-             }) |
-             std::ranges::to<std::vector<
-                 futures::Value<std::optional<ResolvePathOutput::Entry>>>>())
+  return UnwrapVectorFuture(input.search_paths |
+                            std::views::transform([input](Path search_path) {
+                              return GetEntriesInSearchPath(input, search_path);
+                            }) |
+                            std::ranges::to<std::vector>())
       .Transform(
-          [](std::vector<std::optional<ResolvePathOutput::Entry>> entries) {
-            return futures::Past(ResolvePathOutput{
-                .entries = entries | std::views::filter([](const auto& entry) {
-                             return entry.has_value();
-                           }) |
-                           std::views::transform([](const auto& entry) {
-                             return entry.value();
-                           }) |
-                           std::ranges::to<std::vector>()});
+          [](std::vector<ValueOrError<ResolvePathOutput::Entry>> entries) {
+            return futures::Past(
+                ResolvePathOutput{.entries = entries | SkipErrors |
+                                             std::ranges::to<std::vector>()});
           });
 }
 
