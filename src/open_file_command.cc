@@ -64,20 +64,19 @@ struct PathAndOpenFilePositionSpec {
   file_open_position::Spec spec;
 };
 
-futures::Value<EmptyValue> LowLevelOpenFile(
+futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
     const OpenFileOptions& options,
     OpenFilesOptions::NotFoundHandler not_found_handler) {
   switch (not_found_handler) {
     case OpenFilesOptions::NotFoundHandler::kCreate:
       return OpenOrCreateFile(options).Transform(
-          [](gc::Root<OpenBuffer>) { return EmptyValue{}; });
+          [](gc::Root<OpenBuffer> buffer) { return Success(buffer); });
     case OpenFilesOptions::NotFoundHandler::kIgnore:
-      return OpenFileIfFound(options)
-          .Transform([](gc::Root<OpenBuffer>) { return Success(); })
-          .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); });
+      return OpenFileIfFound(options);
   }
-  LOG(FATAL) << "Invalid value for not_found_handler.";
-  return futures::Past(EmptyValue{});
+  Error error{LazyString{L"Invalid value for not_found_handler."}};
+  LOG(FATAL) << error;
+  return futures::Past(error);
 }
 }  // namespace
 
@@ -89,7 +88,8 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
                             .input_column = {},
                             .source_buffers = {}})
       .Transform([options](PredictorOutput predictor_output)
-                     -> futures::Value<std::vector<EmptyValue>> {
+                     -> futures::Value<
+                         std::vector<ValueOrError<gc::Root<OpenBuffer>>>> {
         if (std::vector<PathAndOpenFilePositionSpec> paths =
                 predictor_output.contents.read().lines() |
                 std::views::transform(
@@ -106,17 +106,19 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
             !paths.empty())
           return UnwrapVectorFuture(
               paths |
-              std::views::transform([options](PathAndOpenFilePositionSpec input)
-                                        -> futures::Value<EmptyValue> {
-                return LowLevelOpenFile(
-                    OpenFileOptions{
-                        .editor_state = options.editor,
-                        .path = ToLazyString(input.path),
-                        .position = input.spec,
-                        .insertion_type = BuffersList::AddBufferType::kVisit},
-                    options.not_found_handler);
-              }) |
-              std::ranges::to<std::vector>());
+              std::views::transform(
+                  [options](PathAndOpenFilePositionSpec input)
+                      -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+                    return LowLevelOpenFile(
+                        OpenFileOptions{.editor_state = options.editor,
+                                        .path = ToLazyString(input.path),
+                                        .position = input.spec,
+                                        .insertion_type =
+                                            BuffersList::AddBufferType::kVisit},
+                        options.not_found_handler);
+                  }) |
+              std::ranges::to<
+                  std::vector<futures::ValueOrError<gc::Root<OpenBuffer>>>>());
         LOG(INFO) << "No completion found; passing specified path: "
                   << options.path_pattern;
         return LowLevelOpenFile(
@@ -125,10 +127,13 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
                        .path = ToLazyString(options.path_pattern),
                        .insertion_type = BuffersList::AddBufferType::kVisit},
                    options.not_found_handler)
-            .Transform([](EmptyValue) { return std::vector{EmptyValue{}}; });
+            .Transform<futures::ErrorHandling::Disable>(
+                [](ValueOrError<gc::Root<OpenBuffer>> value) {
+                  return std::vector{value};
+                });
       })
-      .Transform([](auto) { return Success(); })
-      .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
+      .Transform<futures::ErrorHandling::Disable>(
+          [](const auto&) { return EmptyValue{}; });
 }
 
 namespace {
