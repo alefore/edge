@@ -20,6 +20,7 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
@@ -54,7 +55,14 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
                  data.second.source_line <
                      LineNumber(0) + source->ptr()->contents().size())
                     ? source->ptr()->contents().at(data.second.source_line)
-                    : Line{SingleLine{LazyString{L"(dead mark)"}}}});
+                    : Line{SingleLine{LazyString{L"(dead mark, source "} +
+                                      (source.has_value()
+                                           ? LazyString{L"alive"}
+                                           : LazyString{L"expired"}) +
+                                      LazyString{L", line: "} +
+                                      ToLazyString(NonEmptySingleLine{
+                                          data.second.source_line.read()}) +
+                                      LazyString{L")"}}}});
   }
   for (const std::pair<const LineColumn, LineMarks::ExpiredMark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))
@@ -111,6 +119,8 @@ class Impl : public Command {
 
   void ProcessInput(ExtendedChar) override {
     BufferName name{LazyString{L"Marks"}};
+    // TODO(P0, medium, deadlock): There's a deadlock here. GenerateContents
+    // gets called under the lock in BufferRegistry.
     gc::Root<OpenBuffer> buffer_root =
         editor_.FindOrBuildBuffer(name, [this, &name] {
           LOG(INFO) << "Building Marks Buffer.";
@@ -125,7 +135,7 @@ class Impl : public Command {
           buffer.Set(buffer_variables::reload_on_enter, true);
           buffer.Set(buffer_variables::tree_parser,
                      language::lazy_string::ToLazyString(ParserId::Markdown()));
-          buffer.Reload();
+          // buffer.Reload();
           editor_.StartHandlingInterrupts();
           buffer.ResetMode();
           return output;
