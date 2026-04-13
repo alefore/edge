@@ -362,6 +362,37 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
       });
 }
 
+namespace {
+void ApplyPosition(gc::Root<OpenBuffer> buffer, file_open_position::Spec spec) {
+  std::visit(
+      overload{
+          [](const file_open_position::Default&) {},
+          [&buffer](const file_open_position::Search& search) {
+            buffer->WaitForEndOfFile().Transform([buffer, search](EmptyValue) {
+              std::visit(
+                  overload{[&](LineColumn position) {
+                             buffer->set_position(position);
+                           },
+                           [&buffer](Error error) {
+                             buffer->status().SetInformationText(
+                                 Line(LineSequence::BreakLines(error.read())
+                                          .FoldLines()));
+                           }},
+                  GetNextMatch(buffer->editor().modifiers().direction,
+                               SearchOptions{
+                                   .starting_position = buffer->position(),
+                                   .search_query = ToSingleLine(search.read())},
+                               buffer->contents().snapshot()));
+              return EmptyValue{};
+            });
+          },
+          [&buffer](const LineColumn& line_column) {
+            buffer->set_position(line_column);
+          }},
+      spec);
+}
+}  // namespace
+
 futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
     const OpenFileOptions& options, LazyString path) {
   TRACK_OPERATION(FindAlreadyOpenBuffer);
@@ -386,12 +417,8 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
                  }})
       .Transform([options_position = options.position](ResolvePathOutput input)
                      -> futures::ValueOrError<ResolvePathOutput> {
-        if (const LineColumn* position =
-                std::get_if<LineColumn>(&options_position);
-            position != nullptr)
-          for (auto& entry : input.entries)
-            entry.validator_output.value()->set_position(*position);
-        // TODO: Apply pattern.
+        for (auto& entry : input.entries)
+          ApplyPosition(entry.validator_output.value(), options_position);
         return futures::Past(Success(std::move(input)));
       });
 }
@@ -479,31 +506,7 @@ gc::Root<OpenBuffer> CreateBuffer(
       },
       buffer_options->path);
   buffer->ResetMode();
-
-  std::visit(
-      overload{
-          [](const file_open_position::Default&) {},
-          [&buffer, &options](const file_open_position::Search& search) {
-            std::visit(
-                overload{
-                    [&](LineColumn position) {
-                      buffer->set_position(position);
-                    },
-                    [&buffer](Error error) {
-                      buffer->status().SetInformationText(Line(
-                          LineSequence::BreakLines(error.read()).FoldLines()));
-                    }},
-                GetNextMatch(
-                    options.editor_state.modifiers().direction,
-                    SearchOptions{.starting_position = buffer->position(),
-                                  .search_query = ToSingleLine(search.read())},
-                    buffer->contents().snapshot()));
-          },
-          [&buffer](const LineColumn& line_column) {
-            buffer->set_position(line_column);
-          }},
-      options.position);
-
+  ApplyPosition(buffer, options.position);
   options.editor_state.AddBuffer(buffer, options.insertion_type);
 
   return buffer;
