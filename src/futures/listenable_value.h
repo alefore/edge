@@ -35,22 +35,23 @@ class ListenableValue {
 
  public:
   ListenableValue(Value<Type> value) {
-    std::move(value).Transform([shared_data = data_](Type immediate_value) {
-      std::vector<language::OnceOnlyFunction<void()>> callbacks;
-      shared_data->lock([&](Data& data) {
-        CHECK(!data.value.has_value());
-        data.value = std::move(immediate_value);
-        for (Listener& l : data.listeners) {
-          callbacks.push_back(
-              [l = std::move(l), &value = data.value.value()] mutable {
-                std::move(l)(value);
-              });
-        }
-        data.listeners.clear();
-      });
-      for (auto& l : callbacks) std::move(l)();
-      return language::EmptyValue();
-    });
+    std::move(value).template Transform<ErrorHandling::Disable>(
+        [shared_data = data_](Type immediate_value) {
+          std::vector<language::OnceOnlyFunction<void()>> callbacks;
+          shared_data->lock([&](Data& data) {
+            CHECK(!data.value.has_value());
+            data.value = std::move(immediate_value);
+            for (Listener& l : data.listeners) {
+              callbacks.push_back(
+                  [l = std::move(l), &value = data.value.value()] mutable {
+                    std::move(l)(value);
+                  });
+            }
+            data.listeners.clear();
+          });
+          for (auto& l : callbacks) std::move(l)();
+          return language::EmptyValue();
+        });
   }
 
   void AddListener(Listener listener) const {
