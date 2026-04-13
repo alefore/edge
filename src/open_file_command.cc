@@ -117,8 +117,7 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
                                             BuffersList::AddBufferType::kVisit},
                         options.not_found_handler);
                   }) |
-              std::ranges::to<
-                  std::vector<futures::ValueOrError<gc::Root<OpenBuffer>>>>());
+              std::ranges::to<std::vector>());
         LOG(INFO) << "No completion found; passing specified path: "
                   << options.path_pattern;
         return LowLevelOpenFile(
