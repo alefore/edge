@@ -755,14 +755,11 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             // We ignore the return values (they are EmptyValue anyway) and just
             // return `buffers` when the futures are all done.
             return futures::UnwrapVectorFuture(
-                       MakeNonNullShared<
-                           std::vector<futures::Value<EmptyValue>>>(
-                           container::MaterializeVector(
-                               *buffers->lock() |
-                               std::views::transform(
-                                   [](gc::Ptr<OpenBuffer>& buffer) {
-                                     return buffer->WaitForEndOfFile();
-                                   }))))
+                       *buffers->lock() |
+                       std::views::transform([](gc::Ptr<OpenBuffer>& buffer) {
+                         return buffer->WaitForEndOfFile();
+                       }) |
+                       std::ranges::to<std::vector>())
                 .Transform([buffers](auto) { return buffers; });
           }));
 
