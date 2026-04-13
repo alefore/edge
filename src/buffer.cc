@@ -907,7 +907,7 @@ void OpenBuffer::AppendLines(
                          .input_column = {},
                          .source_buffers = {}})
           .Transform([buffer_name = name(), &editor = editor(),
-                      &source_line](PredictorOutput output) {
+                      source_line](PredictorOutput output) {
             std::ranges::for_each(
                 output.contents.read().lines() |
                     std::views::transform(
