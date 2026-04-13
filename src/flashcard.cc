@@ -236,17 +236,7 @@ class Flashcard {
   const SingleLine answer_;
   const SingleLine hint_;
 
-  // futures::Value has specially handling of ValueOrError which gets in our
-  // way, so we wrap it to disable that.
-  //
-  // TODO(2025-06-10, easy): Find a better way to make it possible to create a
-  // ListenableValue<ValueOrError<T>> directly.
-  template <typename T>
-  struct InternalValueOrErrorWrapper {
-    ValueOrError<T> value_or_error;
-  };
-  const futures::ListenableValue<
-      InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>>
+  const futures::ListenableValue<ValueOrError<gc::Ptr<FlashcardReviewLog>>>
       review_log_;
 
   const LazyValue<futures::ListenableValue<gc::Ptr<OpenBuffer>>>
@@ -297,26 +287,32 @@ class Flashcard {
                         buffer_.object_metadata()}))),
         answer_(std::move(answer).read()),
         hint_(std::move(hint).read()),
-        review_log_(futures::ListenableValue(
+        review_log_(
             std::move(future_review_log)
-                .Transform([protected_object_metadata = object_metadata_](
-                               gc::Root<FlashcardReviewLog> input) {
-                  protected_object_metadata->lock(
-                      [&input](std::vector<
-                               NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
-                                   object_metadata) {
-                        object_metadata.push_back(
-                            input.ptr().object_metadata());
-                      });
-                  return futures::Past(Success(
-                      InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>{
-                          .value_or_error = input.ptr()}));
-                })
-                .ConsumeErrors([](Error error) {
-                  return futures::Past(
-                      InternalValueOrErrorWrapper<gc::Ptr<FlashcardReviewLog>>{
-                          error});
-                }))),
+                .template Transform<futures::ErrorHandling::Disable>(
+                    [protected_object_metadata = object_metadata_](
+                        ValueOrError<gc::Root<FlashcardReviewLog>>
+                            input_or_error)
+                        -> ValueOrError<gc::Ptr<FlashcardReviewLog>> {
+                      return std::visit(
+                          overload{
+                              [](Error error) {
+                                return ValueOrError<
+                                    gc::Ptr<FlashcardReviewLog>>(error);
+                              },
+                              [&](gc::Root<FlashcardReviewLog> input) {
+                                protected_object_metadata->lock(
+                                    [&input](
+                                        std::vector<NonNull<std::shared_ptr<
+                                            gc::ObjectMetadata>>>&
+                                            object_metadata) {
+                                      object_metadata.push_back(
+                                          input.ptr().object_metadata());
+                                    });
+                                return Success(input.ptr());
+                              }},
+                          std::move(input_or_error));
+                    })),
         card_front_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
                                            CardType::kFront)),
         card_back_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
@@ -340,8 +336,7 @@ class Flashcard {
   }
 
   futures::ValueOrError<gc::Ptr<FlashcardReviewLog>> review_log() {
-    return review_log_.ToFuture().Transform(
-        [](auto value) { return std::move(value.value_or_error); });
+    return review_log_.ToFuture();
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
