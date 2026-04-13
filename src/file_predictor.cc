@@ -256,6 +256,9 @@ void ScanDirectory(const ScanDirectoryInput input) {
       std::wstring full_path = PathJoin(input.path_prefix.ToString(),
                                         FromByteString(entry->d_name)) +
                                (entry->d_type == DT_DIR ? L"/" : L"");
+      VLOG(10) << "Interesting entry: " << entry_path
+               << " exact: " << (match_type == MatchType::kExact)
+               << " full: " << full_path << ", spec: " << spec.value();
       if (std::regex_match(full_path, input.noise_regex)) continue;
       LineBuilder line_builder{
           EscapedString::FromString(LazyString{std::move(full_path)})
