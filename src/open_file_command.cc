@@ -36,6 +36,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
 using afc::language::NonNull;
+using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
@@ -151,12 +152,8 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
                      .editor_state = editor,
                      .path = ToLazyString(line),
                      .insertion_type = BuffersList::AddBufferType::kIgnore})
-                 .Transform([](gc::Root<OpenBuffer> buffer) {
-                   return Success(std::optional<gc::Root<OpenBuffer>>(buffer));
-                 })
-                 .ConsumeErrors([](Error) {
-                   return futures::Past(std::optional<gc::Root<OpenBuffer>>());
-                 });
+                 .template Transform<futures::ErrorHandling::Disable>(
+                     &OptionalFrom<gc::Root<OpenBuffer>>);
   }
   return std::move(output).Transform(
       [results](std::optional<gc::Root<OpenBuffer>> buffer)
