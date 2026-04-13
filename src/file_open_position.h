@@ -33,10 +33,6 @@ using Spec = std::variant<Default, Search, language::text::LineColumn>;
 
 std::ostream& operator<<(std::ostream& os, const Spec& spec);
 
-struct PathAndSpec {
-  infrastructure::Path path;
-  Spec spec;
-};
 // `path_suffix` will be a string like `:93`.
 std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix);
 
