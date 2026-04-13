@@ -210,6 +210,7 @@ enum class MatchType { kExact, kPartial };
 struct ScanDirectoryInput {
   DIR& dir;
   const std::wregex& noise_regex;
+  open_file_position::SuffixMode suffix_mode;
   // The remaining of the pattern after `prefix`, to look up in the directory.
   // May include globs.
   LazyString pattern_suffix;
@@ -247,7 +248,7 @@ void ScanDirectory(const ScanDirectoryInput input) {
         std::distance(pattern_suffix_str.begin(), pattern_it))};
     if (std::optional<ofp::Spec> spec = ofp::Parse(
             input.pattern_suffix.Substring(ColumnNumber{} + match_len),
-            ofp::SuffixMode::Disallow);
+            input.suffix_mode);
         spec.has_value()) {
       MatchType match_type = entry_it == entry_path.end() ? MatchType::kExact
                                                           : MatchType::kPartial;
@@ -359,6 +360,7 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                       ScanDirectory(ScanDirectoryInput{
                           .dir = match.dir.value(),
                           .noise_regex = noise_regex,
+                          .suffix_mode = options.open_file_position_suffix_mode,
                           .pattern_suffix = path_input.Substring(
                               ColumnNumber{} +
                               descend_results.valid_prefix_length),
