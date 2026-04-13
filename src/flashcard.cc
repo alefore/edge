@@ -111,8 +111,7 @@ class FlashcardReviewLog {
                OpenFileOptions{
                    .editor_state = editor,
                    .path = ToLazyString(review_log_path),
-                   .insertion_type = BuffersList::AddBufferType::kIgnore,
-                   .use_search_paths = false})
+                   .insertion_type = BuffersList::AddBufferType::kIgnore})
         .Transform([answer](gc::Root<OpenBuffer> buffer) {
           buffer->Set(buffer_variables::save_on_close, true);
           return buffer->WaitForEndOfFile().Transform(

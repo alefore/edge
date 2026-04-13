@@ -239,8 +239,7 @@ class ReadAndInsert : public CompositeTransformation {
                OpenFileOptions{
                    .editor_state = input.buffer.editor(),
                    .path = ToLazyString(full_path),
-                   .insertion_type = BuffersList::AddBufferType::kIgnore,
-                   .use_search_paths = false})
+                   .insertion_type = BuffersList::AddBufferType::kIgnore})
         .Transform([full_path, input = std::move(input)](
                        gc::Root<OpenBuffer> buffer_to_insert) {
           return buffer_to_insert->WaitForEndOfFile().Transform(
@@ -372,8 +371,7 @@ class ExpandTransformation : public CompositeTransformation {
                     OpenFileOptions{
                         .editor_state = input.buffer.editor(),
                         .path = std::move(dictionary_path),
-                        .insertion_type = BuffersList::AddBufferType::kIgnore,
-                        .use_search_paths = false})
+                        .insertion_type = BuffersList::AddBufferType::kIgnore})
                     .Transform([](gc::Root<OpenBuffer> dictionary) {
                       return Success(ComposePredictors(
                           DictionaryPredictor(std::move(dictionary)),

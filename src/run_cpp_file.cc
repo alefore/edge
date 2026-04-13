@@ -57,13 +57,11 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   }
 
   buffer->ptr()->ResetMode();
-  return ResolvePathOptions::New(
-             editor_state,
-             MakeNonNullShared<FileSystemDriver>(editor_state.thread_pool()))
-      .Transform([input](ResolvePathOptions options) {
-        options.path = input.read();
-        return ResolvePath(std::move(options));
-      })
+  ResolvePathOptions options = ResolvePathOptions::New(
+      editor_state,
+      MakeNonNullShared<FileSystemDriver>(editor_state.thread_pool()));
+  options.path = input.read();
+  return ResolvePath(std::move(options))
       .Transform([buffer, input, &editor_state](ResolvePathOutput resolved_path)
                      -> futures::Value<PossibleError> {
         if (resolved_path.entries.empty()) {

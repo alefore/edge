@@ -759,8 +759,7 @@ void OpenBuffer::UpdateTreeParser() {
   OpenFileIfFound(
       OpenFileOptions{.editor_state = editor(),
                       .path = Read(buffer_variables::dictionary),
-                      .insertion_type = BuffersList::AddBufferType::kIgnore,
-                      .use_search_paths = false})
+                      .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([](gc::Root<OpenBuffer> dictionary_root) {
         return dictionary_root->WaitForEndOfFile().Transform(
             [dictionary_root](EmptyValue) {
@@ -2154,7 +2153,6 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                         ValueOrDie(std::move(path))),
                                     .insertion_type =
                                         BuffersList::AddBufferType::kIgnore,
-                                    .use_search_paths = false,
                                     .stat_validator = CheckLocalFile})
                          .Transform(
                              [data](gc::Root<OpenBuffer> buffer_context) {

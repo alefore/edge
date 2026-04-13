@@ -676,25 +676,23 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
               buffer->default_commands()->Add(
                   keys_values,
                   [buffer, path]() {
-                    ResolvePathOptions::New(buffer->editor(),
-                                            MakeNonNullShared<FileSystemDriver>(
-                                                buffer->editor().thread_pool()))
-                        .Transform([buffer, path](ResolvePathOptions options) {
-                          options.path = path;
-                          return futures::OnError(
-                              ResolvePath(std::move(options))
-                                  .Transform([buffer,
-                                              path](ResolvePathOutput results) {
-                                    buffer->execution_context()->EvaluateFile(
-                                        results.entries[0].path);
-                                    return Success();
-                                  }),
-                              [buffer, path](Error error) {
-                                buffer->status().Set(AugmentError(
-                                    LazyString{L"Unable to resolve: "} + path,
-                                    std::move(error)));
-                                return futures::Past(Success());
-                              });
+                    ResolvePathOptions options = ResolvePathOptions::New(
+                        buffer->editor(), MakeNonNullShared<FileSystemDriver>(
+                                              buffer->editor().thread_pool()));
+                    options.path = path;
+                    return futures::OnError(
+                        ResolvePath(std::move(options))
+                            .Transform(
+                                [buffer, path](ResolvePathOutput results) {
+                                  buffer->execution_context()->EvaluateFile(
+                                      results.entries[0].path);
+                                  return Success();
+                                }),
+                        [buffer, path](Error error) {
+                          buffer->status().Set(AugmentError(
+                              LazyString{L"Unable to resolve: "} + path,
+                              std::move(error)));
+                          return futures::Past(Success());
                         });
                   },
                   LazyString{L"Load file: "} + path);

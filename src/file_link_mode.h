@@ -38,9 +38,6 @@ struct OpenFileOptions {
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;
 
-  // Should the contents of the search paths buffer be used to find the file?
-  bool use_search_paths = true;
-
   // You can use this if you want to ignore specific files.
   std::function<language::PossibleError(struct stat)> stat_validator =
       [](struct stat) { return language::Success(); };
@@ -60,25 +57,14 @@ struct ResolvePathOptions {
 
   // TODO(trivial, P2, 2026-04-12): This should be a Path.
   language::lazy_string::LazyString path = {};
-  std::vector<infrastructure::Path> search_paths = {};
   infrastructure::Path home_directory;
 
   Validator validator = nullptr;
 
-  static futures::Value<ResolvePathOptions> New(
+  static ResolvePathOptions New(
       EditorState& editor_state,
       language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
-          file_system_driver) {
-    return GetSearchPaths(editor_state)
-        .Transform(std::bind_front(&NewWithSearchPaths, std::ref(editor_state),
-                                   file_system_driver));
-  }
-
-  static ResolvePathOptions NewWithSearchPaths(
-      EditorState& editor_state,
-      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
-          file_system_driver,
-      std::vector<infrastructure::Path> search_paths = {});
+          file_system_driver);
 };
 
 struct ResolvePathOutput {
@@ -88,6 +74,7 @@ struct ResolvePathOutput {
     ResolvePathOptions::ValidatorOutput validator_output;
   };
 
+  // Should not be a vector any longer. Just nest Entry directly.
   std::vector<Entry> entries;
 };
 
