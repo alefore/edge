@@ -131,12 +131,11 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
                   << options.path_pattern;
         ValueOrError<Path> path_or_error =
             Path::New(ToLazyString(options.path_pattern));
-        if (IsError(path_or_error))
-          return std::vector<ValueOrError<gc::Root<OpenBuffer>>>{};
         return LowLevelOpenFile(
-                   OpenFileOptions{.editor_state = options.editor,
-                                   .path = ValueOrDie(std::move(path_or_error)),
-                                   .insertion_type = options.insertion_type},
+                   OpenFileOptions{
+                       .editor_state = options.editor,
+                       .path = OptionalFrom(std::move(path_or_error)),
+                       .insertion_type = options.insertion_type},
                    options.not_found_handler)
             .Transform<futures::ErrorHandling::Disable>(
                 [](ValueOrError<gc::Root<OpenBuffer>> value) {
