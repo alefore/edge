@@ -134,11 +134,19 @@ class Value {
   Value(Value<Type>&&) = default;
   Value<Type>& operator=(Value<Type>&&) = default;
 
-  template <typename Other>
-  Value(Value<Other> other) {
-    std::move(other).SetConsumer([data = data_](Other other_immediate) {
-      data->Feed(std::move(other_immediate));
+  template <typename Other,
+            typename = std::enable_if_t<std::is_convertible_v<Other, Type>>>
+  Value(Value<Other>&& other) {
+    std::move(other).SetConsumer([data = data_](Other&& other_immediate) {
+      data->Feed(static_cast<Type>(std::move(other_immediate)));
     });
+  }
+
+  template <typename U,
+            typename = std::enable_if_t<std::is_constructible_v<Type, U> &&
+                                        !is_future<std::decay_t<U>>::value>>
+  Value(U&& early_value) {
+    data_->Feed(std::move(early_value));
   }
 
   using Consumer = language::OnceOnlyFunction<void(Type)>;
