@@ -175,7 +175,7 @@ class InsertHistoryTransformation : public CompositeTransformation {
           input.editor.status().InsertError(
               Error{LazyString{L"No matches: "} + search_options_.query});
         });
-    return futures::Past(std::move(output));
+    return output;
   }
 
  private:
@@ -229,7 +229,7 @@ class ReadAndInsert : public CompositeTransformation {
     if (input.buffer.editor().edge_path().empty()) {
       LOG(INFO) << "Error preparing path for completion: Empty "
                    "edge_path.";
-      return futures::Past(Output());
+      return Output{};
     }
     Path full_path =
         Path::Join(input.buffer.editor().edge_path().front(),
@@ -257,9 +257,9 @@ class ReadAndInsert : public CompositeTransformation {
                 return Success(std::move(output));
               });
         })
-        .ConsumeErrors([full_path](Error) {
+        .ConsumeErrors([full_path](Error) -> futures::Value<Output> {
           LOG(INFO) << "Unable to open file: " << full_path;
-          return futures::Past(Output());
+          return Output{};
         });
   }
 };
@@ -279,8 +279,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                        ValueOrDie(Path::New(LazyString{L"unexistent"})),
                        [&](OpenFileOptions options) {
                          path_opened = options.path;
-                         return futures::Past(
-                             Error{LazyString{L"File does not exist."}});
+                         return Error{LazyString{L"File does not exist."}};
                        })
                        .Apply(CompositeTransformation::Input{
                            .editor = buffer.ptr()->editor(),
@@ -303,16 +302,17 @@ class Execute : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     return RunCppCommandShell(command_, input.editor)
-        .Transform([](gc::Root<vm::Value> value) {
-          Output output;
-          if (value.ptr()->IsString()) {
-            output.Push(transformation::Insert{
-                .contents_to_insert =
-                    LineSequence::BreakLines(value.ptr()->get_string())});
-          }
-          return futures::Past(Success(std::move(output)));
-        })
-        .ConsumeErrors([](Error) { return futures::Past(Output()); });
+        .Transform(
+            [](gc::Root<vm::Value> value) -> futures::ValueOrError<Output> {
+              Output output;
+              if (value.ptr()->IsString()) {
+                output.Push(transformation::Insert{
+                    .contents_to_insert =
+                        LineSequence::BreakLines(value.ptr()->get_string())});
+              }
+              return output;
+            })
+        .ConsumeErrors([](Error) { return futures::Past(Output{}); });
   }
 };
 

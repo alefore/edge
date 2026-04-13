@@ -139,9 +139,10 @@ class FunctionCall : public Expression {
                                            })),
                                        .function_purity = purity()})
         .Transform([&trampoline,
-                    args_root = args_.ToRoot()](EvaluationOutput callback) {
+                    args_root = args_.ToRoot()](EvaluationOutput callback)
+                       -> futures::ValueOrError<EvaluationOutput> {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
-            return futures::Past(Success(std::move(callback)));
+            return callback;
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
           DVLOG(6) << "Is function: " << callback.value->IsFunction();
           CHECK(callback.value.ptr()->IsFunction());
@@ -173,36 +174,36 @@ class FunctionCall : public Expression {
               container::MaterializeVector(values.value() | gc::view::Ptr))
               .ptr());
       return callback->RunFunction(std::move(values.value()), trampoline)
-          .Transform([&trampoline](gc::Root<Value> return_value) {
+          .Transform([&trampoline](gc::Root<Value> return_value)
+                         -> futures::ValueOrError<EvaluationOutput> {
             DVLOG(5) << "Function call consumer gets value: "
                      << return_value.ptr().value();
             trampoline.stack().Pop();
-            return futures::Past(
-                Success(EvaluationOutput::New(std::move(return_value))));
+            return EvaluationOutput::New(std::move(return_value));
           });
     }
     const gc::Ptr<Expression>& arg = args->at(values->size());
     DVLOG(6) << "Bounce with types: " << TypesToString(arg->Types());
     return trampoline.Bounce(arg, arg->Types()[0])
-        .Transform(
-            [&trampoline, args, values, callback](EvaluationOutput value) {
-              DVLOG(7) << "Got evaluation output.";
-              switch (value.type) {
-                case EvaluationOutput::OutputType::kReturn:
-                  DVLOG(5) << "Received return value.";
-                  return futures::Past(Success(std::move(value)));
-                case EvaluationOutput::OutputType::kContinue:
-                  DVLOG(5) << "Received results of parameter "
-                           << values->size() + 1 << " (of " << args->size()
-                           << "): " << value.value.ptr().value();
-                  values->push_back(std::move(value.value));
-                  DVLOG(6) << "Recursive call.";
-                  return CaptureArgs(trampoline, args, values, callback);
-              }
-              Error error{LazyString{L"Unsupported value type."}};
-              LOG(FATAL) << error;
-              return futures::Past(ValueOrError<EvaluationOutput>(error));
-            });
+        .Transform([&trampoline, args, values, callback](EvaluationOutput value)
+                       -> futures::ValueOrError<EvaluationOutput> {
+          DVLOG(7) << "Got evaluation output.";
+          switch (value.type) {
+            case EvaluationOutput::OutputType::kReturn:
+              DVLOG(5) << "Received return value.";
+              return value;
+            case EvaluationOutput::OutputType::kContinue:
+              DVLOG(5) << "Received results of parameter " << values->size() + 1
+                       << " (of " << args->size()
+                       << "): " << value.value.ptr().value();
+              values->push_back(std::move(value.value));
+              DVLOG(6) << "Recursive call.";
+              return CaptureArgs(trampoline, args, values, callback);
+          }
+          Error error{LazyString{L"Unsupported value type."}};
+          LOG(FATAL) << error;
+          return error;
+        });
   }
 };
 

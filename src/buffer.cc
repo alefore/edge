@@ -412,11 +412,10 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                                          gc::Root<ExecutionContext> context) {
                               return context->EvaluateFile(state_path);
                             },
-                            [](struct stat) {
-                              return futures::Past(
-                                  ValueOrError<gc::Root<Value>>(
-                                      Error{LazyString{
-                                          L"Buffer has been deleted."}}));
+                            [](struct stat)
+                                -> futures::ValueOrError<gc::Root<Value>> {
+                              return Error{
+                                  LazyString{L"Buffer has been deleted."}};
                             },
                             execution_context_.ToWeakPtr()));
                   }
@@ -487,7 +486,7 @@ OpenBuffer::PrepareToClose() {
       overload{
           [&](Error error) -> futures::ValueOrError<PrepareToCloseOutput> {
             LOG(INFO) << name() << ": Unable to close: " << error;
-            return futures::Past(error);
+            return error;
           },
           [&](EmptyValue) {
             return (options_.editor.modifiers().strength ==
@@ -500,8 +499,8 @@ OpenBuffer::PrepareToClose() {
                   if (root_this->child_pid_.has_value()) {
                     if (root_this->Read(buffer_variables::term_on_close)) {
                       if (root_this->on_exit_handler_.has_value()) {
-                        return futures::Past(Error{
-                            LazyString{L"Already waiting for termination."}});
+                        return Error{
+                            LazyString{L"Already waiting for termination."}};
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
                                 << root_this->Read(buffer_variables::name);
@@ -526,23 +525,27 @@ OpenBuffer::PrepareToClose() {
                   }
                   if (!root_this->dirty() ||
                       root_this->Read(buffer_variables::allow_dirty_delete))
-                    return futures::Past(PrepareToCloseOutput{});
+                    return PrepareToCloseOutput{};
 
                   LOG(INFO)
                       << root_this->name() << ": attempting to save buffer.";
                   if (root_this->Read(buffer_variables::save_on_close))
                     return root_this->Save(Options::SaveType::kMainFile)
-                        .Transform([root_this](EmptyValue) {
-                          LOG(INFO) << "Buffer saved" << root_this->name();
-                          return Success(PrepareToCloseOutput{});
-                        });
+                        .Transform(
+                            [root_this](EmptyValue)
+                                -> futures::ValueOrError<PrepareToCloseOutput> {
+                              LOG(INFO) << "Buffer saved" << root_this->name();
+                              return PrepareToCloseOutput{};
+                            });
 
                   return root_this->Save(Options::SaveType::kBackup)
-                      .Transform([root_this](EmptyValue) {
-                        LOG(INFO) << "Backup saved" << root_this->name();
-                        return Success(PrepareToCloseOutput{
-                            .dirty_contents_saved_to_backup = true});
-                      });
+                      .Transform(
+                          [root_this](EmptyValue)
+                              -> futures::ValueOrError<PrepareToCloseOutput> {
+                            LOG(INFO) << "Backup saved" << root_this->name();
+                            return PrepareToCloseOutput{
+                                .dirty_contents_saved_to_backup = true};
+                          });
                 });
           }},
       IsUnableToPrepareToClose());
@@ -573,7 +576,7 @@ void OpenBuffer::Close(CloseAccessTag) {
 futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
   if (fd_ == nullptr && fd_error_ == nullptr &&
       reload_state_ == ReloadState::kDone) {
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
   return end_of_file_observers_.NewFuture();
 }
@@ -608,7 +611,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
   auto trace = log_->NewChild(LazyString{L"Persist State"});
   if (!Read(buffer_variables::persist_state) ||
       !load_visual_state_.has_value()) {
-    return futures::Past(Success());
+    return EmptyValue{};
   }
 
   return OnError(GetEdgeStateDirectory(),
@@ -623,7 +626,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                          status->Set(error);
                        },
                        [] {});
-                   return futures::Past(error);
+                   return error;
                  })
       .Transform([serialized_state = SerializeState(position(), variables_),
                   file_system_driver = execution_context_->file_system_driver(),
@@ -651,7 +654,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                     status->Set(error);
                   },
                   [] {});
-              return futures::Past(error);
+              return error;
             });
       });
 }
@@ -847,7 +850,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                               return root_this->work_queue()->Wait(
                                   AddSeconds(Now(), delay_seconds));
                             },
-                            [&] { return futures::Past(EmptyValue()); });
+                            [&] { return futures::Past(EmptyValue{}); });
                       }));
 
   Set(buffer_variables::name, ToSingleLine(options_.name).read().read());
@@ -940,7 +943,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
     file_system_driver()->Kill(ProcessId(-child_pid_->read()),
                                UnixSignal(SIGHUP));
     Set(buffer_variables::reload_after_exit, true);
-    return futures::Past(Success());
+    return EmptyValue{};
   }
 
   switch (reload_state_) {
@@ -949,29 +952,29 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
       break;
     case ReloadState::kOngoing:
       reload_state_ = ReloadState::kPending;
-      return futures::Past(
-          Error{LazyString{L"Reload is already in progress."}});
+      return Error{LazyString{L"Reload is already in progress."}};
     case ReloadState::kPending:
-      return futures::Past(Error{
-          LazyString{L"Reload is already in progress and new one scheduled."}});
+      return Error{
+          LazyString{L"Reload is already in progress and new one scheduled."}};
   }
 
   return std::visit(
              overload{[this](gc::Root<ExecutionContext::CompilationResult>
-                                 compilation_result) {
+                                 compilation_result)
+                          -> futures::Value<PossibleError> {
                         if (editor().exit_value().has_value())
-                          return futures::Past(Success());
+                          return EmptyValue{};
                         LOG(INFO) << name() << "Starting reload: "
                                   << Read(buffer_variables::name);
                         return futures::IgnoreErrors(
                             compilation_result->evaluate().Transform(
                                 [](gc::Root<vm::Value>) -> PossibleError {
-                                  return Success();
+                                  return EmptyValue{};
                                 }));
                       },
-                      [](Error error) {
+                      [](Error error) -> futures::Value<PossibleError> {
                         LOG(INFO) << "OnReload handler: " << error;
-                        return futures::Past(Success());
+                        return EmptyValue{};
                       }},
              execution_context()->FunctionCall(
                  IDENTIFIER_CONSTANT(L"OnReload"),
@@ -1004,7 +1007,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
           ptr_this_->ToWeakPtr()))
       .Transform(LockAndVisitCallback(
           [](NonNull<std::unique_ptr<Log>> log,
-             gc::Root<OpenBuffer> root_this) {
+             gc::Root<OpenBuffer> root_this) -> futures::Value<PossibleError> {
             root_this->log_ = std::move(log);
             LOG(INFO) << root_this->name() << ": Reload: Finalizing reload.";
             switch (root_this->reload_state_) {
@@ -1024,10 +1027,10 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             }
             LOG(INFO) << root_this->name() << ": Reload finished evaluation.";
             root_this->SignalEndOfFile();
-            return futures::Past(Success());
+            return EmptyValue{};
           },
-          [](NonNull<std::unique_ptr<Log>>) {
-            return futures::Past(Success());
+          [](NonNull<std::unique_ptr<Log>>) -> futures::Value<PossibleError> {
+            return EmptyValue{};
           },
           ptr_this_->ToWeakPtr()));
 }
@@ -1035,9 +1038,9 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
-    status_->InsertError(Error{LazyString{L"Buffer can't be saved."}});
-    return futures::Past(
-        PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
+    Error error{LazyString{L"Buffer can't be saved."}};
+    status_->InsertError(error);
+    return error;
   }
   LineSequence contents_snapshot = contents().snapshot();
   futures::Value<PossibleError> output = options_.handle_save(
@@ -1063,7 +1066,7 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
             });
       }
 
-      return futures::Past(Success());
+      return EmptyValue{};
     });
   return OnError(
       std::move(output),
@@ -1074,15 +1077,13 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
               status->Set(AugmentError(LazyString{L"🖫 Save failed"}, error));
             },
             [] {});
-        return futures::Past(error);
+        return error;
       });
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor().edge_path();
-  if (path_vector.empty())
-    return futures::Past(
-        ValueOrError<Path>(Error{LazyString{L"Empty edge path."}}));
+  if (path_vector.empty()) return Error{LazyString{L"Empty edge path."}};
   FUTURES_ASSIGN_OR_RETURN(
       Path file_path,
       AugmentError(
@@ -1095,9 +1096,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
           AbsolutePath::New(Read(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
-    return futures::Past(ValueOrError<Path>(
-        Error{LazyString{L"Unable to persist buffer without absolute path: "} +
-              file_path.read()}));
+    return Error{
+        LazyString{L"Unable to persist buffer without absolute path: "} +
+        file_path.read()};
   }
 
   FUTURES_ASSIGN_OR_RETURN(std::list<PathComponent> file_path_components,
@@ -1914,7 +1915,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                             ->WaitPid(materialized_child_pid, 0)
                             .Transform(
                                 [root_this](FileSystemDriver::WaitPidOutput
-                                                waitpid_output) {
+                                                waitpid_output)
+                                    -> futures::Value<PossibleError> {
                                   root_this->child_exit_status_ =
                                       waitpid_output.wstatus;
                                   clock_gettime(0, &root_this->time_last_exit_);
@@ -1926,16 +1928,16 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                             .value());
                                     root_this->on_exit_handler_ = std::nullopt;
                                   }
-                                  return futures::Past(Success());
+                                  return EmptyValue{};
                                 })
                             .ConsumeErrors([](Error) {
                               return futures::Past(EmptyValue());
                             });
                       },
-                      [] { return futures::Past(EmptyValue()); },
+                      [] { return futures::Past(EmptyValue{}); },
                       root_this->child_pid_);
                 },
-                [] { return futures::Past(EmptyValue()); }, weak_this.Lock());
+                [] { return futures::Past(EmptyValue{}); }, weak_this.Lock());
           });
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
@@ -1947,7 +1949,7 @@ futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
                  [path](Error error) {
                    LOG(INFO)
                        << path << ": SetInputFromPath: Open failed: " << error;
-                   return futures::Past(error);
+                   return error;
                  })
       .Transform([buffer = NewRoot(),
                   path](FileDescriptor fd) -> futures::Value<PossibleError> {
