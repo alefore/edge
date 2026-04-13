@@ -10,6 +10,7 @@
 
 namespace afc::editor {
 class EditorState;
+class OpenBuffer;
 class Command;
 language::gc::Root<Command> NewOpenFileCommand(EditorState& editor);
 
@@ -26,7 +27,8 @@ struct OpenFilesOptions {
 
 // Attempts to open a file. Unlike the lower-level functions in
 // src/file_link_mode.h, supports globbing and positions (e.g., `foo.cc:12`).
-futures::Value<language::EmptyValue> OpenFiles(OpenFilesOptions);
+futures::Value<std::vector<language::gc::Root<OpenBuffer>>> OpenFiles(
+    OpenFilesOptions);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_OPEN_FILE_COMMAND_H__

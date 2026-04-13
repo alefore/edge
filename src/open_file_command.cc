@@ -80,7 +80,8 @@ futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
 }
 }  // namespace
 
-futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
+futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
+    OpenFilesOptions options) {
   return GetFilePredictor(FilePredictorOptions{
       .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch})(
              PredictorInput{.editor = options.editor,
@@ -132,7 +133,9 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
                 });
       })
       .Transform<futures::ErrorHandling::Disable>(
-          [](const auto&) { return EmptyValue{}; });
+          [](const std::vector<ValueOrError<gc::Root<OpenBuffer>>> output) {
+            return output | SkipErrors | std::ranges::to<std::vector>();
+          });
 }
 
 namespace {
@@ -384,11 +387,13 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
             std::bind_front(AdjustPath, std::ref(editor)),
         .handler =
             [&editor](SingleLine value) {
-              return OpenFiles(OpenFilesOptions{
-                  .editor = editor,
-                  .not_found_handler =
-                      OpenFilesOptions::NotFoundHandler::kCreate,
-                  .path_pattern = value});
+              return OpenFiles(
+                         OpenFilesOptions{
+                             .editor = editor,
+                             .not_found_handler =
+                                 OpenFilesOptions::NotFoundHandler::kCreate,
+                             .path_pattern = value})
+                  .Transform([](auto) { return EmptyValue{}; });
             },
         .cancel_handler =
             [&editor]() {
