@@ -77,6 +77,7 @@ futures::Value<EmptyValue> LowLevelOpenFile(
           .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); });
   }
   LOG(FATAL) << "Invalid value for not_found_handler.";
+  return futures::Past(EmptyValue{});
 }
 }  // namespace
 
@@ -96,7 +97,8 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
                       DECLARE_OR_RETURN(
                           Path path, Path::New(ToLazyString(line.contents())));
                       file_open_position::Spec spec =
-                          file_open_position::Default{};
+                          file_open_position::SpecFromLineMetadata(
+                              line.metadata().get());
                       return PathAndOpenFilePositionSpec{.path = path,
                                                          .spec = spec};
                     }) |
@@ -110,6 +112,7 @@ futures::Value<EmptyValue> OpenFiles(OpenFilesOptions options) {
                     OpenFileOptions{
                         .editor_state = options.editor,
                         .path = ToLazyString(input.path),
+                        .position = input.spec,
                         .insertion_type = BuffersList::AddBufferType::kVisit},
                     options.not_found_handler);
               }) |
