@@ -472,13 +472,11 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"OpenFile"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
-          [](EditorState& editor_arg, LazyString path_str, bool visit)
-              -> futures::ValueOrError</* NonNull<std::shared_ptr<
-                  Protected<std::vector<*/
-                                       gc::Root<OpenBuffer> /*>>>>*/> {
+          [](EditorState& editor_arg, LazyString path_str,
+             bool visit) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
             return OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor_arg,
-                .path = path_str,
+                .path = OptionalFrom(Path::New(path_str)),
                 .insertion_type = visit ? BuffersList::AddBufferType::kVisit
                                         : BuffersList::AddBufferType::kIgnore});
           })
@@ -499,12 +497,12 @@ gc::Root<Environment> BuildEditorEnvironment(
               return UnwrapVectorFuture(
                          paths |
                          std::views::transform([&editor_arg,
-                                                visit](LazyString path)
+                                                visit](LazyString path_str)
                                                    -> futures::Value<
                                                        gc::Root<OpenBuffer>> {
                            return OpenOrCreateFile(OpenFileOptions{
                                .editor_state = editor_arg,
-                               .path = path,
+                               .path = OptionalFrom(Path::New(path_str)),
                                .insertion_type =
                                    visit
                                        ? BuffersList::AddBufferType::kVisit

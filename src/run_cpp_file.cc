@@ -9,6 +9,7 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/file_predictor.h"
+#include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/single_line.h"
@@ -19,6 +20,7 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::Path;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
@@ -58,12 +60,12 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   }
 
   buffer->ptr()->ResetMode();
-  ResolvePathOptions options = ResolvePathOptions::New(
-      editor_state,
-      MakeNonNullShared<FileSystemDriver>(editor_state.thread_pool()));
-  options.path = input.read();
+  FUTURES_ASSIGN_OR_RETURN(Path path, Path::New(ToLazyString(input)));
   return futures::OnError(
-      ResolvePath(std::move(options))
+      ResolvePath(ResolvePathOptions::New(editor_state,
+                                          MakeNonNullShared<FileSystemDriver>(
+                                              editor_state.thread_pool()),
+                                          path))
           .Transform([buffer, input,
                       &editor_state](ResolvePathOutput resolved_path)
                          -> futures::Value<PossibleError> {

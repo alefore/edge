@@ -115,7 +115,7 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
                       -> futures::ValueOrError<gc::Root<OpenBuffer>> {
                     return LowLevelOpenFile(
                         OpenFileOptions{.editor_state = options.editor,
-                                        .path = ToLazyString(input.path),
+                                        .path = input.path,
                                         .position = input.spec,
                                         .insertion_type =
                                             BuffersList::AddBufferType::kVisit},
@@ -124,10 +124,15 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
               std::ranges::to<std::vector>());
         LOG(INFO) << "No completion found; passing specified path: "
                   << options.path_pattern;
+        ValueOrError<Path> path_or_error =
+            Path::New(ToLazyString(options.path_pattern));
+        if (IsError(path_or_error))
+          return futures::Past(
+              std::vector<ValueOrError<gc::Root<OpenBuffer>>>{});
         return LowLevelOpenFile(
                    OpenFileOptions{
                        .editor_state = options.editor,
-                       .path = ToLazyString(options.path_pattern),
+                       .path = ValueOrDie(std::move(path_or_error)),
                        .insertion_type = BuffersList::AddBufferType::kVisit},
                    options.not_found_handler)
             .Transform<futures::ErrorHandling::Disable>(
@@ -148,11 +153,12 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.predictor_output.found_exact_match) {
-    if (line.empty()) return output;
+    ValueOrError<Path> path_or_error = Path::New(ToLazyString(line));
+    if (IsError(path_or_error)) return output;
     output = OpenFileIfFound(
                  OpenFileOptions{
                      .editor_state = editor,
-                     .path = ToLazyString(line),
+                     .path = ValueOrDie(std::move(path_or_error)),
                      .insertion_type = BuffersList::AddBufferType::kIgnore})
                  .template Transform<futures::ErrorHandling::Disable>(
                      &OptionalFrom<gc::Root<OpenBuffer>>);

@@ -46,18 +46,15 @@ class OpenDirectoryCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     OpenOrCreateFile(OpenFileOptions{
         .editor_state = editor_state_,
-        .path = std::visit(
-            overload{[](Error) { return LazyString{}; },
-                     [](Path path) { return ToLazyString(path); }},
-            VisitPointer(
-                editor_state_.current_buffer(),
-                [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
-                  ASSIGN_OR_RETURN(
-                      Path path,
-                      Path::New(buffer.ptr()->Read(buffer_variables::name)));
-                  return path.Dirname();
-                },
-                [] { return Path::LocalDirectory(); }))});
+        .path = OptionalFrom(VisitPointer(
+            editor_state_.current_buffer(),
+            [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
+              ASSIGN_OR_RETURN(
+                  Path path,
+                  Path::New(buffer.ptr()->Read(buffer_variables::name)));
+              return path.Dirname();
+            },
+            [] { return Path::LocalDirectory(); }))});
   }
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>

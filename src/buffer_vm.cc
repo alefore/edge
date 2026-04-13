@@ -670,18 +670,19 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           [](gc::Ptr<OpenBuffer> buffer,
              NonNull<std::shared_ptr<Protected<std::vector<ExtendedChar>>>>
                  keys,
-             LazyString path) {
-            LOG(INFO) << "AddBindingToFile: " << path;
-            return keys->lock([&](std::vector<ExtendedChar>& keys_values) {
+             LazyString path_str) -> futures::ValueOrError<EmptyValue> {
+            LOG(INFO) << "AddBindingToFile: " << path_str;
+            FUTURES_ASSIGN_OR_RETURN(Path path, Path::New(path_str));
+            keys->lock([&](std::vector<ExtendedChar>& keys_values) {
               buffer->default_commands()->Add(
                   keys_values,
                   [buffer, path]() {
-                    ResolvePathOptions options = ResolvePathOptions::New(
-                        buffer->editor(), MakeNonNullShared<FileSystemDriver>(
-                                              buffer->editor().thread_pool()));
-                    options.path = path;
                     return futures::OnError(
-                        ResolvePath(std::move(options))
+                        ResolvePath(ResolvePathOptions::New(
+                                        buffer->editor(),
+                                        MakeNonNullShared<FileSystemDriver>(
+                                            buffer->editor().thread_pool()),
+                                        path))
                             .Transform(
                                 [buffer, path](ResolvePathOutput results) {
                                   buffer->execution_context()->EvaluateFile(
@@ -697,6 +698,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                   },
                   LazyString{L"Load file: "} + path);
             });
+            return futures::Past(Success());
           })
           .ptr());
 

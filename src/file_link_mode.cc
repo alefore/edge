@@ -302,9 +302,9 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                           OpenFileOptions{
                               .editor_state = editor_state,
                               .name = buffer_name,
-                              .path = ToLazyString(Path::Join(
-                                  edge_path, ValueOrDie(Path::New(LazyString{
-                                                 L"search_paths"})))),
+                              .path = Path::Join(
+                                  edge_path, ValueOrDie(Path::New(
+                                                 LazyString{L"search_paths"}))),
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore})
                    .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
@@ -390,12 +390,10 @@ void ApplyPosition(gc::Root<OpenBuffer> buffer, open_file_position::Spec spec) {
           }},
       spec);
 }
-}  // namespace
 
 futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
-    const OpenFileOptions& options, LazyString path) {
+    const OpenFileOptions& options, Path path) {
   TRACK_OPERATION(FindAlreadyOpenBuffer);
-  if (path.empty()) return futures::Past(Error(LazyString{L"No path."}));
   return ResolvePath(
              ResolvePathOptions{
                  .path = path,
@@ -425,18 +423,14 @@ gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
     std::optional<ResolvePathOutput> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
-  LOG(INFO) << "CreateBuffer: " << options.path;
   const std::optional<Path> buffer_options_path =
       std::invoke([&resolve_path_output, &options] -> std::optional<Path> {
         if (resolve_path_output.has_value()) return resolve_path_output->path;
-        return std::visit(
-            overload{[](const Error&) -> std::optional<Path> {
-                       return std::nullopt;
-                     },
-                     [&options](Path path) -> std::optional<Path> {
-                       return options.editor_state.expand_path(path);
-                     }},
-            Path::New(options.path));
+        return VisitOptional(
+            [&options](Path path) -> std::optional<Path> {
+              return options.editor_state.expand_path(path);
+            },
+            [] -> std::optional<Path> { return std::nullopt; }, options.path);
       });
 
   auto buffer_options =
@@ -465,7 +459,7 @@ gc::Root<OpenBuffer> CreateBuffer(
     HandleVisit(stat_buffer.value(), buffer);
   };
   buffer_options->handle_save =
-      options.path.empty()
+      options.path == std::nullopt
           ? std::function([](OpenBuffer::Options::HandleSaveOptions) {
               return futures::Past(Success());
             })
@@ -510,12 +504,15 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   return buffer;
 }
+}  // namespace
 
 /* static */ ResolvePathOptions ResolvePathOptions::New(
     EditorState& editor_state,
     language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
-        file_system_driver) {
+        file_system_driver,
+    infrastructure::Path path) {
   return ResolvePathOptions{
+      .path = path,
       .home_directory = editor_state.home_directory(),
       .validator =
           std::bind_front(CanStatPath, file_system_driver,
@@ -524,22 +521,12 @@ gc::Root<OpenBuffer> CreateBuffer(
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   LOG(INFO) << "Resolve path: " << input.path;
-  if (input.path.empty())
-    return futures::Past(Error{LazyString{L"Empty path"}});
-
-  std::visit(overload{IgnoreErrors{},
-                      [&](Path path) {
-                        input.path = ToLazyString(Path::ExpandHomeDirectory(
-                            input.home_directory, path));
-                      }},
-             Path::New(input.path));
+  input.path = Path::ExpandHomeDirectory(input.home_directory, input.path);
 
   namespace ofp = open_file_position;
-  // TODO(trivial, p2): Rename to FUTURES_DECLARE_OR_RETURN.
-  FUTURES_ASSIGN_OR_RETURN(Path input_path, Path::New(input.path));
   Path resolved_full_path =
-      std::optional<Path>(OptionalFrom(input_path.Resolve()))
-          .value_or(input_path);
+      std::optional<Path>(OptionalFrom(input.path.Resolve()))
+          .value_or(input.path);
   return input.validator(resolved_full_path)
       .Transform([resolved_full_path](
                      ResolvePathOptions::ValidatorOutput validator_output)
@@ -551,8 +538,10 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options) {
+  if (options.path == std::nullopt)
+    return futures::Past(Error{LazyString{L"No path specified."}});
   return futures::OnError(
-      FindAlreadyOpenBuffer(options, options.path)
+      FindAlreadyOpenBuffer(options, options.path.value())
           .Transform([options](ResolvePathOutput already_open_buffer) {
             gc::Root<OpenBuffer> buffer =
                 std::move(already_open_buffer.validator_output.value());
@@ -562,7 +551,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
       [options](Error) {
         return ResolvePath(
                    ResolvePathOptions{
-                       .path = options.path,
+                       .path = options.path.value(),
                        .home_directory = options.editor_state.home_directory(),
                        .validator = std::bind_front(
                            CanStatPath,
@@ -588,7 +577,7 @@ futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor_state,
-                 .path = LazyString{},
+                 .path = std::nullopt,
                  .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([](gc::Root<OpenBuffer> buffer) {
         // Wait until we've fully evaluated buffer-reload.cc on the buffer.
@@ -647,8 +636,8 @@ class TestDriver {
 
   futures::Value<ValueOrError<gc::Root<OpenBuffer>>> OpenAndReadPath(
       LazyString path, std::optional<LineSequence> expected_content) {
-    return OpenFileIfFound(
-               OpenFileOptions{.editor_state = editor_.value(), .path = path})
+    return OpenFileIfFound(OpenFileOptions{.editor_state = editor_.value(),
+                                           .path = ValueOrDie(Path::New(path))})
         .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
           return buffer->WaitForEndOfFile().Transform([expected_content,
                                                        buffer](EmptyValue) {

@@ -756,22 +756,27 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  OpenFileIfFound(
-      OpenFileOptions{.editor_state = editor(),
-                      .path = Read(buffer_variables::dictionary),
-                      .insertion_type = BuffersList::AddBufferType::kIgnore})
-      .Transform([](gc::Root<OpenBuffer> dictionary_root) {
-        return dictionary_root->WaitForEndOfFile().Transform(
-            [dictionary_root](EmptyValue) {
-              return dictionary_root->editor().thread_pool().Run(
-                  [contents = dictionary_root->contents().snapshot()] {
-                    return Success(SortedLineSequence(contents));
-                  });
-            });
-      })
-      .ConsumeErrors([](Error) {
-        return futures::Past(SortedLineSequence(LineSequence()));
-      })
+  ValueOrError<Path> dictionary_path =
+      Path::New(Read(buffer_variables::dictionary));
+  (IsError(dictionary_path)
+       ? futures::Past(SortedLineSequence(LineSequence()))
+       : OpenFileIfFound(
+             OpenFileOptions{
+                 .editor_state = editor(),
+                 .path = ValueOrDie(std::move(dictionary_path)),
+                 .insertion_type = BuffersList::AddBufferType::kIgnore})
+             .Transform([](gc::Root<OpenBuffer> dictionary_root) {
+               return dictionary_root->WaitForEndOfFile().Transform(
+                   [dictionary_root](EmptyValue) {
+                     return dictionary_root->editor().thread_pool().Run(
+                         [contents = dictionary_root->contents().snapshot()] {
+                           return Success(SortedLineSequence(contents));
+                         });
+                   });
+             })
+             .ConsumeErrors([](Error) {
+               return futures::Past(SortedLineSequence(LineSequence()));
+             }))
       .Transform([root_this = NewRoot()](SortedLineSequence dictionary) {
         root_this->buffer_syntax_parser_.UpdateParser(
             BufferSyntaxParser::ParserOptions{
@@ -2149,8 +2154,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      return OpenFileIfFound(
                                 OpenFileOptions{
                                     .editor_state = editor,
-                                    .path = ToLazyString(
-                                        ValueOrDie(std::move(path))),
+                                    .path = ValueOrDie(std::move(path)),
                                     .insertion_type =
                                         BuffersList::AddBufferType::kIgnore,
                                     .stat_validator = CheckLocalFile})

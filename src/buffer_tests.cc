@@ -531,8 +531,8 @@ const bool buffer_reloads_tests_registration = tests::Register(
                 OpenOrCreateFile(OpenFileOptions{
                     .editor_state = editor.value(),
                     .name = BufferName{LazyString{L"- test buffer"}},
-                    .path =
-                        LazyString{L"/tmp/edge-test.close-buffer-deletes.txt"},
+                    .path = ValueOrDie(Path::New(LazyString{
+                        L"/tmp/edge-test.close-buffer-deletes.txt"})),
                     .insertion_type = BuffersList::AddBufferType::kIgnore});
             LOG(INFO) << "Buffers future created.";
             AdvanceUntilValue(editor.value(), future_buffer);
@@ -569,9 +569,8 @@ const bool buffer_reloads_tests_registration = tests::Register(
             OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor.value(),
                 .name = BufferName{LazyString{L"- test buffer"}},
-                .path =
-                    LazyString{
-                        L"/tmp/edge-test.close-buffer-deletes-listed.txt"},
+                .path = ValueOrDie(Path::New(LazyString{
+                    L"/tmp/edge-test.close-buffer-deletes-listed.txt"})),
                 .insertion_type = BuffersList::AddBufferType::kVisit});
         AdvanceUntilValue(editor.value(), future_buffer);
         LOG(INFO) << "Buffer registry size (before delete): "

@@ -144,13 +144,10 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
   return OpenOrCreateFile(
              {.editor_state = editor_state,
               .name = buffer_name,
-              .path = editor_state.edge_path().empty()
-                          ? LazyString{}
-                          : ToLazyString(
-                                Path::Join(editor_state.edge_path().front(),
-                                           ValueOrDie(PathComponent::New(
-                                               ToLazyString(name) +
-                                               LazyString{L"_history"})))),
+              .path = Path::Join(
+                  editor_state.edge_path().front(),
+                  ValueOrDie(PathComponent::New(ToLazyString(name) +
+                                                LazyString{L"_history"}))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::save_on_close, true);

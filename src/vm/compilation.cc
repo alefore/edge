@@ -42,7 +42,6 @@ Compilation::CurrentStackFrameHeader() {
 }
 
 Error Compilation::AddError(Error error) {
-  LOG(INFO) << "Compilation error: " << error;
   LazyString prefix;
   for (auto it = source_.begin(); it != source_.end(); ++it) {
     Source& source = *it;
@@ -57,8 +56,9 @@ Error Compilation::AddError(Error error) {
     if (std::next(it) != source_.end()) prefix += LazyString{L"Include from "};
     prefix += location + LazyString{L": "};
   }
-
-  errors_.push_back(AugmentError(prefix, error));
+  error = AugmentError(prefix, error);
+  errors_.push_back(error);
+  LOG(INFO) << "Compilation error: " << error;
   return error;
 }
 

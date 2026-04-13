@@ -30,8 +30,8 @@ struct OpenFileOptions {
   // Name can be absent, in which case the name will come from the path.
   std::optional<BufferName> name = std::nullopt;
 
-  // The pattern for the path of the file to open.
-  language::lazy_string::LazyString path;
+  // Can be absent to open anonymous buffers.
+  std::optional<infrastructure::Path> path;
 
   open_file_position::Spec position = open_file_position::Default{};
 
@@ -55,8 +55,8 @@ struct ResolvePathOptions {
   using Validator = std::function<futures::ValueOrError<ValidatorOutput>(
       const infrastructure::Path&)>;
 
-  // TODO(trivial, P2, 2026-04-12): This should be a Path.
-  language::lazy_string::LazyString path = {};
+  infrastructure::Path path;
+  // TODO(P2, trivial, 2026-04-13): Remove this.
   infrastructure::Path home_directory;
 
   Validator validator = nullptr;
@@ -64,7 +64,8 @@ struct ResolvePathOptions {
   static ResolvePathOptions New(
       EditorState& editor_state,
       language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
-          file_system_driver);
+          file_system_driver,
+      infrastructure::Path path);
 };
 
 struct ResolvePathOutput {

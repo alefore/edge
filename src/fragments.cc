@@ -43,11 +43,8 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
         return OpenOrCreateFile(
                    {.editor_state = editor,
                     .name = FragmentsBuffer{},
-                    .path = editor.edge_path().empty()
-                                ? LazyString{}
-                                : ToLazyString(Path::Join(
-                                      editor.edge_path().front(),
-                                      PathComponent::FromString(L"fragments"))),
+                    .path = Path::Join(editor.edge_path().front(),
+                                       PathComponent::FromString(L"fragments")),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
             .Transform([&editor](gc::Root<OpenBuffer> buffer) {
               VLOG(6) << "Preparing fragments buffer (will wait for EOF).";

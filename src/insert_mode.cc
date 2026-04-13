@@ -339,8 +339,7 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor,
-                 .path =
-                     ToLazyString(Path::Join(editor.edge_path().front(), path)),
+                 .path = Path::Join(editor.edge_path().front(), path),
                  .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::allow_dirty_delete, true);

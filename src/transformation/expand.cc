@@ -238,7 +238,7 @@ class ReadAndInsert : public CompositeTransformation {
     return open_file_callback_(
                OpenFileOptions{
                    .editor_state = input.buffer.editor(),
-                   .path = ToLazyString(full_path),
+                   .path = full_path,
                    .insertion_type = BuffersList::AddBufferType::kIgnore})
         .Transform([full_path, input = std::move(input)](
                        gc::Root<OpenBuffer> buffer_to_insert) {
@@ -273,7 +273,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
                    Path{LazyString{L"/home/edge-test-user/.edge"}});
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-               std::optional<LazyString> path_opened;
+               std::optional<Path> path_opened;
                futures::Value<CompositeTransformation::Output> output =
                    ReadAndInsert(
                        ValueOrDie(Path::New(LazyString{L"unexistent"})),
@@ -287,9 +287,9 @@ const bool read_and_insert_tests_registration = tests::Register(
                            .buffer = buffer.ptr().value()});
                CHECK(output.has_value());
                CHECK(path_opened.has_value());
-               CHECK_EQ(
-                   path_opened.value(),
-                   LazyString{L"/home/edge-test-user/.edge/expand/unexistent"});
+               CHECK_EQ(path_opened.value(),
+                        ValueOrDie(Path::New(LazyString{
+                            L"/home/edge-test-user/.edge/expand/unexistent"})));
              }},
     });
 
@@ -363,14 +363,14 @@ class ExpandTransformation : public CompositeTransformation {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           futures::Value<Predictor> predictor_future =
               futures::Past(SyntaxBasedPredictor);
-          if (LazyString dictionary_path =
-                  input.buffer.Read(buffer_variables::dictionary);
-              !dictionary_path.empty()) {
+          if (ValueOrError<Path> dictionary_path =
+                  Path::New(input.buffer.Read(buffer_variables::dictionary));
+              !IsError(dictionary_path)) {
             predictor_future =
                 OpenFileIfFound(
                     OpenFileOptions{
                         .editor_state = input.buffer.editor(),
-                        .path = std::move(dictionary_path),
+                        .path = ValueOrDie(std::move(dictionary_path)),
                         .insertion_type = BuffersList::AddBufferType::kIgnore})
                     .Transform([](gc::Root<OpenBuffer> dictionary) {
                       return Success(ComposePredictors(
