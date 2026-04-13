@@ -40,7 +40,6 @@ struct OpenFileOptions {
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
-  std::vector<infrastructure::Path> initial_search_paths = {};
 
   // You can use this if you want to ignore specific files.
   std::function<language::PossibleError(struct stat)> stat_validator =

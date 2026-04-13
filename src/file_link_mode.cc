@@ -591,9 +591,6 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                                          : futures::Past(std::vector<Path>()))
             .Transform([options](std::vector<Path> search_paths)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-              search_paths.insert(search_paths.begin(),
-                                  options.initial_search_paths.begin(),
-                                  options.initial_search_paths.end());
               return ResolvePath(
                          ResolvePathOptions{
                              .path = options.path,
