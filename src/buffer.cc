@@ -202,7 +202,7 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
   TRACK_OPERATION(OpenBuffer_LineMetadataCompilation);
   static const LineProcessorOutputFuture kEmptyOutput{
       .initial_value = LineProcessorOutput(SingleLine{}),
-      .value = futures::Past(LineProcessorOutput(SingleLine{}))};
+      .value = futures::Past(LineProcessorOutput{SingleLine{}})};
   return std::visit(
       overload{
           [&](gc::Root<ExecutionContext::CompilationResult> compilation_result)
@@ -232,10 +232,10 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
                               LazyString{FromByteString(oss.str())}));
                         })
                         .ConsumeErrors([](Error error) {
-                          return futures::Past(LineProcessorOutput(
+                          return LineProcessorOutput(
                               SINGLE_LINE_CONSTANT(L"E: ") +
                               LineSequence::BreakLines(error.read())
-                                  .FoldLines()));
+                                  .FoldLines());
                         });
                   });
             }
@@ -469,13 +469,13 @@ Status& OpenBuffer::status() const { return status_.value(); }
 
 PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
-    return Success();
+    return EmptyValue{};
   }
   if (child_pid_.has_value() && !Read(buffer_variables::term_on_close))
     return Error{LazyString{L"Running subprocess "} +
                  Parenthesize(LazyString{L"pid: "} +
                               LazyString{std::to_wstring(child_pid_->read())})};
-  return Success();
+  return EmptyValue{};
 }
 
 futures::ValueOrError<OpenBuffer::PrepareToCloseOutput>
@@ -770,16 +770,16 @@ void OpenBuffer::UpdateTreeParser() {
                  .insertion_type = BuffersList::AddBufferType::kIgnore})
              .Transform([](gc::Root<OpenBuffer> dictionary_root) {
                return dictionary_root->WaitForEndOfFile().Transform(
-                   [dictionary_root](EmptyValue) {
+                   [dictionary_root](EmptyValue)
+                       -> futures::ValueOrError<SortedLineSequence> {
                      return dictionary_root->editor().thread_pool().Run(
                          [contents = dictionary_root->contents().snapshot()] {
-                           return Success(SortedLineSequence(contents));
+                           return SortedLineSequence(contents);
                          });
                    });
              })
-             .ConsumeErrors([](Error) {
-               return futures::Past(SortedLineSequence(LineSequence()));
-             }))
+             .ConsumeErrors(
+                 [](Error) { return SortedLineSequence(LineSequence{}); }))
       .Transform([root_this = NewRoot()](SortedLineSequence dictionary) {
         root_this->buffer_syntax_parser_.UpdateParser(
             BufferSyntaxParser::ParserOptions{
@@ -850,7 +850,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                               return root_this->work_queue()->Wait(
                                   AddSeconds(Now(), delay_seconds));
                             },
-                            [&] { return futures::Past(EmptyValue{}); });
+                            [&] { return EmptyValue{}; });
                       }));
 
   Set(buffer_variables::name, ToSingleLine(options_.name).read().read());
@@ -927,8 +927,7 @@ void OpenBuffer::AppendLines(
                   LOG(INFO) << "Found a mark: " << mark;
                   editor.line_marks().AddMark(std::move(mark));
                 });
-            return Success();
-            return Success();
+            return EmptyValue{};
           });
     }
   }
@@ -981,15 +980,16 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                  {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(ptr_this_->pool(),
                                                          ptr_this_.value())
                       .ptr()}))
-      .Transform([this, root_this = ptr_this_->ToRoot()](EmptyValue) {
+      .Transform([this, root_this = ptr_this_->ToRoot()](
+                     EmptyValue) -> futures::Value<PossibleError> {
         LOG(INFO) << name() << ": Reload: generating contents.";
         if (Read(buffer_variables::clear_on_reload)) {
           ClearContents();
           SetDiskState(DiskState::kCurrent);
         }
-        return options_.generate_contents != nullptr
-                   ? futures::IgnoreErrors(options_.generate_contents(*this))
-                   : futures::Past(Success());
+        if (options_.generate_contents != nullptr)
+          return futures::IgnoreErrors(options_.generate_contents(*this));
+        return EmptyValue{};
       })
       .Transform(LockAndVisitCallback(
           [](EmptyValue, gc::Root<OpenBuffer> root_this) {
@@ -1000,11 +1000,10 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                     root_this->options_.log_supplier),
                 [](Error error) {
                   LOG(INFO) << "Error opening log: " << error;
-                  return futures::Past(NewNullLog());
+                  return NewNullLog();
                 });
           },
-          [](EmptyValue) { return futures::Past(Success(NewNullLog())); },
-          ptr_this_->ToWeakPtr()))
+          [](EmptyValue) { return NewNullLog(); }, ptr_this_->ToWeakPtr()))
       .Transform(LockAndVisitCallback(
           [](NonNull<std::unique_ptr<Log>> log,
              gc::Root<OpenBuffer> root_this) -> futures::Value<PossibleError> {
@@ -1116,23 +1115,27 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               error](auto component) {
                *path = Path::Join(*path, component);
                return file_system_driver->Stat(*path)
-                   .Transform([path, error](struct stat stat_buffer) {
-                     if (S_ISDIR(stat_buffer.st_mode)) {
-                       return Success(IterationControlCommand::kContinue);
-                     }
-                     *error = Error{
-                         LazyString{L"Oops, exists, but is not a directory: "} +
-                         path->read()};
-                     return Success(IterationControlCommand::kStop);
-                   })
+                   .Transform(
+                       [path, error](struct stat stat_buffer)
+                           -> futures::ValueOrError<IterationControlCommand> {
+                         if (S_ISDIR(stat_buffer.st_mode))
+                           return IterationControlCommand::kContinue;
+                         *error = Error{
+                             LazyString{
+                                 L"Oops, exists, but is not a directory: "} +
+                             path->read()};
+                         return IterationControlCommand::kStop;
+                       })
                    .ConsumeErrors([file_system_driver, path, error](Error) {
                      return file_system_driver->Mkdir(*path, 0700)
-                         .Transform([](EmptyValue) {
-                           return Success(IterationControlCommand::kContinue);
-                         })
+                         .Transform(
+                             [](EmptyValue) -> futures::ValueOrError<
+                                                IterationControlCommand> {
+                               return IterationControlCommand::kContinue;
+                             })
                          .ConsumeErrors([path, error](Error mkdir_error) {
                            *error = mkdir_error;
-                           return futures::Past(IterationControlCommand::kStop);
+                           return IterationControlCommand::kStop;
                          });
                    });
              })
@@ -1852,10 +1855,11 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
 
   auto new_reader = [this](std::optional<FileDescriptor> fd,
                            LazyString name_suffix, LineModifierSet modifiers,
-                           std::unique_ptr<FileDescriptorReader>& reader) {
+                           std::unique_ptr<FileDescriptorReader>& reader)
+      -> futures::Value<EmptyValue> {
     if (fd == std::nullopt) {
       reader = nullptr;
-      return futures::Past(EmptyValue());
+      return EmptyValue{};
     }
     futures::Future<EmptyValue> output;
     reader =
@@ -1891,10 +1895,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                         return root_this->file_adapter_->ReceiveInput(
                             std::move(input), modifiers);
                       },
-                      [] { return futures::Past(EmptyValue()); },
-                      weak_this.Lock());
+                      [] { return EmptyValue{}; }, weak_this.Lock());
                 }});
-
     return std::move(output.value);
   };
 
@@ -1930,14 +1932,11 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                   }
                                   return EmptyValue{};
                                 })
-                            .ConsumeErrors([](Error) {
-                              return futures::Past(EmptyValue());
-                            });
+                            .ConsumeErrors([](Error) { return EmptyValue{}; });
                       },
-                      [] { return futures::Past(EmptyValue{}); },
-                      root_this->child_pid_);
+                      [] { return EmptyValue{}; }, root_this->child_pid_);
                 },
-                [] { return futures::Past(EmptyValue{}); }, weak_this.Lock());
+                [] { return EmptyValue{}; }, weak_this.Lock());
           });
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
@@ -2090,7 +2089,7 @@ language::PossibleError CheckLocalFile(struct stat st) {
     case S_IFLNK:
     case S_IFREG:
     case S_IFDIR:
-      return Success();
+      return EmptyValue{};
     default:
       return Error{LazyString{L"Path for URL has unexpected type: unknown\n"}};
   }
@@ -2121,7 +2120,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
              [adjusted_position, data, remote_url_behavior](const URL& url) {
                return VisitPointer(
                    data->source.Lock(),
-                   [&](gc::Root<OpenBuffer> buffer) {
+                   [&](gc::Root<OpenBuffer> buffer) -> futures::Value<ICC> {
                      auto& editor = buffer->editor();
                      VLOG(5) << "Checking URL: " << url;
                      if (url.schema().value_or(URL::Schema::kFile) !=
@@ -2147,11 +2146,11 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                        BuffersList::AddBufferType::kIgnore,
                                });
                        }
-                       return futures::Past(ICC::kStop);
+                       return ICC::kStop;
                      }
                      ValueOrError<Path> path = url.GetLocalFilePath();
                      if (std::holds_alternative<Error>(path))
-                       return futures::Past(ICC::kContinue);
+                       return ICC::kContinue;
                      VLOG(4) << "Calling open file: " << std::get<Path>(path);
                      return OpenFileIfFound(
                                 OpenFileOptions{
@@ -2160,11 +2159,11 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                     .insertion_type =
                                         BuffersList::AddBufferType::kIgnore,
                                     .stat_validator = CheckLocalFile})
-                         .Transform(
-                             [data](gc::Root<OpenBuffer> buffer_context) {
-                               data->output = buffer_context;
-                               return futures::Past(Success(ICC::kStop));
-                             })
+                         .Transform([data](gc::Root<OpenBuffer> buffer_context)
+                                        -> futures::ValueOrError<ICC> {
+                           data->output = buffer_context;
+                           return ICC::kStop;
+                         })
                          .ConsumeErrors([adjusted_position, data](Error) {
                            return VisitPointer(
                                data->source.Lock(),
@@ -2174,20 +2173,22 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                          locked_buffer->position())) {
                                    data->output = Error{LazyString{
                                        L"Computation was cancelled."}};
-                                   return futures::Past(ICC::kStop);
+                                   return ICC::kStop;
                                  }
-                                 return futures::Past(ICC::kContinue);
+                                 return ICC::kContinue;
                                },
-                               [] { return futures::Past(ICC::kStop); });
+                               [] { return ICC::kStop; });
                          });
                    },
-                   [] { return futures::Past(ICC::kStop); });
+                   [] { return ICC::kStop; });
              })
-      .Transform([data](ICC iteration_control_command) {
-        return iteration_control_command == ICC::kContinue
-                   ? Success(std::optional<gc::Root<OpenBuffer>>())
-                   : std::move(data->output);
-      });
+      .Transform(
+          [data](ICC iteration_control_command)
+              -> futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> {
+            if (iteration_control_command == ICC::kContinue)
+              return std::nullopt;
+            return std::move(data->output);
+          });
 }
 
 LineColumn OpenBuffer::end_position() const {

@@ -33,7 +33,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
-using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
@@ -243,7 +242,8 @@ class ReadAndInsert : public CompositeTransformation {
         .Transform([full_path, input = std::move(input)](
                        gc::Root<OpenBuffer> buffer_to_insert) {
           return buffer_to_insert->WaitForEndOfFile().Transform(
-              [buffer_to_insert, input = std::move(input)](EmptyValue) {
+              [buffer_to_insert,
+               input = std::move(input)](EmptyValue) -> ValueOrError<Output> {
                 Output output;
                 output.Push(transformation::Insert{
                     .contents_to_insert =
@@ -254,7 +254,7 @@ class ReadAndInsert : public CompositeTransformation {
                 }
                 position.line += input.position.line.ToDelta();
                 output.Push(transformation::SetPosition(position));
-                return Success(std::move(output));
+                return output;
               });
         })
         .ConsumeErrors([full_path](Error) -> futures::Value<Output> {
@@ -312,7 +312,7 @@ class Execute : public CompositeTransformation {
               }
               return output;
             })
-        .ConsumeErrors([](Error) { return futures::Past(Output{}); });
+        .ConsumeErrors([](Error) { return Output{}; });
   }
 };
 
@@ -322,14 +322,13 @@ class ExpandTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     using transformation::ModifiersAndComposite;
-    auto output = std::make_shared<Output>();
-    if (input.position.column.IsZero())
-      return futures::Past(std::move(*output));
+    if (input.position.column.IsZero()) return Output{};
 
+    auto output = std::make_shared<Output>();
     auto line = input.buffer.LineAt(input.position.line);
     auto c = line->get(input.position.column.previous());
     futures::Value<std::unique_ptr<CompositeTransformation>>
-        transformation_future = futures::Past(nullptr);
+        transformation_future = nullptr;
     switch (c) {
       case 'r': {
         SingleLine symbol =
@@ -339,8 +338,8 @@ class ExpandTransformation : public CompositeTransformation {
         std::visit(overload{IgnoreErrors{},
                             [&](Path path) {
                               transformation_future =
-                                  futures::Past(std::make_unique<ReadAndInsert>(
-                                      path, OpenFileIfFound));
+                                  std::make_unique<ReadAndInsert>(
+                                      path, OpenFileIfFound);
                             }},
                    Path::New(symbol.read()));
       } break;
@@ -349,11 +348,10 @@ class ExpandTransformation : public CompositeTransformation {
                 GetToken(input, buffer_variables::path_characters);
             !path.size().IsZero()) {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
-          transformation_future =
-              futures::Past(std::make_unique<PredictorTransformation>(
-                  GetFilePredictor(FilePredictorOptions{}),
-                  vm::EscapedString::FromString(path.read())
-                      .EscapedRepresentation()));
+          transformation_future = std::make_unique<PredictorTransformation>(
+              GetFilePredictor(FilePredictorOptions{}),
+              vm::EscapedString::FromString(path.read())
+                  .EscapedRepresentation());
         }
         break;
       case ' ':
@@ -361,8 +359,7 @@ class ExpandTransformation : public CompositeTransformation {
                 GetToken(input, buffer_variables::symbol_characters);
             !symbol.size().IsZero()) {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
-          futures::Value<Predictor> predictor_future =
-              futures::Past(SyntaxBasedPredictor);
+          futures::Value<Predictor> predictor_future = SyntaxBasedPredictor;
           if (ValueOrError<Path> dictionary_path =
                   Path::New(input.buffer.Read(buffer_variables::dictionary));
               !IsError(dictionary_path)) {
@@ -372,13 +369,14 @@ class ExpandTransformation : public CompositeTransformation {
                         .editor_state = input.buffer.editor(),
                         .path = ValueOrDie(std::move(dictionary_path)),
                         .insertion_type = BuffersList::AddBufferType::kIgnore})
-                    .Transform([](gc::Root<OpenBuffer> dictionary) {
-                      return Success(ComposePredictors(
+                    .Transform([](gc::Root<OpenBuffer> dictionary)
+                                   -> futures::ValueOrError<Predictor> {
+                      return ComposePredictors(
                           DictionaryPredictor(std::move(dictionary)),
-                          SyntaxBasedPredictor));
+                          SyntaxBasedPredictor);
                     })
                     .ConsumeErrors([](Error) -> futures::Value<Predictor> {
-                      return futures::Past(SyntaxBasedPredictor);
+                      return SyntaxBasedPredictor;
                     });
           }
           transformation_future =
@@ -394,15 +392,12 @@ class ExpandTransformation : public CompositeTransformation {
             GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size() +
                                           ColumnNumberDelta(1)));
-        transformation_future =
-            futures::Past(std::make_unique<Execute>(symbol));
+        transformation_future = std::make_unique<Execute>(symbol);
       } break;
       case '.': {
         SingleLine query = GetToken(input, buffer_variables::path_characters);
-        transformation_future =
-            futures::Past(std::make_unique<InsertHistoryTransformation>(
-                DeleteLastCharacters(query.size() + ColumnNumberDelta(1)),
-                query));
+        transformation_future = std::make_unique<InsertHistoryTransformation>(
+            DeleteLastCharacters(query.size() + ColumnNumberDelta(1)), query);
       }
     }
     return std::move(transformation_future)
@@ -417,7 +412,7 @@ class ExpandTransformation : public CompositeTransformation {
                         .transformation = std::move(transformation)});
                   },
                   [] {});
-              return futures::Past(std::move(*output));
+              return std::move(*output);
             });
   }
 };

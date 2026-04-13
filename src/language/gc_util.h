@@ -148,22 +148,25 @@ decltype(auto) LockAndVisitCallback(F1&& on_lock, F2&& on_failure,
                       std::is_convertible_v<OnFailureReturn, OnLockReturn>,
                   "The return types of the success and failure callbacks are "
                   "not compatible.");
-
-    if constexpr (std::is_void_v<OnLockReturn>) {
-      if (std::optional<gc::Root<T>> root = weak_ptr.Lock(); root.has_value()) {
-        std::invoke(on_lock, std::forward<decltype(args)>(args)...,
-                    std::move(root).value());
+    return std::invoke([&]() -> OnLockReturn {
+      if constexpr (std::is_void_v<OnLockReturn>) {
+        if (std::optional<gc::Root<T>> root = weak_ptr.Lock();
+            root.has_value()) {
+          std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                      std::move(root).value());
+        } else {
+          std::invoke(on_failure, std::forward<decltype(args)>(args)...);
+        }
       } else {
-        std::invoke(on_failure, std::forward<decltype(args)>(args)...);
+        if (std::optional<gc::Root<T>> root = weak_ptr.Lock();
+            root.has_value()) {
+          return std::invoke(on_lock, std::forward<decltype(args)>(args)...,
+                             std::move(root).value());
+        } else {
+          return std::invoke(on_failure, std::forward<decltype(args)>(args)...);
+        }
       }
-    } else {
-      if (std::optional<gc::Root<T>> root = weak_ptr.Lock(); root.has_value()) {
-        return std::invoke(on_lock, std::forward<decltype(args)>(args)...,
-                           std::move(root).value());
-      } else {
-        return std::invoke(on_failure, std::forward<decltype(args)>(args)...);
-      }
-    }
+    });
   };
 }
 }  // namespace afc::language::gc

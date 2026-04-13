@@ -283,20 +283,20 @@ struct Future {
 template <typename Type>
 template <typename Callable>
 auto Value<Type>::ConsumeErrors(Callable error_callback) && {
-  Future<typename std::variant_alternative_t<0, Type>> output;
-  std::move(*this).SetConsumer([consumer = std::move(output.consumer),
-                                error_callback = std::move(error_callback)](
-                                   Type value_or_error) mutable {
-    std::visit(language::overload{
-                   [&](language::Error error) {
-                     error_callback(error).SetConsumer(std::move(consumer));
-                   },
-                   [&](typename std::variant_alternative_t<0, Type> immediate) {
-                     std::invoke(std::move(consumer), std::move(immediate));
-                   }},
-               std::move(value_or_error));
-  });
-  return std::move(output.value);
+  using NestedValueType = typename std::variant_alternative_t<0, Type>;
+  return std::move(*this).template Transform<ErrorHandling::Disable>(
+      [error_callback =
+           std::move(error_callback)](Type value) -> Value<NestedValueType> {
+        return std::visit(
+            language::overload{
+                [&](language::Error error) mutable -> Value<NestedValueType> {
+                  return std::move(error_callback)(std::move(error));
+                },
+                [&](NestedValueType immediate) -> Value<NestedValueType> {
+                  return immediate;
+                }},
+            std::move(value));
+      });
 }
 
 template <typename Type>
