@@ -185,12 +185,8 @@ futures::Value<std::optional<PredictResults>> Predict(
         if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
         return results;
       })
-      .Transform(
-          [](PredictResults r) -> ValueOrError<std::optional<PredictResults>> {
-            return r;
-          })
-      .ConsumeErrors(
-          [](auto) { return futures::Past(std::optional<PredictResults>()); });
+      .Transform<futures::ErrorHandling::Disable>(
+          &OptionalFrom<PredictResults>);
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput) {
