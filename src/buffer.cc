@@ -903,8 +903,8 @@ void OpenBuffer::AppendLines(
                           DECLARE_OR_RETURN(
                               Path target_buffer,
                               Path::New(ToLazyString(line.contents())));
-                          file_open_position::Spec spec =
-                              file_open_position::SpecFromLineMetadata(
+                          open_file_position::Spec spec =
+                              open_file_position::SpecFromLineMetadata(
                                   line.metadata().get());
                           return LineMarks::Mark{
                               .source_buffer = buffer_name,

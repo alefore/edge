@@ -229,7 +229,7 @@ struct ScanDirectoryInput {
 void ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
-  namespace fop = file_open_position;
+  namespace ofp = open_file_position;
 
   VLOG(5) << "Scanning directory \"" << input.path_prefix
           << "\" looking for: " << input.pattern_suffix;
@@ -245,9 +245,9 @@ void ScanDirectory(const ScanDirectoryInput input) {
         std::ranges::mismatch(pattern_suffix_str, entry_path);
     ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
         std::distance(pattern_suffix_str.begin(), pattern_it))};
-    if (std::optional<fop::Spec> spec = fop::Parse(
+    if (std::optional<ofp::Spec> spec = ofp::Parse(
             input.pattern_suffix.Substring(ColumnNumber{} + match_len),
-            fop::SuffixMode::Disallow);
+            ofp::SuffixMode::Disallow);
         spec.has_value()) {
       MatchType match_type = entry_it == entry_path.end() ? MatchType::kExact
                                                           : MatchType::kPartial;

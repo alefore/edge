@@ -7,8 +7,8 @@
 //
 // See tests in implementation for more details.
 
-#ifndef __AFC_EDITOR_OPEN_POSITION_H__
-#define __AFC_EDITOR_OPEN_POSITION_H__
+#ifndef __AFC_EDITOR_OPEN_FILE_POSITION_H__
+#define __AFC_EDITOR_OPEN_FILE_POSITION_H__
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/ghost_type_class.h"
@@ -16,7 +16,7 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
-namespace afc::editor::file_open_position {
+namespace afc::editor::open_file_position {
 struct Default {};
 
 bool operator==(const Default& a, const Default& b);
@@ -41,6 +41,6 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
 language::text::LineMetadataMap GetLineMetadata(Spec spec);
 Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values);
 
-}  // namespace afc::editor::file_open_position
+}  // namespace afc::editor::open_file_position
 
-#endif  // __AFC_EDITOR_OPEN_POSITION_H__
+#endif  // __AFC_EDITOR_OPEN_FILE_POSITION_H__

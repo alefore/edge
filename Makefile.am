@@ -94,8 +94,6 @@ src/fragments.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
-src/file_open_position.cc \
-src/file_open_position.h \
 src/file_predictor.cc \
 src/file_predictor.h \
 src/file_tags.cc \
@@ -262,6 +260,9 @@ src/navigation_buffer.h \
 src/navigate_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/open_file_command.h \
+src/open_file_position.cc \
+src/open_file_position.h \
 src/operation.cc \
 src/operation.h \
 src/operation_scope.cc \

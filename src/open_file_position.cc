@@ -1,4 +1,4 @@
-#include "src/file_open_position.h"
+#include "src/open_file_position.h"
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/overload.h"
@@ -23,7 +23,7 @@ using afc::language::text::LineMetadataMap;
 using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 
-namespace afc::editor::file_open_position {
+namespace afc::editor::open_file_position {
 bool operator==(const Default&, const Default&) { return true; }
 
 std::ostream& operator<<(std::ostream& os, const Default&) {
@@ -94,7 +94,7 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
 
 namespace {
 const bool parse_path_spec_tests_registration = tests::Register(
-    L"file_open_position_Parse",
+    L"open_file_position_Parse",
     {{.name = L"NoParse",
       .callback =
           [] {
@@ -181,4 +181,4 @@ Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values) {
   return OptionalFrom(SpecFromLineMetadataInternal(values)).value_or(Default{});
 }
 
-}  // namespace afc::editor::file_open_position
+}  // namespace afc::editor::open_file_position

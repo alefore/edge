@@ -25,7 +25,6 @@ extern "C" {
 #include "src/command_argument_mode.h"
 #include "src/directory_listing.h"
 #include "src/editor.h"
-#include "src/file_open_position.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
@@ -37,6 +36,7 @@ extern "C" {
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/open_file_position.h"
 #include "src/run_command_handler.h"
 #include "src/search_handler.h"
 #include "src/server.h"
@@ -363,11 +363,11 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
 }
 
 namespace {
-void ApplyPosition(gc::Root<OpenBuffer> buffer, file_open_position::Spec spec) {
+void ApplyPosition(gc::Root<OpenBuffer> buffer, open_file_position::Spec spec) {
   std::visit(
       overload{
-          [](const file_open_position::Default&) {},
-          [&buffer](const file_open_position::Search& search) {
+          [](const open_file_position::Default&) {},
+          [&buffer](const open_file_position::Search& search) {
             buffer->WaitForEndOfFile().Transform([buffer, search](EmptyValue) {
               std::visit(
                   overload{[&](LineColumn position) {
@@ -529,7 +529,7 @@ namespace {
 futures::ValueOrError<ResolvePathOutput::Entry> GetEntriesInSearchPath(
     ResolvePathOptions input, Path search_path) {
   LOG(INFO) << "GetEntriesInSearchPath: " << search_path << ": " << input.path;
-  namespace ofp = file_open_position;
+  namespace ofp = open_file_position;
   // TODO(trivial, p2): Rename to FUTURES_DECLARE_OR_RETURN.
   FUTURES_ASSIGN_OR_RETURN(Path input_path, Path::New(input.path));
   Path full_path = Path::Join(search_path, input_path);

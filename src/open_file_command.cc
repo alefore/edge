@@ -62,7 +62,7 @@ namespace {
 
 struct PathAndOpenFilePositionSpec {
   Path path;
-  file_open_position::Spec spec;
+  open_file_position::Spec spec;
 };
 
 futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
@@ -98,8 +98,8 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
                     [](Line line) -> ValueOrError<PathAndOpenFilePositionSpec> {
                       DECLARE_OR_RETURN(
                           Path path, Path::New(ToLazyString(line.contents())));
-                      file_open_position::Spec spec =
-                          file_open_position::SpecFromLineMetadata(
+                      open_file_position::Spec spec =
+                          open_file_position::SpecFromLineMetadata(
                               line.metadata().get());
                       return PathAndOpenFilePositionSpec{.path = path,
                                                          .spec = spec};
