@@ -395,7 +395,7 @@ void ApplyPosition(gc::Root<OpenBuffer> buffer, open_file_position::Spec spec) {
 futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
     const OpenFileOptions& options, LazyString path) {
   TRACK_OPERATION(FindAlreadyOpenBuffer);
-  if (path.empty()) return futures::Past(Success(ResolvePathOutput{}));
+  if (path.empty()) return futures::Past(Error(LazyString{L"No path."}));
   return ResolvePath(
              ResolvePathOptions{
                  .path = path,
@@ -425,6 +425,7 @@ gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
     std::optional<ResolvePathOutput> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
+  LOG(INFO) << "CreateBuffer: " << options.path;
   const std::optional<Path> buffer_options_path =
       std::invoke([&resolve_path_output, &options] -> std::optional<Path> {
         if (resolve_path_output.has_value()) return resolve_path_output->path;
@@ -523,7 +524,8 @@ gc::Root<OpenBuffer> CreateBuffer(
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   LOG(INFO) << "Resolve path: " << input.path;
-  if (input.path.empty()) return futures::Past(ResolvePathOutput{});
+  if (input.path.empty())
+    return futures::Past(Error{LazyString{L"Empty path"}});
 
   std::visit(overload{IgnoreErrors{},
                       [&](Path path) {
