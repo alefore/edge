@@ -685,7 +685,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                             .Transform(
                                 [buffer, path](ResolvePathOutput results) {
                                   buffer->execution_context()->EvaluateFile(
-                                      results.entries[0].path);
+                                      results.path);
                                   return Success();
                                 }),
                         [buffer, path](Error error) {

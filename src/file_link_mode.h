@@ -68,17 +68,12 @@ struct ResolvePathOptions {
 };
 
 struct ResolvePathOutput {
-  struct Entry {
-    // The absolute path pointing to the file.
-    infrastructure::Path path;
-    ResolvePathOptions::ValidatorOutput validator_output;
-  };
-
-  // Should not be a vector any longer. Just nest Entry directly.
-  std::vector<Entry> entries;
+  // The absolute path pointing to the file.
+  infrastructure::Path path;
+  ResolvePathOptions::ValidatorOutput validator_output;
 };
 
-futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input);
+futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input);
 
 futures::ValueOrError<language::gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options);

@@ -416,15 +416,14 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
                  }})
       .Transform([options_position = options.position](ResolvePathOutput input)
                      -> futures::ValueOrError<ResolvePathOutput> {
-        for (auto& entry : input.entries)
-          ApplyPosition(entry.validator_output.value(), options_position);
+        ApplyPosition(input.validator_output.value(), options_position);
         return futures::Past(Success(std::move(input)));
       });
 }
 
 gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
-    std::optional<ResolvePathOutput::Entry> resolve_path_output) {
+    std::optional<ResolvePathOutput> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
   const std::optional<Path> buffer_options_path =
       std::invoke([&resolve_path_output, &options] -> std::optional<Path> {
@@ -522,28 +521,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                           [](struct stat) { return language::Success(); })};
 }
 
-namespace {
-futures::ValueOrError<ResolvePathOutput::Entry> GetEntries(
-    ResolvePathOptions input) {
-  LOG(INFO) << "GetEntries: " << input.path;
-  namespace ofp = open_file_position;
-  // TODO(trivial, p2): Rename to FUTURES_DECLARE_OR_RETURN.
-  FUTURES_ASSIGN_OR_RETURN(Path input_path, Path::New(input.path));
-  Path resolved_full_path =
-      std::optional<Path>(OptionalFrom(input_path.Resolve()))
-          .value_or(input_path);
-  return input.validator(resolved_full_path)
-      .Transform([resolved_full_path](
-                     ResolvePathOptions::ValidatorOutput validator_output)
-                     -> ValueOrError<ResolvePathOutput::Entry> {
-        return Success(ResolvePathOutput::Entry{
-            .path = resolved_full_path, .validator_output = validator_output});
-      });
-}
-}  // namespace
-
-// TODO(P2, 2026-04-13, trivial): Return ValueOrError. Don't create a vector.
-futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
+futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   LOG(INFO) << "Resolve path: " << input.path;
   if (input.path.empty()) return futures::Past(ResolvePathOutput{});
 
@@ -554,25 +532,32 @@ futures::Value<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                       }},
              Path::New(input.path));
 
-  return GetEntries(input)
-      .Transform([](ResolvePathOutput::Entry entry) {
-        return futures::Past(Success(ResolvePathOutput{.entries = {entry}}));
-      })
-      .ConsumeErrors([](Error) {
-        return futures::Past(ResolvePathOutput{.entries = {}});
+  namespace ofp = open_file_position;
+  // TODO(trivial, p2): Rename to FUTURES_DECLARE_OR_RETURN.
+  FUTURES_ASSIGN_OR_RETURN(Path input_path, Path::New(input.path));
+  Path resolved_full_path =
+      std::optional<Path>(OptionalFrom(input_path.Resolve()))
+          .value_or(input_path);
+  return input.validator(resolved_full_path)
+      .Transform([resolved_full_path](
+                     ResolvePathOptions::ValidatorOutput validator_output)
+                     -> ValueOrError<ResolvePathOutput> {
+        return Success(ResolvePathOutput{.path = resolved_full_path,
+                                         .validator_output = validator_output});
       });
 }
 
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options) {
-  return FindAlreadyOpenBuffer(options, options.path)
-      .Transform([options](ResolvePathOutput already_open_buffers) {
-        if (!already_open_buffers.entries.empty()) {
-          gc::Root<OpenBuffer> buffer = std::move(
-              already_open_buffers.entries[0].validator_output.value());
-          options.editor_state.AddBuffer(buffer, options.insertion_type);
-          return futures::Past(Success(buffer));
-        }
+  return futures::OnError(
+      FindAlreadyOpenBuffer(options, options.path)
+          .Transform([options](ResolvePathOutput already_open_buffer) {
+            gc::Root<OpenBuffer> buffer =
+                std::move(already_open_buffer.validator_output.value());
+            options.editor_state.AddBuffer(buffer, options.insertion_type);
+            return futures::Past(Success(buffer));
+          }),
+      [options](Error) {
         return ResolvePath(
                    ResolvePathOptions{
                        .path = options.path,
@@ -584,10 +569,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                            options.stat_validator)})
             .Transform([options](ResolvePathOutput input)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-              if (input.entries.empty())
-                return futures::Past(Error{LazyString{L"No files matched."}});
-              return futures::Past(
-                  Success(CreateBuffer(options, input.entries[0])));
+              return futures::Past(Success(CreateBuffer(options, input)));
             });
       });
 }
