@@ -894,9 +894,14 @@ void OpenBuffer::AppendLines(
       observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
     TRACK_OPERATION(OpenBuffer_StartNewLine_ScanForMarks);
+    std::function<futures::Value<PredictorOutput>(PredictorInput)>
+        file_predictor = GetFilePredictor(FilePredictorOptions{
+            .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch,
+            .open_file_position_suffix_mode =
+                open_file_position::SuffixMode::Allow});
     for (LineNumberDelta i; i < lines_added; ++i) {
       LineNumber source_line = LineNumber{} + start_new_section + i;
-      GetFilePredictor(FilePredictorOptions{})(
+      file_predictor(
           PredictorInput{.editor = editor(),
                          .input = contents_.at(source_line).contents(),
                          .input_column = {},
@@ -2281,6 +2286,11 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
   if (Read(buffer_variables::pin)) {
     output.insert(
         {BufferFlagKey{SingleLine::Char<L'📌'>()}, BufferFlagValue{}});
+  }
+
+  if (Read(buffer_variables::contains_line_marks)) {
+    output.insert(
+        {BufferFlagKey{SINGLE_LINE_CONSTANT(L"🕷️ ")}, BufferFlagValue{}});
   }
 
   if (child_pid_.has_value()) {

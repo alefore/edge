@@ -249,11 +249,12 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
                          FileType file_type,
                          ColumnNumberDelta& longest_pattern_match) {
   namespace ofp = open_file_position;
-  std::optional<ofp::Spec> spec =
-      ofp::Parse(input.pattern_suffix.Substring(ColumnNumber{} + match_len),
-                 input.options.open_file_position_suffix_mode);
+  LazyString remaining_suffix =
+      input.pattern_suffix.Substring(ColumnNumber{} + match_len);
+  std::optional<ofp::Spec> spec = ofp::Parse(
+      remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
-    LOG(INFO) << "open_file_position didn't allow match.";
+    LOG(INFO) << "open_file_position didn't allow match: " << remaining_suffix;
     return false;
   }
   input.predictor_output.found_exact_match |= match_type == MatchType::kExact;
@@ -280,7 +281,8 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
 
   LineBuilder line_builder{
       EscapedString::FromString(
-          ToLazyString(full_path) +
+          ToLazyString(std::optional<Path>(OptionalFrom(full_path.Resolve()))
+                           .value_or(full_path)) +
           (file_type == FileType::Directory ? LazyString{L"/"} : LazyString{}))
           .EscapedRepresentation()};
   line_builder.SetMetadata(LazyValue<LineMetadataMap>{
