@@ -49,6 +49,8 @@ class Value;
 
 enum class IterationControlCommand { kContinue, kStop };
 
+enum class ErrorHandling { Enable, Disable };
+
 template <typename>
 struct TransformTraitsCallableReturn;
 
@@ -68,10 +70,11 @@ struct TransformTraitsCallableReturn<Value<T>> {
   }
 };
 
-template <typename, typename>
+template <typename InitialType, typename Callable,
+          ErrorHandling ErrorHandlingValue = ErrorHandling::Enable>
 struct TransformTraits;
 
-template <class InitialType, class Callable>
+template <class InitialType, class Callable, ErrorHandling ErrorHandlingValue>
 struct TransformTraits {
   using ReturnTraits =
       TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
@@ -85,7 +88,8 @@ struct TransformTraits {
 };
 
 template <class InitialType, class Callable>
-struct TransformTraits<language::ValueOrError<InitialType>, Callable> {
+struct TransformTraits<language::ValueOrError<InitialType>, Callable,
+                       ErrorHandling::Enable> {
   using ReturnTraits =
       TransformTraitsCallableReturn<decltype(std::declval<Callable>()(
           std::declval<InitialType>()))>;
@@ -147,9 +151,10 @@ class Value {
     data_->SetConsumer(std::move(consumer));
   }
 
-  template <typename Callable>
+  template <ErrorHandling ErrorHandlingValue = ErrorHandling::Enable,
+            typename Callable>
   auto Transform(Callable callable) && {
-    using Traits = TransformTraits<Type, Callable>;
+    using Traits = TransformTraits<Type, Callable, ErrorHandlingValue>;
     Future<typename Traits::ReturnType::type> output;
     std::move(*this).SetConsumer(
         [consumer = std::move(output.consumer),
@@ -303,11 +308,12 @@ static Value<Type> Past(Type value) {
 // Must ensure that the iterators won't expire before the iteration is done.
 // Customers are encouraged to use the `ForEach(std::shared_ptr<Container>,
 // ...)` version provided below, when feasible.
-template <typename Iterator, typename Callable>
+template <ErrorHandling ErrorHandlingValue = ErrorHandling::Enable,
+          typename Iterator, typename Callable>
 Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
                                        Callable callable) {
   if (begin == end) return futures::Past(IterationControlCommand::kContinue);
-  return callable(*begin).Transform(
+  return callable(*begin).template Transform<ErrorHandlingValue>(
       [begin, end, callable](IterationControlCommand result) mutable {
         if (result == IterationControlCommand::kStop)
           return futures::Past(result);
@@ -320,12 +326,14 @@ Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
 // container.
 //
 // Unlike ForEachWithCopy, avoids having to copy the container.
-template <typename Container, typename Callable>
+template <ErrorHandling ErrorHandlingValue = ErrorHandling::Enable,
+          typename Container, typename Callable>
 Value<IterationControlCommand> ForEach(
     language::NonNull<std::shared_ptr<Container>> container,
     Callable callable) {
-  return ForEach(container->begin(), container->end(),
-                 [container, callable](auto& T) { return callable(T); });
+  return ForEach<ErrorHandlingValue>(
+      container->begin(), container->end(),
+      [container, callable](auto& T) { return callable(T); });
 }
 
 template <typename Callable>
@@ -404,38 +412,35 @@ futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
 //
 // std::vector<future::Value<X>>
 // => future::Value<std::vector<X>>
+//
+// Doesn't do error handling (i.e., X can be ValueOrError<Y>).
 template <typename Value>
 futures::Value<std::vector<Value>> UnwrapVectorFuture(
     language::NonNull<std::shared_ptr<std::vector<futures::Value<Value>>>>
         input) {
   language::NonNull<std::shared_ptr<std::vector<Value>>> output;
-  return futures::ForEach(
+  return futures::ForEach<ErrorHandling::Disable>(
              input,
              [output](futures::Value<Value>& future_item) {
-               return std::move(future_item).Transform([output](Value item) {
-                 output->push_back(std::move(item));
-                 return IterationControlCommand::kContinue;
-               });
+               return std::move(future_item)
+                   .template Transform<ErrorHandling::Disable>(
+                       [output](Value item) {
+                         output->push_back(std::move(item));
+                         return IterationControlCommand::kContinue;
+                       });
              })
       .Transform(
           [output](IterationControlCommand) mutable { return output.value(); });
 }
 
+// Convenience wrapper (saves customers from creating the NonNullShared-vector
+// directly).
 template <typename Value>
 futures::Value<std::vector<Value>> UnwrapVectorFuture(
     std::vector<futures::Value<Value>> input) {
-  language::NonNull<std::shared_ptr<std::vector<Value>>> output;
-  return futures::ForEach(
-             language::MakeNonNullShared<std::vector<futures::Value<Value>>>(
-                 std::move(input)),
-             [output](futures::Value<Value>& future_item) {
-               return std::move(future_item).Transform([output](Value item) {
-                 output->push_back(std::move(item));
-                 return IterationControlCommand::kContinue;
-               });
-             })
-      .Transform(
-          [output](IterationControlCommand) mutable { return output.value(); });
+  return UnwrapVectorFuture(
+      language::MakeNonNullShared<std::vector<futures::Value<Value>>>(
+          std::move(input)));
 }
 }  // namespace afc::futures
 
