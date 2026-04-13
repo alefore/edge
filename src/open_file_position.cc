@@ -55,7 +55,14 @@ ValueOrError<Spec> TryPosition(LazyString input, SuffixMode suffix_mode) {
     return Error{LazyString{L"Unexpected number of tokens"}};
   LineColumn position = {};
   for (size_t i = 0; i < std::min(tokens.size(), 2ul); ++i) {
-    DECLARE_OR_RETURN(int value, AsNumber(tokens[i]));
+    ValueOrError<int> value_or_error = AsNumber(tokens[i]);
+    if (IsError(value_or_error)) {
+      if (i == 0 || suffix_mode == SuffixMode::Disallow)
+        return std::get<Error>(value_or_error);
+      else
+        break;  // Ignoring errors in the column spec.
+    }
+    int value = ValueOrDie(std::move(value_or_error));
     if (value > 0) value--;
     if (i == 0) {
       position.line = LineNumber(value);
@@ -124,6 +131,13 @@ const bool parse_path_spec_tests_registration = tests::Register(
           [] {
             CHECK(Parse(LazyString{L":25:43: error blah"},
                         SuffixMode::Disallow) == std::nullopt);
+          }},
+     {.name = L"LineSuffixColonAllow",
+      .callback =
+          [] {
+            CHECK_EQ(Parse(LazyString{L":25: error blah"}, SuffixMode::Allow)
+                         .value(),
+                     (Spec{LineColumn{LineNumber{24}}}));
           }},
      {.name = L"LineColumnSuffixAllow",
       .callback =
