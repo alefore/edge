@@ -269,18 +269,15 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
               std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
                  buffers) {
             return futures::UnwrapVectorFuture(
-                       MakeNonNullShared<
-                           std::vector<futures::Value<EmptyValue>>>(
-                           buffers->lock(
-                               [](const std::vector<gc::Ptr<OpenBuffer>>&
-                                      buffers_data) {
-                                 return container::MaterializeVector(
-                                     buffers_data |
-                                     std::views::transform(
-                                         [](const gc::Ptr<OpenBuffer>& buffer) {
-                                           return buffer->WaitForEndOfFile();
-                                         }));
-                               })))
+                       buffers->lock([](const std::vector<gc::Ptr<OpenBuffer>>&
+                                            buffers_data) {
+                         return buffers_data |
+                                std::views::transform(
+                                    [](const gc::Ptr<OpenBuffer>& buffer) {
+                                      return buffer->WaitForEndOfFile();
+                                    }) |
+                                std::ranges::to<std::vector>();
+                       }))
                 .Transform([buffers](const auto&) {
                   return MakeNonNullShared<Protected<
                       std::vector<NonNull<std::shared_ptr<FileTags>>>>>(
