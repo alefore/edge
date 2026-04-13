@@ -67,6 +67,8 @@ struct LineMarks {
 
  private:
   struct MarksMaps {
+    // TODO(P2, easy, 2026-04-14): The marks should be sorted by occurence in
+    // the source (i.e., by source_line).
     std::multimap<language::text::LineColumn, Mark> marks;
     std::multimap<language::text::LineColumn, ExpiredMark> expired_marks;
   };
