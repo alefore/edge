@@ -14,8 +14,7 @@ class OpenBuffer;
 class Command;
 language::gc::Root<Command> NewOpenFileCommand(EditorState& editor);
 
-// TODO(P2, trivial, 2026-04-13): Rename to just OpenFileOptions. It currently
-// clashes with the one in src/file_link_mode.h.
+// TODO(P2, trivial, 2026-04-13): Move to its own module.
 struct OpenFilesOptions {
   EditorState& editor;
 
