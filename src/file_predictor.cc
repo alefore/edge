@@ -349,8 +349,8 @@ void ScanDirectory(const ScanDirectoryInput input) {
                input.pattern_prefix_size + longest_pattern_match);
 }
 
-futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
-    EditorState& editor_state, const Path& edge_path) {
+futures::Value<LineSequence> GetSearchPathsBuffer(EditorState& editor_state,
+                                                  const Path& edge_path) {
   BufferName buffer_name{LazyString{L"- search paths"}};
   return VisitOptional(
              [](gc::Root<OpenBuffer> buffer) { return futures::Past(buffer); },
@@ -380,7 +380,7 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
              editor_state.buffer_registry().Find(buffer_name))
       .Transform([](gc::Root<OpenBuffer> buffer) {
         return buffer->WaitForEndOfFile().Transform(
-            [buffer](EmptyValue) { return buffer; });
+            [buffer](EmptyValue) { return buffer->contents().snapshot(); });
       });
 }
 
@@ -389,9 +389,9 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
              editor_state.edge_path() |
              std::views::transform([&editor_state](Path edge_path) {
                return GetSearchPathsBuffer(editor_state, edge_path)
-                   .Transform([&editor_state](gc::Root<OpenBuffer> buffer)
+                   .Transform([&editor_state](LineSequence buffer_contents)
                                   -> std::vector<Path> {
-                     return buffer->contents().snapshot() |
+                     return buffer_contents |
                             std::views::transform([](const Line& line) {
                               return Path::New(line.contents().read());
                             }) |
