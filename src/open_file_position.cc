@@ -77,17 +77,19 @@ ValueOrError<Spec> TrySearchPattern(LazyString input) {
 std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
                           SuffixMode suffix_mode) {
   VLOG(5) << "Attempt parse: " << path_suffix;
-  if (path_suffix.empty()) return Default{};
-  if (path_suffix.get(ColumnNumber{0}) != L':') return std::nullopt;
-  LazyString input = path_suffix.Substring(ColumnNumber{1});
-  if (ValueOrError<Spec> search_candidate = TrySearchPattern(input);
-      std::holds_alternative<Spec>(search_candidate))
-    return std::get<Spec>(search_candidate);
-  if (ValueOrError<Spec> position_candidate = TryPosition(input, suffix_mode);
-      std::holds_alternative<Spec>(position_candidate))
-    return std::get<Spec>(position_candidate);
+  if (StartsWith(path_suffix, LazyString{L":"})) {
+    LazyString input = path_suffix.Substring(ColumnNumber{1});
+    if (ValueOrError<Spec> search_candidate = TrySearchPattern(input);
+        std::holds_alternative<Spec>(search_candidate))
+      return std::get<Spec>(search_candidate);
+    if (ValueOrError<Spec> position_candidate = TryPosition(input, suffix_mode);
+        std::holds_alternative<Spec>(position_candidate))
+      return std::get<Spec>(position_candidate);
+  }
   LOG(INFO) << "Invalid parse: " << path_suffix;
-  return std::nullopt;
+  return path_suffix.empty() || suffix_mode == SuffixMode::Allow
+             ? Default{}
+             : std::optional<Spec>();
 }
 
 namespace {
@@ -104,6 +106,12 @@ const bool parse_path_spec_tests_registration = tests::Register(
           [] {
             CHECK(std::holds_alternative<Default>(
                 Parse(LazyString{}, SuffixMode::Disallow).value()));
+          }},
+     {.name = L"TrailingGarbageAllow",
+      .callback =
+          [] {
+            CHECK(std::holds_alternative<Default>(
+                Parse(LazyString{L"foo: error"}, SuffixMode::Allow).value()));
           }},
      {.name = L"Pattern",
       .callback =
