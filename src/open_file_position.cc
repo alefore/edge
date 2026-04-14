@@ -87,7 +87,9 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
       return std::get<Spec>(position_candidate);
   }
   LOG(INFO) << "Invalid parse: " << path_suffix;
-  return path_suffix.empty() || suffix_mode == SuffixMode::Allow
+  return path_suffix.empty() || (suffix_mode == SuffixMode::Allow &&
+                                 !iswalnum(path_suffix.get(ColumnNumber{0})) &&
+                                 path_suffix.get(ColumnNumber{0}) != L'/')
              ? Default{}
              : std::optional<Spec>();
 }
@@ -98,7 +100,7 @@ const bool parse_path_spec_tests_registration = tests::Register(
     {{.name = L"NoParse",
       .callback =
           [] {
-            CHECK(Parse(LazyString{L"foo"}, SuffixMode::Disallow) ==
+            CHECK(Parse(LazyString{L"/foo"}, SuffixMode::Allow) ==
                   std::nullopt);
           }},
      {.name = L"Empty",
@@ -111,7 +113,7 @@ const bool parse_path_spec_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(std::holds_alternative<Default>(
-                Parse(LazyString{L"foo: error"}, SuffixMode::Allow).value()));
+                Parse(LazyString{L": error"}, SuffixMode::Allow).value()));
           }},
      {.name = L"Pattern",
       .callback =
