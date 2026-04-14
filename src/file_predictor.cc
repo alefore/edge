@@ -151,11 +151,11 @@ std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
       filter != nullptr) {
     std::filesystem::path dir_path = state.path_full.ToBytes();
     return std::filesystem::directory_iterator{dir_path} |
-           std::views::transform([](auto& entry) {
+           std::views::transform([](auto& entry) -> LazyString {
              return LazyString{
                  FromByteString(entry.path().filename().string())};
            }) |
-           std::ranges::to<std::vector>();
+           std::views::filter(filter) | std::ranges::to<std::vector>();
   }
   return {pattern_component};
 }
