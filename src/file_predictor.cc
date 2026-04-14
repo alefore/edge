@@ -100,7 +100,7 @@ struct PathPatternMatch {
   using Dir = NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>;
   Dir dir;
   // Includes the search_path.
-  Path full_path;
+  Path path_full;
   // Excludes the search path.
   LazyString path_pattern;
 };
@@ -132,7 +132,7 @@ std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
                                        LazyString pattern_component) {
   if (MatchFunction filter = GetComponentMatcher(pattern_component);
       filter != nullptr) {
-    std::filesystem::path dir_path = state.full_path.ToBytes();
+    std::filesystem::path dir_path = state.path_full.ToBytes();
     return std::filesystem::directory_iterator{dir_path} |
            std::views::transform([](auto& entry) {
              return LazyString{
@@ -152,7 +152,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
                       [&search_path, &output](PathPatternMatch::Dir dir) {
                         output.matches.push_back(
                             PathPatternMatch{.dir = std::move(dir),
-                                             .full_path = search_path,
+                                             .path_full = search_path,
                                              .path_pattern = {}});
                       }},
              open_dir(search_path));
@@ -187,7 +187,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
                                            LazyString next_component_match)
                                            -> ValueOrError<PathPatternMatch> {
                    Path next_path = Path::Join(
-                       previous_match.full_path,
+                       previous_match.path_full,
                        ValueOrDie(PathComponent::New(next_component_match)));
                    LazyString next_pattern =
                        (output.valid_prefix_length.IsZero()
@@ -198,7 +198,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
                    DECLARE_OR_RETURN(PathPatternMatch::Dir dir,
                                      open_dir(next_path));
                    return PathPatternMatch{.dir = std::move(dir),
-                                           .full_path = next_path,
+                                           .path_full = next_path,
                                            .path_pattern = next_pattern};
                  });
         }) |
@@ -270,7 +270,7 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
     LOG(INFO) << "No path prefix and no entry name.";
     return false;
   }
-  Path full_path = std::visit(
+  Path path_full = std::visit(
       overload{[&entry_name](Path path_prefix) {
                  return entry_name.has_value()
                             ? Path::Join(path_prefix, entry_name.value())
@@ -278,18 +278,18 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
                },
                [&entry_name](Error) -> Path { return entry_name.value(); }},
       path_prefix_or_error);
-  VLOG(10) << "Interesting entry: " << full_path
+  VLOG(10) << "Interesting entry: " << path_full
            << " exact: " << (match_type == MatchType::kExact)
-           << " full: " << full_path << ", spec: " << spec.value();
+           << " full: " << path_full << ", spec: " << spec.value();
   if (!FilterAllows(file_type, input.options) ||
-      std::regex_match(ToLazyString(full_path).ToString(), input.noise_regex))
+      std::regex_match(ToLazyString(path_full).ToString(), input.noise_regex))
     return true;
 
   LazyString dir_suffix{L"/"};
   LineBuilder line_builder{
       EscapedString::FromString(
-          ToLazyString(full_path) +
-          (file_type == FileType::Directory && !EndsWith(full_path, dir_suffix)
+          ToLazyString(path_full) +
+          (file_type == FileType::Directory && !EndsWith(path_full, dir_suffix)
                ? dir_suffix
                : LazyString{}))
           .EscapedRepresentation()};
@@ -504,7 +504,10 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                           .pattern_suffix = path_input.Substring(
                               ColumnNumber{} +
                               descend_results.valid_prefix_length),
-                          .path_prefix = match.path_pattern,
+                          .path_prefix = options.output_path_expansion ==
+                                                 OutputPathExpansion::Absolute
+                                             ? ToLazyString(match.path_full)
+                                             : match.path_pattern,
                           .pattern_prefix_size =
                               descend_results.valid_prefix_length,
                           .abort_value = abort_value,

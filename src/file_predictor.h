@@ -10,6 +10,11 @@
 namespace afc::editor {
 enum class FilePredictorMatchBehavior { kOnlyExactMatch, kIncludePartialMatch };
 
+enum class OutputPathExpansion {
+  Absolute,
+  AllowRelative,
+};
+
 struct FilePredictorOptions {
   FilePredictorMatchBehavior match_behavior =
       FilePredictorMatchBehavior::kIncludePartialMatch;
@@ -20,6 +25,9 @@ struct FilePredictorOptions {
   enum class Filter { Include, Exclude };
   Filter directory_filter = Filter::Include;
   Filter special_file_filter = Filter::Include;
+
+  OutputPathExpansion output_path_expansion =
+      OutputPathExpansion::AllowRelative;
 };
 
 std::function<futures::Value<PredictorOutput>(PredictorInput input)>
