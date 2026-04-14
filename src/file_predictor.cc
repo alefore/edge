@@ -415,9 +415,7 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                          path_input.size());
                 if (descend_results.valid_prefix_length == path_input.size()) {
                   predictor_output.found_exact_match = true;
-                } else if (options.match_behavior ==
-                           FilePredictorMatchBehavior::kOnlyExactMatch)
-                  continue;
+                }
                 std::ranges::for_each(
                     descend_results.matches,
                     [&](const PathPatternMatch& match) {
