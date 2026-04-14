@@ -27,6 +27,28 @@ const bool starts_with_tests_registration = tests::Register(
              }},
     });
 
+const bool ends_with_tests_registration = tests::Register(
+    L"LazyString::EndsWith",
+    {
+        {.name = L"AllEmpty",
+         .callback = [] { CHECK(EndsWith(LazyString{}, LazyString{})); }},
+        {.name = L"EmptyInput",
+         .callback =
+             [] { CHECK(!EndsWith(LazyString{}, LazyString{L"foo"})); }},
+        {.name = L"EmptySuffix",
+         .callback = [] { CHECK(EndsWith(LazyString{L"foo"}, LazyString{})); }},
+        {.name = L"HasSuffix",
+         .callback =
+             [] {
+               CHECK(EndsWith(LazyString{L"foobar"}, LazyString{L"obar"}));
+             }},
+        {.name = L"DifferentSuffix",
+         .callback =
+             [] {
+               CHECK(!EndsWith(LazyString{L"foobar"}, LazyString{L"oabar"}));
+             }},
+    });
+
 const bool find_first_of_tests_registration = tests::Register(
     L"LazyString::FindFirstOf",
     {{.name = L"WithColumnFind",
