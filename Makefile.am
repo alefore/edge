@@ -263,6 +263,8 @@ src/open_file_command.cc \
 src/open_file_command.h \
 src/open_file_position.cc \
 src/open_file_position.h \
+src/open_files.cc \
+src/open_files.h \
 src/operation.cc \
 src/operation.h \
 src/operation_scope.cc \

@@ -52,7 +52,7 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
-#include "src/open_file_command.h"
+#include "src/open_files.h"
 #include "src/run_command_handler.h"
 #include "src/seek.h"
 #include "src/server.h"
