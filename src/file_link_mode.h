@@ -43,12 +43,11 @@ struct OpenFileOptions {
       [](struct stat) { return language::Success(); };
 };
 
-futures::Value<std::vector<infrastructure::Path>> GetSearchPaths(
-    EditorState& editor_state);
-
 // Takes a specification of a path (which can be absolute or relative) and, if
-// relative, looks it up in the search paths. If a file is found, returns an
-// absolute path pointing to it.
+// relative. If a file is found, returns an absolute path pointing to it.
+//
+// This is fairly useless right now, maybe we should remove it. It used to do a
+// lot more, but that has been migrating to the open_files module.
 struct ResolvePathOptions {
  public:
   using ValidatorOutput = std::optional<language::gc::Root<OpenBuffer>>;

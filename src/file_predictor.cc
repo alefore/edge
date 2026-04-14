@@ -14,7 +14,10 @@ extern "C" {
 #include <vector>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
+#include "src/buffers_list.h"
+#include "src/command_argument_mode.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/futures/delete_notification.h"
@@ -63,6 +66,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::EndsWith;
@@ -342,6 +346,74 @@ void ScanDirectory(const ScanDirectoryInput input) {
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
                input.pattern_prefix_size + longest_pattern_match);
+}
+
+futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
+    EditorState& editor_state, const Path& edge_path) {
+  BufferName buffer_name{LazyString{L"- search paths"}};
+  return VisitOptional(
+             [](gc::Root<OpenBuffer> buffer) { return futures::Past(buffer); },
+             [&] {
+               return OpenOrCreateFile(
+                          OpenFileOptions{
+                              .editor_state = editor_state,
+                              .name = buffer_name,
+                              .path = Path::Join(
+                                  edge_path, ValueOrDie(Path::New(
+                                                 LazyString{L"search_paths"}))),
+                              .insertion_type =
+                                  BuffersList::AddBufferType::kIgnore})
+                   .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
+                     buffer->Set(buffer_variables::save_on_close, true);
+                     buffer->Set(
+                         buffer_variables::trigger_reload_on_buffer_write,
+                         false);
+                     buffer->Set(buffer_variables::show_in_buffers_list, false);
+                     if (!editor_state.has_current_buffer()) {
+                       editor_state.set_current_buffer(
+                           buffer, CommandArgumentModeApplyMode::kFinal);
+                     }
+                     return buffer;
+                   });
+             },
+             editor_state.buffer_registry().Find(buffer_name))
+      .Transform([](gc::Root<OpenBuffer> buffer) {
+        return buffer->WaitForEndOfFile().Transform(
+            [buffer](EmptyValue) { return buffer; });
+      });
+}
+
+futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
+  auto search_paths = MakeNonNullShared<std::vector<Path>>(
+      std::vector<Path>({Path::LocalDirectory()}));
+
+  auto paths = editor_state.edge_path();
+  return futures::ForEachWithCopy(
+             paths.begin(), paths.end(),
+             [&editor_state, search_paths](Path edge_path) {
+               return GetSearchPathsBuffer(editor_state, edge_path)
+                   .Transform([&editor_state, search_paths,
+                               edge_path](gc::Root<OpenBuffer> buffer) {
+                     std::ranges::copy(
+                         buffer->contents().snapshot() |
+                             std::views::transform([](const Line& line) {
+                               return Path::New(line.contents().read());
+                             }) |
+                             language::view::SkipErrors |
+                             std::views::transform(
+                                 [&editor_state](const Path& path) {
+                                   return editor_state.expand_path(path);
+                                 }),
+                         std::back_inserter(search_paths.value()));
+                     return futures::IterationControlCommand::kContinue;
+                   });
+             })
+      .Transform([search_paths](futures::IterationControlCommand) mutable {
+        LOG(INFO) << "Got search paths: " << search_paths->size();
+        std::ranges::for_each(search_paths.value(),
+                              [](Path path) { LOG(INFO) << "Path: " << path; });
+        return std::move(search_paths.value());
+      });
 }
 
 futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
