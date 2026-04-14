@@ -37,6 +37,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::FindLastOf;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 
 namespace afc::infrastructure {
 
@@ -238,6 +239,7 @@ const bool path_join_tests_registration = tests::Register(
 
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
   // TODO: Also support ~user/foo.
+  if (!StartsWith(ToLazyString(path), LazyString{L"~"})) return path;
   return std::visit(
       overload{[&](Error) { return path; },
                [&](std::list<PathComponent> components) {
@@ -257,7 +259,7 @@ Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
 const bool expand_home_directory_tests_registration = tests::Register(
     L"ExpandHomeDirectoryTests",
     {
-        {.name = L"NoExpansion",
+        {.name = L"NoExpansionRelative",
          .callback =
              [] {
                CHECK_EQ(
@@ -266,6 +268,27 @@ const bool expand_home_directory_tests_registration = tests::Register(
                                   L"tests"),
                        ValueOrDie(Path::New(LazyString{L"foo/bar"}), L"tests")),
                    ValueOrDie(Path::New(LazyString{L"foo/bar"}), L"tests"));
+             }},
+        {.name = L"NoExpansionAbsoluteTilde",
+         .callback =
+             [] {
+               CHECK_EQ(
+                   Path::ExpandHomeDirectory(
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"/~/bar"}), L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"/~/bar"}), L"tests"));
+             }},
+        {.name = L"NoExpansionAbsolute",
+         .callback =
+             [] {
+               CHECK_EQ(
+                   Path::ExpandHomeDirectory(
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"/foo/bar"}),
+                                  L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"/foo/bar"}), L"tests"));
              }},
         {.name = L"MinimalExpansion",
          .callback =
