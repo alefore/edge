@@ -65,6 +65,7 @@ using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EndsWith;
 using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
@@ -279,11 +280,13 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
       std::regex_match(ToLazyString(full_path).ToString(), input.noise_regex))
     return true;
 
+  LazyString dir_suffix{L"/"};
   LineBuilder line_builder{
       EscapedString::FromString(
-          ToLazyString(std::optional<Path>(OptionalFrom(full_path.Resolve()))
-                           .value_or(full_path)) +
-          (file_type == FileType::Directory ? LazyString{L"/"} : LazyString{}))
+          ToLazyString(full_path) +
+          (file_type == FileType::Directory && !EndsWith(full_path, dir_suffix)
+               ? dir_suffix
+               : LazyString{}))
           .EscapedRepresentation()};
   line_builder.SetMetadata(LazyValue<LineMetadataMap>{
       [spec] { return GetLineMetadata(spec.value()); }});
