@@ -1,6 +1,7 @@
 #include "src/open_file_position.h"
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/convert.h"
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 #include "src/tests/tests.h"
@@ -11,6 +12,7 @@ using afc::language::IgnoreErrors;
 using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::AsInt;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -37,17 +39,6 @@ std::ostream& operator<<(std::ostream& os, const Spec& spec) {
 }
 
 namespace {
-// TODO(P1, trivial, 2026-04-12): Move to a central location.
-ValueOrError<int> AsNumber(LazyString value) {
-  try {
-    return stoi(value.ToString());
-  } catch (const std::invalid_argument& ia) {
-    return Error{LazyString{L"stoi failed: invalid argument: "} + value};
-  } catch (const std::out_of_range& ia) {
-    return Error{LazyString{L"stoi failed: out of range: "} + value};
-  }
-}
-
 ValueOrError<Spec> TryPosition(LazyString input, SuffixMode suffix_mode) {
   std::vector<LazyString> tokens = SplitAt(input, L':');
   if (tokens.size() < 1 ||
@@ -55,7 +46,7 @@ ValueOrError<Spec> TryPosition(LazyString input, SuffixMode suffix_mode) {
     return Error{LazyString{L"Unexpected number of tokens"}};
   LineColumn position = {};
   for (size_t i = 0; i < std::min(tokens.size(), 2ul); ++i) {
-    ValueOrError<int> value_or_error = AsNumber(tokens[i]);
+    ValueOrError<int> value_or_error = AsInt(tokens[i]);
     if (IsError(value_or_error)) {
       if (i == 0 || suffix_mode == SuffixMode::Disallow)
         return std::get<Error>(value_or_error);
@@ -180,7 +171,7 @@ ValueOrError<Spec> SpecFromLineMetadataInternal(
     const language::text::LineMetadataMap& values) {
   if (auto it = values.find(kLineKey); it != values.end()) {
     DECLARE_OR_RETURN(int line_int,
-                      AsNumber(ToLazyString(it->second.get_value())));
+                      AsInt(ToLazyString(it->second.get_value())));
     return LineColumn{LineNumber{static_cast<size_t>(line_int)}};
   }
   if (auto it = values.find(kSearchKey); it != values.end()) {
