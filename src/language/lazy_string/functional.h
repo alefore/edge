@@ -116,8 +116,17 @@ std::optional<ColumnNumber> FindLastNotOf(
 
 template <typename StringType, typename StringTypePrefix>
 bool StartsWith(const StringType& input, const StringTypePrefix& prefix) {
-  return ToLazyString(input.SubstringWithRangeChecks(
-             ColumnNumber{}, prefix.size())) == ToLazyString(prefix);
+  LazyString prefix_str = ToLazyString(prefix);
+  return ToLazyString(input).SubstringWithRangeChecks(
+             ColumnNumber{}, prefix_str.size()) == prefix_str;
+}
+
+template <typename StringType, typename StringTypePrefix>
+bool EndsWith(const StringType& input, const StringTypePrefix& suffix) {
+  LazyString suffix_str = ToLazyString(suffix);
+  return ToLazyString(input).SubstringWithRangeChecks(
+             ColumnNumber{} + input.size() - suffix_str.size(),
+             suffix_str.size()) == suffix_str;
 }
 
 std::vector<LazyString> SplitAt(LazyString input, wchar_t separator);
