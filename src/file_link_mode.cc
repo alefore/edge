@@ -369,19 +369,18 @@ void ApplyPosition(gc::Root<OpenBuffer> buffer, open_file_position::Spec spec) {
           [&buffer](const open_file_position::Search& search) {
             buffer->WaitForEndOfFile().Transform([buffer, search](EmptyValue) {
               std::visit(
-                  overload{[&](LineColumn position) {
-                             buffer->set_position(position);
+                  overload{[&](std::vector<LineColumn> positions) {
+                             buffer->set_active_cursors(positions);
                            },
                            [&buffer](Error error) {
                              buffer->status().SetInformationText(
                                  Line(LineSequence::BreakLines(error.read())
                                           .FoldLines()));
                            }},
-                  GetNextMatch(buffer->editor().modifiers().direction,
-                               SearchOptions{
-                                   .starting_position = buffer->position(),
-                                   .search_query = ToSingleLine(search.read())},
-                               buffer->contents().snapshot()));
+                  SearchHandler(buffer->editor().modifiers().direction,
+                                SearchOptions{.search_query =
+                                                  ToSingleLine(search.read())},
+                                buffer->contents().snapshot()));
               return EmptyValue{};
             });
           },
