@@ -55,13 +55,10 @@ struct ResolvePathOptions {
       const infrastructure::Path&)>;
 
   infrastructure::Path path;
-  // TODO(P2, trivial, 2026-04-13): Remove this.
-  infrastructure::Path home_directory;
 
   Validator validator = nullptr;
 
   static ResolvePathOptions New(
-      EditorState& editor_state,
       language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
           file_system_driver,
       infrastructure::Path path);

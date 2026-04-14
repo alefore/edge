@@ -62,8 +62,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   buffer->ptr()->ResetMode();
   FUTURES_ASSIGN_OR_RETURN(Path path, Path::New(ToLazyString(input)));
   return futures::OnError(
-      ResolvePath(ResolvePathOptions::New(editor_state,
-                                          MakeNonNullShared<FileSystemDriver>(
+      ResolvePath(ResolvePathOptions::New(MakeNonNullShared<FileSystemDriver>(
                                               editor_state.thread_pool()),
                                           path))
           .Transform([buffer, input,

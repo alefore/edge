@@ -326,7 +326,6 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
   return ResolvePath(
              ResolvePathOptions{
                  .path = path,
-                 .home_directory = options.editor_state.home_directory(),
                  .validator = [&editor_state = options.editor_state](
                                   const Path& path_to_validate)
                      -> futures::ValueOrError<
@@ -436,13 +435,11 @@ gc::Root<OpenBuffer> CreateBuffer(
 }  // namespace
 
 /* static */ ResolvePathOptions ResolvePathOptions::New(
-    EditorState& editor_state,
     language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
         file_system_driver,
     infrastructure::Path path) {
   return ResolvePathOptions{
       .path = path,
-      .home_directory = editor_state.home_directory(),
       .validator =
           std::bind_front(CanStatPath, file_system_driver,
                           [](struct stat) { return language::Success(); })};
@@ -450,8 +447,6 @@ gc::Root<OpenBuffer> CreateBuffer(
 
 futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
   LOG(INFO) << "Resolve path: " << input.path;
-  input.path = Path::ExpandHomeDirectory(input.home_directory, input.path);
-
   namespace ofp = open_file_position;
   Path resolved_full_path =
       std::optional<Path>(OptionalFrom(input.path.Resolve()))
@@ -478,15 +473,13 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
             return futures::Past(Success(buffer));
           }),
       [options](Error) {
-        return ResolvePath(
-                   ResolvePathOptions{
-                       .path = options.path.value(),
-                       .home_directory = options.editor_state.home_directory(),
-                       .validator = std::bind_front(
-                           CanStatPath,
-                           MakeNonNullShared<FileSystemDriver>(
-                               options.editor_state.thread_pool()),
-                           options.stat_validator)})
+        return ResolvePath(ResolvePathOptions{
+                               .path = options.path.value(),
+                               .validator = std::bind_front(
+                                   CanStatPath,
+                                   MakeNonNullShared<FileSystemDriver>(
+                                       options.editor_state.thread_pool()),
+                                   options.stat_validator)})
             .Transform([options](ResolvePathOutput input)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
               return futures::Past(Success(CreateBuffer(options, input)));

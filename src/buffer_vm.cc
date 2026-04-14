@@ -679,7 +679,6 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                   [buffer, path]() {
                     return futures::OnError(
                         ResolvePath(ResolvePathOptions::New(
-                                        buffer->editor(),
                                         MakeNonNullShared<FileSystemDriver>(
                                             buffer->editor().thread_pool()),
                                         path))
