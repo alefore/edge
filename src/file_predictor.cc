@@ -119,9 +119,26 @@ using MatchFunction = std::function<bool(LazyString)>;
 
 // Returns nullptr if pattern doesn't have special characters.
 MatchFunction GetComponentMatcher(const LazyString& pattern) {
-  if (pattern != LazyString{L"*"}) return nullptr;
-  // TODO: Improve this.
-  std::wregex regex_filter{L".*"};
+  if (!FindFirstOf(pattern, {L'*', L'?'})) return nullptr;
+  std::wstring regex_str = L"^";
+  ForEachColumn(pattern, [&regex_str](ColumnNumber, wchar_t c) {
+    switch (c) {
+      case L'*':
+        regex_str += L".*";
+        break;
+      case L'?':
+        regex_str += L".";
+        break;
+      default:
+        static const std::wstring_view special_chars = L"\\^$.|?*+()[]{}";
+        if (special_chars.find(c) != std::wstring_view::npos)
+          regex_str += L'\\';
+        regex_str += c;
+    }
+  });
+  regex_str += L"$";
+  VLOG(9) << "Matcher: " << regex_str;
+  std::wregex regex_filter{regex_str, std::regex_constants::ECMAScript};
   return [regex_filter](LazyString candidate) {
     return static_cast<bool>(
         std::regex_match(candidate.ToString(), regex_filter));
