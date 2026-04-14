@@ -399,6 +399,7 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
               int matches = 0;
               MutableLineSequence predictions;
               for (const auto& search_path : search_paths) {
+                if (abort_value.has_value()) return PredictorOutput{};
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
                     DescendDirectoryTree(search_path, path_input, &OpenDir);
@@ -414,9 +415,9 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                          path_input.size());
                 if (descend_results.valid_prefix_length == path_input.size()) {
                   predictor_output.found_exact_match = true;
-                  // TODO(P0, trivial, 2026-04-12): Handle
-                  // options.match_behavior.
-                }
+                } else if (options.match_behavior ==
+                           FilePredictorMatchBehavior::kOnlyExactMatch)
+                  continue;
                 std::ranges::for_each(
                     descend_results.matches,
                     [&](const PathPatternMatch& match) {
@@ -458,7 +459,6 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                    NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
                                NonEmptySingleLine(matches).read()}}});
                     });
-                if (abort_value.has_value()) return PredictorOutput{};
               }
               predictions.MaybeEraseEmptyFirstLine();
               SortedLineSequenceUniqueLines output_lines(
