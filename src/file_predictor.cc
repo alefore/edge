@@ -504,10 +504,11 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                           .pattern_suffix = path_input.Substring(
                               ColumnNumber{} +
                               descend_results.valid_prefix_length),
-                          .path_prefix = options.output_path_expansion ==
-                                                 OutputPathExpansion::Absolute
-                                             ? ToLazyString(match.path_full)
-                                             : match.path_pattern,
+                          .path_prefix =
+                              options.output_format ==
+                                      FilePredictorOutputFormat::Input
+                                  ? match.path_pattern
+                                  : ToLazyString(match.path_full),
                           .pattern_prefix_size =
                               descend_results.valid_prefix_length,
                           .abort_value = abort_value,

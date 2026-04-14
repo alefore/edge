@@ -898,7 +898,8 @@ void OpenBuffer::AppendLines(
         file_predictor = GetFilePredictor(FilePredictorOptions{
             .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch,
             .open_file_position_suffix_mode =
-                open_file_position::SuffixMode::Allow});
+                open_file_position::SuffixMode::Allow,
+            .output_format = FilePredictorOutputFormat::SearchPathAndInput});
     for (LineNumberDelta i; i < lines_added; ++i) {
       LineNumber source_line = LineNumber{} + start_new_section + i;
       file_predictor(
