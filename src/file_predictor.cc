@@ -47,6 +47,7 @@ using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
+using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
@@ -384,35 +385,40 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
 }
 
 futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
-  auto search_paths = MakeNonNullShared<std::vector<Path>>(
-      std::vector<Path>({Path::LocalDirectory()}));
-
-  auto paths = editor_state.edge_path();
-  return futures::ForEachWithCopy(
-             paths.begin(), paths.end(),
-             [&editor_state, search_paths](Path edge_path) {
+  return UnwrapVectorFuture(
+             editor_state.edge_path() |
+             std::views::transform([&editor_state](Path edge_path) {
                return GetSearchPathsBuffer(editor_state, edge_path)
-                   .Transform([&editor_state, search_paths,
-                               edge_path](gc::Root<OpenBuffer> buffer) {
-                     std::ranges::copy(
-                         buffer->contents().snapshot() |
-                             std::views::transform([](const Line& line) {
-                               return Path::New(line.contents().read());
-                             }) |
-                             language::view::SkipErrors |
-                             std::views::transform(
-                                 [&editor_state](const Path& path) {
-                                   return editor_state.expand_path(path);
-                                 }),
-                         std::back_inserter(search_paths.value()));
-                     return futures::IterationControlCommand::kContinue;
+                   .Transform([&editor_state](gc::Root<OpenBuffer> buffer)
+                                  -> std::vector<Path> {
+                     return buffer->contents().snapshot() |
+                            std::views::transform([](const Line& line) {
+                              return Path::New(line.contents().read());
+                            }) |
+                            language::view::SkipErrors |
+                            std::views::transform([&editor_state](
+                                                      const Path& path) {
+                              return editor_state.expand_path(path).Resolve();
+                            }) |
+                            SkipErrors | std::views::transform([](Path path) {
+                              return path.Resolve();
+                            }) |
+                            language::view::SkipErrors |
+                            std::ranges::to<std::vector<Path>>();
                    });
-             })
-      .Transform([search_paths](futures::IterationControlCommand) mutable {
-        LOG(INFO) << "Got search paths: " << search_paths->size();
-        std::ranges::for_each(search_paths.value(),
-                              [](Path path) { LOG(INFO) << "Path: " << path; });
-        return std::move(search_paths.value());
+             }) |
+             std::ranges::to<std::vector>())
+      .Transform([](std::vector<std::vector<Path>> paths) {
+        Path local_resolved_path =
+            std::optional<Path>(OptionalFrom(Path::LocalDirectory().Resolve()))
+                .value_or(Path::LocalDirectory());
+        std::vector<Path> output = {local_resolved_path};
+        std::unordered_set<Path> seen =
+            output | std::ranges::to<std::unordered_set>();
+        std::ranges::for_each(paths | std::views::join, [&](Path path) {
+          if (seen.insert(path).second) output.push_back(std::move(path));
+        });
+        return output;
       });
 }
 
