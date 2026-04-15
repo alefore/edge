@@ -520,6 +520,41 @@ Pool::Eden::Eden(size_t bag_shards,
       consecutive_unfinished_collect_calls(
           input_consecutive_unfinished_collect_calls) {}
 
+std::ostream& operator<<(std::ostream& os, const Pool& pool) {
+  os << "[Pool: <objects: " << pool.count_objects() << "> "
+     << *pool.eden_.lock() << "; " << *pool.data_.lock() << "]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Pool::Eden& eden) {
+  os << "[Eden: <metadata: " << eden.object_metadata.size()
+     << "> <roots: " << eden.roots.size() << "> <expansion_schedule: ";
+  if (eden.expansion_schedule.has_value())
+    os << eden.expansion_schedule->size();
+  else
+    os << "absent";
+  os << "> <consecutive_unfinished_calls: "
+     << eden.consecutive_unfinished_collect_calls << ">]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Pool::Data& data) {
+  os << "[Data: <object_metadata_list:";
+  if (data.object_metadata_list.empty())
+    os << "empty";
+  else
+    for (const ObjectMetadataBag& bag : data.object_metadata_list)
+      os << " " << bag.size();
+  os << "> <roots_list:";
+  if (data.roots_list.empty())
+    os << "empty";
+  else
+    for (const ObjectMetadataBag& bag : data.roots_list)
+      os << " " << bag.size();
+  os << "> <expansion_schedule: " << data.expansion_schedule.size() << ">]";
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os,
                          const Pool::FullCollectStats& stats) {
   os << "[roots: " << stats.roots << ", begin_total: " << stats.begin_total

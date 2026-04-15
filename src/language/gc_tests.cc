@@ -24,6 +24,7 @@ using afc::tests::concurrent::TestFlows;
 namespace afc::language::gc {
 namespace {
 struct Node {
+  Node() { VLOG(6) << "Node created: " << this; }
   ~Node() { VLOG(5) << "Deleting Node: " << this; }
   std::vector<gc::Ptr<Node>> children;
   DeleteNotification delete_notification;
@@ -117,12 +118,16 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             // ✨ RootAssignmentReleasesOld
-            gc::Pool pool({});
+            gc::Pool pool(Pool::Options{.max_bag_shards = 2});
+            LOG(INFO) << "Test starts.";
             gc::Root<Node> root_0 = pool.NewRoot(MakeNonNullUnique<Node>());
             DeleteNotification::Value delete_notification_0 =
-                root_0.ptr()->delete_notification.listenable_value();
+                root_0->delete_notification.listenable_value();
+            LOG(INFO) << pool;
             gc::Root<Node> root_1 = pool.NewRoot(MakeNonNullUnique<Node>());
+            LOG(INFO) << pool;
             root_0 = std::move(root_1);
+            LOG(INFO) << pool;
             CHECK(delete_notification_0.has_value());
             // ✨
           }},

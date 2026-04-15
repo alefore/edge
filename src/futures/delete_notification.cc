@@ -15,6 +15,7 @@ DeleteNotification::DeleteNotification()
     : DeleteNotification(futures::Future<EmptyValue>()) {}
 
 DeleteNotification::~DeleteNotification() {
+  VLOG(4) << "Delete notification: Signal deletion.";
   std::move(consumer_)(EmptyValue());
 }
 

@@ -210,9 +210,10 @@ class Pool {
     // generating the set of references from an object, may take significantly
     // longer, or because we deliberately increase the threshold as collections
     // keep getting interrupted (in order to ensure that we make progress).
-    std::optional<afc::infrastructure::Duration> collect_duration_threshold;
+    std::optional<afc::infrastructure::Duration> collect_duration_threshold =
+        std::nullopt;
 
-    std::shared_ptr<concurrent::OperationFactory> operation_factory;
+    std::shared_ptr<concurrent::OperationFactory> operation_factory = nullptr;
 
     size_t max_bag_shards = 64;
   };
@@ -256,6 +257,8 @@ class Pool {
 
   using RootRegistration = std::shared_ptr<bool>;
 
+  friend std::ostream& operator<<(std::ostream& os, const Pool& stats);
+
  private:
   template <typename T>
   friend class Root;
@@ -298,6 +301,7 @@ class Pool {
     // threshold dynamically.
     size_t consecutive_unfinished_collect_calls;
   };
+  friend std::ostream& operator<<(std::ostream& os, const Eden& eden);
 
   // Data holds all the information of objects that have survived a collection.
   // This should only be locked by `Collect` (and may be held for a long
@@ -318,6 +322,7 @@ class Pool {
     // from here (marking them as already expanded).
     concurrent::Bag<ObjectExpandVector> expansion_schedule;
   };
+  friend std::ostream& operator<<(std::ostream& os, const Data& data);
 
   // Moves objects from `eden` into `data`.
   //
