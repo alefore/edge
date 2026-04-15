@@ -1,1 +1,0 @@
-^(\.|(rc|src)|rc/(hooks|editor_commands)/.*|(src|rc)/[a-z_/]*\.(dm.)?(css|js|html|py|cc|h|y)|[A-Za-z].md)$
