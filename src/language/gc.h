@@ -537,9 +537,8 @@ class Root {
   template <typename U>
   Root<T>& operator=(Root<U>&& other) {
     CHECK(this != &other);
-    std::swap(ptr_.value_, other.ptr_.value_);
-    std::swap(ptr_.object_metadata_, other.ptr_.object_metadata_);
-    std::swap(registration_, other.registration_);
+    ptr_ = std::move(other.ptr_);
+    registration_ = std::move(other.registration_);
     return *this;
   }
 
