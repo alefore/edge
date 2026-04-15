@@ -323,15 +323,20 @@ class FindCompletionCommand : public Command {
   EditorState& editor_state_;
 };
 
-std::unique_ptr<MutableLineSequence, std::function<void(MutableLineSequence*)>>
+NonNull<std::unique_ptr<MutableLineSequence,
+                        std::function<void(MutableLineSequence*)>>>
 NewInsertion(EditorState& editor) {
-  return std::unique_ptr<MutableLineSequence,
-                         std::function<void(MutableLineSequence*)>>(
-      new MutableLineSequence(), [&editor](MutableLineSequence* value) {
-        CHECK(value != nullptr);
-        editor.insert_history().Append(value->snapshot());
-        delete value;
-      });
+  VLOG(4) << "Creating new insertion.";
+  return NonNull<std::unique_ptr<MutableLineSequence,
+                                 std::function<void(MutableLineSequence*)>>>::
+      Unsafe(std::unique_ptr<MutableLineSequence,
+                             std::function<void(MutableLineSequence*)>>(
+          new MutableLineSequence(), [&editor](MutableLineSequence* value) {
+            VLOG(4) << "Insertion is being added to history.";
+            CHECK(value != nullptr);
+            editor.insert_history().Append(value->snapshot());
+            delete value;
+          }));
 }
 
 futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
@@ -370,8 +375,8 @@ class InsertMode : public InputReceiver {
   NonNull<std::unique_ptr<DeleteNotification>>
       scroll_behavior_abort_notification_;
 
-  std::unique_ptr<MutableLineSequence,
-                  std::function<void(MutableLineSequence*)>>
+  NonNull<std::unique_ptr<MutableLineSequence,
+                          std::function<void(MutableLineSequence*)>>>
       current_insertion_;
 
   NonNull<std::shared_ptr<DictionaryManager>> completion_model_supplier_;
@@ -593,6 +598,10 @@ class InsertMode : public InputReceiver {
         ResetScrollBehavior();
         if (!old_literal) {
           bool started_completion = false;
+          // TODO(P1, tricky, 2026-04-16): `start_completion` may trigger that
+          // we get deleted (if it creates a new buffer, by calling Editor::
+          // AddBuffer, which calls Editor::set_keyboard_redirect). It would be
+          // good to make sure we don't crash when this happens.
           ForEachActiveBuffer(
               buffers_, L"",
               [options = options_, &started_completion](OpenBuffer& buffer) {
@@ -604,6 +613,7 @@ class InsertMode : public InputReceiver {
             // Whatever was being typed, was probably just for completion
             // purposes; we might as well not let it be added to the history (so
             // as to not pollute it).
+            VLOG(5) << "Cleaning up current_insertion_.";
             current_insertion_->DeleteToLineEnd(LineColumn());
             return 1;
           }
