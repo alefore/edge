@@ -162,6 +162,9 @@ class OpenBuffer {
 
   // If the buffer was already read (fd_ == -1), this is immediately notified.
   // Otherwise, it'll be notified when the buffer is done being read.
+  //
+  // TODO(Trivial, P2, 2026-04-15): Maybe it's more useful to return a root to
+  // this buffer. That appears to be what the vast majority of customers want.
   futures::Value<language::EmptyValue> WaitForEndOfFile();
 
   bool IsClosed() const;
