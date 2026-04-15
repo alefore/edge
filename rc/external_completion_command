@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# TODO(P1, 2026-04-16, interesting): Replace this with code that calls into
+# Duende to produce a call to Gemini to expand text in the current file.
+# This is just a proof-of-concept for now.
+
+cat <<EOF
+TransformationOutput()
+    .push(InsertTransformationBuilder().set_text("foo").build());
+EOF
