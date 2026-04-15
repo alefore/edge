@@ -252,6 +252,7 @@ void DefineSortLinesByKey(
     gc::Pool& pool, gc::Root<ObjectType>& buffer_object_type,
     vm::Type vm_type_key,
     std::function<ValueOrError<KeyType>(const vm::Value&)> get_key) {
+  using ICC = futures::IterationControlCommand;
   buffer_object_type.ptr()->AddField(
       IDENTIFIER_CONSTANT(L"SortLinesByKey"),
       vm::Value::NewFunction(
@@ -302,26 +303,20 @@ void DefineSortLinesByKey(
                                                numbers::Number::FromSizeT(
                                                    line_number.read()))},
                                            data->trampoline)
-                             .Transform(
-                                 [data, get_key,
-                                  line_number](gc::Root<vm::Value> output)
-                                     -> ValueOrError<
-                                         futures::IterationControlCommand> {
-                                   Line line =
-                                       data->buffer->contents().at(line_number);
-                                   ASSIGN_OR_RETURN(
-                                       auto key_value,
-                                       get_key(output.ptr().value()));
-                                   data->keys.insert(
-                                       {line.contents().read(), key_value});
-                                   return Success(
-                                       futures::IterationControlCommand::
-                                           kContinue);
-                                 })
+                             .Transform([data, get_key, line_number](
+                                            gc::Root<vm::Value> output)
+                                            -> ValueOrError<ICC> {
+                               Line line =
+                                   data->buffer->contents().at(line_number);
+                               ASSIGN_OR_RETURN(auto key_value,
+                                                get_key(output.ptr().value()));
+                               data->keys.insert(
+                                   {line.contents().read(), key_value});
+                               return ICC::kContinue;
+                             })
                              .ConsumeErrors([data](Error error_input) {
                                data->possible_error = error_input;
-                               return futures::Past(
-                                   futures::IterationControlCommand::kStop);
+                               return ICC::kStop;
                              });
                        })
                 .Transform([data,
@@ -331,7 +326,8 @@ void DefineSortLinesByKey(
                           [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
                             return error;
                           },
-                          [data, boundaries](EmptyValue) {
+                          [data, boundaries](
+                              EmptyValue) -> ValueOrError<gc::Root<vm::Value>> {
                             data->buffer->SortContents(
                                 boundaries.first, boundaries.second,
                                 [data](const Line& a, const Line& b) {
@@ -343,8 +339,7 @@ void DefineSortLinesByKey(
                                   CHECK(it_b != data->keys.end());
                                   return it_a->second < it_b->second;
                                 });
-                            return Success(
-                                vm::Value::NewVoid(data->trampoline.pool()));
+                            return vm::Value::NewVoid(data->trampoline.pool());
                           }},
                       data->possible_error);
                 });
@@ -381,15 +376,16 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
            ++data->line;
            return data->callback.ptr()
                ->RunFunction(std::move(args), data->trampoline)
-               .Transform([data](gc::Root<vm::Value>) {
-                 return futures::Past(ValueOrError<ICC>(ICC::kContinue));
-               })
-               .ConsumeErrors([data](Error error) {
+               .Transform(
+                   [data](gc::Root<vm::Value>) -> futures::ValueOrError<ICC> {
+                     return ICC::kContinue;
+                   })
+               .ConsumeErrors([data](Error error) -> futures::Value<ICC> {
                  data->output = error;
-                 return futures::Past(ICC::kStop);
+                 return ICC::kStop;
                });
          })
-      .Transform([data](ICC) { return futures::Past(data->output); });
+      .Transform([data](ICC) { return data->output; });
 }
 }  // namespace
 
@@ -797,7 +793,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             buffer->AddLineProcessor(key, [buffer,
                                            callback = std::move(args[2])](
                                               LineProcessorInput input) {
-              return Success(LineProcessorOutputFuture{
+              return LineProcessorOutputFuture{
                   .initial_value =
                       LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
                   .value =
@@ -824,7 +820,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                 SINGLE_LINE_CONSTANT(L"E: ") +
                                 LineSequence::BreakLines(error.read())
                                     .FoldLines()));
-                          })});
+                          })};
             });
             return futures::Past(vm::Value::NewVoid(pool));
           })
