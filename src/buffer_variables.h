@@ -77,6 +77,8 @@ extern EdgeVariable<language::lazy_string::LazyString>* const
     identifier_behavior;
 extern EdgeVariable<language::lazy_string::LazyString>* const
     completion_model_paths;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    external_completion_command;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;

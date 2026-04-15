@@ -647,6 +647,15 @@ EdgeVariable<LazyString>* const completion_model_paths =
          .DefaultValue(LazyString{L"iso-639/en"})
          .Build();
 
+EdgeVariable<LazyString>* const external_completion_command =
+    &StringStruct()
+         ->Add()
+         .Name(L"external_completion_command")
+         .Description(
+             L"Path to binary for external completion. Relative to Edge home.")
+         .DefaultValue(LazyString{L"external_completion_command"})
+         .Build();
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;
