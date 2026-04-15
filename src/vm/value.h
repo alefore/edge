@@ -89,6 +89,7 @@ class Value {
   bool IsSymbol() const;
   bool IsFunction() const;
   bool IsObject() const;
+  bool IsObjectType(const types::ObjectName& expected_type) const;
 
   bool get_bool() const;
   language::ValueOrError<int32_t> get_int32() const;

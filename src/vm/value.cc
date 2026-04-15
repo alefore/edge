@@ -113,6 +113,10 @@ bool Value::IsFunction() const {
 bool Value::IsObject() const {
   return std::holds_alternative<types::ObjectName>(type_);
 }
+bool Value::IsObjectType(const types::ObjectName& expected_type) const {
+  auto* object_name = std::get_if<types::ObjectName>(&type_);
+  return object_name && *object_name == expected_type;
+}
 
 bool Value::get_bool() const {
   CHECK(IsBool());
