@@ -86,7 +86,7 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
         std::holds_alternative<Spec>(position_candidate))
       return std::get<Spec>(position_candidate);
   }
-  LOG(INFO) << "Invalid parse: " << path_suffix;
+  VLOG(4) << "Invalid parse: " << path_suffix;
   return path_suffix.empty() || (suffix_mode == SuffixMode::Allow &&
                                  !iswalnum(path_suffix.get(ColumnNumber{0})) &&
                                  path_suffix.get(ColumnNumber{0}) != L'/')
