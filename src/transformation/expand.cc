@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
 #include "src/predictor.h"
+#include "src/run_command_handler.h"
 #include "src/run_cpp_command.h"
 #include "src/tests/tests.h"
 #include "src/transformation/composite.h"
@@ -182,7 +183,72 @@ class InsertHistoryTransformation : public CompositeTransformation {
   const InsertHistory::SearchOptions search_options_;
 };
 
-namespace {
+class ExternalCompletion : public CompositeTransformation {
+  const LazyString trigger_;
+
+ public:
+  ExternalCompletion(LazyString trigger) : trigger_(trigger) {}
+
+  std::wstring Serialize() const override {
+    return L"ExternalCompletionTransformation";
+  }
+
+  futures::Value<Output> Apply(Input input) const override {
+    VLOG(5) << "ExternalCompletionTransformation starts";
+    ValueOrError<Path> command_path_or_error = Path::New(
+        input.buffer.Read(buffer_variables::external_completion_command));
+    if (IsError(command_path_or_error)) {
+      input.buffer.status().InsertError(
+          AugmentError(LazyString{L"external_completion_command"},
+                       std::get<Error>(command_path_or_error)));
+      return Output{};
+    }
+    Path command_path =
+        Path::Join(input.buffer.editor().edge_path()[0],
+                   ValueOrDie(std::move(command_path_or_error)));
+    LOG(INFO) << "ExternalCompletionTransformation: " << command_path;
+    gc::Root<OpenBuffer> buffer = ForkCommand(
+        input.buffer.editor(),
+        ForkCommandOptions{
+            .command = ToLazyString(command_path),
+            .environment = {{L"EDGE_TRIGGER", trigger_}},
+            .insertion_type = BuffersList::AddBufferType::kIgnore,
+            .existing_buffer_behavior =
+                ForkCommandOptions::ExistingBufferBehavior::kIgnore});
+    buffer->Set(buffer_variables::allow_dirty_delete, true);
+    LOG(INFO) << "Buffer created.";
+    return buffer->WaitForEndOfFile()
+        .Transform(
+            [buffer,
+             execution_context = input.buffer.execution_context().ToRoot()](
+                EmptyValue) -> futures::ValueOrError<gc::Root<vm::Value>> {
+              VLOG(5) << "Got EOF.";
+              // TODO(2026-04-15, easy): First compile, then validate type, only
+              // then execute.
+              return execution_context->EvaluateString(
+                  buffer->contents().snapshot().ToLazyString());
+            })
+        .Transform([buffer](gc::Root<vm::Value> value) -> ValueOrError<Output> {
+          LOG(INFO) << "Evaluation finished: "
+                    << vm::ToSingleLine(value->type());
+          using TypeMapper = vm::VMTypeMapper<
+              NonNull<std::shared_ptr<CompositeTransformation>>>;
+          if (!value->IsObjectType(TypeMapper::object_type_name)) {
+            Error error{LazyString{L"Expression produced unexpected type: "} +
+                        vm::ToSingleLine(value->type()) +
+                        LazyString{L". Expected: "} +
+                        TypeMapper::object_type_name};
+            LOG(INFO) << error;
+            return error;
+          }
+          // TODO(2026-04-16, tricky): This is lame, we shouldn't be moving out
+          // of it, because it may be shared.
+          return std::move(TypeMapper::get(value.value()).value());
+        })
+        .ConsumeErrors([](Error) { return Output{}; });
+  }
+};
+
 bool predictor_transformation_tests_register = tests::Register(
     L"PredictorTransformation",
     {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
@@ -205,7 +271,6 @@ bool predictor_transformation_tests_register = tests::Register(
                                 SortedLineSequence(LineSequence()))});
         CHECK(final_value.has_value());
       }}});
-}  // namespace
 
 using OpenFileCallback =
     std::function<futures::ValueOrError<gc::Root<OpenBuffer>>(
@@ -326,7 +391,7 @@ class ExpandTransformation : public CompositeTransformation {
 
     auto output = std::make_shared<Output>();
     auto line = input.buffer.LineAt(input.position.line);
-    auto c = line->get(input.position.column.previous());
+    wchar_t c = line->get(input.position.column.previous());
     futures::Value<std::unique_ptr<CompositeTransformation>>
         transformation_future = nullptr;
     switch (c) {
@@ -398,6 +463,12 @@ class ExpandTransformation : public CompositeTransformation {
         SingleLine query = GetToken(input, buffer_variables::path_characters);
         transformation_future = std::make_unique<InsertHistoryTransformation>(
             DeleteLastCharacters(query.size() + ColumnNumberDelta(1)), query);
+      } break;
+      case '1': {
+        output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
+        transformation_future = std::make_unique<ExternalCompletion>(
+            LazyString{ColumnNumberDelta{1}, c});
+        break;
       }
     }
     return std::move(transformation_future)
