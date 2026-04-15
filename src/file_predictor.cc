@@ -277,7 +277,7 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
   std::optional<ofp::Spec> spec = ofp::Parse(
       remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
-    LOG(INFO) << "open_file_position didn't allow match: " << remaining_suffix;
+    VLOG(5) << "open_file_position didn't allow match: " << remaining_suffix;
     return false;
   }
   input.predictor_output.found_exact_match |= match_type == MatchType::kExact;
