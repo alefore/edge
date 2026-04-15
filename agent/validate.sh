@@ -1,2 +1,7 @@
 #!/usr/bin/bash
-make -j $(nproc) && ./edge --tests=run
+set -e
+make -j $(nproc)
+if [ -z "$EDGE_SKIP_TESTS" ]; then
+  echo "Running tests."
+  ./edge --tests=run
+fi
