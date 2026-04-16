@@ -114,13 +114,6 @@ EnvironmentIdentifierTable::Expand() const {
   });
 }
 
-// TODO(easy, 2022-12-03): Get rid of this? Now that we have GC, shouldn't be
-// needed.
-void Environment::Clear() {
-  object_types_.clear();
-  data_.lock([](Data& data) { data.table.clear(); });
-}
-
 std::optional<gc::Ptr<Environment>> Environment::parent_environment() const {
   return parent_environment_;
 }

@@ -101,10 +101,6 @@ class Environment {
   static std::optional<language::gc::Root<Environment>> LookupNamespace(
       language::gc::Ptr<Environment> source, const Namespace& name);
 
-  // TODO: Implement proper garbage collection for the environment and get rid
-  // of this method.
-  void Clear();
-
   std::optional<language::gc::Ptr<Environment>> parent_environment() const;
 
   const ObjectType* LookupObjectType(const types::ObjectName& symbol) const;
