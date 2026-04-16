@@ -6,6 +6,7 @@
 #include "src/status.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/function_call.h"
+#include "src/vm/natural.h"
 #include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
@@ -23,7 +24,9 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
+using afc::vm::Namespace;
 
 namespace afc::editor {
 /* static */ gc::Root<ExecutionContext> ExecutionContext::New(
@@ -157,21 +160,24 @@ ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
   TRACK_OPERATION(ExecutionContext_CompileString);
   gc::Root<vm::Environment> sub_environment =
       vm::Environment::New(environment_);
-  return std::visit(
-      overload{[sub_environment,
-                work_queue = work_queue()](gc::Root<vm::Expression> expression)
-                   -> ValueOrError<gc::Root<CompilationResult>> {
-                 return CompilationResult::New(std::move(expression).ptr(),
-                                               sub_environment.ptr(),
-                                               work_queue);
-               },
-               [weak_status = status_, error_handling](
-                   Error error) -> ValueOrError<gc::Root<CompilationResult>> {
-                 return RegisterCompilationError(
-                     weak_status, LazyString{L"🐜Compilation error"}, error,
-                     error_handling);
-               }},
-      afc::vm::CompileString(code, sub_environment.ptr()));
+  return HandleCompilationResultOrError(
+      sub_environment, afc::vm::CompileString(code, sub_environment.ptr()),
+      error_handling);
+}
+
+ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
+ExecutionContext::CompileNatural(
+    const SingleLine& input, const SingleLine& function_name_prefix,
+    const std::vector<Namespace>& search_namespaces,
+    ErrorHandling error_handling) {
+  gc::Root<vm::Environment> sub_environment =
+      vm::Environment::New(environment_);
+  return HandleCompilationResultOrError(
+      sub_environment,
+      afc::vm::natural::Compile(input, function_name_prefix,
+                                sub_environment.value(), search_namespaces,
+                                environment_.pool()),
+      error_handling);
 }
 
 ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
@@ -211,5 +217,27 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 ExecutionContext::Expand() const {
   return {environment_.object_metadata()};
+}
+
+language::ValueOrError<language::gc::Root<ExecutionContext::CompilationResult>>
+ExecutionContext::HandleCompilationResultOrError(
+    gc::Root<vm::Environment> sub_environment,
+    ValueOrError<gc::Root<vm::Expression>> expression,
+    ErrorHandling error_handling) {
+  return std::visit(
+      overload{
+          [sub_environment,
+           work_queue = work_queue()](gc::Root<vm::Expression> expression_value)
+              -> ValueOrError<gc::Root<CompilationResult>> {
+            return CompilationResult::New(std::move(expression_value).ptr(),
+                                          sub_environment.ptr(), work_queue);
+          },
+          [weak_status = status_, error_handling](
+              Error error) -> ValueOrError<gc::Root<CompilationResult>> {
+            return RegisterCompilationError(weak_status,
+                                            LazyString{L"🐜Compilation error"},
+                                            error, error_handling);
+          }},
+      expression);
 }
 }  // namespace afc::editor

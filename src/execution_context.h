@@ -8,6 +8,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
@@ -74,6 +75,7 @@ class ExecutionContext {
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       infrastructure::Path path);
 
+  // TODO(trivial, 2026-04-16): Turn into enum class.
   enum ErrorHandling { kIgnore, kLogToStatus };
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
@@ -84,6 +86,12 @@ class ExecutionContext {
       language::lazy_string::LazyString,
       ErrorHandling error_handling = kLogToStatus);
 
+  language::ValueOrError<language::gc::Root<CompilationResult>> CompileNatural(
+      const language::lazy_string::SingleLine& input,
+      const language::lazy_string::SingleLine& function_name_prefix,
+      const std::vector<vm::Namespace>& search_namespaces,
+      ErrorHandling error_handling = kLogToStatus);
+
   // Returns an function that, when run, is equivalent to running a given vm
   // function with some arguments.
   language::ValueOrError<language::gc::Root<CompilationResult>> FunctionCall(
@@ -92,6 +100,13 @@ class ExecutionContext {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
+
+ private:
+  language::ValueOrError<language::gc::Root<CompilationResult>>
+  HandleCompilationResultOrError(
+      language::gc::Root<vm::Environment> sub_environment,
+      language::ValueOrError<language::gc::Root<vm::Expression>> expression,
+      ErrorHandling error_handling);
 };
 }  // namespace afc::editor
 #endif
