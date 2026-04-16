@@ -163,9 +163,9 @@ class OpenBuffer {
   // If the buffer was already read (fd_ == -1), this is immediately notified.
   // Otherwise, it'll be notified when the buffer is done being read.
   //
-  // TODO(Trivial, P2, 2026-04-15): Maybe it's more useful to return a root to
-  // this buffer. That appears to be what the vast majority of customers want.
-  futures::Value<language::EmptyValue> WaitForEndOfFile();
+  // For convenience, returns a root to the buffer (which is what most customers
+  // actually need).
+  futures::Value<language::gc::Root<OpenBuffer>> WaitForEndOfFile();
 
   bool IsClosed() const;
   futures::Value<language::EmptyValue> NewCloseFuture();
@@ -687,6 +687,8 @@ class OpenBuffer {
   // This isn't a Root because otherwise buffers would never be deallocated; it
   // also isn't a WeakPtr because ... if it is being accessed, we know the
   // containing object /must/ be alive.
+  //
+  // TODO(2026-04-16, easy): Probably can be replaced with EnableRootFromThis.
   std::optional<language::gc::Ptr<OpenBuffer>> ptr_this_;
   // Self-reference. This is used for buffers that want to make sure they are
   // explicitly closed (through OpenBuffer::Close) before they can be collected.

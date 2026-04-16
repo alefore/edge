@@ -396,8 +396,10 @@ futures::Value<LineSequence> GetSearchPathsBuffer(EditorState& editor_state,
              },
              editor_state.buffer_registry().Find(buffer_name))
       .Transform([](gc::Root<OpenBuffer> buffer) {
-        return buffer->WaitForEndOfFile().Transform(
-            [buffer](EmptyValue) { return buffer->contents().snapshot(); });
+        return buffer->WaitForEndOfFile();
+      })
+      .Transform([](gc::Root<OpenBuffer> buffer) {
+        return buffer->contents().snapshot();
       });
 }
 

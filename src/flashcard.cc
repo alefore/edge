@@ -112,41 +112,39 @@ class FlashcardReviewLog {
                    .editor_state = editor,
                    .path = review_log_path,
                    .insertion_type = BuffersList::AddBufferType::kIgnore})
-        .Transform([answer](gc::Root<OpenBuffer> buffer) {
+        .Transform([](gc::Root<OpenBuffer> buffer) {
           buffer->Set(buffer_variables::save_on_close, true);
-          return buffer->WaitForEndOfFile().Transform(
-              [buffer, answer](
-                  EmptyValue) -> ValueOrError<gc::Root<FlashcardReviewLog>> {
-                DECLARE_OR_RETURN(
-                    FileTags file_tags,
-                    std::visit(
-                        overload{
-                            [](FileTags file_tags) -> ValueOrError<FileTags> {
-                              return file_tags;
-                            },
-                            [buffer,
-                             answer](Error error) -> ValueOrError<FileTags> {
-                              if (buffer->contents().snapshot() ==
-                                  LineSequence{}) {
-                                buffer->InsertInPosition(
-                                    DefaultReviewLogBufferContents(answer),
-                                    LineColumn{}, std::nullopt);
-                                return FileTags::New(buffer.ptr());
-                              } else {
-                                Error augmented_error = AugmentError(
-                                    buffer->Read(buffer_variables::path) +
-                                        LazyString{L": Unable to parse "
-                                                   L"non-empty file"},
-                                    error);
-                                LOG(INFO) << augmented_error;
-                                return augmented_error;
-                              }
-                            }},
-                        FileTags::New(buffer.ptr())));
-                return buffer->editor().gc_pool().NewRoot(
-                    MakeNonNullUnique<FlashcardReviewLog>(
-                        buffer.ptr(), std::move(file_tags)));
-              });
+          return buffer->WaitForEndOfFile();
+        })
+        .Transform([answer](gc::Root<OpenBuffer> buffer)
+                       -> ValueOrError<gc::Root<FlashcardReviewLog>> {
+          DECLARE_OR_RETURN(
+              FileTags file_tags,
+              std::visit(
+                  overload{
+                      [](FileTags file_tags) -> ValueOrError<FileTags> {
+                        return file_tags;
+                      },
+                      [buffer, answer](Error error) -> ValueOrError<FileTags> {
+                        if (buffer->contents().snapshot() == LineSequence{}) {
+                          buffer->InsertInPosition(
+                              DefaultReviewLogBufferContents(answer),
+                              LineColumn{}, std::nullopt);
+                          return FileTags::New(buffer.ptr());
+                        } else {
+                          Error augmented_error = AugmentError(
+                              buffer->Read(buffer_variables::path) +
+                                  LazyString{L": Unable to parse "
+                                             L"non-empty file"},
+                              error);
+                          LOG(INFO) << augmented_error;
+                          return augmented_error;
+                        }
+                      }},
+                  FileTags::New(buffer.ptr())));
+          return buffer->editor().gc_pool().NewRoot(
+              MakeNonNullUnique<FlashcardReviewLog>(buffer.ptr(),
+                                                    std::move(file_tags)));
         });
   }
 

@@ -210,38 +210,39 @@ class ExternalCompletion : public CompositeTransformation {
     LOG(INFO) << "ExternalCompletionTransformation: " << command_path;
     Path data_path = input.buffer.file_system_driver()->WriteTmpFile(
         LazyString{L"external-command-input"}, GetContents(input.buffer));
-    gc::Root<OpenBuffer> buffer = ForkCommand(
-        input.buffer.editor(),
-        ForkCommandOptions{
-            .command = ToLazyString(command_path) + LazyString{L" "} +
-                       ToLazyString(data_path),
-            .environment =
-                {
-                    {L"EDGE_TRIGGER", trigger_},
-                    {L"EDGE_PATH", input.buffer.Read(buffer_variables::path)},
-                    {L"EDGE_LINE", ToLazyString(NonEmptySingleLine(
-                                       input.buffer.position().line.read()))},
-                    {L"EDGE_COLUMN",
-                     ToLazyString(NonEmptySingleLine(
-                         input.buffer.position().column.read()))},
-                },
-            .insertion_type = BuffersList::AddBufferType::kIgnore,
-            .existing_buffer_behavior =
-                ForkCommandOptions::ExistingBufferBehavior::kIgnore});
-    buffer->Set(buffer_variables::allow_dirty_delete, true);
-    LOG(INFO) << "Buffer created.";
-    return buffer->WaitForEndOfFile()
+    return ForkCommand(
+               input.buffer.editor(),
+               ForkCommandOptions{
+                   .command = ToLazyString(command_path) + LazyString{L" "} +
+                              ToLazyString(data_path),
+                   .environment =
+                       {
+                           {L"EDGE_TRIGGER", trigger_},
+                           {L"EDGE_PATH",
+                            input.buffer.Read(buffer_variables::path)},
+                           {L"EDGE_LINE",
+                            ToLazyString(NonEmptySingleLine(
+                                input.buffer.position().line.read()))},
+                           {L"EDGE_COLUMN",
+                            ToLazyString(NonEmptySingleLine(
+                                input.buffer.position().column.read()))},
+                       },
+                   .insertion_type = BuffersList::AddBufferType::kIgnore,
+                   .existing_buffer_behavior =
+                       ForkCommandOptions::ExistingBufferBehavior::kIgnore})
+        ->WaitForEndOfFile()
         .Transform(
-            [buffer,
-             execution_context = input.buffer.execution_context().ToRoot()](
-                EmptyValue) -> futures::ValueOrError<gc::Root<vm::Value>> {
+            [execution_context = input.buffer.execution_context().ToRoot()](
+                gc::Root<OpenBuffer> buffer)
+                -> futures::ValueOrError<gc::Root<vm::Value>> {
+              buffer->Set(buffer_variables::allow_dirty_delete, true);
               VLOG(5) << "Got EOF.";
               // TODO(2026-04-15, easy): First compile, then validate type, only
               // then execute.
               return execution_context->EvaluateString(
                   buffer->contents().snapshot().ToLazyString());
             })
-        .Transform([buffer, input](gc::Root<vm::Value> value)
+        .Transform([input](gc::Root<vm::Value> value)
                        -> futures::ValueOrError<Output> {
           LOG(INFO) << "Evaluation finished: "
                     << vm::ToSingleLine(value->type());
@@ -320,24 +321,25 @@ class ReadAndInsert : public CompositeTransformation {
                    .editor_state = input.buffer.editor(),
                    .path = full_path,
                    .insertion_type = BuffersList::AddBufferType::kIgnore})
-        .Transform([full_path, input = std::move(input)](
-                       gc::Root<OpenBuffer> buffer_to_insert) {
-          return buffer_to_insert->WaitForEndOfFile().Transform(
-              [buffer_to_insert,
-               input = std::move(input)](EmptyValue) -> ValueOrError<Output> {
-                Output output;
-                output.Push(transformation::Insert{
-                    .contents_to_insert =
-                        buffer_to_insert.ptr()->contents().snapshot()});
-                LineColumn position = buffer_to_insert.ptr()->position();
-                if (position.line.IsZero()) {
-                  position.column += input.position.column.ToDelta();
-                }
-                position.line += input.position.line.ToDelta();
-                output.Push(transformation::SetPosition(position));
-                return output;
-              });
+        .Transform([](gc::Root<OpenBuffer> buffer_to_insert)
+                       -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+          return buffer_to_insert->WaitForEndOfFile();
         })
+        .Transform(
+            [input = std::move(input)](
+                gc::Root<OpenBuffer> buffer_to_insert) -> ValueOrError<Output> {
+              Output output;
+              output.Push(transformation::Insert{
+                  .contents_to_insert =
+                      buffer_to_insert.ptr()->contents().snapshot()});
+              LineColumn position = buffer_to_insert.ptr()->position();
+              if (position.line.IsZero()) {
+                position.column += input.position.column.ToDelta();
+              }
+              position.line += input.position.line.ToDelta();
+              output.Push(transformation::SetPosition(position));
+              return output;
+            })
         .ConsumeErrors([full_path](Error) -> futures::Value<Output> {
           LOG(INFO) << "Unable to open file: " << full_path;
           return Output{};

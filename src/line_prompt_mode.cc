@@ -189,8 +189,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
 
   return history_buffer.ptr()
       ->WaitForEndOfFile()
-      .Transform([&editor_state, filter_buffer_root, history_buffer,
-                  abort_value, filter](EmptyValue) {
+      .Transform([&editor_state, filter_buffer_root, abort_value,
+                  filter](gc::Root<OpenBuffer> history_buffer) {
         return editor_state.thread_pool().Run(std::bind_front(
             FilterSortBuffer,
             FilterSortBufferInput{

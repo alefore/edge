@@ -574,12 +574,14 @@ void OpenBuffer::Close(CloseAccessTag) {
   std::move(close_consumer_)(EmptyValue{});
 }
 
-futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
+futures::Value<gc::Root<OpenBuffer>> OpenBuffer::WaitForEndOfFile() {
   if (fd_ == nullptr && fd_error_ == nullptr &&
       reload_state_ == ReloadState::kDone) {
-    return EmptyValue{};
+    return ptr_this_->ToRoot();
   }
-  return end_of_file_observers_.NewFuture();
+  return end_of_file_observers_.NewFuture().Transform(
+      [root = ptr_this_->ToRoot()](
+          EmptyValue) -> futures::Value<gc::Root<OpenBuffer>> { return root; });
 }
 
 bool OpenBuffer::IsClosed() const {
@@ -769,14 +771,15 @@ void OpenBuffer::UpdateTreeParser() {
                  .editor_state = editor(),
                  .path = ValueOrDie(std::move(dictionary_path)),
                  .insertion_type = BuffersList::AddBufferType::kIgnore})
-             .Transform([](gc::Root<OpenBuffer> dictionary_root) {
-               return dictionary_root->WaitForEndOfFile().Transform(
-                   [dictionary_root](EmptyValue)
-                       -> futures::ValueOrError<SortedLineSequence> {
-                     return dictionary_root->editor().thread_pool().Run(
-                         [contents = dictionary_root->contents().snapshot()] {
-                           return SortedLineSequence(contents);
-                         });
+             .Transform([](gc::Root<OpenBuffer> dictionary_root)
+                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+               return dictionary_root->WaitForEndOfFile();
+             })
+             .Transform([](gc::Root<OpenBuffer> dictionary_root)
+                            -> futures::ValueOrError<SortedLineSequence> {
+               return dictionary_root->editor().thread_pool().Run(
+                   [contents = dictionary_root->contents().snapshot()] {
+                     return SortedLineSequence(contents);
                    });
              })
              .ConsumeErrors(

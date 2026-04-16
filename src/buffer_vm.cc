@@ -734,10 +734,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       IDENTIFIER_CONSTANT(L"WaitForEndOfFile"),
       vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
-        return buffer->WaitForEndOfFile().Transform(
-            [root_buffer = buffer.ToRoot()](EmptyValue) {
-              return root_buffer;
-            });
+        return buffer->WaitForEndOfFile();
       }).ptr());
 
   environment.Define(
@@ -747,8 +744,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           [](NonNull<
               std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
                  buffers) {
-            // We ignore the return values (they are EmptyValue anyway) and just
-            // return `buffers` when the futures are all done.
+            // We ignore the return values and just return `buffers` when the
+            // futures are all done. This is simpler and more efficient than
+            // reassembling a new vector.
             return futures::UnwrapVectorFuture(
                        *buffers->lock() |
                        std::views::transform([](gc::Ptr<OpenBuffer>& buffer) {

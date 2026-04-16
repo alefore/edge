@@ -348,8 +348,10 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
                  .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::allow_dirty_delete, true);
-        return buffer->WaitForEndOfFile().Transform(
-            [buffer](EmptyValue) { return buffer->contents().snapshot(); });
+        return buffer->WaitForEndOfFile();
+      })
+      .Transform([](gc::Root<OpenBuffer> buffer) {
+        return buffer->contents().snapshot();
       });
 }
 

@@ -297,22 +297,23 @@ void ApplyPosition(gc::Root<OpenBuffer> buffer, open_file_position::Spec spec) {
       overload{
           [](const open_file_position::Default&) {},
           [&buffer](const open_file_position::Search& search) {
-            buffer->WaitForEndOfFile().Transform([buffer, search](EmptyValue) {
-              std::visit(
-                  overload{[&](std::vector<LineColumn> positions) {
-                             buffer->set_active_cursors(positions);
-                           },
-                           [&buffer](Error error) {
-                             buffer->status().SetInformationText(
-                                 Line(LineSequence::BreakLines(error.read())
-                                          .FoldLines()));
-                           }},
-                  SearchHandler(buffer->editor().modifiers().direction,
-                                SearchOptions{.search_query =
-                                                  ToSingleLine(search.read())},
-                                buffer->contents().snapshot()));
-              return EmptyValue{};
-            });
+            buffer->WaitForEndOfFile().Transform(
+                [search](gc::Root<OpenBuffer> buffer_root) {
+                  std::visit(
+                      overload{[&](std::vector<LineColumn> positions) {
+                                 buffer_root->set_active_cursors(positions);
+                               },
+                               [&buffer_root](Error error) {
+                                 buffer_root->status().SetInformationText(
+                                     Line(LineSequence::BreakLines(error.read())
+                                              .FoldLines()));
+                               }},
+                      SearchHandler(buffer_root->editor().modifiers().direction,
+                                    SearchOptions{.search_query = ToSingleLine(
+                                                      search.read())},
+                                    buffer_root->contents().snapshot()));
+                  return EmptyValue{};
+                });
           },
           [&buffer](const LineColumn& line_column) {
             buffer->set_position(line_column);
@@ -503,8 +504,7 @@ futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
                  .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([](gc::Root<OpenBuffer> buffer) {
         // Wait until we've fully evaluated buffer-reload.cc on the buffer.
-        return buffer->WaitForEndOfFile().Transform(
-            [buffer](EmptyValue) { return buffer; });
+        return buffer->WaitForEndOfFile();
       });
 }
 
@@ -560,23 +560,25 @@ class TestDriver {
       LazyString path, std::optional<LineSequence> expected_content) {
     return OpenFileIfFound(OpenFileOptions{.editor_state = editor_.value(),
                                            .path = ValueOrDie(Path::New(path))})
-        .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
-          return buffer->WaitForEndOfFile().Transform([expected_content,
-                                                       buffer](EmptyValue) {
-            buffer->contents().ForEach(
-                [](std::wstring line) { LOG(INFO) << "Read line: " << line; });
-            if (expected_content.has_value()) {
-              LOG(INFO) << "Validating, length: " << expected_content->size();
-              CHECK_EQ(buffer->lines_size(), expected_content->size());
-              CHECK(buffer->contents().snapshot().EveryLine(
-                  [expected_content](LineNumber i, const Line& line) {
-                    CHECK_EQ(line.contents().ToBytes(),
-                             expected_content->at(i).contents().ToBytes());
-                    return true;
-                  }));
-            }
-            return futures::Past(Success(buffer));
-          });
+        .Transform([expected_content](gc::Root<OpenBuffer> buffer)
+                       -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+          return buffer->WaitForEndOfFile();
+        })
+        .Transform([expected_content](gc::Root<OpenBuffer> buffer)
+                       -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+          buffer->contents().ForEach(
+              [](std::wstring line) { LOG(INFO) << "Read line: " << line; });
+          if (expected_content.has_value()) {
+            LOG(INFO) << "Validating, length: " << expected_content->size();
+            CHECK_EQ(buffer->lines_size(), expected_content->size());
+            CHECK(buffer->contents().snapshot().EveryLine(
+                [expected_content](LineNumber i, const Line& line) {
+                  CHECK_EQ(line.contents().ToBytes(),
+                           expected_content->at(i).contents().ToBytes());
+                  return true;
+                }));
+          }
+          return buffer;
         });
   }
 

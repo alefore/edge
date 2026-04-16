@@ -200,9 +200,8 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
       IDENTIFIER_CONSTANT(L"FileTags"),
       vm::NewCallback(
           pool, vm::kPurityTypePure, [&pool](gc::Ptr<OpenBuffer> buffer) {
-            return buffer->WaitForEndOfFile().Transform([root_buffer =
-                                                             buffer.ToRoot()](
-                                                            EmptyValue) {
+            return buffer->WaitForEndOfFile().Transform([](gc::Root<OpenBuffer>
+                                                               root_buffer) {
               return std::visit(
                   overload{
                       [](FileTags value)
@@ -278,28 +277,23 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
                                     }) |
                                 std::ranges::to<std::vector>();
                        }))
-                .Transform([buffers](const auto&) {
+                .Transform([](std::vector<gc::Root<OpenBuffer>> buffers_data) {
                   return MakeNonNullShared<Protected<
                       std::vector<NonNull<std::shared_ptr<FileTags>>>>>(
                       MakeProtected<
                           std::vector<NonNull<std::shared_ptr<FileTags>>>>(
-                          buffers->lock(
-                              [](const std::vector<gc::Ptr<OpenBuffer>>&
-                                     buffers_data) {
-                                return container::MaterializeVector(
-                                    buffers_data |
-                                    std::views::transform(
-                                        [](gc::Ptr<OpenBuffer> buffer)
-                                            -> ValueOrError<NonNull<
-                                                std::shared_ptr<FileTags>>> {
-                                          DECLARE_OR_RETURN(
-                                              FileTags tags,
-                                              FileTags::New(buffer));
-                                          return MakeNonNullUnique<FileTags>(
-                                              std::move(tags));
-                                        }) |
-                                    language::view::SkipErrors);
-                              })));
+                          buffers_data |
+                          std::views::transform(
+                              [](gc::Root<OpenBuffer> buffer)
+                                  -> ValueOrError<
+                                      NonNull<std::shared_ptr<FileTags>>> {
+                                DECLARE_OR_RETURN(FileTags tags,
+                                                  FileTags::New(buffer.ptr()));
+                                return MakeNonNullUnique<FileTags>(
+                                    std::move(tags));
+                              }) |
+                          language::view::SkipErrors |
+                          std::ranges::to<std::vector>()));
                 });
           }));
 }

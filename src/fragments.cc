@@ -60,10 +60,7 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                 editor.set_current_buffer(buffer,
                                           CommandArgumentModeApplyMode::kFinal);
               }
-              return buffer->WaitForEndOfFile().Transform([buffer](EmptyValue) {
-                VLOG(6) << "Fragments buffer: EOF received.";
-                return buffer;
-              });
+              return buffer->WaitForEndOfFile();
             });
       },
       editor.buffer_registry().Find(FragmentsBuffer{}));
