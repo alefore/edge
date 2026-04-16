@@ -13,6 +13,7 @@
 #include "src/language/container.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/hash.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/lazy_value.h"
@@ -53,6 +54,7 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::fnv1a;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -69,22 +71,6 @@ using afc::math::numbers::Number;
 
 namespace afc::editor {
 namespace {
-// TODO(trivial, 2025-06-08): Move to //src/language/lazy_string.
-template <typename StringType>
-uint64_t fnv1a(const StringType& text) {
-  constexpr std::uint64_t FNV_OFFSET_BASIS = 14695981039346656037ull;
-  constexpr std::uint64_t FNV_PRIME = 1099511628211ull;
-  uint64_t hash = FNV_OFFSET_BASIS;
-  ForEachColumn(text, [&hash](ColumnNumber, wchar_t c) {
-    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&c);
-    for (std::size_t j = 0; j < sizeof(wchar_t); ++j) {
-      hash ^= static_cast<std::uint64_t>(bytes[j]);
-      hash *= FNV_PRIME;
-    }
-  });
-  return hash;
-}
-
 ValueOrError<Path> BuildReviewLogPath(Path buffer, SingleLine answer) {
   DECLARE_OR_RETURN(Path buffer_dirname, buffer.Dirname());
   DECLARE_OR_RETURN(PathComponent buffer_basename, buffer.Basename());
