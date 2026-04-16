@@ -107,10 +107,10 @@ class NewLineTransformation : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
     std::optional<Line> line = input.buffer.LineAt(input.position.line);
-    if (!line.has_value()) return futures::Past(Output());
+    if (!line.has_value()) return Output{};
     if (input.buffer.Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
-      return futures::Past(Output());
+      return Output{};
     ColumnNumber prefix_end;
     if (!input.buffer.Read(buffer_variables::paste_mode)) {
       const std::unordered_set<wchar_t> line_prefix_characters =
@@ -135,7 +135,7 @@ class NewLineTransformation : public CompositeTransformation {
     output.Push(NewDeleteSuffixSuperfluousCharacters());
     output.Push(transformation::SetPosition(
         LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
-    return futures::Past(std::move(output));
+    return output;
   }
 };
 
@@ -175,11 +175,10 @@ class TestsHelper {
 
   gc::Root<OpenBuffer> buffer_ = [this] {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
-    OpenBuffer& buffer = buffer_root.ptr().value();
-    buffer.AppendToLastLine(SINGLE_LINE_CONSTANT(L"foobarhey"));
-    buffer.AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  foxbarnowl")});
-    buffer.AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  aaaaa ")});
-    buffer.AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  alejo forero ")});
+    buffer_root->AppendToLastLine(SINGLE_LINE_CONSTANT(L"foobarhey"));
+    buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  foxbarnowl")});
+    buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  aaaaa ")});
+    buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  alejo forero ")});
     return buffer_root;
   }();
 
