@@ -34,6 +34,7 @@ using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -391,19 +392,9 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 *delete_transformation.range);
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
                              contents.ToLazyString());
-            std::wstring tmp_path = [contents] {
-              char* tmp_path_bytes = strdup("/tmp/edge-commands-XXXXXX");
-              // TODO(async, easy, 2023-08-30): Use file_system_driver.
-              // TODO(easy, 2023-08-30): Check errors.
-              int tmp_fd = mkstemp(tmp_path_bytes);
-              std::wstring tmp_path_output =
-                  FromByteString(std::string(tmp_path_bytes));
-              free(tmp_path_bytes);
-              std::string data = contents.ToLazyString().ToBytes();
-              write(tmp_fd, data.c_str(), data.size());
-              close(tmp_fd);
-              return tmp_path_output;
-            }();
+            infrastructure::Path tmp_path =
+                input.buffer.file_system_driver()->WriteTmpFile(
+                    LazyString{L"edge-commands"}, contents.ToLazyString());
             ForkCommand(
                 input.buffer.editor(),
                 ForkCommandOptions{
@@ -412,7 +403,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                             ? copy->shell->read() + LazyString{L" $EDGE_INPUT"}
                             : input.buffer.Read(
                                   buffer_variables::shell_command),
-                    .environment = {{L"EDGE_INPUT", LazyString{tmp_path}},
+                    .environment = {{L"EDGE_INPUT", ToLazyString(tmp_path)},
                                     {L"EDGE_PARENT_BUFFER_PATH",
                                      input.buffer.Read(
                                          buffer_variables::path)}},
