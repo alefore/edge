@@ -136,15 +136,15 @@ Pool::~Pool() {
   std::optional<size_t> end_total;
   while (true) {
     gc::Pool::FullCollectStats stats = FullCollect();
+    LOG(INFO) << "Down to objects: " << stats.end_total;
     if (end_total == stats.end_total) break;
     end_total = stats.end_total;
   }
 
   data_.lock([](const Data& data) {
     CHECK(data.expansion_schedule.empty());
-    // TODO(gc, 2022-12-08): Enable this validation.
     LOG(INFO) << "Roots list size: " << data.roots_list.size();
-    // CHECK(data.roots_list.empty());
+    CHECK(data.roots_list.empty());
   });
   if (root_backtrace_.has_value()) {
     size_t shown = 0;
