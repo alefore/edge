@@ -95,6 +95,9 @@ Variant OptimizeBase(
 }
 }  // namespace transformation
 
+CompositeTransformation::Output::Output(transformation::Stack input_stack)
+    : stack(std::move(input_stack)) {}
+
 CompositeTransformation::Output CompositeTransformation::Output::SetPosition(
     LineColumn position) {
   return Output(transformation::SetPosition(position));
@@ -115,6 +118,10 @@ CompositeTransformation::Output::Output(transformation::Variant transformation)
 void CompositeTransformation::Output::Push(
     transformation::Variant transformation) {
   stack.push_back(std::move(transformation));
+}
+
+CompositeTransformation::Output CompositeTransformation::Output::Copy() const {
+  return CompositeTransformation::Output(stack);
 }
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,

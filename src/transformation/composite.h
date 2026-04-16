@@ -42,6 +42,8 @@ class CompositeTransformation {
   };
 
   class Output {
+    Output(transformation::Stack stack);
+
    public:
     static Output SetPosition(language::text::LineColumn position);
     static Output SetColumn(language::lazy_string::ColumnNumber column);
@@ -49,6 +51,7 @@ class CompositeTransformation {
     Output(Output&&);
     Output(transformation::Variant transformation);
     void Push(transformation::Variant transformation);
+    Output Copy() const;
 
     transformation::Stack stack;
   };
@@ -82,8 +85,8 @@ Variant OptimizeBase(
 }  // namespace afc::editor
 namespace afc::vm {
 template <>
-const types::ObjectName VMTypeMapper<language::NonNull<
-    std::shared_ptr<afc::editor::CompositeTransformation>>>::object_type_name;
+const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
+    editor::CompositeTransformation::Output>>>::object_type_name;
 template <>
 const types::ObjectName VMTypeMapper<language::NonNull<
     std::shared_ptr<editor::CompositeTransformation::Input>>>::object_type_name;

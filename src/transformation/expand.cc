@@ -41,6 +41,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindLastNotOf;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
@@ -207,11 +208,23 @@ class ExternalCompletion : public CompositeTransformation {
         Path::Join(input.buffer.editor().edge_path()[0],
                    ValueOrDie(std::move(command_path_or_error)));
     LOG(INFO) << "ExternalCompletionTransformation: " << command_path;
+    Path data_path = input.buffer.file_system_driver()->WriteTmpFile(
+        LazyString{L"external-command-input"}, GetContents(input.buffer));
     gc::Root<OpenBuffer> buffer = ForkCommand(
         input.buffer.editor(),
         ForkCommandOptions{
-            .command = ToLazyString(command_path),
-            .environment = {{L"EDGE_TRIGGER", trigger_}},
+            .command = ToLazyString(command_path) + LazyString{L" "} +
+                       ToLazyString(data_path),
+            .environment =
+                {
+                    {L"EDGE_TRIGGER", trigger_},
+                    {L"EDGE_PATH", input.buffer.Read(buffer_variables::path)},
+                    {L"EDGE_LINE", ToLazyString(NonEmptySingleLine(
+                                       input.buffer.position().line.read()))},
+                    {L"EDGE_COLUMN",
+                     ToLazyString(NonEmptySingleLine(
+                         input.buffer.position().column.read()))},
+                },
             .insertion_type = BuffersList::AddBufferType::kIgnore,
             .existing_buffer_behavior =
                 ForkCommandOptions::ExistingBufferBehavior::kIgnore});
@@ -228,11 +241,12 @@ class ExternalCompletion : public CompositeTransformation {
               return execution_context->EvaluateString(
                   buffer->contents().snapshot().ToLazyString());
             })
-        .Transform([buffer](gc::Root<vm::Value> value) -> ValueOrError<Output> {
+        .Transform([buffer, input](gc::Root<vm::Value> value)
+                       -> futures::ValueOrError<Output> {
           LOG(INFO) << "Evaluation finished: "
                     << vm::ToSingleLine(value->type());
           using TypeMapper = vm::VMTypeMapper<
-              NonNull<std::shared_ptr<CompositeTransformation>>>;
+              NonNull<std::shared_ptr<CompositeTransformation::Output>>>;
           if (!value->IsObjectType(TypeMapper::object_type_name)) {
             Error error{LazyString{L"Expression produced unexpected type: "} +
                         vm::ToSingleLine(value->type()) +
@@ -241,11 +255,13 @@ class ExternalCompletion : public CompositeTransformation {
             LOG(INFO) << error;
             return error;
           }
-          // TODO(2026-04-16, tricky): This is lame, we shouldn't be moving out
-          // of it, because it may be shared.
-          return std::move(TypeMapper::get(value.value()).value());
+          return TypeMapper::get(value.value())->Copy();
         })
         .ConsumeErrors([](Error) { return Output{}; });
+  }
+
+  static LazyString GetContents(const OpenBuffer& buffer) {
+    return ToLazyString(buffer.Read(buffer_variables::path));
   }
 };
 
