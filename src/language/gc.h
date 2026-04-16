@@ -583,13 +583,13 @@ class EnableRootFromThis {
   mutable WeakPtr<T> weak_this_;
 
  public:
-  Root<T> RootFromThis() {
-    if (std::optional<Root<T>> lock = weak_this_.Lock(); lock.has_value())
+  template <typename Self>
+  auto RootFromThis(this Self&& self) {
+    if (auto lock = self.weak_this_.Lock(); lock.has_value()) {
       return std::move(lock).value();
+    }
     throw std::bad_weak_ptr();
   }
-
-  Root<const T> RootFromThis() const { return Root<const T>(weak_this_); }
 
   WeakPtr<T> WeakPtrFromThis() { return weak_this_; }
 
