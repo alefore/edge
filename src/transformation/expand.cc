@@ -208,29 +208,33 @@ class ExternalCompletion : public CompositeTransformation {
         Path::Join(input.buffer.editor().edge_path()[0],
                    ValueOrDie(std::move(command_path_or_error)));
     LOG(INFO) << "ExternalCompletionTransformation: " << command_path;
-    Path data_path = input.buffer.file_system_driver()->WriteTmpFile(
-        LazyString{L"external-command-input"}, GetContents(input.buffer));
-    return ForkCommand(
-               input.buffer.editor(),
-               ForkCommandOptions{
-                   .command = ToLazyString(command_path) + LazyString{L" "} +
-                              ToLazyString(data_path),
-                   .environment =
-                       {
-                           {L"EDGE_TRIGGER", trigger_},
-                           {L"EDGE_PATH",
-                            input.buffer.Read(buffer_variables::path)},
-                           {L"EDGE_LINE",
-                            ToLazyString(NonEmptySingleLine(
-                                input.buffer.position().line.read()))},
-                           {L"EDGE_COLUMN",
-                            ToLazyString(NonEmptySingleLine(
-                                input.buffer.position().column.read()))},
-                       },
-                   .insertion_type = BuffersList::AddBufferType::kIgnore,
-                   .existing_buffer_behavior =
-                       ForkCommandOptions::ExistingBufferBehavior::kIgnore})
-        ->WaitForEndOfFile()
+    return input.buffer.file_system_driver()
+        ->WriteTmpFile(LazyString{L"external-command-input"},
+                       GetContents(input.buffer))
+        .Transform([buffer_root = input.buffer.RootFromThis(), command_path,
+                    trigger = trigger_](Path data_path) {
+          return ForkCommand(
+                     buffer_root->editor(),
+                     ForkCommandOptions{
+                         .command = ToLazyString(command_path) +
+                                    LazyString{L" "} + ToLazyString(data_path),
+                         .environment =
+                             {
+                                 {L"EDGE_TRIGGER", trigger},
+                                 {L"EDGE_PATH",
+                                  buffer_root->Read(buffer_variables::path)},
+                                 {L"EDGE_LINE",
+                                  ToLazyString(NonEmptySingleLine(
+                                      buffer_root->position().line.read()))},
+                                 {L"EDGE_COLUMN",
+                                  ToLazyString(NonEmptySingleLine(
+                                      buffer_root->position().column.read()))},
+                             },
+                         .insertion_type = BuffersList::AddBufferType::kIgnore,
+                         .existing_buffer_behavior = ForkCommandOptions::
+                             ExistingBufferBehavior::kIgnore})
+              ->WaitForEndOfFile();
+        })
         .Transform(
             [execution_context = input.buffer.execution_context().ToRoot()](
                 gc::Root<OpenBuffer> buffer)

@@ -205,21 +205,23 @@ FileSystemDriver::GetAncestors(ProcessId pid,
       });
 }
 
-Path FileSystemDriver::WriteTmpFile(LazyString tmp_file_type,
-                                    LazyString contents) const {
-  std::string template_path =
-      "/tmp/edge-" + tmp_file_type.ToBytes() + "-XXXXXX";
-  char* tmp_path_bytes = strdup(template_path.c_str());
-  // TODO(async, easy, 2023-08-30): Use file_system_driver.
-  // TODO(easy, 2023-08-30): Check errors.
-  int tmp_fd = mkstemp(tmp_path_bytes);
-  LazyString tmp_path_output{FromByteString(std::string(tmp_path_bytes))};
-  free(tmp_path_bytes);
-  Path output = ValueOrDie(Path::New(tmp_path_output));
-  std::string data = contents.ToBytes();
-  write(tmp_fd, data.c_str(), data.size());
-  close(tmp_fd);
-  return output;
+futures::Value<Path> FileSystemDriver::WriteTmpFile(LazyString tmp_file_type,
+                                                    LazyString contents) const {
+  return thread_pool_.Run([tmp_file_type, contents]() -> Path {
+    std::string template_path =
+        "/tmp/edge-" + tmp_file_type.ToBytes() + "-XXXXXX";
+    char* tmp_path_bytes = strdup(template_path.c_str());
+    // TODO(async, easy, 2023-08-30): Use file_system_driver.
+    // TODO(easy, 2023-08-30): Check errors.
+    int tmp_fd = mkstemp(tmp_path_bytes);
+    LazyString tmp_path_output{FromByteString(std::string(tmp_path_bytes))};
+    free(tmp_path_bytes);
+    Path output = ValueOrDie(Path::New(tmp_path_output));
+    std::string data = contents.ToBytes();
+    write(tmp_fd, data.c_str(), data.size());
+    close(tmp_fd);
+    return output;
+  });
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>

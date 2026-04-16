@@ -82,10 +82,9 @@ class FileSystemDriver {
   // Creates a new temporary file with some given contents. `tmp_file_type`
   // should be a short string describing the type of temporary file (e.g.,
   // "commands").
-  //
-  // TODO(P1, trivial): Return a futures::ValueOrError<Path>.
-  Path WriteTmpFile(language::lazy_string::LazyString tmp_file_type,
-                    language::lazy_string::LazyString contents) const;
+  futures::Value<Path> WriteTmpFile(
+      language::lazy_string::LazyString tmp_file_type,
+      language::lazy_string::LazyString contents) const;
 
   // Allow a FileSystemDriver to be managed by a gc::Pool.
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>

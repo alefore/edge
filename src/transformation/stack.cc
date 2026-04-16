@@ -20,6 +20,7 @@ using ::operator<<;
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::Path;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
@@ -390,24 +391,27 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 *delete_transformation.range);
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
                              contents.ToLazyString());
-            infrastructure::Path tmp_path =
-                input.buffer.file_system_driver()->WriteTmpFile(
-                    LazyString{L"edge-commands"}, contents.ToLazyString());
-            ForkCommand(
-                input.buffer.editor(),
-                ForkCommandOptions{
-                    .command =
-                        copy->shell.has_value()
-                            ? copy->shell->read() + LazyString{L" $EDGE_INPUT"}
-                            : input.buffer.Read(
-                                  buffer_variables::shell_command),
-                    .environment = {{L"EDGE_INPUT", ToLazyString(tmp_path)},
-                                    {L"EDGE_PARENT_BUFFER_PATH",
-                                     input.buffer.Read(
-                                         buffer_variables::path)}},
-                    .existing_buffer_behavior =
-                        ForkCommandOptions::ExistingBufferBehavior::kIgnore});
-            return futures::Past(std::move(output.value()));
+            return input.buffer.file_system_driver()
+                ->WriteTmpFile(LazyString{L"edge-commands"},
+                               contents.ToLazyString())
+                .Transform([buffer_root = input.buffer.RootFromThis(), copy,
+                            output](Path tmp_path) {
+                  ForkCommand(
+                      buffer_root->editor(),
+                      ForkCommandOptions{
+                          .command = copy->shell.has_value()
+                                         ? copy->shell->read() +
+                                               LazyString{L" $EDGE_INPUT"}
+                                         : buffer_root->Read(
+                                               buffer_variables::shell_command),
+                          .environment =
+                              {{L"EDGE_INPUT", ToLazyString(tmp_path)},
+                               {L"EDGE_PARENT_BUFFER_PATH",
+                                buffer_root->Read(buffer_variables::path)}},
+                          .existing_buffer_behavior = ForkCommandOptions::
+                              ExistingBufferBehavior::kIgnore});
+                  return futures::Past(std::move(output.value()));
+                });
           }
           case Stack::PostTransformationBehavior::kCommandCpp:
             return HandleCommandCpp(std::move(input), delete_transformation);
