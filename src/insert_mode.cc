@@ -353,7 +353,8 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
       });
 }
 
-class InsertMode : public InputReceiver {
+class InsertMode : public InputReceiver,
+                   public gc::EnableRootFromThis<InsertMode> {
   const InsertModeOptions options_;
 
   // Copy of the contents of options_.buffers. gc::Ptr to make it possible to
@@ -402,16 +403,16 @@ class InsertMode : public InputReceiver {
     bool old_literal = status_expiration_for_literal_ != nullptr;
     status_expiration_for_literal_ = nullptr;
 
-    auto future = futures::Past(futures::IterationControlCommand::kContinue);
-    return std::visit(overload{[&](wchar_t) {
-                                 return ProcessRegular(input, start_index,
-                                                       old_literal);
-                               },
-                               [&](ControlChar control_c) {
-                                 ProcessControl(control_c, old_literal);
-                                 return 1ul;
-                               }},
-                      input.at(start_index));
+    return std::visit(
+        overload{[&](wchar_t) {
+                   gc::Root<InsertMode> root_this = RootFromThis();
+                   return ProcessRegular(input, start_index, old_literal);
+                 },
+                 [&](ControlChar control_c) {
+                   ProcessControl(control_c, old_literal);
+                   return 1ul;
+                 }},
+        input.at(start_index));
   }
 
   void ProcessControl(ControlChar control_c, bool old_literal) {
@@ -589,6 +590,7 @@ class InsertMode : public InputReceiver {
   size_t ProcessRegular(std::vector<ExtendedChar> input, size_t start_index,
                         bool old_literal) {
     TRACK_OPERATION(InsertMode_ProcessInput_Regular);
+    gc::Root<InsertMode> root_this = RootFromThis();
     const bool all_in_paste_mode =
         std::ranges::all_of(buffers_.value(), [](gc::Ptr<OpenBuffer>& buffer) {
           return buffer->Read(buffer_variables::paste_mode);
@@ -598,10 +600,6 @@ class InsertMode : public InputReceiver {
         ResetScrollBehavior();
         if (!old_literal) {
           bool started_completion = false;
-          // TODO(P1, tricky, 2026-04-16): `start_completion` may trigger that
-          // we get deleted (if it creates a new buffer, by calling Editor::
-          // AddBuffer, which calls Editor::set_keyboard_redirect). It would be
-          // good to make sure we don't crash when this happens.
           ForEachActiveBuffer(
               buffers_, L"",
               [options = options_, &started_completion](OpenBuffer& buffer) {
@@ -1060,13 +1058,13 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
               options,
               options.editor_state.gc_pool()
                   .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<OpenBuffer>>>(
-                      container::MaterializeVector(
-                          options.buffers.value_or(
-                              std::vector<gc::Root<OpenBuffer>>{}) |
-                          std::views::transform(
-                              [](const gc::Root<OpenBuffer>& buffer) {
-                                return buffer.ptr();
-                              }))))
+                      options.buffers.value_or(
+                          std::vector<gc::Root<OpenBuffer>>{}) |
+                      std::views::transform(
+                          [](const gc::Root<OpenBuffer>& buffer) {
+                            return buffer.ptr();
+                          }) |
+                      std::ranges::to<std::vector>()))
                   .ptr())));
   VisitOptional(
       [&](gc::Root<InputReceiver> old_input_receiver) {
