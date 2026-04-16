@@ -172,13 +172,13 @@ SingleLine BuildHistoryLine(EditorState& editor, LazyString input) {
 }
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
-    EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
+    EditorState& editor_state, gc::Root<OpenBuffer> history_buffer_root,
     const HistoryFile&, DeleteNotification::Value abort_value,
     SingleLine filter) {
   gc::Root<OpenBuffer> filter_buffer_root = OpenBuffer::New(
       {.editor = editor_state,
        .name = FilterBufferName{
-           .source_buffer = ToSingleLine(history_buffer.ptr()->name()),
+           .source_buffer = ToSingleLine(history_buffer_root->name()),
            .filter = filter}});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
   filter_buffer.Set(buffer_variables::allow_dirty_delete, true);
@@ -187,8 +187,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   filter_buffer.Set(buffer_variables::atomic_lines, true);
   filter_buffer.Set(buffer_variables::line_width, 1);
 
-  return history_buffer.ptr()
-      ->WaitForEndOfFile()
+  return history_buffer_root->WaitForEndOfFile()
       .Transform([&editor_state, filter_buffer_root, abort_value,
                   filter](gc::Root<OpenBuffer> history_buffer) {
         return editor_state.thread_pool().Run(std::bind_front(
@@ -515,7 +514,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
       ReplaceContents(buffer, LineSequence());
       return;
     }
-    filtered_history_.AddListener([delta, buffer_root = buffer.NewRoot(),
+    filtered_history_.AddListener([delta, buffer_root = buffer.RootFromThis(),
                                    &buffer, original_input = original_input_,
                                    prompt_state = prompt_state_,
                                    previous_context = previous_context_](

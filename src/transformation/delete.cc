@@ -138,7 +138,7 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
       .history_file =
           HistoryFile{NON_EMPTY_SINGLE_LINE_CONSTANT(L"confirmation")},
       .handler =
-          [buffer = buffer.NewRoot(), observers](SingleLine input) {
+          [buffer = buffer.RootFromThis(), observers](SingleLine input) {
             if (input == SingleLine{LazyString{L"yes"}}) {
               for (auto& o : observers) o();
             } else {

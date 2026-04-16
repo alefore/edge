@@ -302,7 +302,7 @@ using namespace afc::vm;
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
           mode.ptr(), std::move(status), execution_context.ptr(),
           futures::Future<EmptyValue>{}));
-  output->Initialize(output.ptr());
+  output->Initialize();
   return output;
 }
 
@@ -447,14 +447,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       std::weak_ptr<WorkQueue>(work_queue().get_shared()),
       editor().work_queue(),
       NonNull<std::shared_ptr<std::optional<struct timespec>>>()));
-  for (auto* v :
-       {buffer_variables::symbol_characters, buffer_variables::tree_parser,
-        buffer_variables::language_keywords, buffer_variables::typos,
-        buffer_variables::identifier_behavior, buffer_variables::dictionary})
-    variables_.string_variables.ObserveValue(v).Add([this] {
-      UpdateTreeParser();
-      return Observers::State::kAlive;
-    });
 
   line_processor_map_.Add(LineProcessorKey{SingleLine{}},
                           [this](LineProcessorInput input) {
@@ -494,7 +486,7 @@ OpenBuffer::PrepareToClose() {
                             Modifiers::Strength::kNormal
                         ? PersistState()
                         : futures::IgnoreErrors(PersistState()))
-                .Transform([root_this = NewRoot()](EmptyValue)
+                .Transform([root_this = RootFromThis()](EmptyValue)
                                -> futures::ValueOrError<PrepareToCloseOutput> {
                   LOG(INFO) << root_this->name() << ": State persisted.";
                   if (root_this->child_pid_.has_value()) {
@@ -576,11 +568,10 @@ void OpenBuffer::Close(CloseAccessTag) {
 
 futures::Value<gc::Root<OpenBuffer>> OpenBuffer::WaitForEndOfFile() {
   if (fd_ == nullptr && fd_error_ == nullptr &&
-      reload_state_ == ReloadState::kDone) {
-    return ptr_this_->ToRoot();
-  }
+      reload_state_ == ReloadState::kDone)
+    return RootFromThis();
   return end_of_file_observers_.NewFuture().Transform(
-      [root = ptr_this_->ToRoot()](
+      [root = RootFromThis()](
           EmptyValue) -> futures::Value<gc::Root<OpenBuffer>> { return root; });
 }
 
@@ -761,7 +752,6 @@ void OpenBuffer::RegisterProgress() {
 }
 
 void OpenBuffer::UpdateTreeParser() {
-  if (!ptr_this_.has_value()) return;
   ValueOrError<Path> dictionary_path =
       Path::New(Read(buffer_variables::dictionary));
   (IsError(dictionary_path)
@@ -784,7 +774,7 @@ void OpenBuffer::UpdateTreeParser() {
              })
              .ConsumeErrors(
                  [](Error) { return SortedLineSequence(LineSequence{}); }))
-      .Transform([root_this = NewRoot()](SortedLineSequence dictionary) {
+      .Transform([root_this = RootFromThis()](SortedLineSequence dictionary) {
         root_this->buffer_syntax_parser_.UpdateParser(
             BufferSyntaxParser::ParserOptions{
                 .parser_name = OptionalFrom(
@@ -825,10 +815,8 @@ NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::simplified_parse_tree()
   return buffer_syntax_parser_.simplified_tree();
 }
 
-void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
-  ptr_this_ = std::move(ptr_this);
-
-  gc::WeakPtr<OpenBuffer> weak_this = ptr_this_->ToWeakPtr();
+void OpenBuffer::Initialize() {
+  gc::WeakPtr<OpenBuffer> weak_this = WeakPtrFromThis();
   buffer_syntax_parser_.ObserveTrees().Add(WeakPtrLockingObserver(
       [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
@@ -836,9 +824,20 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
       },
       weak_this));
 
+  // TODO(P2, 2026-04-16): This unnecessarily calls UpdateTreeParser for EACH
+  // variable. And then we call it again afterwards. We should find a way to
+  // only trigger a single call.
+  for (auto* v :
+       {buffer_variables::symbol_characters, buffer_variables::tree_parser,
+        buffer_variables::language_keywords, buffer_variables::typos,
+        buffer_variables::identifier_behavior, buffer_variables::dictionary})
+    variables_.string_variables.ObserveValue(v).Add([this] {
+      UpdateTreeParser();
+      return Observers::State::kAlive;
+    });
   UpdateTreeParser();
 
-  gc::Root<OpenBuffer> root = NewRoot();
+  gc::Root<OpenBuffer> root = RootFromThis();
   execution_context_->environment()->Define(
       Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"buffer")}},
       VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
@@ -987,10 +986,10 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                       }},
              execution_context()->FunctionCall(
                  IDENTIFIER_CONSTANT(L"OnReload"),
-                 {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(ptr_this_->pool(),
-                                                         ptr_this_.value())
+                 {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(editor().gc_pool(),
+                                                         RootFromThis().ptr())
                       .ptr()}))
-      .Transform([this, root_this = ptr_this_->ToRoot()](
+      .Transform([this, root_this = RootFromThis()](
                      EmptyValue) -> futures::Value<PossibleError> {
         LOG(INFO) << name() << ": Reload: generating contents.";
         if (Read(buffer_variables::clear_on_reload)) {
@@ -1013,7 +1012,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                   return NewNullLog();
                 });
           },
-          [](EmptyValue) { return NewNullLog(); }, ptr_this_->ToWeakPtr()))
+          [](EmptyValue) { return NewNullLog(); }, WeakPtrFromThis()))
       .Transform(LockAndVisitCallback(
           [](NonNull<std::unique_ptr<Log>> log,
              gc::Root<OpenBuffer> root_this) -> futures::Value<PossibleError> {
@@ -1041,7 +1040,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
           [](NonNull<std::unique_ptr<Log>>) -> futures::Value<PossibleError> {
             return EmptyValue{};
           },
-          ptr_this_->ToWeakPtr()));
+          WeakPtrFromThis()));
 }
 
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
@@ -1052,31 +1051,33 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
     return error;
   }
   LineSequence contents_snapshot = contents().snapshot();
-  futures::Value<PossibleError> output = options_.handle_save(
-      Options::HandleSaveOptions{.buffer = NewRoot(), .save_type = save_type});
+  futures::Value<PossibleError> output =
+      options_.handle_save(Options::HandleSaveOptions{.buffer = RootFromThis(),
+                                                      .save_type = save_type});
   if (save_type == OpenBuffer::Options::SaveType::kMainFile)
-    output = std::move(output).Transform([&editor = editor(), contents_snapshot,
-                                          root_buffer = NewRoot()](EmptyValue)
-                                             -> futures::Value<PossibleError> {
-      if (contents_snapshot == root_buffer->contents().snapshot())
-        root_buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
-      if (root_buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
-        std::ranges::for_each(
-            editor.buffer_registry().buffers() | gc::view::Value |
-                std::views::filter([](OpenBuffer& reload_buffer) {
-                  return reload_buffer.Read(
-                      buffer_variables::reload_on_buffer_write);
-                }),
-            [&](OpenBuffer& reload_buffer) {
-              LOG(INFO) << "Write of " << root_buffer->name()
-                        << " triggers reload: "
-                        << reload_buffer.Read(buffer_variables::name);
-              reload_buffer.Reload();
-            });
-      }
+    output = std::move(output).Transform(
+        [&editor = editor(), contents_snapshot, root_buffer = RootFromThis()](
+            EmptyValue) -> futures::Value<PossibleError> {
+          if (contents_snapshot == root_buffer->contents().snapshot())
+            root_buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+          if (root_buffer->Read(
+                  buffer_variables::trigger_reload_on_buffer_write)) {
+            std::ranges::for_each(
+                editor.buffer_registry().buffers() | gc::view::Value |
+                    std::views::filter([](OpenBuffer& reload_buffer) {
+                      return reload_buffer.Read(
+                          buffer_variables::reload_on_buffer_write);
+                    }),
+                [&](OpenBuffer& reload_buffer) {
+                  LOG(INFO) << "Write of " << root_buffer->name()
+                            << " triggers reload: "
+                            << reload_buffer.Read(buffer_variables::name);
+                  reload_buffer.Reload();
+                });
+          }
 
-      return EmptyValue{};
-    });
+          return EmptyValue{};
+        });
   return OnError(
       std::move(output),
       [weak_status = std::weak_ptr<Status>(status_.get_shared())](Error error) {
@@ -1162,7 +1163,7 @@ void OpenBuffer::UpdateBackup() {
   log_->Append(LazyString{L"UpdateBackup starts."});
   if (options_.handle_save != nullptr) {
     options_.handle_save(Options::HandleSaveOptions{
-        .buffer = NewRoot(), .save_type = Options::SaveType::kBackup});
+        .buffer = RootFromThis(), .save_type = Options::SaveType::kBackup});
   }
   backup_state_ = DiskState::kCurrent;
 }
@@ -1273,7 +1274,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
     const gc::Ptr<Expression>& expr, const gc::Ptr<Environment>& environment) {
   // TODO(2025-05-26, trivial): Replace with a method from execution_context.
   return Evaluate(expr, environment,
-                  [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
+                  [work_queue = work_queue(), root_this = RootFromThis()](
                       OnceOnlyFunction<void()> callback) {
                     work_queue->Schedule(
                         WorkQueue::Callback{.callback = std::move(callback)});
@@ -1285,8 +1286,8 @@ NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {
 }
 
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
-  return [root_this = ptr_this_->ToRoot()](
-             OnceOnlyFunction<void(OpenBuffer&)> callback) {
+  return [root_this =
+              RootFromThis()](OnceOnlyFunction<void(OpenBuffer&)> callback) {
     root_this->work_queue()->Schedule(WorkQueue::Callback{
         .callback = [root_this, callback = std::move(callback)] mutable {
           std::move(callback)(root_this.ptr().value());
@@ -1878,7 +1879,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                        LazyString{L":"} + name_suffix},
             .fd = fd.value(),
             .receive_end_of_file =
-                [weak_this = ptr_this_->ToWeakPtr(), &reader,
+                [weak_this = WeakPtrFromThis(), &reader,
                  output_consumer = std::move(output.consumer)] mutable {
                   VisitOptional(
                       [&](gc::Root<OpenBuffer> root_this) {
@@ -1892,8 +1893,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                       [] {}, weak_this.Lock());
                 },
             .receive_data =
-                [modifiers,
-                 weak_this = ptr_this_->ToWeakPtr()](LazyString input) {
+                [modifiers, weak_this = WeakPtrFromThis()](LazyString input) {
                   return VisitOptional(
                       [&input, &modifiers](gc::Root<OpenBuffer> root_this) {
                         root_this->RegisterProgress();
@@ -1914,7 +1914,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
       JoinValues(new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
                  new_reader(input_error_fd, LazyString{L"stderr"},
                             {LineModifier::kBold}, fd_error_))
-          .Transform([weak_this = ptr_this_->ToWeakPtr()](
+          .Transform([weak_this = WeakPtrFromThis()](
                          std::tuple<EmptyValue, EmptyValue>) {
             return VisitOptional(
                 [&](gc::Root<OpenBuffer> root_this) {
@@ -1960,7 +1960,7 @@ futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
                        << path << ": SetInputFromPath: Open failed: " << error;
                    return error;
                  })
-      .Transform([buffer = NewRoot(),
+      .Transform([buffer = RootFromThis(),
                   path](FileDescriptor fd) -> futures::Value<PossibleError> {
         LOG(INFO) << path << ": Opened file descriptor: " << fd;
         return buffer->SetInputFiles(fd, std::nullopt, false,
@@ -2099,7 +2099,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
         std::optional<gc::Root<OpenBuffer>>();
   };
   NonNull<std::shared_ptr<Data>> data =
-      MakeNonNullShared<Data>(Data{.source = ptr_this_->ToWeakPtr()});
+      MakeNonNullShared<Data>(Data{.source = WeakPtrFromThis()});
 
   using ICC = futures::IterationControlCommand;
   return futures::ForEach(
@@ -2431,9 +2431,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     CursorsSet single_cursor;
     CursorsSet& cursors = active_cursors();
     transformation_result = cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [root_this = ptr_this_->ToRoot(),
-                  transformation = std::move(transformation),
-                  mode](LineColumn position) {
+        cursors,
+        [root_this = RootFromThis(), transformation = std::move(transformation),
+         mode](LineColumn position) {
           return root_this->Apply(transformation, position, mode)
               .Transform([root_this](transformation::Result result) {
                 root_this->UpdateLastAction();
@@ -2444,7 +2444,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     transformation_result =
         Apply(std::move(transformation), position(), mode)
-            .Transform([root_this = ptr_this_->ToRoot()](
+            .Transform([root_this = RootFromThis()](
                            const transformation::Result& result) {
               root_this->active_cursors().MoveCurrentCursor(result.position);
               root_this->UpdateLastAction();
@@ -2453,7 +2453,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   }
   return std::move(transformation_result)
       .value()
-      .Transform([root_this = NewRoot()](EmptyValue) {
+      .Transform([root_this = RootFromThis()](EmptyValue) {
         if (root_this->last_transformation_stack_.empty())
           root_this->undo_state_.CommitCurrent();
 
@@ -2492,7 +2492,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           << transformation::ToString(transformation);
 
   return transformation::Apply(transformation, std::move(input))
-      .Transform([root_this = NewRoot(),
+      .Transform([root_this = RootFromThis(),
                   transformation = std::move(transformation), mode,
                   undo_stack_weak](transformation::Result result) {
         VLOG(6) << "Got results of transformation: "
@@ -2570,7 +2570,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
           .direction = editor().direction(),
           .repetitions = editor().repetitions().value_or(1),
           .callback =
-              [root_this = NewRoot()](transformation::Variant t) {
+              [root_this = RootFromThis()](transformation::Variant t) {
                 transformation::Input input(
                     root_this->transformation_adapter_.value(),
                     root_this.ptr().value());
@@ -2580,7 +2580,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
                 root_this->undo_state_.AbandonCurrent();
                 return transformation::Apply(t, input);
               }})
-      .Transform([root_this = NewRoot()](EmptyValue) {
+      .Transform([root_this = RootFromThis()](EmptyValue) {
         StartAdjustingStatusContext(root_this);
         return EmptyValue();
       });
@@ -2589,16 +2589,6 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
 void OpenBuffer::set_filter(gc::Root<Value> filter) {
   filter_ = std::move(filter);
   filter_version_++;
-}
-
-language::gc::Root<OpenBuffer> OpenBuffer::NewRoot() {
-  CHECK(ptr_this_.has_value());
-  return ptr_this_->ToRoot();
-}
-
-language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
-  CHECK(ptr_this_.has_value());
-  return language::gc::Root<const OpenBuffer>(ptr_this_->ToRoot());
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
@@ -2658,7 +2648,7 @@ void OpenBuffer::UpdateLastAction() {
                   LOG(INFO) << "close_after_idle_seconds: Closing.";
                   buffer.editor().CloseBuffer(buffer);
                 },
-                ptr_this_->ToWeakPtr())
+                WeakPtrFromThis())
                 .ptr())});
   }
 }

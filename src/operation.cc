@@ -219,7 +219,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
                             buffers_transformed,
                             application_type](OpenBuffer& buffer) {
         TRACK_OPERATION(ExecuteTransformation_ApplyTransformation);
-        buffers_transformed->push_back(buffer.NewRoot());
+        buffers_transformed->push_back(buffer.RootFromThis());
         return buffer.ApplyToCursors(
             transformation,
             buffer.Read(buffer_variables::multiple_cursors)

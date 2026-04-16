@@ -110,8 +110,8 @@ class PredictorTransformation : public CompositeTransformation {
                    // since it wants to modify the buffer. Perhaps the answer
                    // is to make search handler not modify the buffer, but
                    // rather do that on the caller, based on its outputs.
-                   .source_buffers = {(
-                       const_cast<OpenBuffer*>(&input.buffer)->NewRoot())}})
+                   .source_buffers = {const_cast<OpenBuffer*>(&input.buffer)
+                                          ->RootFromThis()}})
         .Transform([text = text_, &buffer = input.buffer](
                        std::optional<PredictResults> results) {
           if (!results.has_value()) {

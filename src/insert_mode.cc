@@ -437,22 +437,22 @@ class InsertMode : public InputReceiver,
                 return futures::Past(EmptyValue());
               }
               buffer.MaybeAdjustPositionCol();
-              gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
+              gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
               // TODO(easy): Honor `old_literal`.
               return buffer
                   .ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
                   .Transform([options, buffer_root](EmptyValue) {
-                    buffer_root.ptr()->PopTransformationStack();
+                    buffer_root->PopTransformationStack();
                     auto repetitions =
                         options.editor_state.repetitions().value_or(1);
                     if (repetitions > 0) {
                       options.editor_state.set_repetitions(repetitions - 1);
                     }
-                    return buffer_root.ptr()->RepeatLastTransformation();
+                    return buffer_root->RepeatLastTransformation();
                   })
                   .Transform([options, buffer_root](EmptyValue) {
-                    buffer_root.ptr()->PopTransformationStack();
-                    buffer_root.ptr()->status().Reset();
+                    buffer_root->PopTransformationStack();
+                    buffer_root->status().Reset();
                     return EmptyValue();
                   });
             })
@@ -546,7 +546,7 @@ class InsertMode : public InputReceiver,
                   options.editor_state.execution_context()->FunctionCall(
                       IDENTIFIER_CONSTANT(L"HandleKeyboardControlU"),
                       {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
-                           buffer.editor().gc_pool(), buffer.NewRoot())
+                           buffer.editor().gc_pool(), buffer.RootFromThis())
                            .ptr()}));
             });
         return;
@@ -697,7 +697,7 @@ class InsertMode : public InputReceiver,
         [consumed_input, options = options_,
          completion_model_supplier =
              completion_model_supplier_](OpenBuffer& buffer) {
-          gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
+          gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
           VLOG(6) << "Inserting text: [" << consumed_input << "]";
           TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
           return buffer_root.ptr()
@@ -712,7 +712,7 @@ class InsertMode : public InputReceiver,
                     GetTokenRange(buffer_root.ptr().value());
                 if (token_range.empty()) return futures::Past(EmptyValue{});
                 DictionaryKey token = GetCompletionToken(
-                    buffer_root.ptr()->contents().snapshot(), token_range);
+                    buffer_root->contents().snapshot(), token_range);
                 return completion_model_supplier
                     ->Query(std::move(
                                 CompletionModelPaths(buffer_root.ptr().value())
@@ -795,7 +795,7 @@ class InsertMode : public InputReceiver,
         buffers_, line_buffer,
         [direction, options = options_](OpenBuffer& buffer) {
           buffer.MaybeAdjustPositionCol();
-          gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
+          gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
           transformation::Stack stack;
           stack.push_back(transformation::Delete{
               .modifiers = {.direction = direction,
@@ -856,7 +856,7 @@ class InsertMode : public InputReceiver,
   static std::function<futures::Value<EmptyValue>(const T&)> ModifyHandler(
       std::function<futures::Value<language::EmptyValue>(OpenBuffer&)> handler,
       OpenBuffer& buffer) {
-    return [handler, buffer_root = buffer.NewRoot()](const T&) {
+    return [handler, buffer_root = buffer.RootFromThis()](const T&) {
       return handler(buffer_root.ptr().value());
     };
   }
@@ -974,7 +974,7 @@ class InsertMode : public InputReceiver,
 
     const Line line = buffer.value.contents().at(position.line);
 
-    auto buffer_root = buffer.value.NewRoot();
+    auto buffer_root = buffer.value.RootFromThis();
     if (token_range.empty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
@@ -993,7 +993,7 @@ class InsertMode : public InputReceiver,
                       .read(),
               .initiator = transformation::Delete::Initiator::kInternal});
           stack.push_back(transformation::SetPosition(position.column));
-          return buffer_root.ptr()->ApplyToCursors(std::move(stack));
+          return buffer_root->ApplyToCursors(std::move(stack));
         });
       }
       return output;
@@ -1026,7 +1026,7 @@ class InsertMode : public InputReceiver,
                 stack.push_back(transformation::SetPosition(
                     token_range.begin_column() + completion_text_size +
                     ColumnNumberDelta(1)));
-                return buffer_root.ptr()->ApplyToCursors(std::move(stack));
+                return buffer_root->ApplyToCursors(std::move(stack));
               },
               [buffer_root, token](DictionaryKey key) {
                 ShowSuggestion(buffer_root.ptr().value(), key,
@@ -1165,14 +1165,14 @@ void EnterInsertMode(InsertModeOptions options) {
         for (gc::Root<OpenBuffer>& buffer_root :
              shared_options->buffers.value()) {
           VisitPointer(
-              buffer_root.ptr()->CurrentLine().outgoing_link(),
+              buffer_root->CurrentLine().outgoing_link(),
               [&](const OutgoingLink& link) {
                 VisitOptional(
                     [&buffer_root](gc::Root<OpenBuffer> link_target) {
                       buffer_root = std::move(link_target);
                     },
                     [] {},
-                    buffer_root.ptr()->editor().buffer_registry().FindPath(
+                    buffer_root->editor().buffer_registry().FindPath(
                         link.path));
               },
               [] {});

@@ -283,7 +283,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                                       &trampoline, output](OpenBuffer& buffer) {
                   std::vector<gc::Root<vm::Value>> args;
                   args.push_back(VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
-                      trampoline.pool(), buffer.NewRoot()));
+                      trampoline.pool(), buffer.RootFromThis()));
                   return callback.ptr()
                       ->RunFunction(std::move(args), trampoline)
                       .Transform([](gc::Root<vm::Value>) { return Success(); })
@@ -326,7 +326,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                                                         OpenBuffer& buffer) {
                   std::vector<gc::Root<vm::Value>> args;
                   args.push_back(VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
-                      trampoline.pool(), buffer.NewRoot()));
+                      trampoline.pool(), buffer.RootFromThis()));
                   return callback.ptr()
                       ->RunFunction(std::move(args), trampoline)
                       .Transform([](gc::Root<vm::Value>) { return Success(); })

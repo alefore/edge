@@ -591,6 +591,8 @@ class EnableRootFromThis {
 
   Root<const T> RootFromThis() const { return Root<const T>(weak_this_); }
 
+  WeakPtr<T> WeakPtrFromThis() { return weak_this_; }
+
  protected:
   EnableRootFromThis() = default;
 

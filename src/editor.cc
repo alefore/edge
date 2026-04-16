@@ -65,7 +65,7 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
-using afc::language ::MakeNonNullUnique;
+using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Observers;
 using afc::language::OnceOnlyFunction;
@@ -293,7 +293,7 @@ EditorState::EditorState(
           [](OpenBuffer& buffer) {
             return buffer.PrepareToClose().Transform(
                 [root_buffer =
-                     buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
+                     buffer.RootFromThis()](OpenBuffer::PrepareToCloseOutput) {
                   root_buffer->Close(OpenBuffer::CloseAccessTag{});
                   return Success();
                 });
@@ -398,7 +398,7 @@ void EditorState::CheckPosition() {
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
   LOG(INFO) << "Close buffer: " << buffer.name();
   OnError(buffer.PrepareToClose(),
-          [buffer = buffer.NewRoot()](Error error)
+          [buffer = buffer.RootFromThis()](Error error)
               -> futures::ValueOrError<OpenBuffer::PrepareToCloseOutput> {
             error = AugmentError(
                 LazyString{L"🖝  Unable to close (“*ad” to ignore): "} +
@@ -413,14 +413,14 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
             LOG(FATAL) << "Invalid enum value.";
             return futures::Past(error);
           })
-      .Transform(
-          [this, buffer = buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
-            buffer->Close(OpenBuffer::CloseAccessTag{});
-            buffer_registry_->RemoveListedBuffers(std::unordered_set{
-                NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
-            AdjustWidgets();
-            return futures::Past(Success());
-          });
+      .Transform([this, buffer = buffer.RootFromThis()](
+                     OpenBuffer::PrepareToCloseOutput) {
+        buffer->Close(OpenBuffer::CloseAccessTag{});
+        buffer_registry_->RemoveListedBuffers(std::unordered_set{
+            NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
+        AdjustWidgets();
+        return futures::Past(Success());
+      });
 }
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(

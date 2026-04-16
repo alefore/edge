@@ -73,7 +73,7 @@ struct BufferFlagValue
       : BufferFlagValue(input.read()) {}
 };
 
-class OpenBuffer {
+class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   struct ConstructorAccessTag {};
 
  public:
@@ -363,9 +363,6 @@ class OpenBuffer {
 
   //////////////////////////////////////////////////////////////////////////////
   // Life cycle
-  language::gc::Root<OpenBuffer> NewRoot();
-  language::gc::Root<const OpenBuffer> NewRoot() const;
-
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 
@@ -552,8 +549,8 @@ class OpenBuffer {
 
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
-  // instance has been successfully installed into a std::shared_ptr.
-  void Initialize(language::gc::Ptr<OpenBuffer> ptr_this);
+  // instance has been successfully installed into the GC system.
+  void Initialize();
   void MaybeStartUpdatingSyntaxTrees();
 
   futures::Value<transformation::Result> Apply(
@@ -681,15 +678,6 @@ class OpenBuffer {
 
   language::text::LineProcessorMap line_processor_map_;
 
-  // Set by `Initialize`. Useful to retain references to this buffer (by turning
-  // it into either a Root or WeakPtr).
-  //
-  // This isn't a Root because otherwise buffers would never be deallocated; it
-  // also isn't a WeakPtr because ... if it is being accessed, we know the
-  // containing object /must/ be alive.
-  //
-  // TODO(2026-04-16, easy): Probably can be replaced with EnableRootFromThis.
-  std::optional<language::gc::Ptr<OpenBuffer>> ptr_this_;
   // Self-reference. This is used for buffers that want to make sure they are
   // explicitly closed (through OpenBuffer::Close) before they can be collected.
   std::optional<language::gc::Root<OpenBuffer>> root_this_;
