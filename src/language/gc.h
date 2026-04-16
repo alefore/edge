@@ -111,6 +111,9 @@ class WeakPtr;
 template <typename T>
 class Root;
 
+template <typename T>
+class EnableRootFromThis;
+
 class Pool;
 
 // The object metadata, allocated once per object managed. This is an internal
@@ -223,10 +226,16 @@ class Pool {
   template <typename T>
   Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value_unique) {
     language::NonNull<std::shared_ptr<T>> value = std::move(value_unique);
-    return Ptr<T>(std::weak_ptr<T>(value.get_shared()),
-                  NewObjectMetadata(
-                      [value] { return ExpandHelper<T>()(value.value()); }))
-        .ToRoot();
+    Root<T> output =
+        Ptr<T>(std::weak_ptr<T>(value.get_shared()), NewObjectMetadata([value] {
+                 return ExpandHelper<T>()(value.value());
+               }))
+            .ToRoot();
+    if constexpr (std::is_base_of_v<EnableRootFromThis<T>, T>) {
+      static_cast<EnableRootFromThis<T>*>(&output.value())
+          ->SetWeakPtr(output.ptr().ToWeakPtr());
+    }
+    return output;
   }
 
   ~Pool();
@@ -567,6 +576,27 @@ class Root {
 
   Ptr<T> ptr_;
   Pool::RootRegistration registration_;
+};
+
+template <typename T>
+class EnableRootFromThis {
+  mutable WeakPtr<T> weak_this_;
+
+ public:
+  Root<T> RootFromThis() {
+    if (std::optional<Root<T>> lock = weak_this_.Lock(); lock.has_value())
+      return std::move(lock).value();
+    throw std::bad_weak_ptr();
+  }
+
+  Root<const T> RootFromThis() const { return Root<const T>(weak_this_); }
+
+ protected:
+  EnableRootFromThis() = default;
+
+  friend class Pool;
+
+  void SetWeakPtr(WeakPtr<T> value) { weak_this_ = value; }
 };
 
 template <typename T>
