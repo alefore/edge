@@ -149,13 +149,13 @@ std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
                                        LazyString pattern_component) {
   if (MatchFunction filter = GetComponentMatcher(pattern_component);
       filter != nullptr) {
-    std::filesystem::path dir_path = state.path_full.ToBytes();
-    return std::filesystem::directory_iterator{dir_path} |
-           std::views::transform([](auto& entry) -> LazyString {
-             return LazyString{
-                 FromByteString(entry.path().filename().string())};
-           }) |
-           std::views::filter(filter) | std::ranges::to<std::vector>();
+    struct dirent* entry;
+    std::vector<LazyString> output;
+    while ((entry = readdir(&state.dir.value())) != nullptr) {
+      LazyString path{FromByteString(entry->d_name)};
+      if (filter(path)) output.push_back(path);
+    }
+    return output;
   }
   return {pattern_component};
 }
@@ -238,8 +238,8 @@ struct ScanDirectoryInput {
   // May include globs.
   LazyString pattern_suffix;
 
-  // The actual path to `dir`. If the pattern includes matched glob characters,
-  // that's not visible here (i.e., they are expanded).
+  // The actual path to `dir`. If the pattern includes matched glob
+  // characters, that's not visible here (i.e., they are expanded).
   LazyString path_prefix;
 
   ColumnNumberDelta pattern_prefix_size;
