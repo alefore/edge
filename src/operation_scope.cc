@@ -20,7 +20,7 @@ using language::text::LineNumberDelta;
 
 OperationScopeBufferInformation OperationScope::get(
     const OpenBuffer& buffer) const {
-  return data_.lock([&](Map& data) -> const OperationScopeBufferInformation& {
+  return data_.lock([&](Map& data) -> OperationScopeBufferInformation {
     std::pair<Map::iterator, bool> insert_results =
         data.insert({&buffer, OperationScopeBufferInformation()});
     if (insert_results.second) {
