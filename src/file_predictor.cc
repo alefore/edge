@@ -102,8 +102,12 @@ template <typename Callback>
 void ForEachDirectoryEntry(DIR& dir, DeleteNotification::Value& abort_value,
                            Callback callback) {
   struct dirent* entry;
+  rewinddir(&dir);
   while ((entry = readdir(&dir)) != nullptr) {
-    if (abort_value.has_value()) return;
+    if (abort_value.has_value()) {
+      LOG(INFO) << "Ooops aborted.";
+      return;
+    }
     callback(entry);
   }
 }
@@ -209,7 +213,12 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
                  });
         }) |
         std::views::join | SkipErrors | std::ranges::to<std::vector>();
-    if (next_matches.empty()) return output;
+    if (next_matches.empty()) {
+      VLOG(5) << "Descend directory stops with matches "
+              << output.matches.size() << " at prefix "
+              << path.Substring(ColumnNumber{}, output.valid_prefix_length);
+      return output;
+    }
     output.matches = std::move(next_matches);
     output.valid_prefix_length =
         std::min(component_end + ColumnNumberDelta{1}, path.size());
@@ -315,7 +324,6 @@ void ScanDirectory(const ScanDirectoryInput input) {
 
   HandlePossibleMatch(input, ColumnNumberDelta{}, GlobMatcher::MatchType::Exact,
                       std::nullopt, FileType::Directory, longest_pattern_match);
-
   ForEachDirectoryEntry(
       input.dir, input.abort_value, [&](struct dirent* entry) {
         PathComponent component = ValueOrDie(
