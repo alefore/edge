@@ -96,6 +96,14 @@ using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
+template <typename Callback>
+void ForEachDirectoryEntry(DIR& dir, Callback callback) {
+  struct dirent* entry;
+  while ((entry = readdir(&dir)) != nullptr) {
+    callback(entry);
+  }
+}
+
 struct PathPatternMatch {
   using Dir = NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>;
   Dir dir;
@@ -149,12 +157,11 @@ std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
                                        LazyString pattern_component) {
   if (MatchFunction filter = GetComponentMatcher(pattern_component);
       filter != nullptr) {
-    struct dirent* entry;
     std::vector<LazyString> output;
-    while ((entry = readdir(&state.dir.value())) != nullptr) {
+    ForEachDirectoryEntry(state.dir.value(), [&](struct dirent* entry) {
       LazyString path{FromByteString(entry->d_name)};
       if (filter(path)) output.push_back(path);
-    }
+    });
     return output;
   }
   return {pattern_component};
@@ -329,10 +336,8 @@ void ScanDirectory(const ScanDirectoryInput input) {
   HandlePossibleMatch(input, ColumnNumberDelta{}, MatchType::kExact,
                       std::nullopt, FileType::Directory, longest_pattern_match);
 
-  struct dirent* entry;
-
   const std::wstring pattern_suffix_str = input.pattern_suffix.ToString();
-  while ((entry = readdir(&input.dir)) != nullptr) {
+  ForEachDirectoryEntry(input.dir, [&](struct dirent* entry) {
     if (input.abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
     auto [pattern_it, entry_it] =
@@ -360,7 +365,7 @@ void ScanDirectory(const ScanDirectoryInput input) {
                << " doesn't contain the whole prefix. Longest match: "
                << longest_pattern_match;
     }
-  }
+  });
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
                input.pattern_prefix_size + longest_pattern_match);
