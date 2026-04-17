@@ -141,11 +141,6 @@ Pool::~Pool() {
     end_total = stats.end_total;
   }
 
-  data_.lock([](const Data& data) {
-    CHECK(data.expansion_schedule.empty());
-    LOG(INFO) << "Roots list size: " << data.roots_list.size();
-    CHECK(data.roots_list.empty());
-  });
   if (root_backtrace_.has_value()) {
     size_t shown = 0;
     root_backtrace_->ForEachSerial([&shown](const Backtrace& trace) {
@@ -156,6 +151,11 @@ Pool::~Pool() {
     });
     CHECK_EQ(shown, 0ul);
   }
+  data_.lock([](const Data& data) {
+    CHECK(data.expansion_schedule.empty());
+    LOG(INFO) << "Roots list size: " << data.roots_list.size();
+    CHECK(data.roots_list.empty());
+  });
   LOG(INFO) << "Destructor returning.";
 }
 
