@@ -112,13 +112,27 @@ void ForEachDirectoryEntry(DIR& dir, DeleteNotification::Value& abort_value,
   }
 }
 
+struct PathContext {
+  // Includes the search_path.
+  Path path;
+
+  // Excludes the search path.
+  LazyString user_path;
+
+  PathContext Append(const PathComponent& component) const {
+    return PathContext{
+        .path = Path::Join(path, component),
+        .user_path =
+            (user_path.empty() ? LazyString{} : user_path + LazyString{L"/"}) +
+            ToLazyString(component)};
+  }
+};
+
 struct PathPatternMatch {
+  PathContext context;
+
   using Dir = NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>;
   Dir dir;
-  // Includes the search_path.
-  Path path_full;
-  // Excludes the search path.
-  LazyString path_pattern;
 };
 
 struct DescendDirectoryTreeOutput {
@@ -128,26 +142,26 @@ struct DescendDirectoryTreeOutput {
   ColumnNumberDelta valid_proper_prefix_length;
 };
 
-std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
-                                       LazyString pattern_component,
-                                       DeleteNotification::Value& abort_value) {
-  std::vector<LazyString> output;
-  GlobMatcher glob_matcher = GlobMatcher::New(pattern_component);
+std::vector<PathContext> MatchComponent(
+    const PathPatternMatch& state, PathComponent pattern_component,
+    DeleteNotification::Value& abort_value) {
+  std::vector<PathContext> output;
+  GlobMatcher glob_matcher = GlobMatcher::New(ToLazyString(pattern_component));
   switch (glob_matcher.pattern_type()) {
     using enum GlobMatcher::PatternType;
     case Special: {
       ForEachDirectoryEntry(
           state.dir.value(), abort_value, [&](struct dirent* entry) {
-            PathComponent path = ValueOrDie(
+            PathComponent component = ValueOrDie(
                 PathComponent::New(LazyString{FromByteString(entry->d_name)}));
-            if (glob_matcher.Match(path).match_type ==
+            if (glob_matcher.Match(component).match_type ==
                 GlobMatcher::MatchType::Exact)
-              output.push_back(ToLazyString(path));
+              output.push_back(state.context.Append(component));
           });
       return output;
     }
     case Literal:
-      output.push_back(pattern_component);
+      output.push_back(state.context.Append(pattern_component));
   }
   return output;
 }
@@ -160,10 +174,11 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
   DescendDirectoryTreeOutput output;
   std::visit(overload{IgnoreErrors{},
                       [&search_path, &output](PathPatternMatch::Dir dir) {
-                        output.matches.push_back(
-                            PathPatternMatch{.dir = std::move(dir),
-                                             .path_full = search_path,
-                                             .path_pattern = {}});
+                        output.matches.push_back(PathPatternMatch{
+                            .context = PathContext{.path = search_path,
+                                                   .user_path = {}},
+                            .dir = std::move(dir),
+                        });
                       }},
              open_dir(search_path));
   if (output.matches.empty()) {
@@ -185,31 +200,22 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
       ++output.valid_prefix_length;
       continue;  // Skip consecutive slash.
     }
-    LazyString next_component =
+    PathComponent next_component = ValueOrDie(PathComponent::New(
         path.Substring(ColumnNumber{} + output.valid_prefix_length,
-                       component_end - output.valid_prefix_length);
+                       component_end - output.valid_prefix_length)));
     std::vector<PathPatternMatch> next_matches =
         output.matches |
         std::views::transform([&](const PathPatternMatch& previous_match) {
           return MatchComponent(previous_match, next_component, abort_value) |
                  std::views::transform([&open_dir, &previous_match,
-                                        &next_matches, &output](
-                                           LazyString next_component_match)
+                                        &next_matches,
+                                        &output](PathContext next_match)
                                            -> ValueOrError<PathPatternMatch> {
-                   Path next_path = Path::Join(
-                       previous_match.path_full,
-                       ValueOrDie(PathComponent::New(next_component_match)));
-                   LazyString next_pattern =
-                       (output.valid_prefix_length.IsZero()
-                            ? LazyString{}
-                            : previous_match.path_pattern + LazyString{L"/"}) +
-                       next_component_match;
-                   VLOG(8) << "Considering: " << next_path;
+                   VLOG(8) << "Considering: " << next_match.path;
                    DECLARE_OR_RETURN(PathPatternMatch::Dir dir,
-                                     open_dir(next_path));
-                   return PathPatternMatch{.dir = std::move(dir),
-                                           .path_full = next_path,
-                                           .path_pattern = next_pattern};
+                                     open_dir(next_match.path));
+                   return PathPatternMatch{.context = next_match,
+                                           .dir = std::move(dir)};
                  });
         }) |
         std::views::join | SkipErrors | std::ranges::to<std::vector>();
@@ -521,8 +527,8 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                           .path_prefix =
                               options.output_format ==
                                       FilePredictorOutputFormat::Input
-                                  ? match.path_pattern
-                                  : ToLazyString(match.path_full),
+                                  ? match.context.user_path
+                                  : ToLazyString(match.context.path),
                           .pattern_prefix_size =
                               descend_results.valid_prefix_length,
                           .abort_value = abort_value,
