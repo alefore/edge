@@ -97,9 +97,11 @@ using afc::vm::EscapedString;
 namespace afc::editor {
 namespace {
 template <typename Callback>
-void ForEachDirectoryEntry(DIR& dir, Callback callback) {
+void ForEachDirectoryEntry(DIR& dir, DeleteNotification::Value& abort_value,
+                           Callback callback) {
   struct dirent* entry;
   while ((entry = readdir(&dir)) != nullptr) {
+    if (abort_value.has_value()) return;
     callback(entry);
   }
 }
@@ -154,14 +156,16 @@ MatchFunction GetComponentMatcher(const LazyString& pattern) {
 }
 
 std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
-                                       LazyString pattern_component) {
+                                       LazyString pattern_component,
+                                       DeleteNotification::Value& abort_value) {
   if (MatchFunction filter = GetComponentMatcher(pattern_component);
       filter != nullptr) {
     std::vector<LazyString> output;
-    ForEachDirectoryEntry(state.dir.value(), [&](struct dirent* entry) {
-      LazyString path{FromByteString(entry->d_name)};
-      if (filter(path)) output.push_back(path);
-    });
+    ForEachDirectoryEntry(state.dir.value(), abort_value,
+                          [&](struct dirent* entry) {
+                            LazyString path{FromByteString(entry->d_name)};
+                            if (filter(path)) output.push_back(path);
+                          });
     return output;
   }
   return {pattern_component};
@@ -169,7 +173,8 @@ std::vector<LazyString> MatchComponent(const PathPatternMatch& state,
 
 DescendDirectoryTreeOutput DescendDirectoryTree(
     Path search_path, LazyString path,
-    std::function<ValueOrError<PathPatternMatch::Dir>(Path)> open_dir) {
+    std::function<ValueOrError<PathPatternMatch::Dir>(Path)> open_dir,
+    DeleteNotification::Value& abort_value) {
   VLOG(6) << "Starting search at: " << search_path;
   DescendDirectoryTreeOutput output;
   std::visit(overload{IgnoreErrors{},
@@ -205,7 +210,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
     std::vector<PathPatternMatch> next_matches =
         output.matches |
         std::views::transform([&](const PathPatternMatch& previous_match) {
-          return MatchComponent(previous_match, next_component) |
+          return MatchComponent(previous_match, next_component, abort_value) |
                  std::views::transform([&open_dir, &previous_match,
                                         &next_matches, &output](
                                            LazyString next_component_match)
@@ -323,6 +328,21 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
   return true;
 }
 
+struct LeafMatchResult {
+  ColumnNumberDelta match_len;
+  MatchType match_type;
+};
+
+LeafMatchResult MatchLeaf(std::string name, std::wstring pattern) {
+  auto [pattern_it, name_it] = std::ranges::mismatch(pattern, name);
+  ColumnNumberDelta match_len = ColumnNumberDelta{
+      static_cast<int>(std::distance(pattern.begin(), pattern_it))};
+  return LeafMatchResult{.match_len = match_len,
+                         .match_type = name_it == name.end()
+                                           ? MatchType::kExact
+                                           : MatchType::kPartial};
+}
+
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
 void ScanDirectory(const ScanDirectoryInput input) {
@@ -337,35 +357,33 @@ void ScanDirectory(const ScanDirectoryInput input) {
                       std::nullopt, FileType::Directory, longest_pattern_match);
 
   const std::wstring pattern_suffix_str = input.pattern_suffix.ToString();
-  ForEachDirectoryEntry(input.dir, [&](struct dirent* entry) {
-    if (input.abort_value.has_value()) return;
-    std::string entry_path = entry->d_name;
-    auto [pattern_it, entry_it] =
-        std::ranges::mismatch(pattern_suffix_str, entry_path);
-    ColumnNumberDelta match_len = ColumnNumberDelta{static_cast<int>(
-        std::distance(pattern_suffix_str.begin(), pattern_it))};
-    if (!HandlePossibleMatch(input, match_len,
-                             entry_it == entry_path.end() ? MatchType::kExact
-                                                          : MatchType::kPartial,
-                             OptionalFrom(PathComponent::New(
-                                 LazyString{FromByteString(entry->d_name)})),
-                             std::invoke([&entry] {
-                               switch (entry->d_type) {
-                                 case DT_DIR:
-                                   return FileType::Directory;
-                                 case DT_REG:
-                                   return FileType::Regular;
-                                 default:
-                                   return FileType::Special;
-                               }
-                             }),
-                             longest_pattern_match)) {
-      longest_pattern_match = std::max(longest_pattern_match, match_len);
-      VLOG(20) << "The entry " << entry_path
-               << " doesn't contain the whole prefix. Longest match: "
-               << longest_pattern_match;
-    }
-  });
+  ForEachDirectoryEntry(
+      input.dir, input.abort_value, [&](struct dirent* entry) {
+        if (input.abort_value.has_value()) return;
+        LeafMatchResult match_result =
+            MatchLeaf(entry->d_name, pattern_suffix_str);
+        if (!HandlePossibleMatch(
+                input, match_result.match_len, match_result.match_type,
+                OptionalFrom(PathComponent::New(
+                    LazyString{FromByteString(entry->d_name)})),
+                std::invoke([&entry] {
+                  switch (entry->d_type) {
+                    case DT_DIR:
+                      return FileType::Directory;
+                    case DT_REG:
+                      return FileType::Regular;
+                    default:
+                      return FileType::Special;
+                  }
+                }),
+                longest_pattern_match)) {
+          longest_pattern_match =
+              std::max(longest_pattern_match, match_result.match_len);
+          VLOG(20) << "The entry " << entry->d_name
+                   << " doesn't contain the whole prefix. Longest match: "
+                   << longest_pattern_match;
+        }
+      });
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
                input.pattern_prefix_size + longest_pattern_match);
@@ -504,7 +522,8 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                 if (abort_value.has_value()) return PredictorOutput{};
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
-                    DescendDirectoryTree(search_path, path_input, &OpenDir);
+                    DescendDirectoryTree(search_path, path_input, &OpenDir,
+                                         abort_value);
                 if (descend_results.matches.empty()) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
