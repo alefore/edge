@@ -14,6 +14,7 @@
 #include "src/language/text/line_builder.h"
 #include "src/language/text/line_sequence.h"
 
+using afc::concurrent::Protected;
 using afc::concurrent::VersionPropertyReceiver;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
@@ -108,49 +109,58 @@ NonEmptySingleLine ProgressStringFillUp(size_t lines,
 }
 
 Status::Status(infrastructure::audio::Player& audio_player)
-    : audio_player_(audio_player) {
-  ValidatePreconditions();
+    : audio_player_(audio_player) {}
+
+void Status::CopyFrom(const Status& status) {
+  data_.lock([&](NonNull<std::shared_ptr<Data>>& data) {
+    status.data_.lock([&](const NonNull<std::shared_ptr<Data>>& data_status) {
+      data = data_status;
+    });
+  });
 }
 
-void Status::CopyFrom(const Status& status) { data_ = status.data_; }
-
 Status::Type Status::GetType() const {
-  ValidatePreconditions();
-  return data_->type;
+  return data_.lock(
+      [](const NonNull<std::shared_ptr<Data>>& data) { return data->type; });
 }
 
 void Status::set_prompt(Line text, gc::Root<OpenBuffer> buffer) {
-  ValidatePreconditions();
-  data_ = MakeNonNullShared<Data>(
-      Data{.type = Status::Type::kPrompt,
-           .text = std::move(text),
-           .prompt_buffer = std::move(buffer),
-           .extra_information = std::make_unique<VersionPropertyReceiver>()});
-  ValidatePreconditions();
+  data_.lock([&](NonNull<std::shared_ptr<Data>>& data) {
+    data = MakeNonNullShared<Data>(
+        Data{.type = Status::Type::kPrompt,
+             .text = MakeNonNullShared<Protected<Line>>(std::move(text)),
+             .prompt_buffer = std::move(buffer),
+             .extra_information = std::make_unique<VersionPropertyReceiver>()});
+  });
 }
 
 void Status::set_context(std::optional<gc::Root<OpenBuffer>> context) {
-  ValidatePreconditions();
-  data_->context = std::move(context);
-  ValidatePreconditions();
+  data_.lock([&](NonNull<std::shared_ptr<Data>>& data) {
+    data->context = std::move(context);
+  });
 }
 
-const std::optional<gc::Root<OpenBuffer>>& Status::prompt_buffer() const {
-  ValidatePreconditions();
-  return data_->prompt_buffer;
+std::optional<gc::Root<OpenBuffer>> Status::prompt_buffer() const {
+  return data_.lock([](const NonNull<std::shared_ptr<Data>>& data) {
+    return data->prompt_buffer;
+  });
 }
 
-const std::optional<gc::Root<OpenBuffer>>& Status::context() const {
-  ValidatePreconditions();
-  return data_->context;
+std::optional<gc::Root<OpenBuffer>> Status::context() const {
+  return data_.lock(
+      [](const NonNull<std::shared_ptr<Data>>& data) { return data->context; });
 }
 
 VersionPropertyReceiver* Status::prompt_extra_information() {
-  return data_->extra_information.get();
+  return data_.lock([](const NonNull<std::shared_ptr<Data>>& data) {
+    return data->extra_information.get();
+  });
 }
 
 const VersionPropertyReceiver* Status::prompt_extra_information() const {
-  return data_->extra_information.get();
+  return data_.lock([](const NonNull<std::shared_ptr<Data>>& data) {
+    return data->extra_information.get();
+  });
 }
 
 Line Status::prompt_extra_information_line() const {
@@ -202,59 +212,62 @@ Line Status::prompt_extra_information_line() const {
 }
 
 void Status::SetInformationText(Line text) {
-  ValidatePreconditions();
   LOG(INFO) << "SetInformationText: " << text;
-  if (data_->prompt_buffer.has_value()) {
-    return;
-  }
-  data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kInformation, .text = std::move(text)});
-  ValidatePreconditions();
+  data_.lock([&text](NonNull<std::shared_ptr<Data>>& data) {
+    if (data->prompt_buffer.has_value()) {
+      return;
+    }
+    data = MakeNonNullShared<Data>(
+        Data{.type = Type::kInformation,
+             .text = MakeNonNullShared<Protected<Line>>(std::move(text))});
+  });
 }
 
 struct StatusExpirationControl {
-  std::weak_ptr<Status::Data> data;
+  std::weak_ptr<Protected<Line>> line;
 };
 
 std::unique_ptr<StatusExpirationControl,
                 std::function<void(StatusExpirationControl*)>>
 Status::SetExpiringInformationText(Line text) {
-  ValidatePreconditions();
+  using ReturnType =
+      std::unique_ptr<StatusExpirationControl,
+                      std::function<void(StatusExpirationControl*)>>;
   SetInformationText(text);
-  ValidatePreconditions();
-  if (data_->prompt_buffer.has_value()) {
-    return nullptr;
-  }
+  return data_.lock([](NonNull<std::shared_ptr<Data>>& data) -> ReturnType {
+    if (data->prompt_buffer.has_value()) {
+      return nullptr;
+    }
 
-  return std::unique_ptr<StatusExpirationControl,
-                         std::function<void(StatusExpirationControl*)>>(
-      new StatusExpirationControl{data_.get_shared()},
-      [](StatusExpirationControl* status_expiration_control) {
-        VisitPointer(
-            status_expiration_control->data,
-            [](NonNull<std::shared_ptr<Status::Data>> data) {
-              data->text = Line();
-            },
-            [] {});
-        delete status_expiration_control;
-      });
+    return ReturnType(
+        new StatusExpirationControl{data->text.get_shared()},
+        [](StatusExpirationControl* status_expiration_control) {
+          VisitPointer(
+              status_expiration_control->line,
+              [](NonNull<std::shared_ptr<Protected<Line>>> exp_data) {
+                exp_data->lock([](Line& line) { line = Line(); });
+              },
+              [] {});
+          delete status_expiration_control;
+        });
+  });
 }
 
 void Status::Set(Error error) {
-  ValidatePreconditions();
-
   LOG(INFO) << "Warning: " << error;
   GenerateAlert(audio_player_);
-  if (data_->prompt_buffer.has_value()) {
-    return;
-  }
-  LineBuilder text;
-  text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
-                    LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
-  data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kWarning, .text = std::move(text).Build()});
-
-  ValidatePreconditions();
+  data_.lock([&error](NonNull<std::shared_ptr<Data>>& data) {
+    if (data->prompt_buffer.has_value()) {
+      return;
+    }
+    LineBuilder text;
+    text.AppendString(
+        LineSequence::BreakLines(error.read()).FoldLines(),
+        LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
+    data = MakeNonNullShared<Data>(Data{
+        .type = Type::kWarning,
+        .text = MakeNonNullShared<Protected<Line>>(std::move(text).Build())});
+  });
 }
 
 error::Log::InsertResult Status::InsertError(
@@ -265,60 +278,62 @@ error::Log::InsertResult Status::InsertError(
 }
 
 struct timespec Status::last_change_time() const {
-  return data_->creation_time;
+  return data_.lock([](const NonNull<std::shared_ptr<Data>>& data) {
+    return data->creation_time;
+  });
 }
 
-void Status::Reset() {
-  ValidatePreconditions();
-  data_ = MakeNonNullShared<Data>();
-  ValidatePreconditions();
-}
+void Status::Reset() { data_ = MakeNonNullShared<Data>(); }
 
 void Status::Bell() {
-  ValidatePreconditions();
-  static const ColumnNumberDelta kMaxLength(40);
+  data_.lock([](NonNull<std::shared_ptr<Data>> data) {
+    data->text->lock([](Line& text) {
+      static const ColumnNumberDelta kMaxLength(40);
 
-  static const std::vector<SingleLine> notes = {SingleLine::Char<L'🎵'>(),
-                                                SingleLine::Char<L'🎶'>()};
+      static const std::vector<SingleLine> notes = {SingleLine::Char<L'🎵'>(),
+                                                    SingleLine::Char<L'🎶'>()};
 
-  LineBuilder output;
-  if (FindFirstColumnWithPredicate(
-          data_->text.contents(), [&](ColumnNumber, const wchar_t& c) {
+      LineBuilder output;
+      if (FindFirstColumnWithPredicate(text.contents(), [&](ColumnNumber,
+                                                            const wchar_t& c) {
             return c != L'🎼' && c != L'…' && c != L' ' &&
                    std::find(notes.begin(), notes.end(),
                              SingleLine{LazyString{ColumnNumberDelta{1}, c}}) ==
                        notes.end();
           }) != std::nullopt) {
-    output.AppendString(SingleLine{LazyString{L"🎼"}});
-  } else {
-    LineBuilder previous = LineBuilder(std::move(data_->text));
-    if (previous.contents().size() > kMaxLength) {
-      previous.DeleteCharacters(ColumnNumber(),
-                                previous.contents().size() - kMaxLength);
-      output.AppendString(SingleLine{LazyString{L"…"}});
-    }
-    output.Append(std::move(previous));
-  }
+        output.AppendString(SingleLine{LazyString{L"🎼"}});
+      } else {
+        LineBuilder previous = LineBuilder(std::move(text));
+        if (previous.contents().size() > kMaxLength) {
+          previous.DeleteCharacters(ColumnNumber(),
+                                    previous.contents().size() - kMaxLength);
+          output.AppendString(SingleLine{LazyString{L"…"}});
+        }
+        output.Append(std::move(previous));
+      }
 
-  static const std::vector<LineModifier> colors = {
-      LineModifier::kRed,  LineModifier::kGreen,  LineModifier::kBlue,
-      LineModifier::kCyan, LineModifier::kYellow, LineModifier::kMagenta,
-      LineModifier::kWhite};
-  static const std::vector<LineModifier> effects = {
-      LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
-  output.AppendString(
-      SingleLine::Char<L' '>() + notes.at(rand() % notes.size()),
-      LineModifierSet{colors.at(rand() % colors.size()),
-                      effects.at(rand() % effects.size())});
-  data_->text = std::move(output).Build();
+      static const std::vector<LineModifier> colors = {
+          LineModifier::kRed,  LineModifier::kGreen,  LineModifier::kBlue,
+          LineModifier::kCyan, LineModifier::kYellow, LineModifier::kMagenta,
+          LineModifier::kWhite};
+      static const std::vector<LineModifier> effects = {
+          LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
+      output.AppendString(
+          SingleLine::Char<L' '>() + notes.at(rand() % notes.size()),
+          LineModifierSet{colors.at(rand() % colors.size()),
+                          effects.at(rand() % effects.size())});
+      text = std::move(output).Build();
+    });
+  });
 }
 
 const Line& Status::text() const {
-  ValidatePreconditions();
-  return data_->text;
+  return *data_.lock(
+      [](NonNull<std::shared_ptr<Data>> data) { return data->text->lock(); });
 }
 
-void Status::ValidatePreconditions() const {
-  CHECK((data_->prompt_buffer.has_value()) == (data_->type == Type::kPrompt));
+void Status::DataValidator::operator()(
+    const language::NonNull<std::shared_ptr<Status::Data>>& data) const {
+  CHECK((data->prompt_buffer.has_value()) == (data->type == Type::kPrompt));
 }
 }  // namespace afc::editor

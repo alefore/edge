@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 
+#include "src/concurrent/protected.h"
 #include "src/concurrent/version_property_receiver.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/time.h"
@@ -49,9 +50,9 @@ class Status {
   //
   // Can be called with `std::nullopt` to remove the context.
   void set_context(std::optional<language::gc::Root<OpenBuffer>> context);
-  const std::optional<language::gc::Root<OpenBuffer>>& context() const;
+  std::optional<language::gc::Root<OpenBuffer>> context() const;
 
-  const std::optional<language::gc::Root<OpenBuffer>>& prompt_buffer() const;
+  std::optional<language::gc::Root<OpenBuffer>> prompt_buffer() const;
 
   // Returns nullptr if the status type isn't kPrompt.
   concurrent::VersionPropertyReceiver* prompt_extra_information();
@@ -118,7 +119,11 @@ class Status {
     const struct timespec creation_time = infrastructure::Now();
 
     const Type type = Type::kInformation;
-    language::text::Line text = language::text::Line();
+    // This has to be NonNull<std::shared<Protected<...>>> so that it can be
+    // shared (internally) with StatusExpirationControl.
+    language::NonNull<
+        std::shared_ptr<concurrent::Protected<language::text::Line>>>
+        text;
 
     const std::optional<language::gc::Root<OpenBuffer>> prompt_buffer =
         std::nullopt;
@@ -133,7 +138,12 @@ class Status {
         nullptr;
   };
 
-  language::NonNull<std::shared_ptr<Data>> data_;
+  struct DataValidator {
+    void operator()(const language::NonNull<std::shared_ptr<Data>>&) const;
+  };
+
+  concurrent::Protected<language::NonNull<std::shared_ptr<Data>>, DataValidator>
+      data_;
 
   language::error::Log errors_log_;
 };
