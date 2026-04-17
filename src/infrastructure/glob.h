@@ -11,6 +11,10 @@
 
 namespace afc::infrastructure {
 class GlobMatcher {
+ public:
+  enum class PatternType { Special, Literal };
+
+ private:
   struct NodeId : public language::GhostType<NodeId, size_t> {
     using GhostType::GhostType;
   };
@@ -23,11 +27,18 @@ class GlobMatcher {
     std::optional<NodeId> default_edge = std::nullopt;
     language::lazy_string::ColumnNumberDelta pattern_prefix_length;
   };
+  const language::lazy_string::LazyString pattern_;
   const std::vector<Node> nodes_;
+  const PatternType pattern_type_;
 
  public:
-  GlobMatcher(language::lazy_string::LazyString pattern);
+  static GlobMatcher New(language::lazy_string::LazyString pattern);
 
+  language::lazy_string::LazyString pattern() const;
+
+  PatternType pattern_type() const;
+
+  enum class MatchType { Exact, Partial };
   struct MatchResults {
     // Length of the longest prefix of `pattern` that matches a prefix
     // of `component`.
@@ -36,17 +47,25 @@ class GlobMatcher {
     // Length of the longest prefix of `component` that is matched by the
     // longest prefix of `pattern` that matches something.
     language::lazy_string::ColumnNumberDelta component_prefix_length;
+
+    MatchType match_type;
   };
 
-  MatchResults Match(PathComponent component);
+  MatchResults Match(PathComponent component) const;
 
  private:
-  static std::vector<Node> NodesForPattern(
+  static std::pair<std::vector<Node>, PatternType> NodesForPattern(
       language::lazy_string::LazyString pattern);
+
+  GlobMatcher(language::lazy_string::LazyString pattern,
+              std::vector<Node> graph, PatternType pattern_type);
 
   friend std::ostream& operator<<(std::ostream& os,
                                   const GlobMatcher::Node& value);
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const GlobMatcher::MatchResults& value);
 }  // namespace afc::infrastructure
 
 #endif  // __AFC_EDITOR_INFRASTRUCTURE_GLOB_H__

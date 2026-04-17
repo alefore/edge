@@ -33,8 +33,9 @@ struct NDNode {
 
 using NDGraph = std::vector<NDNode>;
 
-NDGraph BuildNDGraph(LazyString pattern) {
+std::pair<NDGraph, GlobMatcher::PatternType> BuildNDGraph(LazyString pattern) {
   std::vector<NDNode> output(pattern.size().read() + 1);
+  GlobMatcher::PatternType output_type = GlobMatcher::PatternType::Literal;
   ForEachColumn(pattern, [&](ColumnNumber i, wchar_t c) {
     NDNodeId index{i.read()};
     NDNodeId next = NDNodeId{index.read() + 1};
@@ -43,15 +44,17 @@ NDGraph BuildNDGraph(LazyString pattern) {
       case '*':
         node.any_char_edges.push_back(index);
         node.automatic_edges.push_back(next);
+        output_type = GlobMatcher::PatternType::Special;
         break;
       case '?':
+        output_type = GlobMatcher::PatternType::Special;
         node.any_char_edges.push_back(next);
         break;
       default:
         node.edges[c].push_back(next);
     }
   });
-  return output;
+  return {output, output_type};
 }
 
 NDNodeGroup GetAutomaticClosure(const NDGraph& graph, NDNodeGroup states) {
@@ -71,10 +74,10 @@ NDNodeGroup GetAutomaticClosure(const NDGraph& graph, NDNodeGroup states) {
 }
 
 /* static */
-std::vector<GlobMatcher::Node> GlobMatcher::NodesForPattern(
-    LazyString pattern) {
-  std::vector<NDNode> tmp_graph = BuildNDGraph(pattern);
-  VLOG(4) << "ND Match states: " << tmp_graph.size();
+std::pair<std::vector<GlobMatcher::Node>, GlobMatcher::PatternType>
+GlobMatcher::NodesForPattern(LazyString pattern) {
+  std::pair<std::vector<NDNode>, PatternType> tmp_graph = BuildNDGraph(pattern);
+  VLOG(4) << "ND Match states: " << tmp_graph.first.size();
   std::map<NDNodeGroup, NodeId> nd_groups;
 
   std::vector<Node> output;
@@ -82,7 +85,7 @@ std::vector<GlobMatcher::Node> GlobMatcher::NodesForPattern(
   std::queue<NDNodeGroup> queue;
 
   auto get_or_create_node = [&](NDNodeGroup group) -> NodeId {
-    group = GetAutomaticClosure(tmp_graph, group);
+    group = GetAutomaticClosure(tmp_graph.first, group);
     if (auto it = nd_groups.find(group); it != nd_groups.end())
       return it->second;
     NodeId node_id = NodeId{output.size()};
@@ -103,14 +106,14 @@ std::vector<GlobMatcher::Node> GlobMatcher::NodesForPattern(
     NodeId node_id = nd_groups[nd_group];
     std::map<wchar_t, NDNodeGroup> char_edges = {};
     for (NDNodeId nd_node : nd_group) {
-      CHECK_LT(nd_node, tmp_graph.size());
+      CHECK_LT(nd_node, tmp_graph.first.size());
       for (std::pair<wchar_t, std::vector<NDNodeId>> item :
-           tmp_graph[nd_node.read()].edges)
+           tmp_graph.first[nd_node.read()].edges)
         char_edges[item.first].insert_range(item.second);
     }
     NDNodeGroup any_char_edges =
         nd_group | std::views::transform([&](NDNodeId nd_node) {
-          return tmp_graph[nd_node.read()].any_char_edges;
+          return tmp_graph.first[nd_node.read()].any_char_edges;
         }) |
         std::views::join | std::ranges::to<NDNodeGroup>();
     for (std::pair<wchar_t, NDNodeGroup> item : char_edges) {
@@ -123,7 +126,7 @@ std::vector<GlobMatcher::Node> GlobMatcher::NodesForPattern(
     if (!any_char_edges.empty())
       output[node_id.read()].default_edge = get_or_create_node(any_char_edges);
   }
-  return output;
+  return {output, tmp_graph.second};
 }
 
 std::ostream& operator<<(std::ostream& os, const GlobMatcher::Node& value) {
@@ -131,10 +134,28 @@ std::ostream& operator<<(std::ostream& os, const GlobMatcher::Node& value) {
   return os;
 }
 
-GlobMatcher::GlobMatcher(LazyString pattern)
-    : nodes_(NodesForPattern(pattern)) {}
+/* static */ GlobMatcher GlobMatcher::New(
+    language::lazy_string::LazyString pattern) {
+  std::pair<std::vector<Node>, PatternType> data = NodesForPattern(pattern);
+  return GlobMatcher(pattern, std::move(data.first), data.second);
+}
 
-GlobMatcher::MatchResults GlobMatcher::Match(PathComponent component) {
+GlobMatcher::GlobMatcher(LazyString pattern, std::vector<Node> nodes,
+                         PatternType pattern_type)
+    : pattern_(pattern),
+      nodes_(std::move(nodes)),
+      pattern_type_(pattern_type) {}
+
+language::lazy_string::LazyString GlobMatcher::pattern() const {
+  return pattern_;
+}
+
+GlobMatcher::PatternType GlobMatcher::pattern_type() const {
+  return pattern_type_;
+}
+
+GlobMatcher::MatchResults GlobMatcher::Match(PathComponent component) const {
+  VLOG(6) << "Match " << pattern_ << " to: " << component;
   LazyString input = ToLazyString(component);
   NodeId current_index{0};
   ColumnNumberDelta component_index;
@@ -149,10 +170,40 @@ GlobMatcher::MatchResults GlobMatcher::Match(PathComponent component) {
       break;
     }
   }
-  return MatchResults{.pattern_prefix_length =
-                          nodes_[current_index.read()].pattern_prefix_length,
-                      .component_prefix_length = ColumnNumberDelta{
-                          static_cast<int>(component_index.read())}};
+  MatchResults output{
+      .pattern_prefix_length =
+          nodes_[current_index.read()].pattern_prefix_length,
+      .component_prefix_length =
+          ColumnNumberDelta{static_cast<int>(component_index.read())},
+      .match_type = nodes_[current_index.read()].pattern_prefix_length ==
+                                pattern_.size() &&
+                            component_index == input.size()
+                        ? MatchType::Exact
+                        : MatchType::Partial};
+  VLOG(2) << "Match " << pattern_ << " to: " << component << ": " << output;
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const GlobMatcher::MatchType& value) {
+  switch (value) {
+    using enum GlobMatcher::MatchType;
+    case Exact:
+      os << "exact match";
+      break;
+    case Partial:
+      os << "partial match";
+      break;
+  }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const GlobMatcher::MatchResults& value) {
+  os << "[MatchResult: pattern_prefix_length=" << value.pattern_prefix_length
+     << ", component_prefix_length=" << value.component_prefix_length << ", "
+     << value.match_type << "]";
+  return os;
 }
 
 namespace {
@@ -162,7 +213,7 @@ const bool tests_registration = tests::Register(
         {.name = L"Simple",
          .callback =
              [] {
-               auto results = GlobMatcher(LazyString{L"foo"})
+               auto results = GlobMatcher::New(LazyString{L"foo"})
                                   .Match(PathComponent::FromString(L"foo"));
                CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{3});
                CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{3});
@@ -170,7 +221,7 @@ const bool tests_registration = tests::Register(
         {.name = L"PatternFull",
          .callback =
              [] {
-               auto results = GlobMatcher(LazyString{L"foo"})
+               auto results = GlobMatcher::New(LazyString{L"foo"})
                                   .Match(PathComponent::FromString(L"foobar"));
                CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{3});
                CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{3});
@@ -178,7 +229,7 @@ const bool tests_registration = tests::Register(
         {.name = L"ComponentFull",
          .callback =
              [] {
-               auto results = GlobMatcher(LazyString{L"foobar"})
+               auto results = GlobMatcher::New(LazyString{L"foobar"})
                                   .Match(PathComponent::FromString(L"fo"));
                CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{2});
                CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{2});
@@ -186,7 +237,7 @@ const bool tests_registration = tests::Register(
         {.name = L"SingleWildcard",
          .callback =
              [] {
-               auto results = GlobMatcher(LazyString{L"*"})
+               auto results = GlobMatcher::New(LazyString{L"*"})
                                   .Match(PathComponent::FromString(L"quux"));
                CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{1});
                CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{4});
@@ -194,7 +245,7 @@ const bool tests_registration = tests::Register(
         {.name = L"AdvancedWildcard",
          .callback =
              [] {
-               auto results = GlobMatcher(LazyString{L"a*a"})
+               auto results = GlobMatcher::New(LazyString{L"a*a"})
                                   .Match(PathComponent::FromString(L"aba"));
                CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{3});
                CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{3});
@@ -202,7 +253,7 @@ const bool tests_registration = tests::Register(
         {.name = L"AdvancedWildcardPrefix",
          .callback =
              [] {
-               auto results = GlobMatcher(LazyString{L"a*a"})
+               auto results = GlobMatcher::New(LazyString{L"a*a"})
                                   .Match(PathComponent::FromString(L"abcd"));
                CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{2});
                CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{4});
