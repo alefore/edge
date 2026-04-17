@@ -102,11 +102,23 @@ class Protected {
 
   template <typename Callable>
   decltype(auto) lock(Callable&& callable) {
+    using ReturnType = std::invoke_result_t<Callable, T&>;
+    static_assert(
+        !std::is_reference_v<ReturnType>,
+        "You are returning a reference from a Protected lock. "
+        "This reference will point to unprotected data once the lock is "
+        "released.");
     return std::forward<Callable>(callable)(*lock());
   }
 
   template <typename Callable>
   decltype(auto) lock(Callable&& callable) const {
+    using ReturnType = std::invoke_result_t<Callable, T&>;
+    static_assert(
+        !std::is_reference_v<ReturnType>,
+        "You are returning a reference from a Protected lock. "
+        "This reference will point to unprotected data once the lock is "
+        "released.");
     return std::forward<Callable>(callable)(*lock());
   }
 
