@@ -571,8 +571,13 @@ futures::Value<gc::Root<OpenBuffer>> OpenBuffer::WaitForEndOfFile() {
       reload_state_ == ReloadState::kDone)
     return RootFromThis();
   return end_of_file_observers_.NewFuture().Transform(
-      [root = RootFromThis()](
-          EmptyValue) -> futures::Value<gc::Root<OpenBuffer>> { return root; });
+      [root_weak = WeakPtrFromThis()](
+          EmptyValue) -> futures::Value<gc::Root<OpenBuffer>> {
+        std::optional<gc::Root<OpenBuffer>> output = root_weak.Lock();
+        // If this callback is running, we know that this instance is alive.
+        CHECK(output.has_value());
+        return output.value();
+      });
 }
 
 bool OpenBuffer::IsClosed() const {
