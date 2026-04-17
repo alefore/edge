@@ -35,10 +35,12 @@ class LazyValue {
   LazyValue& operator=(LazyValue&&) = default;
 
   const Value& get() const {
-    return data_->lock([](std::variant<Value, Factory>& data) -> const Value& {
+    // Returning the locked data is safe here: we know that data_ will never
+    // change (once it gets a value).
+    return *data_->lock([](std::variant<Value, Factory>& data) -> const Value* {
       if (Factory* factory = std::get_if<Factory>(&data); factory != nullptr)
         data = std::move(*factory)();
-      return std::get<Value>(data);
+      return &std::get<Value>(data);
     });
   }
 
