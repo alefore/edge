@@ -245,7 +245,6 @@ struct ScanDirectoryInput {
   ColumnNumberDelta pattern_prefix_size;
   DeleteNotification::Value& abort_value;
   PredictorOutput& predictor_output;
-  std::function<void(Line, GlobMatcher::MatchType)> push_output;
 };
 
 bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
@@ -263,11 +262,21 @@ bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
   return true;
 }
 
-bool HandlePossibleMatch(const ScanDirectoryInput& input,
-                         ColumnNumberDelta match_len,
-                         GlobMatcher::MatchType match_type,
-                         PathContext path_context, FileType file_type,
-                         ColumnNumberDelta& longest_pattern_match) {
+struct ScanMatchNotAccepted {};
+struct ScanMatchIgnored {};
+struct ScanMatchValid {
+  Line line;
+  GlobMatcher::MatchType match_type;
+};
+
+using ScanMatch =
+    std::variant<ScanMatchNotAccepted, ScanMatchIgnored, ScanMatchValid>;
+
+ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
+                              ColumnNumberDelta match_len,
+                              GlobMatcher::MatchType match_type,
+                              PathContext path_context, FileType file_type,
+                              ColumnNumberDelta& longest_pattern_match) {
   namespace ofp = open_file_position;
   LazyString remaining_suffix =
       input.glob_matcher.pattern().Substring(ColumnNumber{} + match_len);
@@ -275,7 +284,7 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
       remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
     VLOG(5) << "open_file_position didn't allow match: " << remaining_suffix;
-    return false;
+    return ScanMatchNotAccepted{};
   }
   input.predictor_output.found_exact_match |=
       match_type == GlobMatcher::MatchType::Exact;
@@ -286,7 +295,7 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
   if (!FilterAllows(file_type, input.options) ||
       std::regex_match(ToLazyString(path_context.path).ToString(),
                        input.noise_regex))
-    return true;
+    return ScanMatchIgnored{};
 
   LazyString path_str =
       input.options.output_format == FilePredictorOutputFormat::Input
@@ -297,15 +306,16 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
     path_str += dir_suffix;
   LineBuilder line_builder{
       EscapedString::FromString(path_str).EscapedRepresentation()};
+  // TODO(P2, trivial, 2026-04-18): Improve SetMetadata to support fluent iface.
   line_builder.SetMetadata(LazyValue<LineMetadataMap>{
       [spec] { return GetLineMetadata(spec.value()); }});
-  input.push_output(std::move(line_builder).Build(), match_type);
-  return true;
+  return ScanMatchValid{.line = std::move(line_builder).Build(),
+                        .match_type = match_type};
 }
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
-void ScanDirectory(const ScanDirectoryInput input) {
+std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
   VLOG(5) << "Scanning directory \"" << input.path_context.path
@@ -313,24 +323,22 @@ void ScanDirectory(const ScanDirectoryInput input) {
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
 
-  HandlePossibleMatch(input, ColumnNumberDelta{}, GlobMatcher::MatchType::Exact,
-                      input.path_context, FileType::Directory,
-                      longest_pattern_match);
+  co_yield HandlePossibleMatch(
+      input, ColumnNumberDelta{}, GlobMatcher::MatchType::Exact,
+      input.path_context, FileType::Directory, longest_pattern_match);
 
   for (const ComponentData& component : ViewComponents(
            input.path_context.path, input.abort_value, input.glob_matcher)) {
-    if (!HandlePossibleMatch(input,
-                             component.glob_match_results.pattern_prefix_length,
-                             component.glob_match_results.match_type,
-                             input.path_context.Append(component.path),
-                             component.file_type, longest_pattern_match)) {
+    ScanMatch file_result = HandlePossibleMatch(
+        input, component.glob_match_results.pattern_prefix_length,
+        component.glob_match_results.match_type,
+        input.path_context.Append(component.path), component.file_type,
+        longest_pattern_match);
+    if (std::holds_alternative<ScanMatchNotAccepted>(file_result))
       longest_pattern_match =
           std::max(longest_pattern_match,
                    component.glob_match_results.pattern_prefix_length);
-      VLOG(20) << "The entry " << component.path
-               << " doesn't contain the whole prefix. Longest match: "
-               << longest_pattern_match;
-    }
+    co_yield std::move(file_result);
   }
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
@@ -486,38 +494,43 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                 }
                 std::ranges::for_each(
                     descend_results.matches, [&](const PathContext& match) {
-                      ScanDirectory(ScanDirectoryInput{
-                          .options = options,
-                          .noise_regex = noise_regex,
-                          .glob_matcher = GlobMatcher::New(path_input.Substring(
-                              ColumnNumber{} +
-                              descend_results.valid_prefix_length)),
-                          .path_context = match,
-                          .pattern_prefix_size =
-                              descend_results.valid_prefix_length,
-                          .abort_value = abort_value,
-                          .predictor_output = predictor_output,
-                          .push_output = [&options, &predictions, &matches,
-                                          &progress_channel](
-                                             Line line, GlobMatcher::MatchType
-                                                            match_type) {
-                            if (options.match_behavior ==
-                                    FilePredictorMatchBehavior::
-                                        kOnlyExactMatch &&
-                                match_type == GlobMatcher::MatchType::Partial)
-                              return;
-                            predictions.push_back(
-                                line,
-                                MutableLineSequence::ObserverBehavior::kHide);
-                            ++matches;
-                            if (matches % 100 == 0)
-                              progress_channel->Push(ProgressInformation{
-                                  .values = {
-                                      {VersionPropertyKey{
-                                           NON_EMPTY_SINGLE_LINE_CONSTANT(
-                                               L"files")},
-                                       NonEmptySingleLine(matches).read()}}});
-                          }});
+                      for (const ScanMatchValid& scan_result :
+                           ScanDirectory(ScanDirectoryInput{
+                               .options = options,
+                               .noise_regex = noise_regex,
+                               .glob_matcher =
+                                   GlobMatcher::New(path_input.Substring(
+                                       ColumnNumber{} +
+                                       descend_results.valid_prefix_length)),
+                               .path_context = match,
+                               .pattern_prefix_size =
+                                   descend_results.valid_prefix_length,
+                               .abort_value = abort_value,
+                               .predictor_output = predictor_output}) |
+                               std::views::filter([](const auto& v) {
+                                 return std::holds_alternative<ScanMatchValid>(
+                                     v);
+                               }) |
+                               std::views::transform([](const auto& v) {
+                                 return std::get<ScanMatchValid>(v);
+                               })) {
+                        if (options.match_behavior ==
+                                FilePredictorMatchBehavior::kOnlyExactMatch &&
+                            scan_result.match_type ==
+                                GlobMatcher::MatchType::Partial)
+                          continue;
+                        predictions.push_back(
+                            scan_result.line,
+                            MutableLineSequence::ObserverBehavior::kHide);
+                        ++matches;
+                        if (matches % 100 == 0)
+                          progress_channel->Push(ProgressInformation{
+                              .values = {
+                                  {VersionPropertyKey{
+                                       NON_EMPTY_SINGLE_LINE_CONSTANT(
+                                           L"files")},
+                                   NonEmptySingleLine(matches).read()}}});
+                      };
                       progress_channel->Push(ProgressInformation{
                           .values = {
                               {VersionPropertyKey{
