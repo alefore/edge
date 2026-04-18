@@ -6,8 +6,10 @@ extern "C" {
 #include <sys/types.h>
 }
 
+#include <coroutine>
 #include <filesystem>
 #include <functional>
+#include <generator>
 #include <regex>
 #include <set>
 #include <variant>
@@ -98,20 +100,6 @@ using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
-template <typename Callback>
-void ForEachDirectoryEntry(DIR& dir, DeleteNotification::Value& abort_value,
-                           Callback callback) {
-  struct dirent* entry;
-  rewinddir(&dir);
-  while ((entry = readdir(&dir)) != nullptr) {
-    if (abort_value.has_value()) {
-      LOG(INFO) << "Ooops aborted.";
-      return;
-    }
-    callback(entry);
-  }
-}
-
 struct PathContext {
   // Includes the search_path.
   Path path;
@@ -126,65 +114,84 @@ struct PathContext {
             (user_path.empty() ? LazyString{} : user_path + LazyString{L"/"}) +
             ToLazyString(component)};
   }
-};
 
-struct PathPatternMatch {
-  PathContext context;
-
-  using Dir = NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>;
-  Dir dir;
+  bool IsDirectory() const {
+    std::error_code ec;
+    return std::filesystem::is_directory(ToLazyString(path).ToBytes(), ec);
+  }
 };
 
 struct DescendDirectoryTreeOutput {
-  std::vector<PathPatternMatch> matches;
+  std::vector<PathContext> matches = {};
   // The length of the longest prefix of path that matches a valid directory.
-  ColumnNumberDelta valid_prefix_length;
-  ColumnNumberDelta valid_proper_prefix_length;
+  ColumnNumberDelta valid_prefix_length = {};
+  ColumnNumberDelta valid_proper_prefix_length = {};
 };
 
+// Simplified view of lower-level Unix semantics. Good enough for us.
+enum class FileType { Directory, Regular, Special };
+
+struct ComponentData {
+  PathComponent path;
+  FileType file_type;
+  GlobMatcher::MatchResults glob_match_results;
+};
+
+std::generator<ComponentData> ViewComponents(
+    Path path, DeleteNotification::Value& abort_value,
+    const GlobMatcher& glob_matcher) {
+  std::error_code ec;
+  auto it =
+      std::filesystem::directory_iterator(ToLazyString(path).ToBytes(), ec);
+  if (ec) co_return;
+
+  while (it != std::filesystem::end(it)) {
+    if (abort_value.has_value()) co_return;
+    const auto& entry = *it;
+    if (ec) ec.clear();
+    PathComponent component_path = ValueOrDie(PathComponent::New(
+        LazyString{FromByteString(entry.path().filename().string())}));
+    co_yield ComponentData{
+        .path = component_path,
+        .file_type = std::invoke([&entry] {
+          if (entry.is_directory()) return FileType::Directory;
+          if (entry.is_regular_file()) return FileType::Regular;
+          return FileType::Special;
+        }),
+        .glob_match_results = glob_matcher.Match(component_path)};
+    it.increment(ec);
+    if (ec) break;
+  }
+}
+
 std::vector<PathContext> MatchComponent(
-    const PathPatternMatch& state, PathComponent pattern_component,
+    const PathContext& context, PathComponent pattern_component,
     DeleteNotification::Value& abort_value) {
-  std::vector<PathContext> output;
   GlobMatcher glob_matcher = GlobMatcher::New(ToLazyString(pattern_component));
   switch (glob_matcher.pattern_type()) {
     using enum GlobMatcher::PatternType;
-    case Special: {
-      ForEachDirectoryEntry(
-          state.dir.value(), abort_value, [&](struct dirent* entry) {
-            PathComponent component = ValueOrDie(
-                PathComponent::New(LazyString{FromByteString(entry->d_name)}));
-            if (glob_matcher.Match(component).match_type ==
-                GlobMatcher::MatchType::Exact)
-              output.push_back(state.context.Append(component));
-          });
-      return output;
-    }
+    case Special:
+      return ViewComponents(context.path, abort_value, glob_matcher) |
+             std::views::filter([](const ComponentData& data) {
+               return data.glob_match_results.match_type ==
+                      GlobMatcher::MatchType::Exact;
+             }) |
+             std::views::transform([&context](const ComponentData& data) {
+               return context.Append(data.path);
+             }) |
+             std::ranges::to<std::vector>();
     case Literal:
-      output.push_back(state.context.Append(pattern_component));
+      return {context.Append(pattern_component)};
   }
-  return output;
+  LOG(FATAL) << "Invalid pattern type";
+  return {};
 }
 
 DescendDirectoryTreeOutput DescendDirectoryTree(
-    Path search_path, LazyString path,
-    std::function<ValueOrError<PathPatternMatch::Dir>(Path)> open_dir,
-    DeleteNotification::Value& abort_value) {
+    Path search_path, LazyString path, DeleteNotification::Value& abort_value) {
   VLOG(6) << "Starting search at: " << search_path;
-  DescendDirectoryTreeOutput output;
-  std::visit(overload{IgnoreErrors{},
-                      [&search_path, &output](PathPatternMatch::Dir dir) {
-                        output.matches.push_back(PathPatternMatch{
-                            .context = PathContext{.path = search_path,
-                                                   .user_path = {}},
-                            .dir = std::move(dir),
-                        });
-                      }},
-             open_dir(search_path));
-  if (output.matches.empty()) {
-    VLOG(5) << "Unable to open search_path: " << search_path;
-    return output;
-  }
+  DescendDirectoryTreeOutput output{
+      .matches = {PathContext{.path = search_path, .user_path = {}}}};
 
   // We don't use DirectorySplit in order to handle adjacent slashes.
   while (output.valid_prefix_length < path.size()) {
@@ -203,22 +210,15 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
     PathComponent next_component = ValueOrDie(PathComponent::New(
         path.Substring(ColumnNumber{} + output.valid_prefix_length,
                        component_end - output.valid_prefix_length)));
-    std::vector<PathPatternMatch> next_matches =
+    std::vector<PathContext> next_matches =
         output.matches |
-        std::views::transform([&](const PathPatternMatch& previous_match) {
+        std::views::transform([&](const PathContext& previous_match) {
           return MatchComponent(previous_match, next_component, abort_value) |
-                 std::views::transform([&open_dir, &previous_match,
-                                        &next_matches,
-                                        &output](PathContext next_match)
-                                           -> ValueOrError<PathPatternMatch> {
-                   VLOG(8) << "Considering: " << next_match.path;
-                   DECLARE_OR_RETURN(PathPatternMatch::Dir dir,
-                                     open_dir(next_match.path));
-                   return PathPatternMatch{.context = next_match,
-                                           .dir = std::move(dir)};
+                 std::views::filter([](const PathContext& context) {
+                   return context.IsDirectory();
                  });
         }) |
-        std::views::join | SkipErrors | std::ranges::to<std::vector>();
+        std::views::join | std::ranges::to<std::vector>();
     if (next_matches.empty()) {
       VLOG(5) << "Descend directory stops with matches "
               << output.matches.size() << " at prefix "
@@ -234,22 +234,14 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
 
 struct ScanDirectoryInput {
   const FilePredictorOptions& options;
-  DIR& dir;
   const std::wregex& noise_regex;
   GlobMatcher glob_matcher;
-
-  // The actual path to `dir`. If the pattern includes matched glob
-  // characters, that's not visible here (i.e., they are expanded).
-  LazyString path_prefix;
-
+  PathContext path_context;
   ColumnNumberDelta pattern_prefix_size;
   DeleteNotification::Value& abort_value;
   PredictorOutput& predictor_output;
   std::function<void(Line, GlobMatcher::MatchType)> push_output;
 };
-
-// Simplified view of lower-level Unix semantics. Good enough for us.
-enum class FileType { Directory, Regular, Special };
 
 bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
   switch (file_type) {
@@ -269,8 +261,7 @@ bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
 bool HandlePossibleMatch(const ScanDirectoryInput& input,
                          ColumnNumberDelta match_len,
                          GlobMatcher::MatchType match_type,
-                         std::optional<PathComponent> entry_name,
-                         FileType file_type,
+                         PathContext path_context, FileType file_type,
                          ColumnNumberDelta& longest_pattern_match) {
   namespace ofp = open_file_position;
   LazyString remaining_suffix =
@@ -284,34 +275,23 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
   input.predictor_output.found_exact_match |=
       match_type == GlobMatcher::MatchType::Exact;
   longest_pattern_match = input.glob_matcher.pattern().size();
-  ValueOrError<Path> path_prefix_or_error = Path::New(input.path_prefix);
-  if (IsError(path_prefix_or_error) && entry_name == std::nullopt) {
-    LOG(INFO) << "No path prefix and no entry name.";
-    return false;
-  }
-  Path path_full = std::visit(
-      overload{[&entry_name](Path path_prefix) {
-                 return entry_name.has_value()
-                            ? Path::Join(path_prefix, entry_name.value())
-                            : path_prefix;
-               },
-               [&entry_name](Error) -> Path { return entry_name.value(); }},
-      path_prefix_or_error);
-  VLOG(10) << "Interesting entry: " << path_full
+  VLOG(10) << "Interesting entry: " << path_context.path
            << " exact: " << (match_type == GlobMatcher::MatchType::Exact)
-           << " full: " << path_full << ", spec: " << spec.value();
+           << ", spec: " << spec.value();
   if (!FilterAllows(file_type, input.options) ||
-      std::regex_match(ToLazyString(path_full).ToString(), input.noise_regex))
+      std::regex_match(ToLazyString(path_context.path).ToString(),
+                       input.noise_regex))
     return true;
 
-  LazyString dir_suffix{L"/"};
+  LazyString path_str =
+      input.options.output_format == FilePredictorOutputFormat::Input
+          ? path_context.user_path
+          : ToLazyString(path_context.path);
+  static LazyString dir_suffix{L"/"};
+  if (file_type == FileType::Directory && !EndsWith(path_str, dir_suffix))
+    path_str += dir_suffix;
   LineBuilder line_builder{
-      EscapedString::FromString(
-          ToLazyString(path_full) +
-          (file_type == FileType::Directory && !EndsWith(path_full, dir_suffix)
-               ? dir_suffix
-               : LazyString{}))
-          .EscapedRepresentation()};
+      EscapedString::FromString(path_str).EscapedRepresentation()};
   line_builder.SetMetadata(LazyValue<LineMetadataMap>{
       [spec] { return GetLineMetadata(spec.value()); }});
   input.push_output(std::move(line_builder).Build(), match_type);
@@ -323,44 +303,30 @@ bool HandlePossibleMatch(const ScanDirectoryInput& input,
 void ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
-  VLOG(5) << "Scanning directory \"" << input.path_prefix
+  VLOG(5) << "Scanning directory \"" << input.path_context.path
           << "\" looking for: " << input.glob_matcher.pattern();
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
 
   HandlePossibleMatch(input, ColumnNumberDelta{}, GlobMatcher::MatchType::Exact,
-                      std::nullopt, FileType::Directory, longest_pattern_match);
-  ForEachDirectoryEntry(
-      input.dir, input.abort_value, [&](struct dirent* entry) {
-        PathComponent component = ValueOrDie(
-            PathComponent::New(LazyString{FromByteString(entry->d_name)}));
-        GlobMatcher::MatchResults match_result =
-            input.glob_matcher.Match(component);
-        if (!HandlePossibleMatch(
-                input, match_result.pattern_prefix_length,
-                match_result.component_prefix_length == component.size()
-                    ? GlobMatcher::MatchType::Exact
-                    : GlobMatcher::MatchType::Partial,
-                OptionalFrom(PathComponent::New(
-                    LazyString{FromByteString(entry->d_name)})),
-                std::invoke([&entry] {
-                  switch (entry->d_type) {
-                    case DT_DIR:
-                      return FileType::Directory;
-                    case DT_REG:
-                      return FileType::Regular;
-                    default:
-                      return FileType::Special;
-                  }
-                }),
-                longest_pattern_match)) {
-          longest_pattern_match = std::max(longest_pattern_match,
-                                           match_result.pattern_prefix_length);
-          VLOG(20) << "The entry " << entry->d_name
-                   << " doesn't contain the whole prefix. Longest match: "
-                   << longest_pattern_match;
-        }
-      });
+                      input.path_context, FileType::Directory,
+                      longest_pattern_match);
+
+  for (const ComponentData& component : ViewComponents(
+           input.path_context.path, input.abort_value, input.glob_matcher)) {
+    if (!HandlePossibleMatch(input,
+                             component.glob_match_results.pattern_prefix_length,
+                             component.glob_match_results.match_type,
+                             input.path_context.Append(component.path),
+                             component.file_type, longest_pattern_match)) {
+      longest_pattern_match =
+          std::max(longest_pattern_match,
+                   component.glob_match_results.pattern_prefix_length);
+      VLOG(20) << "The entry " << component.path
+               << " doesn't contain the whole prefix. Longest match: "
+               << longest_pattern_match;
+    }
+  }
   input.predictor_output.longest_prefix =
       std::max(input.predictor_output.longest_prefix,
                input.pattern_prefix_size + longest_pattern_match);
@@ -499,8 +465,7 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                 if (abort_value.has_value()) return PredictorOutput{};
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
-                    DescendDirectoryTree(search_path, path_input, &OpenDir,
-                                         abort_value);
+                    DescendDirectoryTree(search_path, path_input, abort_value);
                 if (descend_results.matches.empty()) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
@@ -515,20 +480,14 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                   predictor_output.found_exact_match = true;
                 }
                 std::ranges::for_each(
-                    descend_results.matches,
-                    [&](const PathPatternMatch& match) {
+                    descend_results.matches, [&](const PathContext& match) {
                       ScanDirectory(ScanDirectoryInput{
                           .options = options,
-                          .dir = match.dir.value(),
                           .noise_regex = noise_regex,
                           .glob_matcher = GlobMatcher::New(path_input.Substring(
                               ColumnNumber{} +
                               descend_results.valid_prefix_length)),
-                          .path_prefix =
-                              options.output_format ==
-                                      FilePredictorOutputFormat::Input
-                                  ? match.context.user_path
-                                  : ToLazyString(match.context.path),
+                          .path_context = match,
                           .pattern_prefix_size =
                               descend_results.valid_prefix_length,
                           .abort_value = abort_value,
