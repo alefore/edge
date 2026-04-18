@@ -110,9 +110,11 @@ struct PathContext {
   PathContext Append(const PathComponent& component) const {
     return PathContext{
         .path = Path::Join(path, component),
-        .user_path =
-            (user_path.empty() ? LazyString{} : user_path + LazyString{L"/"}) +
-            ToLazyString(component)};
+        .user_path = user_path +
+                     (EndsWith(user_path, LazyString{L"/"}) || user_path.empty()
+                          ? LazyString{}
+                          : LazyString{L"/"}) +
+                     ToLazyString(component)};
   }
 
   bool IsDirectory() const {
@@ -191,7 +193,10 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
     Path search_path, LazyString path, DeleteNotification::Value& abort_value) {
   VLOG(6) << "Starting search at: " << search_path;
   DescendDirectoryTreeOutput output{
-      .matches = {PathContext{.path = search_path, .user_path = {}}}};
+      .matches = {PathContext{.path = search_path,
+                              .user_path = StartsWith(path, LazyString{L"/"})
+                                               ? LazyString{L"/"}
+                                               : LazyString{}}}};
 
   // We don't use DirectorySplit in order to handle adjacent slashes.
   while (output.valid_prefix_length < path.size()) {
