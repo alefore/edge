@@ -263,7 +263,9 @@ bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
 }
 
 struct ScanMatchNotAccepted {};
-struct ScanMatchIgnored {};
+struct ScanMatchIgnored {
+  GlobMatcher::MatchType match_type;
+};
 struct ScanMatchValid {
   Line line;
   GlobMatcher::MatchType match_type;
@@ -286,8 +288,6 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
     VLOG(5) << "open_file_position didn't allow match: " << remaining_suffix;
     return ScanMatchNotAccepted{};
   }
-  input.predictor_output.found_exact_match |=
-      match_type == GlobMatcher::MatchType::Exact;
   longest_pattern_match = input.glob_matcher.pattern().size();
   VLOG(10) << "Interesting entry: " << path_context.path
            << " exact: " << (match_type == GlobMatcher::MatchType::Exact)
@@ -295,7 +295,7 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
   if (!FilterAllows(file_type, input.options) ||
       std::regex_match(ToLazyString(path_context.path).ToString(),
                        input.noise_regex))
-    return ScanMatchIgnored{};
+    return ScanMatchIgnored{.match_type = match_type};
 
   LazyString path_str =
       input.options.output_format == FilePredictorOutputFormat::Input
@@ -472,8 +472,14 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
               }
 
               PredictorOutput predictor_output;
-              int matches = 0;
               MutableLineSequence predictions;
+              auto signal_progress = [progress_channel, &predictions] {
+                progress_channel->Push(ProgressInformation{
+                    .values = {{VersionPropertyKey{
+                                    NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
+                                NonEmptySingleLine(predictions.size().read())
+                                    .read()}}});
+              };
               for (const auto& search_path : search_paths) {
                 if (abort_value.has_value()) return PredictorOutput{};
                 VLOG(4) << "Considering search path: " << search_path;
@@ -489,55 +495,53 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                  descend_results.valid_proper_prefix_length));
                 CHECK_LE(descend_results.valid_prefix_length,
                          path_input.size());
-                if (descend_results.valid_prefix_length == path_input.size()) {
+                if (descend_results.valid_prefix_length == path_input.size())
                   predictor_output.found_exact_match = true;
-                }
                 std::ranges::for_each(
-                    descend_results.matches, [&](const PathContext& match) {
-                      for (const ScanMatchValid& scan_result :
-                           ScanDirectory(ScanDirectoryInput{
-                               .options = options,
-                               .noise_regex = noise_regex,
-                               .glob_matcher =
-                                   GlobMatcher::New(path_input.Substring(
-                                       ColumnNumber{} +
-                                       descend_results.valid_prefix_length)),
-                               .path_context = match,
-                               .pattern_prefix_size =
-                                   descend_results.valid_prefix_length,
-                               .abort_value = abort_value,
-                               .predictor_output = predictor_output}) |
-                               std::views::filter([](const auto& v) {
-                                 return std::holds_alternative<ScanMatchValid>(
-                                     v);
-                               }) |
-                               std::views::transform([](const auto& v) {
-                                 return std::get<ScanMatchValid>(v);
-                               })) {
-                        if (options.match_behavior ==
-                                FilePredictorMatchBehavior::kOnlyExactMatch &&
-                            scan_result.match_type ==
-                                GlobMatcher::MatchType::Partial)
-                          continue;
-                        predictions.push_back(
-                            scan_result.line,
-                            MutableLineSequence::ObserverBehavior::kHide);
-                        ++matches;
-                        if (matches % 100 == 0)
-                          progress_channel->Push(ProgressInformation{
-                              .values = {
-                                  {VersionPropertyKey{
-                                       NON_EMPTY_SINGLE_LINE_CONSTANT(
-                                           L"files")},
-                                   NonEmptySingleLine(matches).read()}}});
-                      };
-                      progress_channel->Push(ProgressInformation{
-                          .values = {
-                              {VersionPropertyKey{
-                                   NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-                               NonEmptySingleLine(matches).read()}}});
+                    descend_results.matches |
+                        std::views::transform([&](const PathContext& match) {
+                          return ScanDirectory(ScanDirectoryInput{
+                              .options = options,
+                              .noise_regex = noise_regex,
+                              .glob_matcher =
+                                  GlobMatcher::New(path_input.Substring(
+                                      ColumnNumber{} +
+                                      descend_results.valid_prefix_length)),
+                              .path_context = match,
+                              .pattern_prefix_size =
+                                  descend_results.valid_prefix_length,
+                              .abort_value = abort_value,
+                              .predictor_output = predictor_output});
+                        }) |
+                        std::views::join,
+                    [&](ScanMatch scan_result) {
+                      std::optional<GlobMatcher::MatchType> match_type;
+                      std::visit(
+                          overload{[&](ScanMatchValid v) {
+                                     if (options.match_behavior ==
+                                             FilePredictorMatchBehavior::
+                                                 kOnlyExactMatch &&
+                                         v.match_type ==
+                                             GlobMatcher::MatchType::Partial)
+                                       return;
+                                     predictions.push_back(
+                                         std::move(v.line),
+                                         MutableLineSequence::ObserverBehavior::
+                                             kHide);
+                                     if (predictions.size().read() % 100 == 0)
+                                       signal_progress();
+                                     match_type = v.match_type;
+                                   },
+                                   [](ScanMatchNotAccepted) {},
+                                   [&](ScanMatchIgnored v) {
+                                     match_type = v.match_type;
+                                   }},
+                          std::move(scan_result));
+                      predictor_output.found_exact_match |=
+                          match_type == GlobMatcher::MatchType::Exact;
                     });
               }
+              signal_progress();
               predictions.MaybeEraseEmptyFirstLine();
               SortedLineSequenceUniqueLines output_lines(
                   SortedLineSequence(std::move(predictions).snapshot()));
