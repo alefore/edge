@@ -76,7 +76,12 @@ class LineBuilder {
   void SetOutgoingLink(OutgoingLink outgoing_link);
   std::optional<OutgoingLink> outgoing_link() const;
 
-  LineBuilder& SetMetadata(language::LazyValue<LineMetadataMap> metadata);
+  template <typename Self>
+  decltype(auto) SetMetadata(this Self&& self,
+                             language::LazyValue<LineMetadataMap> metadata) {
+    self.InternalSetMetadata(std::move(metadata));
+    return std::forward<Self>(self);
+  }
 
   // Delete characters in [position, position + amount).
   LineBuilder& DeleteCharacters(
@@ -120,6 +125,8 @@ class LineBuilder {
 
  private:
   explicit LineBuilder(Line::Data);
+
+  void InternalSetMetadata(language::LazyValue<LineMetadataMap> metadata);
 
   Line::Data data_;
   void ValidateInvariants();

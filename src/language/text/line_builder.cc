@@ -398,11 +398,6 @@ std::optional<OutgoingLink> LineBuilder::outgoing_link() const {
   return data_.outgoing_link;
 }
 
-LineBuilder& LineBuilder::SetMetadata(LazyValue<LineMetadataMap> metadata) {
-  data_.metadata = std::move(metadata);
-  return *this;
-}
-
 LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
                                            ColumnNumberDelta delta) {
   ValidateInvariants();
@@ -504,6 +499,10 @@ SingleLine LineBuilder::contents() const { return data_.contents; }
 
 void LineBuilder::set_contents(SingleLine value) {
   data_.contents = std::move(value);
+}
+
+void LineBuilder::InternalSetMetadata(LazyValue<LineMetadataMap> metadata) {
+  data_.metadata = std::move(metadata);
 }
 
 void LineBuilder::ValidateInvariants() {}
