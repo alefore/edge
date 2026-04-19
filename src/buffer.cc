@@ -2702,9 +2702,10 @@ NonNull<std::unique_ptr<EditorState>> EditorForTests(
 }
 
 gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
-  gc::Root<OpenBuffer> output = OpenBuffer::New(
-      {.editor = editor,
-       .name = editor.buffer_registry().NewAnonymousBufferName()});
+  gc::Root<OpenBuffer> output = OpenBuffer::New(OpenBuffer::Options{
+      .editor = editor,
+      .name = editor.buffer_registry().NewAnonymousBufferName()});
+  editor.buffer_registry().Add(output->name(), output.ptr().ToWeakPtr());
   editor.AddBuffer(output, BuffersList::AddBufferType::kVisit);
   return output;
 }
