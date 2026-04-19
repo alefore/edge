@@ -84,7 +84,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
 futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
     OpenFilesOptions options) {
   return GetFilePredictor(FilePredictorOptions{
-      .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch,
+      .match_type = FilePredictorMatchType::Exact,
       .open_file_position_suffix_mode = options.open_file_position_suffix_mode,
       .directory_filter = options.directory_filter,
       .special_file_filter = options.special_file_filter,

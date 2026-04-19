@@ -903,7 +903,7 @@ void OpenBuffer::AppendLines(
     TRACK_OPERATION(OpenBuffer_StartNewLine_ScanForMarks);
     std::function<futures::Value<PredictorOutput>(PredictorInput)>
         file_predictor = GetFilePredictor(FilePredictorOptions{
-            .match_behavior = FilePredictorMatchBehavior::kOnlyExactMatch,
+            .match_type = FilePredictorMatchType::Exact,
             .open_file_position_suffix_mode =
                 open_file_position::SuffixMode::Allow,
             .output_format = FilePredictorOutputFormat::SearchPathAndInput});

@@ -91,7 +91,7 @@ GlobMatcher::NodesForPattern(LazyString pattern) {
     NodeId node_id = NodeId{output.size()};
     nd_groups[group] = node_id;
     queue.push(group);
-    output.push_back(Node{.pattern_prefix_length = ColumnNumberDelta{
+    output.push_back(Node{.pattern_prefix_size = ColumnNumberDelta{
                               static_cast<int>(group.rbegin()->read())}});
     return node_id;
   };
@@ -171,38 +171,17 @@ GlobMatcher::MatchResults GlobMatcher::Match(PathComponent component) const {
     }
   }
   MatchResults output{
-      .pattern_prefix_length =
-          nodes_[current_index.read()].pattern_prefix_length,
-      .component_prefix_length =
-          ColumnNumberDelta{static_cast<int>(component_index.read())},
-      .match_type = nodes_[current_index.read()].pattern_prefix_length ==
-                                pattern_.size() &&
-                            component_index == input.size()
-                        ? MatchType::Exact
-                        : MatchType::Partial};
+      .pattern_prefix_size = nodes_[current_index.read()].pattern_prefix_size,
+      .component_prefix_size =
+          ColumnNumberDelta{static_cast<int>(component_index.read())}};
   VLOG(2) << "Match " << pattern_ << " to: " << component << ": " << output;
   return output;
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         const GlobMatcher::MatchType& value) {
-  switch (value) {
-    using enum GlobMatcher::MatchType;
-    case Exact:
-      os << "exact match";
-      break;
-    case Partial:
-      os << "partial match";
-      break;
-  }
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os,
                          const GlobMatcher::MatchResults& value) {
-  os << "[MatchResult: pattern_prefix_length=" << value.pattern_prefix_length
-     << ", component_prefix_length=" << value.component_prefix_length << ", "
-     << value.match_type << "]";
+  os << "[MatchResult: pattern_prefix_size=" << value.pattern_prefix_size
+     << ", component_prefix_size=" << value.component_prefix_size << "]";
   return os;
 }
 
@@ -215,48 +194,48 @@ const bool tests_registration = tests::Register(
              [] {
                auto results = GlobMatcher::New(LazyString{L"foo"})
                                   .Match(PathComponent::FromString(L"foo"));
-               CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{3});
-               CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{3});
+               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{3});
+               CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{3});
              }},
         {.name = L"PatternFull",
          .callback =
              [] {
                auto results = GlobMatcher::New(LazyString{L"foo"})
                                   .Match(PathComponent::FromString(L"foobar"));
-               CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{3});
-               CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{3});
+               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{3});
+               CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{3});
              }},
         {.name = L"ComponentFull",
          .callback =
              [] {
                auto results = GlobMatcher::New(LazyString{L"foobar"})
                                   .Match(PathComponent::FromString(L"fo"));
-               CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{2});
-               CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{2});
+               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{2});
+               CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{2});
              }},
         {.name = L"SingleWildcard",
          .callback =
              [] {
                auto results = GlobMatcher::New(LazyString{L"*"})
                                   .Match(PathComponent::FromString(L"quux"));
-               CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{1});
-               CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{4});
+               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{1});
+               CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{4});
              }},
         {.name = L"AdvancedWildcard",
          .callback =
              [] {
                auto results = GlobMatcher::New(LazyString{L"a*a"})
                                   .Match(PathComponent::FromString(L"aba"));
-               CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{3});
-               CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{3});
+               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{3});
+               CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{3});
              }},
         {.name = L"AdvancedWildcardPrefix",
          .callback =
              [] {
                auto results = GlobMatcher::New(LazyString{L"a*a"})
                                   .Match(PathComponent::FromString(L"abcd"));
-               CHECK_EQ(results.pattern_prefix_length, ColumnNumberDelta{2});
-               CHECK_EQ(results.component_prefix_length, ColumnNumberDelta{4});
+               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{2});
+               CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{4});
              }},
     });
 }  // namespace

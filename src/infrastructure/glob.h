@@ -25,7 +25,7 @@ class GlobMatcher {
     std::map<wchar_t, NodeId> edges = {};
     // If present, used for characters not in `edges`.
     std::optional<NodeId> default_edge = std::nullopt;
-    language::lazy_string::ColumnNumberDelta pattern_prefix_length;
+    language::lazy_string::ColumnNumberDelta pattern_prefix_size;
   };
   const language::lazy_string::LazyString pattern_;
   const std::vector<Node> nodes_;
@@ -38,17 +38,14 @@ class GlobMatcher {
 
   PatternType pattern_type() const;
 
-  enum class MatchType { Exact, Partial };
   struct MatchResults {
     // Length of the longest prefix of `pattern` that matches a prefix
     // of `component`.
-    language::lazy_string::ColumnNumberDelta pattern_prefix_length;
+    language::lazy_string::ColumnNumberDelta pattern_prefix_size;
 
     // Length of the longest prefix of `component` that is matched by the
     // longest prefix of `pattern` that matches something.
-    language::lazy_string::ColumnNumberDelta component_prefix_length;
-
-    MatchType match_type;
+    language::lazy_string::ColumnNumberDelta component_prefix_size;
   };
 
   MatchResults Match(PathComponent component) const;

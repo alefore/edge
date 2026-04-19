@@ -8,7 +8,9 @@
 #include "src/predictor.h"
 
 namespace afc::editor {
-enum class FilePredictorMatchBehavior { kOnlyExactMatch, kIncludePartialMatch };
+enum class FilePredictorMatchType { Exact, Partial };
+
+std::ostream& operator<<(std::ostream& os, const FilePredictorMatchType& value);
 
 enum class FilePredictorOutputFormat {
   SearchPathAndInput,
@@ -16,8 +18,7 @@ enum class FilePredictorOutputFormat {
 };
 
 struct FilePredictorOptions {
-  FilePredictorMatchBehavior match_behavior =
-      FilePredictorMatchBehavior::kIncludePartialMatch;
+  FilePredictorMatchType match_type = FilePredictorMatchType::Partial;
 
   open_file_position::SuffixMode open_file_position_suffix_mode =
       open_file_position::SuffixMode::Disallow;

@@ -102,6 +102,20 @@ using afc::language::view::SkipErrors;
 using afc::vm::EscapedString;
 
 namespace afc::editor {
+std::ostream& operator<<(std::ostream& os,
+                         const FilePredictorMatchType& value) {
+  switch (value) {
+    using enum FilePredictorMatchType;
+    case Exact:
+      os << "exact match";
+      break;
+    case Partial:
+      os << "partial match";
+      break;
+  }
+  return os;
+}
+
 namespace {
 struct PathContext {
   // Includes the search_path.
@@ -140,6 +154,12 @@ struct ComponentData {
   PathComponent path;
   FileType file_type;
   GlobMatcher::MatchResults glob_match_results;
+
+  FilePredictorMatchType match_type() const {
+    return glob_match_results.component_prefix_size == ToLazyString(path).size()
+               ? FilePredictorMatchType::Exact
+               : FilePredictorMatchType::Partial;
+  }
 };
 
 std::generator<ComponentData> ViewComponents(
@@ -177,9 +197,11 @@ std::vector<PathContext> MatchComponent(
     using enum GlobMatcher::PatternType;
     case Special:
       return ViewComponents(context.path, abort_value, glob_matcher) |
-             std::views::filter([](const ComponentData& data) {
-               return data.glob_match_results.match_type ==
-                      GlobMatcher::MatchType::Exact;
+             std::views::filter([pattern_size = glob_matcher.pattern().size()](
+                                    const ComponentData& data) {
+               return pattern_size ==
+                          data.glob_match_results.pattern_prefix_size &&
+                      data.match_type() == FilePredictorMatchType::Exact;
              }) |
              std::views::transform([&context](const ComponentData& data) {
                return context.Append(data.path);
@@ -268,11 +290,11 @@ bool FilterAllows(FileType file_type, const FilePredictorOptions& options) {
 
 struct ScanMatchNotAccepted {};
 struct ScanMatchIgnored {
-  GlobMatcher::MatchType match_type;
+  FilePredictorMatchType match_type;
 };
 struct ScanMatchValid {
   Line line;
-  GlobMatcher::MatchType match_type;
+  FilePredictorMatchType match_type;
 };
 
 using ScanMatch =
@@ -284,7 +306,7 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
                               ColumnNumberDelta& longest_pattern_match) {
   namespace ofp = open_file_position;
   LazyString remaining_suffix = input.glob_matcher.pattern().Substring(
-      ColumnNumber{} + component_data.glob_match_results.pattern_prefix_length);
+      ColumnNumber{} + component_data.glob_match_results.pattern_prefix_size);
   std::optional<ofp::Spec> spec = ofp::Parse(
       remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
@@ -293,15 +315,13 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
     return ScanMatchNotAccepted{};
   }
   longest_pattern_match = input.glob_matcher.pattern().size();
-  VLOG(10) << "Interesting entry: " << path_context.path << " exact: "
-           << (component_data.glob_match_results.match_type ==
-               GlobMatcher::MatchType::Exact)
+  VLOG(10) << "Interesting entry: " << path_context.path
+           << " exact: " << component_data.match_type()
            << ", spec: " << spec.value();
   if (!FilterAllows(component_data.file_type, input.options) ||
       std::regex_match(ToLazyString(path_context.path).ToString(),
                        input.noise_regex))
-    return ScanMatchIgnored{.match_type =
-                                component_data.glob_match_results.match_type};
+    return ScanMatchIgnored{.match_type = component_data.match_type()};
 
   LazyString path_str =
       input.options.output_format == FilePredictorOutputFormat::Input
@@ -318,7 +338,7 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
               .SetMetadata(LazyValue<LineMetadataMap>{
                   [spec] { return GetLineMetadata(spec.value()); }})
               .Build(),
-      .match_type = component_data.glob_match_results.match_type};
+      .match_type = component_data.match_type()};
 }
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
@@ -340,7 +360,7 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
     if (std::holds_alternative<ScanMatchNotAccepted>(file_result))
       longest_pattern_match =
           std::max(longest_pattern_match,
-                   component.glob_match_results.pattern_prefix_length);
+                   component.glob_match_results.pattern_prefix_size);
     co_yield std::move(file_result);
   }
   input.predictor_output.longest_prefix =
@@ -457,12 +477,12 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
           }) |
           std::views::join,
       [&](ScanMatch scan_result) {
-        std::optional<GlobMatcher::MatchType> match_type;
+        std::optional<FilePredictorMatchType> match_type;
         std::visit(
             overload{[&](ScanMatchValid v) {
-                       if (options.match_behavior ==
-                               FilePredictorMatchBehavior::kOnlyExactMatch &&
-                           v.match_type == GlobMatcher::MatchType::Partial)
+                       if (options.match_type ==
+                               FilePredictorMatchType::Exact &&
+                           v.match_type == FilePredictorMatchType::Partial)
                          return;
                        predictions.push_back(
                            std::move(v.line),
@@ -475,7 +495,7 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                      [&](ScanMatchIgnored v) { match_type = v.match_type; }},
             std::move(scan_result));
         predictor_output.found_exact_match |=
-            match_type == GlobMatcher::MatchType::Exact;
+            match_type == FilePredictorMatchType::Exact;
       });
 }
 
@@ -600,15 +620,13 @@ const bool predict_in_search_path_tests_registration =
                           {L"animals/dingo.txt", L"animals/dog.txt"})),
                  test(L"PrefixMatchExactly", L"anim*/d",
                       Expectations::NoPrediction(),
-                      FilePredictorOptions{
-                          .match_behavior =
-                              FilePredictorMatchBehavior::kOnlyExactMatch}),
+                      FilePredictorOptions{.match_type =
+                                               FilePredictorMatchType::Exact}),
                  test(L"DirPrefix", L"anim",
                       Expectations::Predictions({L"animals/"})),
                  test(L"DirPrefixExact", L"anim", Expectations::NoPrediction(),
-                      FilePredictorOptions{
-                          .match_behavior =
-                              FilePredictorMatchBehavior::kOnlyExactMatch}),
+                      FilePredictorOptions{.match_type =
+                                               FilePredictorMatchType::Exact}),
                  test(L"DirExact", L"plants",
                       Expectations::Predictions(
                           {L"plants/orchid.txt", L"plants/rose.txt"})),
