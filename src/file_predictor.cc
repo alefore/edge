@@ -304,13 +304,14 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
   static LazyString dir_suffix{L"/"};
   if (file_type == FileType::Directory && !EndsWith(path_str, dir_suffix))
     path_str += dir_suffix;
-  LineBuilder line_builder{
-      EscapedString::FromString(path_str).EscapedRepresentation()};
-  // TODO(P2, trivial, 2026-04-18): Improve SetMetadata to support fluent iface.
-  line_builder.SetMetadata(LazyValue<LineMetadataMap>{
-      [spec] { return GetLineMetadata(spec.value()); }});
-  return ScanMatchValid{.line = std::move(line_builder).Build(),
-                        .match_type = match_type};
+  return ScanMatchValid{
+      .line =
+          LineBuilder{
+              EscapedString::FromString(path_str).EscapedRepresentation()}
+              .SetMetadata(LazyValue<LineMetadataMap>{
+                  [spec] { return GetLineMetadata(spec.value()); }})
+              .Build(),
+      .match_type = match_type};
 }
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
