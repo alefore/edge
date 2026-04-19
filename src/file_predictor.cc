@@ -421,6 +421,62 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
       });
 }
 
+void PredictInSearchPath(FilePredictorOptions& options, Path search_path,
+                         LazyString path_input, std::wregex noise_regex,
+                         DeleteNotification::Value& abort_value,
+                         std::function<void()> signal_progress,
+                         MutableLineSequence& predictions,
+                         PredictorOutput& predictor_output) {
+  VLOG(4) << "Considering search path: " << search_path;
+  DescendDirectoryTreeOutput descend_results =
+      DescendDirectoryTree(search_path, path_input, abort_value);
+  if (descend_results.matches.empty()) {
+    LOG(WARNING) << "Unable to descend: " << search_path;
+    return;
+  }
+  predictor_output.longest_directory_match =
+      std::max(predictor_output.longest_directory_match,
+               ColumnNumberDelta(descend_results.valid_proper_prefix_length));
+  CHECK_LE(descend_results.valid_prefix_length, path_input.size());
+  if (descend_results.valid_prefix_length == path_input.size())
+    predictor_output.found_exact_match = true;
+  std::ranges::for_each(
+      descend_results.matches |
+          std::views::transform([&](const PathContext& match) {
+            return ScanDirectory(ScanDirectoryInput{
+                .options = options,
+                .noise_regex = noise_regex,
+                .glob_matcher = GlobMatcher::New(path_input.Substring(
+                    ColumnNumber{} + descend_results.valid_prefix_length)),
+                .path_context = match,
+                .pattern_prefix_size = descend_results.valid_prefix_length,
+                .abort_value = abort_value,
+                .predictor_output = predictor_output});
+          }) |
+          std::views::join,
+      [&](ScanMatch scan_result) {
+        std::optional<GlobMatcher::MatchType> match_type;
+        std::visit(
+            overload{[&](ScanMatchValid v) {
+                       if (options.match_behavior ==
+                               FilePredictorMatchBehavior::kOnlyExactMatch &&
+                           v.match_type == GlobMatcher::MatchType::Partial)
+                         return;
+                       predictions.push_back(
+                           std::move(v.line),
+                           MutableLineSequence::ObserverBehavior::kHide);
+                       if (predictions.size().read() % 100 == 0)
+                         signal_progress();
+                       match_type = v.match_type;
+                     },
+                     [](ScanMatchNotAccepted) {},
+                     [&](ScanMatchIgnored v) { match_type = v.match_type; }},
+            std::move(scan_result));
+        predictor_output.found_exact_match |=
+            match_type == GlobMatcher::MatchType::Exact;
+      });
+}
+
 futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                               PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
@@ -481,67 +537,12 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                 NonEmptySingleLine(predictions.size().read())
                                     .read()}}});
               };
-              for (const auto& search_path : search_paths) {
-                if (abort_value.has_value()) return PredictorOutput{};
-                VLOG(4) << "Considering search path: " << search_path;
-                DescendDirectoryTreeOutput descend_results =
-                    DescendDirectoryTree(search_path, path_input, abort_value);
-                if (descend_results.matches.empty()) {
-                  LOG(WARNING) << "Unable to descend: " << search_path;
-                  continue;
-                }
-                predictor_output.longest_directory_match =
-                    std::max(predictor_output.longest_directory_match,
-                             ColumnNumberDelta(
-                                 descend_results.valid_proper_prefix_length));
-                CHECK_LE(descend_results.valid_prefix_length,
-                         path_input.size());
-                if (descend_results.valid_prefix_length == path_input.size())
-                  predictor_output.found_exact_match = true;
-                std::ranges::for_each(
-                    descend_results.matches |
-                        std::views::transform([&](const PathContext& match) {
-                          return ScanDirectory(ScanDirectoryInput{
-                              .options = options,
-                              .noise_regex = noise_regex,
-                              .glob_matcher =
-                                  GlobMatcher::New(path_input.Substring(
-                                      ColumnNumber{} +
-                                      descend_results.valid_prefix_length)),
-                              .path_context = match,
-                              .pattern_prefix_size =
-                                  descend_results.valid_prefix_length,
-                              .abort_value = abort_value,
-                              .predictor_output = predictor_output});
-                        }) |
-                        std::views::join,
-                    [&](ScanMatch scan_result) {
-                      std::optional<GlobMatcher::MatchType> match_type;
-                      std::visit(
-                          overload{[&](ScanMatchValid v) {
-                                     if (options.match_behavior ==
-                                             FilePredictorMatchBehavior::
-                                                 kOnlyExactMatch &&
-                                         v.match_type ==
-                                             GlobMatcher::MatchType::Partial)
-                                       return;
-                                     predictions.push_back(
-                                         std::move(v.line),
-                                         MutableLineSequence::ObserverBehavior::
-                                             kHide);
-                                     if (predictions.size().read() % 100 == 0)
-                                       signal_progress();
-                                     match_type = v.match_type;
-                                   },
-                                   [](ScanMatchNotAccepted) {},
-                                   [&](ScanMatchIgnored v) {
-                                     match_type = v.match_type;
-                                   }},
-                          std::move(scan_result));
-                      predictor_output.found_exact_match |=
-                          match_type == GlobMatcher::MatchType::Exact;
-                    });
-              }
+              std::ranges::for_each(search_paths, [&](Path search_path) {
+                PredictInSearchPath(options, search_path, path_input,
+                                    noise_regex, abort_value, signal_progress,
+                                    predictions, predictor_output);
+              });
+              if (abort_value.has_value()) return PredictorOutput{};
               signal_progress();
               predictions.MaybeEraseEmptyFirstLine();
               SortedLineSequenceUniqueLines output_lines(
