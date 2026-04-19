@@ -562,6 +562,8 @@ void OpenBuffer::Close(CloseAccessTag) {
     }
   }
   editor().line_marks().RemoveSource(name());
+  work_queue()->StartShutdown();
+  work_queue()->Execute();
   LOG(INFO) << name() << ": Notify close observers";
   std::move(close_consumer_)(EmptyValue{});
 }
