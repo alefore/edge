@@ -87,6 +87,7 @@ extern EdgeVariable<int>* const margin_lines;
 extern EdgeVariable<int>* const margin_columns;
 extern EdgeVariable<int>* const progress;
 extern EdgeVariable<int>* const analyze_content_lines_limit;
+extern EdgeVariable<int>* const search_matches_limit;
 
 EdgeStruct<double>* DoubleStruct();
 extern EdgeVariable<double>* const margin_lines_ratio;

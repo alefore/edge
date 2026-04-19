@@ -730,6 +730,17 @@ EdgeVariable<int>* const analyze_content_lines_limit =
          .DefaultValue(50)
          .Build();
 
+EdgeVariable<int>* const search_matches_limit =
+    &IntStruct()
+         ->Add()
+         .Name(L"search_matches_limit")
+         .Description(
+             L"Maximum number of matches that search will return. "
+             L"Actual number may be slightly bigger (this isn't strictly "
+             "enforced).")
+         .DefaultValue(100)
+         .Build();
+
 EdgeStruct<double>* DoubleStruct() {
   static EdgeStruct<double>* output = new EdgeStruct<double>();
   return output;
