@@ -842,10 +842,10 @@ void OpenBuffer::Initialize() {
     });
   UpdateTreeParser();
 
-  gc::Root<OpenBuffer> root = RootFromThis();
   execution_context_->environment()->Define(
       Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"buffer")}},
-      VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
+      VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(),
+                                                     RootFromThis().ptr()));
 
   execution_context_->environment()->Define(
       Identifier{NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"sleep")}},
@@ -994,17 +994,20 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                  {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(editor().gc_pool(),
                                                          RootFromThis().ptr())
                       .ptr()}))
-      .Transform([this, root_this = RootFromThis()](
-                     EmptyValue) -> futures::Value<PossibleError> {
-        LOG(INFO) << name() << ": Reload: generating contents.";
-        if (Read(buffer_variables::clear_on_reload)) {
-          ClearContents();
-          SetDiskState(DiskState::kCurrent);
-        }
-        if (options_.generate_contents != nullptr)
-          return futures::IgnoreErrors(options_.generate_contents(*this));
-        return EmptyValue{};
-      })
+      .Transform(LockAndVisitCallback(
+          [](EmptyValue,
+             gc::Root<OpenBuffer> root_this) -> futures::Value<PossibleError> {
+            LOG(INFO) << root_this->name() << ": Reload: generating contents.";
+            if (root_this->Read(buffer_variables::clear_on_reload)) {
+              root_this->ClearContents();
+              root_this->SetDiskState(DiskState::kCurrent);
+            }
+            if (root_this->options_.generate_contents != nullptr)
+              return futures::IgnoreErrors(
+                  root_this->options_.generate_contents(root_this.value()));
+            return EmptyValue{};
+          },
+          [](EmptyValue) { return EmptyValue{}; }, WeakPtrFromThis()))
       .Transform(LockAndVisitCallback(
           [](EmptyValue, gc::Root<OpenBuffer> root_this) {
             LOG(INFO) << root_this->name()
@@ -1279,11 +1282,13 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
     const gc::Ptr<Expression>& expr, const gc::Ptr<Environment>& environment) {
   // TODO(2025-05-26, trivial): Replace with a method from execution_context.
   return Evaluate(expr, environment,
-                  [work_queue = work_queue(), root_this = RootFromThis()](
-                      OnceOnlyFunction<void()> callback) {
-                    work_queue->Schedule(
-                        WorkQueue::Callback{.callback = std::move(callback)});
-                  });
+                  LockAndVisitCallback(
+                      [](OnceOnlyFunction<void()> callback,
+                         gc::Root<OpenBuffer> root_this) {
+                        root_this->work_queue()->Schedule(WorkQueue::Callback{
+                            .callback = std::move(callback)});
+                      },
+                      [](OnceOnlyFunction<void()>) {}, WeakPtrFromThis()));
 }
 
 NonNull<std::shared_ptr<WorkQueue>> OpenBuffer::work_queue() const {
