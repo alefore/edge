@@ -157,7 +157,6 @@ SingleLine RegexEscape(SingleLine str) {
 }
 
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
-                             size_t required_positions,
                              std::set<SingleLine>& matches) {
   ASSIGN_OR_RETURN(std::vector<LineColumn> positions,
                    buffer.status().LogErrors(SearchHandler(
@@ -166,10 +165,12 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
                                      .search_query = input.input},
                        buffer.contents().snapshot())));
 
-  // Get the first kMatchesLimit matches:
+  // Get the first `required_positions` matches:
   if (!positions.empty()) buffer.set_position(positions[0]);
   std::ranges::copy(
-      positions | std::views::take(required_positions) |
+      positions |
+          std::views::take(std::max(
+              0, buffer.Read(buffer_variables::search_matches_limit))) |
           std::views::transform([&](LineColumn& position) -> SingleLine {
             CHECK_LT(position.line, buffer.EndLine());
             std::optional<Line> line = buffer.LineAt(position.line);
@@ -186,9 +187,8 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   // could probably add matches directly to the sorted contents; or, at least,
   // build the sorted contents from matches directly.
   std::set<SingleLine> matches;
-  static constexpr int kMatchesLimit = 100;
   for (OpenBuffer& search_buffer : input.source_buffers | gc::view::Value)
-    SearchInBuffer(input, search_buffer, kMatchesLimit, matches);
+    SearchInBuffer(input, search_buffer, matches);
   MutableLineSequence output_contents;
   std::ranges::copy(
       std::move(matches) |
