@@ -96,6 +96,7 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::LineSequenceIterator;
 using afc::language::text::MutableLineSequence;
+using afc::language::text::NullMutableLineSequenceObserver;
 using afc::language::text::SortedLineSequence;
 using afc::language::text::SortedLineSequenceUniqueLines;
 using afc::language::view::SkipErrors;
@@ -446,7 +447,6 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
 void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                          LazyString path_input, std::wregex noise_regex,
                          const DeleteNotification::Value& abort_value,
-                         std::function<void()> signal_progress,
                          MutableLineSequence& predictions,
                          PredictorOutput& predictor_output) {
   VLOG(4) << "Considering search path: " << search_path;
@@ -477,25 +477,22 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
           }) |
           std::views::join,
       [&](ScanMatch scan_result) {
-        std::optional<FilePredictorMatchType> match_type;
         std::visit(
             overload{[&](ScanMatchValid v) {
                        if (options.match_type ==
                                FilePredictorMatchType::Exact &&
                            v.match_type == FilePredictorMatchType::Partial)
                          return;
-                       predictions.push_back(
-                           std::move(v.line),
-                           MutableLineSequence::ObserverBehavior::kHide);
-                       if (predictions.size().read() % 100 == 0)
-                         signal_progress();
-                       match_type = v.match_type;
+                       predictions.push_back(std::move(v.line));
+                       predictor_output.found_exact_match |=
+                           v.match_type == FilePredictorMatchType::Exact;
                      },
                      [](ScanMatchNotAccepted) {},
-                     [&](ScanMatchIgnored v) { match_type = v.match_type; }},
+                     [&](ScanMatchIgnored v) {
+                       predictor_output.found_exact_match |=
+                           v.match_type == FilePredictorMatchType::Exact;
+                     }},
             std::move(scan_result));
-        predictor_output.found_exact_match |=
-            match_type == FilePredictorMatchType::Exact;
       });
 }
 
@@ -546,10 +543,10 @@ const bool predict_in_search_path_tests_registration =
                 MutableLineSequence predictions;
                 DeleteNotification delete_notification;
                 PredictorOutput predictor_output;
-                PredictInSearchPath(
-                    actual_options, root, LazyString(prediction), std::wregex(),
-                    delete_notification.listenable_value(), [] {}, predictions,
-                    predictor_output);
+                PredictInSearchPath(actual_options, root,
+                                    LazyString(prediction), std::wregex(),
+                                    delete_notification.listenable_value(),
+                                    predictions, predictor_output);
                 predictions.MaybeEraseEmptyFirstLine();
                 if (expectations.predictions.has_value()) {
                   CHECK_EQ(
@@ -669,6 +666,31 @@ const bool predict_in_search_path_tests_registration =
              std::views::join | std::ranges::to<std::vector>();
     }());
 
+class ProgressChannelNotifier : public NullMutableLineSequenceObserver {
+  const NonNull<std::shared_ptr<ProgressChannel>> progress_channel_;
+  size_t matches_ = 0;
+
+ public:
+  ProgressChannelNotifier(
+      NonNull<std::shared_ptr<ProgressChannel>> progress_channel)
+      : progress_channel_(progress_channel) {}
+
+  ~ProgressChannelNotifier() override { Notify(); }
+  void LinesInserted(LineNumber, LineNumberDelta size) override {
+    CHECK_EQ(size, LineNumberDelta{1});
+    ++matches_;
+    if (matches_ % 100ul == 0ul) Notify();
+  }
+
+ private:
+  void Notify() {
+    progress_channel_->Push(ProgressInformation{
+        .values = {
+            {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
+             NonEmptySingleLine(matches_).read()}}});
+  }
+};
+
 futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                               PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
@@ -721,25 +743,21 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
               }
 
               PredictorOutput predictor_output;
-              MutableLineSequence predictions;
-              auto signal_progress = [progress_channel, &predictions] {
-                progress_channel->Push(ProgressInformation{
-                    .values = {{VersionPropertyKey{
-                                    NON_EMPTY_SINGLE_LINE_CONSTANT(L"files")},
-                                NonEmptySingleLine(predictions.size().read())
-                                    .read()}}});
-              };
-              std::ranges::for_each(search_paths, [&](Path search_path) {
-                PredictInSearchPath(options, search_path, path_input,
-                                    noise_regex, abort_value, signal_progress,
-                                    predictions, predictor_output);
-              });
-              if (abort_value.has_value()) return PredictorOutput{};
-              signal_progress();
-              predictions.MaybeEraseEmptyFirstLine();
-              SortedLineSequenceUniqueLines output_lines(
-                  SortedLineSequence(std::move(predictions).snapshot()));
-              predictor_output.contents = output_lines;
+              predictor_output.contents = SortedLineSequenceUniqueLines(
+                  SortedLineSequence(std::invoke([&] {
+                    MutableLineSequence predictions(
+                        MakeNonNullShared<ProgressChannelNotifier>(
+                            progress_channel));
+                    std::ranges::for_each(search_paths, [&](Path search_path) {
+                      PredictInSearchPath(options, search_path, path_input,
+                                          noise_regex, abort_value, predictions,
+                                          predictor_output);
+                    });
+                    predictions.MaybeEraseEmptyFirstLine();
+                    return abort_value.has_value()
+                               ? LineSequence{}
+                               : std::move(predictions).snapshot();
+                  })));
               return predictor_output;
             },
             predictor_input.progress_channel,
