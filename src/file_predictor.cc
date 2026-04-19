@@ -279,34 +279,37 @@ using ScanMatch =
     std::variant<ScanMatchNotAccepted, ScanMatchIgnored, ScanMatchValid>;
 
 ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
-                              ColumnNumberDelta match_len,
-                              GlobMatcher::MatchType match_type,
-                              PathContext path_context, FileType file_type,
+                              const ComponentData& component_data,
+                              PathContext path_context,
                               ColumnNumberDelta& longest_pattern_match) {
   namespace ofp = open_file_position;
-  LazyString remaining_suffix =
-      input.glob_matcher.pattern().Substring(ColumnNumber{} + match_len);
+  LazyString remaining_suffix = input.glob_matcher.pattern().Substring(
+      ColumnNumber{} + component_data.glob_match_results.pattern_prefix_length);
   std::optional<ofp::Spec> spec = ofp::Parse(
       remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
-    VLOG(5) << "open_file_position didn't allow match: " << remaining_suffix;
+    VLOG(5) << "open_file_position didn't allow match: " << remaining_suffix
+            << ", pattern: " << input.glob_matcher.pattern();
     return ScanMatchNotAccepted{};
   }
   longest_pattern_match = input.glob_matcher.pattern().size();
-  VLOG(10) << "Interesting entry: " << path_context.path
-           << " exact: " << (match_type == GlobMatcher::MatchType::Exact)
+  VLOG(10) << "Interesting entry: " << path_context.path << " exact: "
+           << (component_data.glob_match_results.match_type ==
+               GlobMatcher::MatchType::Exact)
            << ", spec: " << spec.value();
-  if (!FilterAllows(file_type, input.options) ||
+  if (!FilterAllows(component_data.file_type, input.options) ||
       std::regex_match(ToLazyString(path_context.path).ToString(),
                        input.noise_regex))
-    return ScanMatchIgnored{.match_type = match_type};
+    return ScanMatchIgnored{.match_type =
+                                component_data.glob_match_results.match_type};
 
   LazyString path_str =
       input.options.output_format == FilePredictorOutputFormat::Input
           ? path_context.user_path
           : ToLazyString(path_context.path);
   static LazyString dir_suffix{L"/"};
-  if (file_type == FileType::Directory && !EndsWith(path_str, dir_suffix))
+  if (component_data.file_type == FileType::Directory &&
+      !EndsWith(path_str, dir_suffix))
     path_str += dir_suffix;
   return ScanMatchValid{
       .line =
@@ -315,7 +318,7 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
               .SetMetadata(LazyValue<LineMetadataMap>{
                   [spec] { return GetLineMetadata(spec.value()); }})
               .Build(),
-      .match_type = match_type};
+      .match_type = component_data.glob_match_results.match_type};
 }
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
@@ -328,19 +331,11 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
 
-#if 0
-  dir_match = HandlePossibleMatch(
-      input, ColumnNumberDelta{}, GlobMatcher::MatchType::Exact,
-      input.path_context, FileType::Directory, longest_pattern_match);
-  if (std::holds_alternative<ScanMatchValid>(dir_match)) co_return;
-#endif
-
   for (const ComponentData& component : ViewComponents(
            input.path_context.path, input.abort_value, input.glob_matcher)) {
+    VLOG(8) << "Dir match: " << component.glob_match_results;
     ScanMatch file_result = HandlePossibleMatch(
-        input, component.glob_match_results.pattern_prefix_length,
-        component.glob_match_results.match_type,
-        input.path_context.Append(component.path), component.file_type,
+        input, component, input.path_context.Append(component.path),
         longest_pattern_match);
     if (std::holds_alternative<ScanMatchNotAccepted>(file_result))
       longest_pattern_match =
@@ -506,10 +501,14 @@ const bool predict_in_search_path_tests_registration =
       struct Expectations {
         std::optional<std::vector<std::wstring>> predictions = std::nullopt;
         std::optional<ColumnNumberDelta> longest_prefix = std::nullopt;
+        std::optional<bool> found_exact_match = std::nullopt;
         static Expectations Predictions(std::vector<std::wstring> value) {
           return Expectations{.predictions = value};
         }
         static Expectations NoPrediction() { return Predictions({L""}); }
+        static Expectations ExactMatch(bool value) {
+          return {.found_exact_match = value};
+        }
       };
       auto test = [&](std::wstring name, std::wstring prediction,
                       Expectations expectations,
@@ -568,6 +567,9 @@ const bool predict_in_search_path_tests_registration =
                 if (expectations.longest_prefix.has_value())
                   CHECK_EQ(predictor_output.longest_prefix,
                            expectations.longest_prefix.value());
+                if (expectations.found_exact_match.has_value())
+                  CHECK_EQ(predictor_output.found_exact_match,
+                           expectations.found_exact_match.value());
               }};
         };
         return {
@@ -630,6 +632,21 @@ const bool predict_in_search_path_tests_registration =
                       {.longest_prefix = ColumnNumberDelta{6}}),
                  test(L"PrefixDirWithSlash", L"plants/",
                       {.longest_prefix = ColumnNumberDelta{7}}),
+                 test(L"FindExactMatchLiteral", L"plants/rose.txt",
+                      Expectations::ExactMatch(true),
+                      FilePredictorOptions{
+                          .open_file_position_suffix_mode =
+                              open_file_position::SuffixMode::Allow}),
+                 test(L"FindExactMatchWildcard", L"plants/r*.txt",
+                      Expectations::ExactMatch(true)),
+                 test(L"FindExactMatchDirectory", L"plants",
+                      Expectations::ExactMatch(true)),
+                 test(L"FindExactMatchDirectorySlash", L"plants/",
+                      Expectations::ExactMatch(true)),
+                 test(L"FindPartialMatch", L"plants/r",
+                      Expectations::ExactMatch(false)),
+                 test(L"FindExactMatchLiteralWithPosition",
+                      L"plants/rose.txt:12", Expectations::ExactMatch(true)),
              }) |
              std::views::join | std::ranges::to<std::vector>();
     }());
