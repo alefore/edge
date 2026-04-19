@@ -29,6 +29,7 @@ extern "C" {
 #include "src/language/error/value_or_error.h"
 #include "src/language/error/view.h"
 #include "src/language/gc_view.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -74,8 +75,10 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::EndsWith;
 using afc::language::lazy_string::FindFirstOf;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -140,7 +143,7 @@ struct ComponentData {
 };
 
 std::generator<ComponentData> ViewComponents(
-    Path path, DeleteNotification::Value& abort_value,
+    Path path, const DeleteNotification::Value& abort_value,
     const GlobMatcher& glob_matcher) {
   std::error_code ec;
   auto it =
@@ -168,7 +171,7 @@ std::generator<ComponentData> ViewComponents(
 
 std::vector<PathContext> MatchComponent(
     const PathContext& context, PathComponent pattern_component,
-    DeleteNotification::Value& abort_value) {
+    const DeleteNotification::Value& abort_value) {
   GlobMatcher glob_matcher = GlobMatcher::New(ToLazyString(pattern_component));
   switch (glob_matcher.pattern_type()) {
     using enum GlobMatcher::PatternType;
@@ -190,7 +193,8 @@ std::vector<PathContext> MatchComponent(
 }
 
 DescendDirectoryTreeOutput DescendDirectoryTree(
-    Path search_path, LazyString path, DeleteNotification::Value& abort_value) {
+    Path search_path, LazyString path,
+    const DeleteNotification::Value& abort_value) {
   VLOG(6) << "Starting search at: " << search_path;
   DescendDirectoryTreeOutput output{
       .matches = {PathContext{.path = search_path,
@@ -243,7 +247,7 @@ struct ScanDirectoryInput {
   GlobMatcher glob_matcher;
   PathContext path_context;
   ColumnNumberDelta pattern_prefix_size;
-  DeleteNotification::Value& abort_value;
+  const DeleteNotification::Value& abort_value;
   PredictorOutput& predictor_output;
 };
 
@@ -324,9 +328,12 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
 
-  co_yield HandlePossibleMatch(
+#if 0
+  dir_match = HandlePossibleMatch(
       input, ColumnNumberDelta{}, GlobMatcher::MatchType::Exact,
       input.path_context, FileType::Directory, longest_pattern_match);
+  if (std::holds_alternative<ScanMatchValid>(dir_match)) co_return;
+#endif
 
   for (const ComponentData& component : ViewComponents(
            input.path_context.path, input.abort_value, input.glob_matcher)) {
@@ -421,9 +428,9 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
       });
 }
 
-void PredictInSearchPath(FilePredictorOptions& options, Path search_path,
+void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                          LazyString path_input, std::wregex noise_regex,
-                         DeleteNotification::Value& abort_value,
+                         const DeleteNotification::Value& abort_value,
                          std::function<void()> signal_progress,
                          MutableLineSequence& predictions,
                          PredictorOutput& predictor_output) {
@@ -476,6 +483,156 @@ void PredictInSearchPath(FilePredictorOptions& options, Path search_path,
             match_type == GlobMatcher::MatchType::Exact;
       });
 }
+
+const bool predict_in_search_path_tests_registration =
+    tests::Register(L"PredictInSearchPath", [] {
+      auto make_hierarchy = [] {
+        namespace fs = std::filesystem;
+        std::string path_template =
+            (fs::temp_directory_path() / "edge_test_XXXXXX").string();
+        CHECK(mkdtemp(path_template.data()) != nullptr);
+        fs::path root{path_template};
+        std::vector<std::string> files = {
+            "animals/dog.txt",    "animals/dingo.txt", "animals/cat.txt",
+            "animals/rabbit.txt", "plants/orchid.txt", "plants/rose.txt",
+        };
+        for (const auto& rel_path : files) {
+          fs::path full_path = root / rel_path;
+          fs::create_directories(full_path.parent_path());
+          std::ofstream{full_path} << "";  // Create file.
+        }
+        return ValueOrDie(Path::New(LazyString{FromByteString(root.string())}));
+      };
+      struct Expectations {
+        std::optional<std::vector<std::wstring>> predictions = std::nullopt;
+        std::optional<ColumnNumberDelta> longest_prefix = std::nullopt;
+        static Expectations Predictions(std::vector<std::wstring> value) {
+          return Expectations{.predictions = value};
+        }
+        static Expectations NoPrediction() { return Predictions({L""}); }
+      };
+      auto test = [&](std::wstring name, std::wstring prediction,
+                      Expectations expectations,
+                      FilePredictorOptions file_predictor_options =
+                          FilePredictorOptions{}) -> std::vector<tests::Test> {
+        auto internal_test = [=](FilePredictorOutputFormat output_format) {
+          std::wstring actual_name = name;
+          if (output_format == FilePredictorOutputFormat::SearchPathAndInput)
+            actual_name += std::wstring(L"WithSearchPath");
+          FilePredictorOptions actual_options = file_predictor_options;
+          actual_options.output_format = output_format;
+          return tests::Test{
+              .name = actual_name, .callback = [=] {
+                Path root = make_hierarchy();
+                MutableLineSequence predictions;
+                DeleteNotification delete_notification;
+                PredictorOutput predictor_output;
+                PredictInSearchPath(
+                    actual_options, root, LazyString(prediction), std::wregex(),
+                    delete_notification.listenable_value(), [] {}, predictions,
+                    predictor_output);
+                predictions.MaybeEraseEmptyFirstLine();
+                if (expectations.predictions.has_value()) {
+                  CHECK_EQ(
+                      SortedLineSequenceUniqueLines(
+                          SortedLineSequence(std::move(predictions).snapshot()))
+                          .read()
+                          .lines()
+                          .ToLazyString(),
+                      LineSequence::ForTests(
+                          std::invoke([&] -> std::vector<std::wstring> {
+                            switch (output_format) {
+                              using enum FilePredictorOutputFormat;
+                              case SearchPathAndInput:
+                                if (expectations.predictions.value() ==
+                                    std::vector<std::wstring>{L""})
+                                  return expectations.predictions.value();
+                                return expectations.predictions.value() |
+                                       std::views::transform(
+                                           [root](std::wstring path) {
+                                             return (ToLazyString(root) +
+                                                     LazyString{L"/"} +
+                                                     LazyString(path))
+                                                 .ToString();
+                                           }) |
+                                       std::ranges::to<std::vector>();
+
+                              case Input:
+                                return expectations.predictions.value();
+                            }
+                            LOG(FATAL);
+                            return {};
+                          }))
+                          .ToLazyString());
+                }
+                if (expectations.longest_prefix.has_value())
+                  CHECK_EQ(predictor_output.longest_prefix,
+                           expectations.longest_prefix.value());
+              }};
+        };
+        return {
+            internal_test(FilePredictorOutputFormat::SearchPathAndInput),
+            internal_test(FilePredictorOutputFormat::Input),
+        };
+      };
+      return std::vector({
+                 test(L"NoMatch", L"foo", Expectations::NoPrediction()),
+                 test(L"NoMatchInDir", L"animals/apple.txt",
+                      Expectations::NoPrediction()),
+                 test(L"ExactMatchWildcard", L"animals/rab*.txt",
+                      Expectations::Predictions({L"animals/rabbit.txt"})),
+                 test(L"ExactMatch", L"animals/dog.txt",
+                      Expectations::Predictions({L"animals/dog.txt"})),
+                 test(L"MultipleMatch", L"animals/*.txt",
+                      Expectations::Predictions(
+                          {L"animals/cat.txt", L"animals/dingo.txt",
+                           L"animals/dog.txt", L"animals/rabbit.txt"})),
+                 test(L"SingleDirMatch", L"a*/dog.txt",
+                      Expectations::Predictions({L"animals/dog.txt"})),
+                 test(L"MultiDirMatch", L"*a*/*o*.txt",
+                      Expectations::Predictions(
+                          {L"animals/dingo.txt", L"animals/dog.txt",
+                           L"plants/orchid.txt", L"plants/rose.txt"})),
+                 test(L"PrefixMatch", L"anim*/d",
+                      Expectations::Predictions(
+                          {L"animals/dingo.txt", L"animals/dog.txt"})),
+                 test(L"PrefixMatchExactly", L"anim*/d",
+                      Expectations::NoPrediction(),
+                      FilePredictorOptions{
+                          .match_behavior =
+                              FilePredictorMatchBehavior::kOnlyExactMatch}),
+                 test(L"DirPrefix", L"anim",
+                      Expectations::Predictions({L"animals/"})),
+                 test(L"DirPrefixExact", L"anim", Expectations::NoPrediction(),
+                      FilePredictorOptions{
+                          .match_behavior =
+                              FilePredictorMatchBehavior::kOnlyExactMatch}),
+                 test(L"DirExact", L"plants",
+                      Expectations::Predictions(
+                          {L"plants/orchid.txt", L"plants/rose.txt"})),
+                 test(L"DirExactSlash", L"plants/",
+                      Expectations::Predictions(
+                          {L"plants/orchid.txt", L"plants/rose.txt"})),
+                 test(L"WithPosition", L"*/dog.txt:5",
+                      Expectations::Predictions({L"animals/dog.txt"})),
+                 test(L"WithGarbageAllow", L"*/dog.txt:5: nothing",
+                      Expectations::Predictions({L"animals/dog.txt"}),
+                      FilePredictorOptions{
+                          .open_file_position_suffix_mode =
+                              open_file_position::SuffixMode::Allow}),
+                 test(L"WithGarbageDisallow", L"*/dog.txt:5: nothing",
+                      Expectations::NoPrediction()),
+                 test(L"PrefixPartial", L"*/dXX",
+                      {.longest_prefix = ColumnNumberDelta{3}}),
+                 test(L"PrefixFull", L"*/dog.*",
+                      {.longest_prefix = ColumnNumberDelta{7}}),
+                 test(L"PrefixDir", L"plants",
+                      {.longest_prefix = ColumnNumberDelta{6}}),
+                 test(L"PrefixDirWithSlash", L"plants/",
+                      {.longest_prefix = ColumnNumberDelta{7}}),
+             }) |
+             std::views::join | std::ranges::to<std::vector>();
+    }());
 
 futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                                               PredictorInput predictor_input) {
