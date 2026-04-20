@@ -75,22 +75,21 @@ class ExecutionContext {
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       infrastructure::Path path);
 
-  // TODO(trivial, 2026-04-16): Turn into enum class.
-  enum ErrorHandling { kIgnore, kLogToStatus };
+  enum class ErrorHandling { Ignore, LogToStatus };
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
       language::lazy_string::LazyString code,
-      ErrorHandling on_compilation_error = kLogToStatus);
+      ErrorHandling on_compilation_error = ErrorHandling::LogToStatus);
 
   language::ValueOrError<language::gc::Root<CompilationResult>> CompileString(
       language::lazy_string::LazyString,
-      ErrorHandling error_handling = kLogToStatus);
+      ErrorHandling error_handling = ErrorHandling::LogToStatus);
 
   language::ValueOrError<language::gc::Root<CompilationResult>> CompileNatural(
       const language::lazy_string::SingleLine& input,
       const language::lazy_string::SingleLine& function_name_prefix,
       const std::vector<vm::Namespace>& search_namespaces,
-      ErrorHandling error_handling = kLogToStatus);
+      ErrorHandling error_handling = ErrorHandling::LogToStatus);
 
   // Returns an function that, when run, is equivalent to running a given vm
   // function with some arguments.

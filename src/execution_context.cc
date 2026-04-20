@@ -68,7 +68,7 @@ Error RegisterCompilationError(std::weak_ptr<Status> weak_status,
                                ExecutionContext::ErrorHandling error_handling) {
   LOG(INFO) << "Compilation error: " << error;
   error = AugmentError(details + LazyString{L": error: "}, std::move(error));
-  if (error_handling == ExecutionContext::ErrorHandling::kLogToStatus)
+  if (error_handling == ExecutionContext::ErrorHandling::LogToStatus)
     VisitPointer(
         weak_status,
         [&error](NonNull<std::shared_ptr<Status>> status) {
@@ -97,7 +97,7 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
                    Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
                  return futures::Past(RegisterCompilationError(
                      weak_status, ToLazyString(path), error,
-                     ErrorHandling::kLogToStatus));
+                     ErrorHandling::LogToStatus));
                }},
       vm::CompileFile(path, environment_));
 }

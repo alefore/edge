@@ -245,7 +245,7 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
             return error;
           }},
       buffer.execution_context()->CompileString(
-          input.read(), ExecutionContext::ErrorHandling::kIgnore));
+          input.read(), ExecutionContext::ErrorHandling::Ignore));
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
