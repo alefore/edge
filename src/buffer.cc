@@ -77,7 +77,6 @@ namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
 namespace container = afc::language::container;
 
-using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
 using afc::futures::OnError;
