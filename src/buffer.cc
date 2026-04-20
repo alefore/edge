@@ -544,6 +544,7 @@ OpenBuffer::PrepareToClose() {
 }
 
 void OpenBuffer::Close(CloseAccessTag) {
+  LOG(INFO) << "Close: " << name();
   if (close_listenable_future_.has_value()) {
     LOG(INFO) << name() << ": Buffer closed multiple times.";
     return;
@@ -561,10 +562,13 @@ void OpenBuffer::Close(CloseAccessTag) {
     }
   }
   editor().line_marks().RemoveSource(name());
-  work_queue()->StartShutdown();
-  work_queue()->Execute();
+
   LOG(INFO) << name() << ": Notify close observers";
   std::move(close_consumer_)(EmptyValue{});
+
+  LOG(INFO) << "Shut down queue: " << name();
+  work_queue()->StartShutdown();
+  work_queue()->Execute();
 }
 
 futures::Value<gc::Root<OpenBuffer>> OpenBuffer::WaitForEndOfFile() {
@@ -2647,18 +2651,15 @@ void OpenBuffer::UpdateLastAction() {
       idle_seconds >= 0.0) {
     work_queue()->Schedule(WorkQueue::Callback{
         .time = AddSeconds(Now(), idle_seconds),
-        .callback = gc::LockCallback(
-            gc::BindFront(
-                editor().gc_pool(),
-                [last_action = last_action_](gc::Root<OpenBuffer> buffer_root) {
-                  OpenBuffer& buffer = buffer_root.ptr().value();
-                  if (buffer.last_action_ != last_action) return;
-                  buffer.last_action_ = Now();
-                  LOG(INFO) << "close_after_idle_seconds: Closing.";
-                  buffer.editor().CloseBuffer(buffer);
-                },
-                WeakPtrFromThis())
-                .ptr())});
+        .callback = LockAndVisitCallback(
+            [last_action = last_action_](gc::Root<OpenBuffer> buffer) {
+              if (buffer->last_action_ != last_action) return;
+              buffer->last_action_ = Now();
+              LOG(INFO) << "close_after_idle_seconds: Closing.";
+              if (!buffer->work_queue()->shutting_down())
+                buffer->editor().CloseBuffer(buffer.value());
+            },
+            [] {}, WeakPtrFromThis())});
   }
 }
 void OpenBuffer::OnCursorMove() {
