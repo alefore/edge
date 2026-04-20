@@ -187,9 +187,11 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   filter_buffer.Set(buffer_variables::atomic_lines, true);
   filter_buffer.Set(buffer_variables::line_width, 1);
 
+  LOG(INFO) << "Waiting for end of history.";
   return history_buffer_root->WaitForEndOfFile()
       .Transform([&editor_state, filter_buffer_root, abort_value,
                   filter](gc::Root<OpenBuffer> history_buffer) {
+        LOG(INFO) << "Starting history filter.";
         return editor_state.thread_pool().Run(std::bind_front(
             FilterSortBuffer,
             FilterSortBufferInput{
@@ -299,6 +301,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
  private:
   void Reset() {
     status().Reset();
+    abort_notification_ = MakeNonNullShared<DeleteNotification>();
     editor_state().set_modifiers(original_modifiers_);
   }
 

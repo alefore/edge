@@ -335,7 +335,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       }
       return condition;
     };
-    if (line.empty()) return true;
+    if (line.empty()) return !input.abort_value.has_value();
     ValueOrError<std::multimap<Identifier, EscapedString>> line_keys_or_error =
         ParseBufferLine(line);
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
@@ -370,7 +370,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       history_value_tokens.insert({event_key, std::move(match.value())});
     } else {
       VLOG(6) << "Ignoring value, no match: " << line.contents();
-      return true;
+      return !input.abort_value.has_value();
     }
     math::naive_bayes::FeaturesSet current_features;
     for (auto& [key, value] : *line_keys)
