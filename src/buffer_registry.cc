@@ -256,7 +256,6 @@ void BufferRegistry::AdjustListedBuffers(Data& data) {
               retained_buffers.push_back(std::move(data.listed_buffers[index]));
             } else {
               close_buffer_(data.listed_buffers[index].value());
-              ;
             }
           }
           data.listed_buffers = std::move(retained_buffers);
