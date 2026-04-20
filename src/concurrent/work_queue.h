@@ -81,6 +81,8 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
 
   language::Observable& OnSchedule();
 
+  bool shutting_down() const;
+
  private:
   struct MutableData {
     using Queue = std::priority_queue<

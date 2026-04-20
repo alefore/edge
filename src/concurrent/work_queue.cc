@@ -98,6 +98,10 @@ double WorkQueue::RecentUtilization() const {
 
 language::Observable& WorkQueue::OnSchedule() { return schedule_observers_; }
 
+bool WorkQueue::shutting_down() const {
+  return data_.lock([](const MutableData& data) { return data.shutting_down; });
+}
+
 namespace {
 using futures::DeleteNotification;
 
