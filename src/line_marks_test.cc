@@ -4,11 +4,14 @@
 
 #include "src/editor.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::LazyString;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 
@@ -22,10 +25,12 @@ class LineMarksTest {
   }
   LineMarks::Mark TestMark(LineNumber source_line,
                            LineColumn target_line_column) {
-    return LineMarks::Mark{.source_buffer = source_.ptr()->name(),
-                           .source_line = source_line,
-                           .target_buffer = target_.ptr()->name(),
-                           .target_line_column = target_line_column};
+    return LineMarks::Mark{
+        .source_buffer = source_.ptr()->name(),
+        .source_line = source_line,
+        .source_line_content = Line(SINGLE_LINE_CONSTANT(L"foo")),
+        .target_buffer = target_.ptr()->name(),
+        .target_line_column = target_line_column};
   }
 
   const LineMarks& line_marks() { return editor_->line_marks(); }
@@ -66,10 +71,11 @@ bool line_marks_test_registration = tests::Register(
             CHECK(marks.GetExpiredMarksForTargetBuffer(test.target_name())
                       .empty());
 
-            std::pair<LineColumn, LineMarks::Mark> entry =
+            std::pair<LineMarks::MarkMapKey, LineMarks::Mark> entry =
                 *marks.GetMarksForTargetBuffer(test.target_name()).begin();
-            CHECK_EQ(entry.first,
+            CHECK_EQ(entry.first.first,
                      LineColumn(LineNumber(100), ColumnNumber(50)));
+            CHECK_EQ(entry.first.second, LineNumber(4));
             CHECK_EQ(entry.second.source_buffer, test.source_name());
             CHECK_EQ(entry.second.source_line, LineNumber(4));
             CHECK_EQ(entry.second.target_buffer, test.target_name());

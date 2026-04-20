@@ -24,7 +24,7 @@ OperationScopeBufferInformation OperationScope::get(
     std::pair<Map::iterator, bool> insert_results =
         data.insert({&buffer, OperationScopeBufferInformation()});
     if (insert_results.second) {
-      insert_results.first->second = {
+      insert_results.first->second = OperationScopeBufferInformation{
           .screen_lines = buffer.display_data()
                               .view_size()
                               .Get()

@@ -22,11 +22,15 @@ using afc::language::text::LineSequence;
 
 namespace afc::editor {
 
+LineMarks::MarkMapKey LineMarks::Mark::key() const {
+  return std::make_pair(target_line_column, source_line);
+}
+
 void LineMarks::AddMark(Mark mark) {
   marks_by_source_target[mark.source_buffer][mark.target_buffer].marks.insert(
-      std::make_pair(mark.target_line_column, mark));
+      std::make_pair(mark.key(), mark));
   marks_by_target[mark.target_buffer].marks.insert(
-      std::make_pair(mark.target_line_column, mark));
+      std::make_pair(mark.key(), mark));
 }
 
 void LineMarks::RemoveSource(const BufferName& source) {
@@ -37,12 +41,12 @@ void LineMarks::RemoveSource(const BufferName& source) {
       auto& target_marks = marks_by_target[target];
 
       std::erase_if(target_marks.marks,
-                    [&](const std::pair<LineColumn, const Mark>& entry) {
+                    [&](const std::pair<MarkMapKey, const Mark>& entry) {
                       return entry.second.source_buffer == source;
                     });
 
       std::erase_if(target_marks.expired_marks,
-                    [&](const std::pair<LineColumn, const ExpiredMark>& entry) {
+                    [&](const std::pair<MarkMapKey, const Mark>& entry) {
                       return entry.second.source_buffer == source;
                     });
     }
@@ -65,16 +69,17 @@ void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
     auto& target_marks = marks_by_target[target];
     DVLOG(10) << "Mark transitions from fresh to expired.";
     for (auto& [position, mark] : source_target_marks.marks) {
-      ExpiredMark expired_mark{
-          .source_buffer = source,
-          .source_line_content =
-              mark.source_line > source_buffer.EndLine()
-                  ? Line{SingleLine{LazyString{L"(expired)"}}}
-                  : source_buffer.at(mark.source_line),
-          .target_buffer = mark.target_buffer,
-          .target_line_column = mark.target_line_column};
-      source_target_marks.expired_marks.insert({position, expired_mark});
-      target_marks.expired_marks.insert({position, expired_mark});
+      Mark expired_mark{.source_buffer = source,
+                        .source_line = mark.source_line,
+                        .source_line_content =
+                            mark.source_line > source_buffer.EndLine()
+                                ? Line{SingleLine{LazyString{L"(expired)"}}}
+                                : source_buffer.at(mark.source_line),
+                        .target_buffer = mark.target_buffer,
+                        .target_line_column = mark.target_line_column};
+      source_target_marks.expired_marks.insert(
+          {expired_mark.key(), expired_mark});
+      target_marks.expired_marks.insert({expired_mark.key(), expired_mark});
       auto range = target_marks.marks.equal_range(position);
       while (range.first != range.second) {
         if (range.first->second.source_buffer == source)
@@ -104,13 +109,13 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
   }
   for (auto& target : targets_to_process) {
     std::erase_if(marks_by_target[target].expired_marks,
-                  [&](const std::pair<LineColumn, ExpiredMark>& entry) {
+                  [&](const std::pair<MarkMapKey, Mark>& entry) {
                     return entry.second.source_buffer == source;
                   });
   }
 }
 
-const std::multimap<LineColumn, LineMarks::Mark>&
+const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&
 LineMarks::GetMarksForTargetBuffer(const BufferName& target_buffer) const {
   TRACK_OPERATION(LineMarks_GetMarksForTargetBuffer);
 
@@ -118,11 +123,11 @@ LineMarks::GetMarksForTargetBuffer(const BufferName& target_buffer) const {
   if (auto it = marks_by_target.find(target_buffer);
       it != marks_by_target.end())
     return it->second.marks;
-  static const std::multimap<LineColumn, LineMarks::Mark> empty_output;
+  static const std::multimap<MarkMapKey, LineMarks::Mark> empty_output;
   return empty_output;
 }
 
-const std::multimap<LineColumn, LineMarks::ExpiredMark>&
+const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&
 LineMarks::GetExpiredMarksForTargetBuffer(
     const BufferName& target_buffer) const {
   TRACK_OPERATION(LineMarks_GetExpiredMarksForTargetBuffer);
@@ -130,7 +135,7 @@ LineMarks::GetExpiredMarksForTargetBuffer(
   if (auto it = marks_by_target.find(target_buffer);
       it != marks_by_target.end())
     return it->second.expired_marks;
-  static const std::multimap<LineColumn, LineMarks::ExpiredMark> empty_output;
+  static const std::multimap<MarkMapKey, LineMarks::Mark> empty_output;
   return empty_output;
 }
 
@@ -140,12 +145,6 @@ std::set<BufferName> LineMarks::GetMarkTargets() const {
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
   os << "[" << lm.source_buffer << ":" << lm.target_buffer << ":"
-     << lm.target_line_column << "]";
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lm) {
-  os << "[expired:" << lm.source_buffer << ":" << lm.target_buffer << ":"
      << lm.target_line_column << "]";
   return os;
 }

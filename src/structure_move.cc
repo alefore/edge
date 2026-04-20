@@ -30,31 +30,26 @@ static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
                                   LineColumn current,
                                   const Modifiers& modifiers) {
   if (it_begin == it_end) return current;
-  using P = std::pair<const LineColumn, LineMarks::Mark>;
 
   // This value is never actually read, but we use it to create a valid P value
   // that we can pass to std::upper_bound.
   auto dummy_value = it_begin->second;
-  Iterator it = std::upper_bound(
-      it_begin, it_end, P{LineColumn(current.line), dummy_value},
-      modifiers.direction == Direction::kForwards
-          ? [](const P& a, const P& b) { return a.first < b.first; }
-          : [](const P& a, const P& b) { return a.first > b.first; });
-  if (it == it_end) {
-    return current;
-  }
+  Iterator it =
+      std::upper_bound(it_begin, it_end, current,
+                       [&](const LineColumn& target, const auto& map_entry) {
+                         const LineColumn& entry_target = map_entry.first.first;
+                         return modifiers.direction == Direction::kForwards
+                                    ? target < entry_target
+                                    : target > entry_target;
+                       });
+  if (it == it_end) return current;
 
   for (size_t i = 1; i < modifiers.repetitions; i++) {
-    LineColumn position = it->first;
+    LineColumn position = it->first.first;
     ++it;
     // Skip more marks for the same line.
-    while (it != it_end && it->first == position) {
-      ++it;
-    }
-    if (it == it_end) {
-      // Can't move past the current mark.
-      return position;
-    }
+    while (it != it_end && it->first.first == position) ++it;
+    if (it == it_end) return position;  // Can't move past the current mark.
   }
 
   return it->second.target_line_column;

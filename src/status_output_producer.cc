@@ -52,10 +52,10 @@ namespace {
 
 SingleLine GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
-  if (auto current_line_marks =
-          marks.lower_bound(LineColumn(buffer.position().line));
+  if (auto current_line_marks = marks.lower_bound(
+          std::make_pair(LineColumn(buffer.position().line), LineNumber{}));
       current_line_marks != marks.end() &&
-      current_line_marks->first.line == buffer.position().line) {
+      current_line_marks->first.first.line == buffer.position().line) {
     auto mark = current_line_marks->second;
     if (std::optional<gc::Root<OpenBuffer>> source =
             buffer.editor().buffer_registry().Find(mark.source_buffer);

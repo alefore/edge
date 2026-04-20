@@ -125,19 +125,20 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
     return position;
   } else if (structure == Structure::kMark) {
     // Navigates marks in the current buffer.
-    const std::multimap<LineColumn, LineMarks::Mark>& marks =
+    const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& marks =
         buffer.GetLineMarks();
-    std::vector<std::pair<LineColumn, LineMarks::Mark>> lines;
-    std::unique_copy(marks.begin(), marks.end(), std::back_inserter(lines),
-                     [](const std::pair<LineColumn, LineMarks::Mark>& entry1,
-                        const std::pair<LineColumn, LineMarks::Mark>& entry2) {
-                       return (entry1.first.line == entry2.first.line);
-                     });
+    std::vector<std::pair<LineMarks::MarkMapKey, LineMarks::Mark>> lines;
+    std::unique_copy(
+        marks.begin(), marks.end(), std::back_inserter(lines),
+        [](const std::pair<LineMarks::MarkMapKey, LineMarks::Mark>& entry1,
+           const std::pair<LineMarks::MarkMapKey, LineMarks::Mark>& entry2) {
+          return entry1.first.first.line == entry2.first.first.line;
+        });
     size_t index =
         ComputePosition(0, lines.size(), lines.size(), modifiers.direction,
                         modifiers.repetitions.value_or(1), calls);
     CHECK_LE(index, lines.size());
-    return lines.at(index).first;
+    return lines.at(index).first.first;
   } else if (structure == Structure::kPage) {
     CHECK_GT(buffer.contents().size(), LineNumberDelta(0));
     std::optional<LineColumnDelta> view_size =

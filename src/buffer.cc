@@ -914,11 +914,11 @@ void OpenBuffer::AppendLines(
             .output_format = FilePredictorOutputFormat::SearchPathAndInput});
     for (LineNumberDelta i; i < lines_added; ++i) {
       LineNumber source_line = LineNumber{} + start_new_section + i;
-      file_predictor(
-          PredictorInput{.editor = editor(),
-                         .input = contents_.at(source_line).contents(),
-                         .input_column = {},
-                         .source_buffers = {}})
+      Line source_line_content = contents_.at(source_line);
+      file_predictor(PredictorInput{.editor = editor(),
+                                    .input = source_line_content.contents(),
+                                    .input_column = {},
+                                    .source_buffers = {}})
           .Transform([buffer_name = name(), &editor = editor(),
                       source_line](PredictorOutput output) {
             std::ranges::for_each(
@@ -935,6 +935,7 @@ void OpenBuffer::AppendLines(
                           return LineMarks::Mark{
                               .source_buffer = buffer_name,
                               .source_line = source_line,
+                              .source_line_content = line,
                               .target_buffer = BufferFileId(target_buffer),
                               .target_line_column =
                                   std::holds_alternative<LineColumn>(spec)
@@ -1475,12 +1476,13 @@ void OpenBuffer::PopActiveCursors() {
 
 void OpenBuffer::SetActiveCursorsToMarks() {
   // To avoid repetitions, insert them first into a set.
-  const std::set<LineColumn> cursors =
-      std::invoke([&]() -> std::set<LineColumn> {
-        if (const std::set<LineColumn> marks = GetSetWithKeys(GetLineMarks());
+  const std::set<LineMarks::MarkMapKey> cursors =
+      std::invoke([&]() -> std::set<LineMarks::MarkMapKey> {
+        if (const std::set<LineMarks::MarkMapKey> marks =
+                GetSetWithKeys(GetLineMarks());
             !marks.empty())
           return marks;
-        else if (const std::set<LineColumn> expired_marks =
+        else if (const std::set<LineMarks::MarkMapKey> expired_marks =
                      GetSetWithKeys(GetExpiredLineMarks());
                  !expired_marks.empty())
           return expired_marks;
@@ -1490,7 +1492,11 @@ void OpenBuffer::SetActiveCursorsToMarks() {
   if (cursors.empty())
     status_->InsertError(Error{LazyString{L"Buffer has no marks!"}});
   else
-    set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
+    set_active_cursors(
+        cursors | std::views::transform([](LineMarks::MarkMapKey key) {
+          return key.first;
+        }) |
+        std::ranges::to<std::set>() | std::ranges::to<std::vector>());
 }
 
 void OpenBuffer::set_current_cursor(LineColumn new_value) {
@@ -2611,12 +2617,12 @@ OpenBuffer::Expand() const {
           execution_context_.object_metadata()};
 }
 
-const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
-    const {
+const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&
+OpenBuffer::GetLineMarks() const {
   return editor().line_marks().GetMarksForTargetBuffer(name());
 }
 
-const std::multimap<LineColumn, LineMarks::ExpiredMark>&
+const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&
 OpenBuffer::GetExpiredLineMarks() const {
   return editor().line_marks().GetExpiredMarksForTargetBuffer(name());
 }

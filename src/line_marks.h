@@ -16,6 +16,10 @@ namespace editor {
 
 struct LineMarks {
  public:
+  // First position is target_line_column. Second is source_line.
+  using MarkMapKey =
+      std::pair<language::text::LineColumn, language::text::LineNumber>;
+
   struct Mark {
     // What created this mark?
     const BufferName source_buffer;
@@ -23,31 +27,16 @@ struct LineMarks {
     // What line in the source did this mark occur in?
     const language::text::LineNumber source_line;
 
-    // What buffer does this mark identify?
-    const BufferName target_buffer;
-
-    // The line marked.
-    const language::text::LineColumn target_line_column;
-  };
-
-  // A mark whose source buffer was removed will be preserved for some time. In
-  // this case, we retain the original content.
-  //
-  // The reason for expired marks is to preserve marks while recompilation is
-  // taking place: the user can still see the old marks (the output from the
-  // previous run of the compiler) while they're being updated.
-  struct ExpiredMark {
-    // What created this mark?
-    const BufferName source_buffer;
-
     // The contents in the source (and line) that created this mark.
     const language::text::Line source_line_content;
 
     // What buffer does this mark identify?
     const BufferName target_buffer;
 
-    // The position marked.
+    // The line marked.
     const language::text::LineColumn target_line_column;
+
+    MarkMapKey key() const;
   };
 
   void AddMark(Mark mark);
@@ -58,19 +47,17 @@ struct LineMarks {
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
 
-  const std::multimap<language::text::LineColumn, Mark>&
-  GetMarksForTargetBuffer(const BufferName& target_buffer) const;
-  const std::multimap<language::text::LineColumn, ExpiredMark>&
-  GetExpiredMarksForTargetBuffer(const BufferName& target_buffer) const;
+  const std::multimap<MarkMapKey, Mark>& GetMarksForTargetBuffer(
+      const BufferName& target_buffer) const;
+  const std::multimap<MarkMapKey, Mark>& GetExpiredMarksForTargetBuffer(
+      const BufferName& target_buffer) const;
 
   std::set<BufferName> GetMarkTargets() const;
 
  private:
   struct MarksMaps {
-    // TODO(P2, easy, 2026-04-14): The marks should be sorted by occurence in
-    // the source (i.e., by source_line).
-    std::multimap<language::text::LineColumn, Mark> marks;
-    std::multimap<language::text::LineColumn, ExpiredMark> expired_marks;
+    std::multimap<MarkMapKey, Mark> marks;
+    std::multimap<MarkMapKey, Mark> expired_marks;
   };
 
   // First key is the source, second key is the target_buffer.
@@ -82,7 +69,6 @@ struct LineMarks {
 };
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lc);
-std::ostream& operator<<(std::ostream& os, const LineMarks::ExpiredMark& lc);
 
 }  // namespace editor
 }  // namespace afc

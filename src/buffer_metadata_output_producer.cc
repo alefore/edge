@@ -303,9 +303,9 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   size_t base_char = 0;
 
-  const std::multimap<LineColumn, LineMarks::Mark>& marks =
+  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& marks =
       options.buffer.GetLineMarks();
-  const std::multimap<LineColumn, LineMarks::ExpiredMark>& expired_marks =
+  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& expired_marks =
       options.buffer.GetExpiredLineMarks();
   for (size_t row = 0; row < 3; row++)
     if (current + row >= start && current + row < end) {
@@ -334,11 +334,14 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       LineColumn end_line(
           LineNumber((current + row + 1ul).read() * buffer_lines_per_row));
       if (begin_line == end_line) continue;
-      if (marks.lower_bound(begin_line) != marks.lower_bound(end_line)) {
+      if (marks.lower_bound(LineMarks::MarkMapKey{begin_line, LineNumber{}}) !=
+          marks.lower_bound(LineMarks::MarkMapKey{end_line, LineNumber{}})) {
         active_marks = true;
         base_char |= (1 << (row * 2 + 1));
-      } else if (expired_marks.lower_bound(begin_line) !=
-                 expired_marks.lower_bound(end_line)) {
+      } else if (expired_marks.lower_bound(
+                     LineMarks::MarkMapKey{begin_line, LineNumber{}}) !=
+                 expired_marks.lower_bound(
+                     LineMarks::MarkMapKey{end_line, LineNumber{}})) {
         base_char |= (1 << (row * 2 + 1));
       }
     }
@@ -381,16 +384,18 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
   return std::move(line_options).Build();
 }
 
-template <typename MarkType>
-std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
-                              Range range) {
+std::list<LineMarks::Mark> PushMarks(
+    std::multimap<LineMarks::MarkMapKey, LineMarks::Mark> input, Range range) {
   TRACK_OPERATION(BufferMetadataOutput_Prepare_PushMarks);
-  return container::MaterializeList(
-      std::ranges::subrange(input.lower_bound(range.begin()),
-                            input.lower_bound(range.end())) |
-      std::views::values | std::views::filter([&range](const MarkType& m) {
-        return range.Contains(m.target_line_column);
-      }));
+  return std::ranges::subrange(input.lower_bound(LineMarks::MarkMapKey{
+                                   range.begin(), LineNumber{}}),
+                               input.lower_bound(LineMarks::MarkMapKey{
+                                   range.end(), LineNumber{}})) |
+         std::views::values |
+         std::views::filter([&range](const LineMarks::Mark& m) {
+           return range.Contains(m.target_line_column);
+         }) |
+         std::ranges::to<std::list>();
 }
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
@@ -455,7 +460,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   std::list<LineMarks::Mark> marks =
       PushMarks(options.buffer.GetLineMarks(), range.read());
 
-  std::list<LineMarks::ExpiredMark> expired_marks =
+  std::list<LineMarks::Mark> expired_marks =
       PushMarks(options.buffer.GetExpiredLineMarks(), range.read());
 
   for (const auto& mark : marks) {

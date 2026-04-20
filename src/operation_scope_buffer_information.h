@@ -14,7 +14,7 @@ namespace afc::editor {
 struct OperationScopeBufferInformation {
   language::text::LineNumberDelta screen_lines;
 
-  std::multimap<language::text::LineColumn, LineMarks::Mark> line_marks;
+  std::multimap<LineMarks::MarkMapKey, LineMarks::Mark> line_marks;
 
   // From buffer_variables::margin_lines_ratio.
   double margin_lines_ratio;

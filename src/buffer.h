@@ -369,11 +369,10 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   //////////////////////////////////////////////////////////////////////////////
   // Line marks.
 
-  // Returns a multimap with all the marks for the current buffer, indexed by
-  // the line they refer to. Each call may update the map.
-  const std::multimap<language::text::LineColumn, LineMarks::Mark>&
-  GetLineMarks() const;
-  const std::multimap<language::text::LineColumn, LineMarks::ExpiredMark>&
+  // Returns a multimap with all the marks for the current buffer.
+  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& GetLineMarks()
+      const;
+  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&
   GetExpiredLineMarks() const;
   language::lazy_string::SingleLine GetLineMarksText() const;
 

@@ -44,13 +44,13 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
     Line text;
   };
   std::map<BufferName, std::vector<MarkView>> marks_by_source;
-  for (const std::pair<const LineColumn, LineMarks::Mark>& data :
+  for (const std::pair<const LineMarks::MarkMapKey, LineMarks::Mark>& data :
        marks.GetMarksForTargetBuffer(name)) {
     std::optional<gc::Root<OpenBuffer>> source =
         editor.buffer_registry().Find(data.second.source_buffer);
     marks_by_source[data.second.source_buffer].push_back(MarkView{
         .expired = false,
-        .target = data.first,
+        .target = data.first.first,
         .text = (source.has_value() &&
                  data.second.source_line <
                      LineNumber(0) + source->ptr()->contents().size())
@@ -64,11 +64,11 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
                                           data.second.source_line.read()}) +
                                       LazyString{L")"}}}});
   }
-  for (const std::pair<const LineColumn, LineMarks::ExpiredMark>& data :
+  for (const std::pair<const LineMarks::MarkMapKey, LineMarks::Mark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))
     marks_by_source[data.second.source_buffer].push_back(
         MarkView{.expired = true,
-                 .target = data.first,
+                 .target = data.first.first,
                  .text = data.second.source_line_content});
   for (std::pair<const BufferName, std::vector<MarkView>> data :
        std::move(marks_by_source)) {
