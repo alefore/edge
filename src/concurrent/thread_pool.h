@@ -85,8 +85,6 @@ class ThreadPoolWithWorkQueue {
     return std::move(output.value);
   }
 
-  void WaitForProgress();
-
  private:
   const language::NonNull<std::shared_ptr<ThreadPool>> thread_pool_;
   const language::NonNull<std::shared_ptr<WorkQueue>> work_queue_;

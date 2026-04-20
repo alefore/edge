@@ -113,17 +113,4 @@ ThreadPoolWithWorkQueue::work_queue() const {
   return work_queue_;
 }
 
-void ThreadPoolWithWorkQueue::WaitForProgress() {
-  while (work_queue()->NextExecution().has_value() ||
-         thread_pool()->pending_work_units() > 0) {
-    if (auto when = work_queue()->NextExecution(); when.has_value()) {
-      LOG(INFO) << "Executing from work_queue: "
-                << infrastructure::HumanReadableTime(when.value());
-      work_queue()->Execute([when] { return when.value(); });
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-  LOG(INFO) << "ThreadPoolWithWorkQueue::WaitForProgress: Done.";
-}
-
 }  // namespace afc::concurrent
