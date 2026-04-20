@@ -242,6 +242,12 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
     PathComponent next_component = ValueOrDie(PathComponent::New(
         path.Substring(ColumnNumber{} + output.valid_prefix_length,
                        component_end - output.valid_prefix_length)));
+
+    const std::optional<ColumnNumber> reminder_start = FindFirstNotOf(
+        path, {L'/'},
+        ColumnNumber{} +
+            std::min(component_end + ColumnNumberDelta{1}, path.size()));
+    if (reminder_start == std::nullopt) return output;
     std::vector<PathContext> next_matches =
         output.matches |
         std::views::transform([&](const PathContext& previous_match) {
@@ -258,8 +264,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
       return output;
     }
     output.matches = std::move(next_matches);
-    output.valid_prefix_length =
-        std::min(component_end + ColumnNumberDelta{1}, path.size());
+    output.valid_prefix_length = reminder_start->ToDelta();
   }
   return output;
 }
@@ -306,8 +311,17 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
                               PathContext path_context,
                               ColumnNumberDelta& longest_pattern_match) {
   namespace ofp = open_file_position;
-  LazyString remaining_suffix = input.glob_matcher.pattern().Substring(
-      ColumnNumber{} + component_data.glob_match_results.pattern_prefix_size);
+
+  LazyString remaining_suffix = std::invoke([&] {
+    ColumnNumber next =
+        ColumnNumber{} + component_data.glob_match_results.pattern_prefix_size;
+    LazyString pattern = input.glob_matcher.pattern();
+    if (component_data.file_type == FileType::Directory)  // Skip slashes.
+      next = FindFirstNotOf(pattern, {L'/'}, next)
+                 .value_or(ColumnNumber{} + pattern.size());
+    return pattern.Substring(ColumnNumber{} + next);
+  });
+
   std::optional<ofp::Spec> spec = ofp::Parse(
       remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
@@ -625,11 +639,17 @@ const bool predict_in_search_path_tests_registration =
                       FilePredictorOptions{.match_type =
                                                FilePredictorMatchType::Exact}),
                  test(L"DirExact", L"plants",
-                      Expectations::Predictions(
-                          {L"plants/orchid.txt", L"plants/rose.txt"})),
+                      Expectations::Predictions({L"plants/"})),
                  test(L"DirExactSlash", L"plants/",
-                      Expectations::Predictions(
-                          {L"plants/orchid.txt", L"plants/rose.txt"})),
+                      Expectations::Predictions({L"plants/"})),
+                 test(L"DirExactMatchExact", L"plants",
+                      Expectations::Predictions({L"plants/"}),
+                      FilePredictorOptions{.match_type =
+                                               FilePredictorMatchType::Exact}),
+                 test(L"DirExactSlashMatchExact", L"plants/",
+                      Expectations::Predictions({L"plants/"}),
+                      FilePredictorOptions{.match_type =
+                                               FilePredictorMatchType::Exact}),
                  test(L"WithPosition", L"*/dog.txt:5",
                       Expectations::Predictions({L"animals/dog.txt"})),
                  test(L"WithGarbageAllow", L"*/dog.txt:5: nothing",
