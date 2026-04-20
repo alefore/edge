@@ -2164,6 +2164,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          ToLazyString(ValueOrDie(std::move(path))));
                      if (std::holds_alternative<Error>(path_str))
                        return ICC::kContinue;
+                     TRACK_OPERATION(OpenBuffer_OpenBufferForCurrentPosition);
                      VLOG(4) << "Calling open file: "
                              << std::get<SingleLine>(path_str);
                      return OpenFiles(
