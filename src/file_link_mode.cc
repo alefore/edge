@@ -459,7 +459,8 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options) {
   if (options.path == std::nullopt)
-    return futures::Past(Error{LazyString{L"No path specified."}});
+    return Error{LazyString{L"No path specified."}};
+  LOG(INFO) << "OpenFileIfFound with path: " << options.path.value();
   return futures::OnError(
       FindAlreadyOpenBuffer(options, options.path.value())
           .Transform([options](ResolvePathOutput already_open_buffer) {
