@@ -1,14 +1,19 @@
 #include "src/futures/futures.h"
 
+#include <ranges>
 #include <variant>
+#include <vector>
 
 #include "glog/logging.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
 using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
@@ -183,6 +188,27 @@ const bool double_registration_tests_registration = tests::Register(
         CHECK(object.value.has_value());
         tests::ForkAndWaitForFailure([&] { std::move(object.consumer)(0); });
       }}});
+
+const bool futures_loop_tests_registration = tests::Register(
+    L"FuturesLoop",
+    {{.name = L"ForEach",
+      .callback =
+          [] {
+            ForEach(MakeNonNullShared<std::vector<int>>(
+                        std::views::iota(0, 1000000) |
+                        std::ranges::to<std::vector>()),
+                    [](int) -> futures::Value<IterationControlCommand> {
+                      return IterationControlCommand::kContinue;
+                    });
+          }},
+     {.name = L"While", .callback = [] {
+        size_t count = 0;
+        While([&count] -> futures::Value<IterationControlCommand> {
+          return count++ < 1e6 ? IterationControlCommand::kContinue
+                               : IterationControlCommand::kStop;
+        });
+      }}});
+
 }  // namespace
 
 }  // namespace afc::futures
