@@ -1,3 +1,5 @@
+// Contains various `concept` implementations related to the `gc` module.
+
 #ifndef __AFC_LANGUAGE_GC_CONCEPTS_H__
 #define __AFC_LANGUAGE_GC_CONCEPTS_H__
 
