@@ -226,6 +226,12 @@ void Run(std::vector<std::wstring> tests_filter) {
     }
 
     if (!running_tests.empty()) {
+      if (running_tests.size() == 1) {
+        TestInfoToSchedule info = running_tests.begin()->second;
+        std::cerr << " " << info.group_name << "." << info.test_name;
+      } else if (running_tests.size() < std::min(kMaxConcurrentTests, 10ul))
+        std::cerr << " " << running_tests.size();
+
       LOG(INFO) << "Waiting for a test to complete.";
 
       int wait_status;
@@ -242,8 +248,10 @@ void Run(std::vector<std::wstring> tests_filter) {
       CHECK(!execution_results[info.group_name].contains(info.test_name));
       execution_results[info.group_name][info.test_name] = wait_status;
       running_tests.erase(completed_pid);  // Clean up from tracking maps
+      if (!running_tests.empty()) std::cerr << ".";
     }
   }
+  std::cerr << std::endl;
 
   LOG(INFO) << "All tests have completed; producing final output.";
   for (const std::pair<const std::wstring, std::map<std::wstring, int>>& group :
