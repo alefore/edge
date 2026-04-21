@@ -39,6 +39,11 @@ bool IsError(const ValueOrError<T>& value) {
 }
 
 template <typename T>
+bool HasValue(const ValueOrError<T>& value) {
+  return !std::holds_alternative<Error>(value);
+}
+
+template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
   std::visit(overload{[&](const Error& error) { os << error; },
                       [&](const T& value) {
