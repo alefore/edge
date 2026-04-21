@@ -762,6 +762,9 @@ void OpenBuffer::RegisterProgress() {
 }
 
 void OpenBuffer::UpdateTreeParser() {
+  // TODO(P1, 2026-04-21): Investigate why it's OK to attempt to load the
+  // dictionary on every single call to UpdateTreeParser. Either fix it or
+  // document here.
   ValueOrError<Path> dictionary_path =
       Path::New(Read(buffer_variables::dictionary));
   (IsError(dictionary_path)
