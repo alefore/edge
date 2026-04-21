@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <map>
 #include <ranges>
 
 #include "src/language/container.h"
@@ -54,6 +55,35 @@ enum State {
   INVALID_PROPERTY_VALUE,
 };
 
+struct RecognizedProperty {
+  State post_name_state;
+  State value_state;
+};
+
+const std::map<SingleLine, RecognizedProperty>& Properties() {
+  static const std::map<SingleLine, RecognizedProperty> output = {
+      {SINGLE_LINE_CONSTANT(L"border-style"),
+       RecognizedProperty{.post_name_state = PROPERTY_BORDER_STYLE_COLON,
+                          .value_state = PROPERTY_BORDER_STYLE_VALUE}}};
+  return output;
+}
+
+const std::map<State, RecognizedProperty>& PropertiesByPostNameState() {
+  static const std::map<State, RecognizedProperty> output =
+      Properties() | std::views::transform([](const auto& data) {
+        return std::make_pair(data.second.post_name_state, data.second);
+      }) |
+      std::ranges::to<std::map>();
+  return output;
+}
+
+const std::set<State> PropertiesPostNameStates() {
+  static const std::set<State> output = PropertiesByPostNameState() |
+                                        std::views::keys |
+                                        std::ranges::to<std::set>();
+  return output;
+}
+
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
@@ -102,6 +132,11 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       done = result->seek().read() == L'\n';
       VLOG(5) << "State: " << result->state();
 
+      if (PropertiesPostNameStates().find(State(result->state())) !=
+          PropertiesPostNameStates().end()) {
+        ParseColon(result);
+        continue;
+      }
       switch (result->state()) {
         case DEFAULT:
         case IN_DECLARATION_BLOCK_EXPECT_PROPERTY:
@@ -111,7 +146,6 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
           ParseDefaultState(result);
           break;
         case IN_DECLARATION_BLOCK_EXPECT_COLON:
-        case PROPERTY_BORDER_STYLE_COLON:
           ParseColon(result);
           break;
         case IN_MULTI_LINE_COMMENT:
@@ -143,15 +177,17 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim});
-    switch (result->state()) {
-      case PROPERTY_BORDER_STYLE_COLON:
-        result->SetState(PROPERTY_BORDER_STYLE_VALUE);
-        break;
-      case IN_DECLARATION_BLOCK_EXPECT_COLON:
-        result->SetState(IN_DECLARATION_BLOCK_EXPECT_VALUE);
-        break;
-      default:
-        LOG(FATAL) << "ParseColon called in invalid state.";
+    if (auto it = PropertiesByPostNameState().find(State(result->state()));
+        it != PropertiesByPostNameState().end()) {
+      result->SetState(it->second.value_state);
+    } else {
+      switch (result->state()) {
+        case IN_DECLARATION_BLOCK_EXPECT_COLON:
+          result->SetState(IN_DECLARATION_BLOCK_EXPECT_VALUE);
+          break;
+        default:
+          LOG(FATAL) << "ParseColon called in invalid state.";
+      }
     }
   }
 
@@ -280,9 +316,10 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                 original_word_start.column, length);
 
             if (result->state() == IN_DECLARATION_BLOCK_EXPECT_PROPERTY) {
-              if (token == SINGLE_LINE_CONSTANT(L"border-style")) {
+              if (auto it = Properties().find(token);
+                  it != Properties().end()) {
                 result->PushAndPop(length, RECOGNIZED_RULE_MODIFIERS);
-                result->SetState(PROPERTY_BORDER_STYLE_COLON);
+                result->SetState(it->second.post_name_state);
               } else {
                 result->PushAndPop(length, {LineModifier::kWhite});
                 result->SetState(IN_DECLARATION_BLOCK_EXPECT_COLON);
