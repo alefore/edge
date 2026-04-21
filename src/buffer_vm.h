@@ -3,6 +3,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/language/gc.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
@@ -54,17 +55,5 @@ struct VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
           input);
   static const types::ObjectName object_type_name;
 };
-
-// TODO(2025-05-27, trivial): This doesn't really belong here. Maybe it should
-// go to src/language/gc.h or similar.
-template <typename V>
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-Expand(const language::NonNull<std::shared_ptr<
-           concurrent::Protected<std::vector<language::gc::Ptr<V>>>>>& input) {
-  return input->lock([](const std::vector<language::gc::Ptr<V>>& contents) {
-    return language::container::MaterializeVector(
-        contents | language::gc::view::ObjectMetadata);
-  });
-}
 
 }  // namespace afc::vm

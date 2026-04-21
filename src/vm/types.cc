@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/language/container.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
@@ -18,6 +19,7 @@ namespace container = afc::language::container;
 using afc::language::Error;
 using afc::language::GetValueOrDie;
 using afc::language::PossibleError;
+using afc::language::gc::ExpandMapPtrValues;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
@@ -282,8 +284,8 @@ SingleLine ToQuotedSingleLine(const Type& type) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
-  return container::MaterializeVector(fields_ | std::views::values |
-                                      gc::view::ObjectMetadata);
+  return fields_ | ExpandMapPtrValues | std::ranges::to<std::vector>();
+  ;
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {

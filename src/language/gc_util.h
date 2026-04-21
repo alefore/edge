@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/language/gc.h"
+#include "src/language/gc_concepts.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::gc {
@@ -16,12 +17,6 @@ struct is_void : std::false_type {};
 
 template <>
 struct is_void<void> : std::true_type {};
-
-template <typename T>
-struct IsGcPtr : std::false_type {};
-
-template <typename T>
-struct IsGcPtr<Ptr<T>> : std::true_type {};
 
 template <typename Func, typename... BoundArgs>
 class BindFrontImpl {
@@ -112,7 +107,7 @@ class BindFrontImpl {
       std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>& output,
       const std::tuple<Args...>& tup) {
     if constexpr (index < sizeof...(Args)) {
-      if constexpr (IsGcPtr<
+      if constexpr (is_gc_ptr<
                         std::decay_t<decltype(std::get<index>(tup))>>::value)
         output.push_back(std::get<index>(tup).object_metadata());
       PtrExpandHelper<index + 1>(output, tup);
