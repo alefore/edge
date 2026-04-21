@@ -167,7 +167,7 @@ LineMetadataMap GetLineMetadata(Spec spec) {
                   LineMetadataValue::FromSingleLine(search.read().read())}}};
           },
           [](LineColumn position) {
-            // TODO(P1, trivial, 2026-04-12): Also handle column.
+            // TODO(P3, trivial, 2026-04-12): Also handle column.
             return LineMetadataMap{
                 {{kLineKey,
                   LineMetadataValue::FromSingleLine(

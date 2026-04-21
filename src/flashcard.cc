@@ -88,7 +88,7 @@ ValueOrError<Path> BuildReviewLogPath(Path buffer, SingleLine answer) {
 
 class FlashcardReviewLog {
   gc::Ptr<OpenBuffer> review_buffer_;
-  FileTags file_tags_;
+  gc::Ptr<FileTags> file_tags_;
 
  public:
   static futures::ValueOrError<gc::Root<FlashcardReviewLog>> New(
@@ -105,18 +105,22 @@ class FlashcardReviewLog {
         .Transform([answer](gc::Root<OpenBuffer> buffer)
                        -> ValueOrError<gc::Root<FlashcardReviewLog>> {
           DECLARE_OR_RETURN(
-              FileTags file_tags,
+              gc::Root<FileTags> file_tags,
               std::visit(
                   overload{
-                      [](FileTags file_tags) -> ValueOrError<FileTags> {
+                      [](gc::Root<FileTags> file_tags)
+                          -> ValueOrError<gc::Root<FileTags>> {
                         return file_tags;
                       },
-                      [buffer, answer](Error error) -> ValueOrError<FileTags> {
+                      [buffer, answer](
+                          Error error) -> ValueOrError<gc::Root<FileTags>> {
                         if (buffer->contents().snapshot() == LineSequence{}) {
                           buffer->InsertInPosition(
                               DefaultReviewLogBufferContents(answer),
                               LineColumn{}, std::nullopt);
-                          return FileTags::New(buffer.ptr());
+                          DECLARE_OR_RETURN(gc::Root<FileTags> output,
+                                            FileTags::New(buffer.ptr()));
+                          return output;
                         } else {
                           Error augmented_error = AugmentError(
                               buffer->Read(buffer_variables::path) +
@@ -130,11 +134,12 @@ class FlashcardReviewLog {
                   FileTags::New(buffer.ptr())));
           return buffer->editor().gc_pool().NewRoot(
               MakeNonNullUnique<FlashcardReviewLog>(buffer.ptr(),
-                                                    std::move(file_tags)));
+                                                    file_tags.ptr()));
         });
   }
 
-  FlashcardReviewLog(gc::Ptr<OpenBuffer> review_buffer, FileTags file_tags)
+  FlashcardReviewLog(gc::Ptr<OpenBuffer> review_buffer,
+                     gc::Ptr<FileTags> file_tags)
       : review_buffer_(std::move(review_buffer)),
         file_tags_(std::move(file_tags)) {}
 
@@ -150,13 +155,14 @@ class FlashcardReviewLog {
     CHECK(score_strs.contains(score));
     static const auto kSeparator = NON_EMPTY_SINGLE_LINE_CONSTANT(L" ");
     ASSIGN_OR_RETURN(NonEmptySingleLine date, HumanReadableDate(Now()));
-    file_tags_.Add(NON_EMPTY_SINGLE_LINE_CONSTANT(L"Cloze"),
-                   (date + kSeparator + score_strs.find(score)->second).read());
+    file_tags_->Add(
+        NON_EMPTY_SINGLE_LINE_CONSTANT(L"Cloze"),
+        (date + kSeparator + score_strs.find(score)->second).read());
     return Success();
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return {review_buffer_.object_metadata()};
+    return {review_buffer_.object_metadata(), file_tags_.object_metadata()};
   }
 
  private:

@@ -13,11 +13,10 @@
 #include "src/vm/environment.h"
 
 namespace afc::editor {
-// TODO(2025-06-08, trivial): Use private ConstructorAccessTag, force
-// construction through a gc::Pool (to ensure no problems with gc::Ptr).
-//
 // TODO(2025-06-08, trivial): Make this class thread-safe.
 class FileTags {
+  struct ConstructorAccessKey {};
+
   language::gc::Ptr<OpenBuffer> buffer_;
 
   language::text::LineNumber start_line_;
@@ -35,10 +34,10 @@ class FileTags {
   };
 
  public:
-  static language::ValueOrError<FileTags> New(
+  static language::ValueOrError<language::gc::Root<FileTags>> New(
       language::gc::Ptr<OpenBuffer> buffer);
 
-  FileTags(language::gc::Ptr<OpenBuffer> buffer,
+  FileTags(ConstructorAccessKey, language::gc::Ptr<OpenBuffer> buffer,
            language::text::LineNumber start_line,
            LoadTagsOutput load_tags_output);
 

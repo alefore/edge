@@ -52,7 +52,8 @@ using afc::language::text::LineSequence;
 using afc::math::numbers::Number;
 
 namespace afc::editor {
-/* static */ ValueOrError<FileTags> FileTags::New(gc::Ptr<OpenBuffer> buffer) {
+/* static */ ValueOrError<gc::Root<FileTags>> FileTags::New(
+    gc::Ptr<OpenBuffer> buffer) {
   LineSequence contents = buffer->contents().snapshot();
   DECLARE_OR_RETURN(
       LineColumn tags_start,
@@ -69,11 +70,13 @@ namespace afc::editor {
     ++tags_start_line;
   DECLARE_OR_RETURN(LoadTagsOutput load_tags_output,
                     LoadTags(contents, tags_start_line));
-  return FileTags(buffer, tags_start_line, std::move(load_tags_output));
+  return buffer.pool().NewRoot(MakeNonNullUnique<FileTags>(
+      ConstructorAccessKey{}, buffer, tags_start_line,
+      std::move(load_tags_output)));
 }
 
-FileTags::FileTags(gc::Ptr<OpenBuffer> buffer, LineNumber start_line,
-                   LoadTagsOutput load_tags_output)
+FileTags::FileTags(ConstructorAccessKey, gc::Ptr<OpenBuffer> buffer,
+                   LineNumber start_line, LoadTagsOutput load_tags_output)
     : buffer_(std::move(buffer)),
       start_line_(start_line),
       end_line_(load_tags_output.end_line),
@@ -179,20 +182,62 @@ void FileTags::AddTag(NonEmptySingleLine name, SingleLine value,
 namespace afc::vm {
 template <>
 const types::ObjectName
-    VMTypeMapper<NonNull<std::shared_ptr<editor::FileTags>>>::object_type_name =
+    VMTypeMapper<gc::Ptr<editor::FileTags>>::object_type_name =
         types::ObjectName{IDENTIFIER_CONSTANT(L"FileTags")};
+
+// TODO(2026-04-21, interesting, P1): Find a way to get rid of the gc::Root<T>
+// wrapper of gc::Ptr<T> objects.
+template <>
+struct VMTypeMapper<language::gc::Root<editor::FileTags>> {
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, language::gc::Root<editor::FileTags> value) {
+    return VMTypeMapper<gc::Ptr<editor::FileTags>>::New(pool, value);
+  }
+  static const types::ObjectName object_type_name;
+};
+
+const vm::types::ObjectName
+    vm::VMTypeMapper<gc::Root<editor::FileTags>>::object_type_name =
+        vm::types::ObjectName{IDENTIFIER_CONSTANT(L"FileTags")};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
-    Protected<std::vector<NonNull<std::shared_ptr<editor::FileTags>>>>>>>::
-    object_type_name =
-        types::ObjectName(IDENTIFIER_CONSTANT(L"VectorFileTags"));
+    Protected<std::vector<gc::Ptr<editor::FileTags>>>>>>::object_type_name =
+    types::ObjectName(IDENTIFIER_CONSTANT(L"VectorFileTags"));
+
+// TODO(2026-04-21, interesting, P1): Find a way to get rid of the
+// std::vector<gc::Root<T>> wrapper of std::vector<gc::Ptr<T>> objects.
+template <>
+struct VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
+    std::vector<language::gc::Root<editor::FileTags>>>>>> {
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<concurrent::Protected<
+          std::vector<language::gc::Root<editor::FileTags>>>>>
+          input) {
+    return input->lock([&pool](std::vector<gc::Root<editor::FileTags>> roots) {
+      return VMTypeMapper<NonNull<
+          std::shared_ptr<Protected<std::vector<gc::Ptr<editor::FileTags>>>>>>::
+          New(pool,
+              MakeNonNullShared<
+                  Protected<std::vector<gc::Ptr<editor::FileTags>>>>(
+                  concurrent::MakeProtected(roots | gc::view::Ptr |
+                                            std::ranges::to<std::vector>())));
+    });
+  }
+  static const types::ObjectName object_type_name;
+};
+
+template <>
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+    Protected<std::vector<gc::Root<editor::FileTags>>>>>>::object_type_name =
+    types::ObjectName(IDENTIFIER_CONSTANT(L"VectorFileTags"));
+
 }  // namespace afc::vm
 namespace afc::editor {
 void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
   gc::Root<vm::ObjectType> file_tags_object_type = vm::ObjectType::New(
-      pool,
-      vm::VMTypeMapper<NonNull<std::shared_ptr<FileTags>>>::object_type_name);
+      pool, vm::VMTypeMapper<gc::Ptr<FileTags>>::object_type_name);
 
   environment.DefineType(file_tags_object_type.ptr());
 
@@ -200,26 +245,17 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
       IDENTIFIER_CONSTANT(L"FileTags"),
       vm::NewCallback(
           pool, vm::kPurityTypePure, [&pool](gc::Ptr<OpenBuffer> buffer) {
-            return buffer->WaitForEndOfFile().Transform([](gc::Root<OpenBuffer>
-                                                               root_buffer) {
-              return std::visit(
-                  overload{
-                      [](FileTags value)
-                          -> ValueOrError<NonNull<std::shared_ptr<FileTags>>> {
-                        return MakeNonNullUnique<FileTags>(std::move(value));
-                      },
-                      [](Error error)
-                          -> ValueOrError<NonNull<std::shared_ptr<FileTags>>> {
-                        return error;
-                      }},
-                  FileTags::New(root_buffer.ptr()));
-            });
+            return buffer->WaitForEndOfFile().Transform(
+                [](gc::Root<OpenBuffer> root_buffer)
+                    -> futures::ValueOrError<gc::Root<editor::FileTags>> {
+                  return FileTags::New(root_buffer.ptr());
+                });
           }));
 
   file_tags_object_type->AddField(
       IDENTIFIER_CONSTANT(L"buffer"),
       vm::NewCallback(pool, vm::kPurityTypePure,
-                      [](NonNull<std::shared_ptr<FileTags>> file_tags) {
+                      [](gc::Ptr<FileTags> file_tags) {
                         return file_tags->buffer().ToRoot();
                       })
           .ptr());
@@ -227,7 +263,7 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
       IDENTIFIER_CONSTANT(L"get"),
       vm::NewCallback(
           pool, vm::kPurityTypePure,
-          [](NonNull<std::shared_ptr<FileTags>> file_tags, LazyString tag_raw)
+          [](gc::Ptr<FileTags> file_tags, LazyString tag_raw)
               -> ValueOrError<
                   language::NonNull<std::shared_ptr<concurrent::Protected<
                       std::vector<language::lazy_string::LazyString>>>>> {
@@ -241,7 +277,7 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
       IDENTIFIER_CONSTANT(L"get_first"),
       vm::NewCallback(
           pool, vm::kPurityTypePure,
-          [](NonNull<std::shared_ptr<FileTags>> file_tags, LazyString tag_raw)
+          [](gc::Ptr<FileTags> file_tags, LazyString tag_raw)
               -> ValueOrError<
                   NonNull<std::shared_ptr<std::optional<LazyString>>>> {
             DECLARE_OR_RETURN(
@@ -257,8 +293,7 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
           })
           .ptr());
 
-  vm::container::Export<std::vector<NonNull<std::shared_ptr<FileTags>>>>(
-      pool, environment);
+  vm::container::Export<std::vector<gc::Ptr<FileTags>>>(pool, environment);
 
   environment.Define(
       IDENTIFIER_CONSTANT(L"VectorFileTags"),
@@ -278,19 +313,14 @@ void RegisterFileTags(language::gc::Pool& pool, vm::Environment& environment) {
                                 std::ranges::to<std::vector>();
                        }))
                 .Transform([](std::vector<gc::Root<OpenBuffer>> buffers_data) {
-                  return MakeNonNullShared<Protected<
-                      std::vector<NonNull<std::shared_ptr<FileTags>>>>>(
-                      MakeProtected<
-                          std::vector<NonNull<std::shared_ptr<FileTags>>>>(
+                  return MakeNonNullShared<
+                      Protected<std::vector<gc::Root<FileTags>>>>(
+                      MakeProtected<std::vector<gc::Root<FileTags>>>(
                           buffers_data |
                           std::views::transform(
                               [](gc::Root<OpenBuffer> buffer)
-                                  -> ValueOrError<
-                                      NonNull<std::shared_ptr<FileTags>>> {
-                                DECLARE_OR_RETURN(FileTags tags,
-                                                  FileTags::New(buffer.ptr()));
-                                return MakeNonNullUnique<FileTags>(
-                                    std::move(tags));
+                                  -> ValueOrError<gc::Root<FileTags>> {
+                                return FileTags::New(buffer.ptr());
                               }) |
                           language::view::SkipErrors |
                           std::ranges::to<std::vector>()));
