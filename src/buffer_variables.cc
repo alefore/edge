@@ -394,6 +394,15 @@ EdgeVariable<bool>* const flow_mode =
          .DefaultValue(false)
          .Build();
 
+EdgeVariable<bool>* const is_prompt =
+    &BoolStruct()
+         ->Add()
+         .Name(L"is_prompt")
+         .Description(
+             L"Is this buffer a prompt? Used to toggle various behaviors.")
+         .DefaultValue(false)
+         .Build();
+
 EdgeStruct<LazyString>* StringStruct() {
   static EdgeStruct<LazyString>* output = new EdgeStruct<LazyString>();
   return output;

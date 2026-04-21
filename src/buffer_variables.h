@@ -45,6 +45,7 @@ extern EdgeVariable<bool>* const pin;
 extern EdgeVariable<bool>* const vm_lines_evaluation;
 extern EdgeVariable<bool>* const view_center_lines;
 extern EdgeVariable<bool>* const flow_mode;
+extern EdgeVariable<bool>* const is_prompt;
 
 EdgeStruct<language::lazy_string::LazyString>* StringStruct();
 extern EdgeVariable<language::lazy_string::LazyString>* const name;
