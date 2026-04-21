@@ -85,6 +85,7 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
     OpenFilesOptions options) {
   return GetFilePredictor(FilePredictorOptions{
       .match_type = FilePredictorMatchType::Exact,
+      .match_limit = options.match_limit,
       .open_file_position_suffix_mode = options.open_file_position_suffix_mode,
       .directory_filter = options.directory_filter,
       .special_file_filter = options.special_file_filter,

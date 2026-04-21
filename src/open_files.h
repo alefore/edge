@@ -16,6 +16,18 @@ class OpenBuffer;
 struct OpenFilesOptions {
   EditorState& editor;
 
+  // Allows an `OpenFiles` operation to stop before the entirety of matches
+  // (from path_pattern) have been found. We may open more files than the limit
+  // (this limit is passed to `FilePredictor`, but as many calls as there are
+  // search paths are made).
+  //
+  // If this is set, the subset returned is somewhat random (depends on the
+  // order of files in directories, not alphabetic order).
+  //
+  // This is mostly useful meant as an optimization for operations that know
+  // that they'll use at most a single file.
+  std::optional<size_t> match_limit = std::nullopt;
+
   enum class NotFoundHandler { kIgnore, kCreate };
   NotFoundHandler not_found_handler;
 

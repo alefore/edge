@@ -2189,6 +2189,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      return OpenFiles(
                                 OpenFilesOptions{
                                     .editor = editor,
+                                    .match_limit = 1,
                                     .not_found_handler = OpenFilesOptions::
                                         NotFoundHandler::kIgnore,
                                     .path_pattern =

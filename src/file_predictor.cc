@@ -491,7 +491,11 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                 .abort_value = abort_value,
                 .predictor_output = predictor_output});
           }) |
-          std::views::join,
+          std::views::join | std::views::filter([](const ScanMatch& result) {
+            return std::holds_alternative<ScanMatchValid>(result);
+          }) |
+          std::views::take(
+              options.match_limit.value_or(std::numeric_limits<size_t>::max())),
       [&](ScanMatch scan_result) {
         std::visit(
             overload{[&](ScanMatchValid v) {

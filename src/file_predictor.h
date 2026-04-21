@@ -20,6 +20,8 @@ enum class FilePredictorOutputFormat {
 struct FilePredictorOptions {
   FilePredictorMatchType match_type = FilePredictorMatchType::Partial;
 
+  std::optional<size_t> match_limit = std::nullopt;
+
   open_file_position::SuffixMode open_file_position_suffix_mode =
       open_file_position::SuffixMode::Disallow;
 
