@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/help_command.h"
 #include "src/language/container.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_util.h"
 #include "src/language/gc_view.h"
 #include "src/language/once_only_function.h"
@@ -166,9 +167,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 MapModeCommands::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
-    std::ranges::copy(
-        frame->commands | std::views::values | gc::view::ObjectMetadata,
-        std::back_inserter(output));
+    std::ranges::copy(frame->commands | gc::ExpandMapPtrValues,
+                      std::back_inserter(output));
   return output;
 }
 

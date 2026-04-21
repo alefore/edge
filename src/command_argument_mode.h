@@ -8,6 +8,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/language/container.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line.h"
@@ -98,8 +99,7 @@ class CommandArgumentMode : public EditorMode {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override {
-    return language::container::MaterializeVector(
-        buffers_ | language::gc::view::ObjectMetadata);
+    return language::gc::Expand(buffers_);
   }
 
  private:

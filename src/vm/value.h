@@ -60,16 +60,18 @@ class Value {
   static language::gc::Root<Value> NewObject(
       language::gc::Pool& pool, types::ObjectName name,
       language::NonNull<std::shared_ptr<void>> value,
-      ExpandCallback expand_callback = [] {
-        return std::vector<
-            language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
+      ExpandCallback expand_callback = []
+      -> std::vector<
+          language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> {
+        return {};
       });
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, PurityType purity_type, Type output,
       std::vector<Type> inputs, Callback callback,
-      ExpandCallback expand_callback = []() {
-        return std::vector<
-            language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
+      ExpandCallback expand_callback = []
+      -> std::vector<
+          language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> {
+        return {};
       });
 
   // Convenience wrapper.

@@ -87,6 +87,9 @@ class FileSystemDriver {
       language::lazy_string::LazyString contents) const;
 
   // Allow a FileSystemDriver to be managed by a gc::Pool.
+  //
+  // TODO(P2, 2026-04-21, easy): Get rid of this? We don't put file systems in
+  // pools.
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 };

@@ -8,6 +8,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/language/container.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/overload.h"
@@ -101,16 +102,16 @@ EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 EnvironmentIdentifierTable::Expand() const {
   return table_.lock([](const Table& table) {
-    return container::MaterializeVector(
-        table | std::views::values |
-        std::views::filter(
-            [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
-              return std::holds_alternative<gc::Ptr<Value>>(entry);
-            }) |
-        std::views::transform(
-            [](const std::variant<UninitializedValue, gc::Ptr<Value>>& entry) {
-              return std::get<gc::Ptr<Value>>(entry).object_metadata();
-            }));
+    return table | std::views::values |
+           std::views::filter([](const std::variant<UninitializedValue,
+                                                    gc::Ptr<Value>>& entry) {
+             return std::holds_alternative<gc::Ptr<Value>>(entry);
+           }) |
+           std::views::transform([](const std::variant<UninitializedValue,
+                                                       gc::Ptr<Value>>& entry) {
+             return std::get<gc::Ptr<Value>>(entry).object_metadata();
+           }) |
+           std::ranges::to<std::vector>();
   });
 }
 
@@ -418,17 +419,14 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Environment::Expand()
   if (parent_environment().has_value())
     output.push_back(parent_environment()->object_metadata());
   data_.lock([&output](const Data& data) {
-    std::ranges::copy(
-        data.namespaces | std::views::values | gc::view::ObjectMetadata,
-        std::back_inserter(output));
-    std::ranges::copy(
-        data.table | std::views::values | gc::view::ObjectMetadata,
-        std::back_inserter(output));
+    std::ranges::copy(data.namespaces | gc::ExpandMapPtrValues,
+                      std::back_inserter(output));
+    std::ranges::copy(data.table | gc::ExpandMapPtrValues,
+                      std::back_inserter(output));
   });
 
-  std::ranges::copy(
-      object_types_ | std::views::values | gc::view::ObjectMetadata,
-      std::back_inserter(output));
+  std::ranges::copy(object_types_ | gc::ExpandMapPtrValues,
+                    std::back_inserter(output));
   return output;
 }
 

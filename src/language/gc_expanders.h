@@ -15,12 +15,17 @@
 namespace afc::language::gc {
 template <typename V>
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand(
+    const std::vector<gc::Ptr<V>>& input) {
+  return input | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
+}
+
+template <typename V>
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand(
     const NonNull<
         std::shared_ptr<concurrent::Protected<std::vector<gc::Ptr<V>>>>>&
         input) {
-  return input->lock([](const std::vector<gc::Ptr<V>>& contents) {
-    return container::MaterializeVector(contents | gc::view::ObjectMetadata);
-  });
+  return input->lock(
+      [](const std::vector<gc::Ptr<V>>& contents) { return Expand(contents); });
 }
 
 // Map must be any kind of map where the values are gc::Ptr<T>.

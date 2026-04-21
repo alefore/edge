@@ -285,7 +285,6 @@ SingleLine ToQuotedSingleLine(const Type& type) {
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
   return fields_ | ExpandMapPtrValues | std::ranges::to<std::vector>();
-  ;
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {

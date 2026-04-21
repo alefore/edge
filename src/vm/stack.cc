@@ -1,6 +1,7 @@
 #include "src/vm/stack.h"
 
 #include "src/language/container.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 
 namespace gc = afc::language::gc;
@@ -40,7 +41,7 @@ gc::Ptr<Value>& StackFrame::get(size_t index) { return arguments_[index]; }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> StackFrame::Expand()
     const {
-  return container::MaterializeVector(arguments_ | gc::view::ObjectMetadata);
+  return gc::Expand(arguments_);
 }
 
 /* static */ gc::Root<Stack> Stack::New(gc::Pool& pool) {
@@ -62,7 +63,7 @@ void Stack::Pop() { stack_.pop_back(); }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Stack::Expand()
     const {
-  return container::MaterializeVector(stack_ | gc::view::ObjectMetadata);
+  return gc::Expand(stack_);
 }
 
 }  // namespace afc::vm

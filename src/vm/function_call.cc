@@ -7,6 +7,7 @@
 #include "src/language/container.h"
 #include "src/language/error/view.h"
 #include "src/language/gc_container.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
@@ -366,7 +367,7 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
       std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
           const override {
         std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
-            container::MaterializeVector(delegates_ | gc::view::ObjectMetadata);
+            gc::Expand(delegates_);
         output.push_back(obj_expr_.object_metadata());
         return output;
       }

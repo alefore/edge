@@ -52,7 +52,9 @@ class LogicalExpression : public Expression {
         expr_a_(std::move(expr_a)),
         expr_b_(std::move(expr_b)) {}
 
-  std::vector<Type> Types() override { return {types::Bool{}}; }
+  std::vector<Type> Types() override {
+    return {types::Bool{}};
+  }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override {

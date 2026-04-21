@@ -115,8 +115,7 @@ struct NestedTypeTraits<gc::Ptr<NestedType>> {
   static std::vector<
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand(const auto& value) {
-    return language::container::MaterializeVector(value |
-                                                  gc::view::ObjectMetadata);
+    return Expand(value);
   }
 };
 

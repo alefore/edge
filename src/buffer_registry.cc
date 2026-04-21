@@ -3,6 +3,7 @@
 #include "src/buffer_variables.h"
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/once_only_function.h"
@@ -190,8 +191,8 @@ std::optional<size_t> BufferRegistry::GetListedBufferIndex(
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
   return data_.lock([](const Data& data) {
-    return container::MaterializeVector(
-        data.retained_buffers | std::views::values | gc::view::ObjectMetadata);
+    return data.retained_buffers | gc::ExpandMapPtrValues |
+           std::ranges::to<std::vector>();
   });
 }
 
