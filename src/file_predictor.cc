@@ -180,8 +180,10 @@ std::generator<ComponentData> ViewComponents(
     co_yield ComponentData{
         .path = component_path,
         .file_type = std::invoke([&entry] {
-          if (entry.is_directory()) return FileType::Directory;
-          if (entry.is_regular_file()) return FileType::Regular;
+          std::error_code ec_inner;
+          if (entry.is_directory(ec_inner)) return FileType::Directory;
+          ec_inner.clear();
+          if (entry.is_regular_file(ec_inner)) return FileType::Regular;
           return FileType::Special;
         }),
         .glob_match_results = glob_matcher.Match(component_path)};
