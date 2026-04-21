@@ -1869,23 +1869,25 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     if (fd_is_terminal) return NewTerminal();
     return MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
         .thread_pool = editor().thread_pool(),
-        .insert_lines = [this](auto lines_to_insert) {
-          // These changes don't count: they come from disk.
-          auto disk_state_freezer = FreezeDiskState();
+        .insert_lines = LockAndVisitCallback(
+            [](auto lines_to_insert, gc::Root<OpenBuffer> buffer) {
+              // These changes don't count: they come from disk.
+              auto disk_state_freezer = buffer->FreezeDiskState();
 
-          auto follower = GetEndPositionFollower();
-          AppendToLastLine(lines_to_insert.front());
-          // TODO: Avoid the linear complexity operation in the next line.
-          // However, according to `tracker_erase_call`, it doesn't
-          // matter much.
-          auto tracker_erase_call =
-              INLINE_TRACKER(FileDescriptorReader_InsertLines_Erase);
-          lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
-          tracker_erase_call = nullptr;
+              auto follower = buffer->GetEndPositionFollower();
+              buffer->AppendToLastLine(lines_to_insert.front());
+              // TODO: Avoid the linear complexity operation in the next line.
+              // However, according to `tracker_erase_call`, it doesn't
+              // matter much.
+              auto tracker_erase_call =
+                  INLINE_TRACKER(FileDescriptorReader_InsertLines_Erase);
+              lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
+              tracker_erase_call = nullptr;
 
-          AppendLines(std::move(lines_to_insert),
-                      MutableLineSequence::ObserverBehavior::kHide);
-        }});
+              buffer->AppendLines(std::move(lines_to_insert),
+                                  MutableLineSequence::ObserverBehavior::kHide);
+            },
+            [](const auto&) {}, WeakPtrFromThis())});
   });
 
   auto new_reader = [this](std::optional<FileDescriptor> fd,

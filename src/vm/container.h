@@ -115,6 +115,7 @@ struct NestedTypeTraits<gc::Ptr<NestedType>> {
   static std::vector<
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand(const auto& value) {
+    // TODO(P0, 2026-04-21): Investigate infinite recursion here.
     return Expand(value);
   }
 };

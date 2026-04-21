@@ -789,8 +789,8 @@ class InsertMode : public InputReceiver,
     ForEachActiveBuffer(
         buffers_, line_buffer,
         [direction, options = options_](OpenBuffer& buffer) {
-          buffer.MaybeAdjustPositionCol();
           gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
+          buffer.MaybeAdjustPositionCol();
           transformation::Stack stack;
           stack.push_back(transformation::Delete{
               .modifiers = {.direction = direction,

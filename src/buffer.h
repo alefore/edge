@@ -91,8 +91,10 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
     // The returned future must be notified when the contents have been fully
     // loaded (for example, based on the return value of SetInputFiles).
     //
-    // The caller (OpenBuffer) guarantees that the buffer won't be deleted until
-    // the return future has received a value.
+    // The buffer may get deleted as soon as this call has returned (i.e.,
+    // before the returned buffer gets a value). Implementations must cleanly
+    // handle that (e.g., return early when the buffer gets deleted before
+    // they're done).
     std::function<futures::Value<language::PossibleError>(OpenBuffer&)>
         generate_contents = nullptr;
 

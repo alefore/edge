@@ -239,19 +239,25 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
                        {});
         return Success(builder.snapshot());
       })
-      .Transform([&output, path](LineSequence contents) {
-        TRACK_OPERATION(GenerateDirectoryListing_InsertContents);
-        auto disk_state_freezer = output.FreezeDiskState();
-        output.InsertInPosition(contents, output.contents().range().end(),
-                                std::nullopt);
-        return Success();
-      })
-      .ConsumeErrors([&output](Error error) {
-        auto disk_state_freezer = output.FreezeDiskState();
-        output.status().InsertError(error);
-        output.AppendLine(
-            LineSequence::BreakLines(std::move(error).read()).FoldLines());
-        return futures::Past(EmptyValue());
-      });
+      .Transform(LockAndVisitCallback(
+          [&output, path](LineSequence contents, gc::Root<OpenBuffer> buffer) {
+            TRACK_OPERATION(GenerateDirectoryListing_InsertContents);
+            auto disk_state_freezer = buffer->FreezeDiskState();
+            buffer->InsertInPosition(contents, buffer->contents().range().end(),
+                                     std::nullopt);
+            return Success();
+          },
+          [](LineSequence) { return Success(); }, output.WeakPtrFromThis()))
+      .ConsumeErrors(LockAndVisitCallback(
+          [&output](Error error,
+                    gc::Root<OpenBuffer> buffer) -> futures::Value<EmptyValue> {
+            auto disk_state_freezer = buffer->FreezeDiskState();
+            buffer->status().InsertError(error);
+            buffer->AppendLine(
+                LineSequence::BreakLines(std::move(error).read()).FoldLines());
+            return EmptyValue{};
+          },
+          [](Error) -> futures::Value<EmptyValue> { return EmptyValue{}; },
+          output.WeakPtrFromThis()));
 }
 }  // namespace afc::editor

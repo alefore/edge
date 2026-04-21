@@ -111,20 +111,19 @@ futures::Value<PossibleError> GenerateContents(
   FUTURES_ASSIGN_OR_RETURN(Path path,
                            Path::New(target.Read(buffer_variables::path)));
   LOG(INFO) << "GenerateContents: " << path;
-  return file_system_driver->Stat(path).Transform(
-      [stat_buffer, file_system_driver, &target,
-       path](std::optional<struct stat> stat_results) {
-        if (!stat_results.has_value()) {
-          return futures::Past(Success());
-        }
+  return file_system_driver->Stat(path).Transform(LockAndVisitCallback(
+      [stat_buffer, file_system_driver, path](
+          std::optional<struct stat> stat_results,
+          gc::Root<OpenBuffer> target_root) -> futures::Value<PossibleError> {
+        if (!stat_results.has_value()) return EmptyValue{};
         stat_buffer.value() = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode))
-          return target.SetInputFromPath(path);
-        return GenerateDirectoryListing(path, target).Transform([](EmptyValue) {
-          return futures::Past(Success());
-        });
-      });
+          return target_root->SetInputFromPath(path);
+        return GenerateDirectoryListing(path, target_root.value());
+      },
+      [](const auto&) { return Error{LazyString{L"Buffer is gone."}}; },
+      target.WeakPtrFromThis()));
 }
 
 void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
