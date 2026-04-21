@@ -11,6 +11,7 @@
 #include "src/language/safe_types.h"
 
 namespace afc::editor {
+language::ValueOrError<infrastructure::Path> GetEdgeParentAddress();
 
 void Daemonize(
     const std::unordered_set<infrastructure::FileDescriptor>& surviving_fd);

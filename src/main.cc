@@ -76,7 +76,6 @@ using afc::tests::BenchmarkName;
 
 namespace gc = afc::language::gc;
 
-static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 static std::unique_ptr<EditorState> global_editor_state;
 
 EditorState& editor_state() { return *global_editor_state; }
@@ -254,7 +253,7 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Setting up audio_player.";
   const NonNull<std::unique_ptr<audio::Player>> audio_player =
-      getenv(kEdgeParentAddress) != nullptr || args.mute
+      HasValue(afc::editor::GetEdgeParentAddress()) || args.mute
           ? audio::NewNullPlayer()
           : audio::NewPlayer();
 

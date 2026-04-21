@@ -52,6 +52,19 @@ using afc::language::lazy_string::LazyString;
 using afc::vm::EscapedString;
 
 namespace afc::editor {
+
+ValueOrError<Path> GetEdgeParentAddress() {
+  const char* variable = "EDGE_PARENT_ADDRESS";
+  return AugmentError(
+      LazyString{FromByteString(variable)} +
+          LazyString{L": Getting edge parent address"},
+      std::invoke([&] -> ValueOrError<Path> {
+        if (char* address = getenv(variable); address != nullptr)
+          return Path::New(LazyString{FromByteString(address)});
+        return Error{LazyString{L"Environment variable not set."}};
+      }));
+}
+
 namespace {
 ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
   while (true) {
@@ -139,19 +152,8 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
 }
 
 ValueOrError<FileDescriptor> SyncConnectToParentServer() {
-  static const std::string variable = "EDGE_PARENT_ADDRESS";
-  if (char* server_address = getenv(variable.c_str());
-      server_address != nullptr) {
-    ASSIGN_OR_RETURN(
-        Path path,
-        AugmentError(LazyString{L"Value from environment variable " +
-                                FromByteString(variable)},
-                     Path::New(LazyString{FromByteString(server_address)})));
-    return SyncConnectToServer(path);
-  }
-  return Error{
-      LazyString{L"Unable to find remote address (through environment variable "
-                 L"EDGE_PARENT_ADDRESS)."}};
+  ASSIGN_OR_RETURN(Path path, GetEdgeParentAddress());
+  return SyncConnectToServer(path);
 }
 
 ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
