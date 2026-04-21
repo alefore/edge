@@ -50,21 +50,64 @@ enum State {
   IN_DECLARATION_BLOCK_EXPECT_PROPERTY,
   IN_DECLARATION_BLOCK_EXPECT_COLON,
   IN_DECLARATION_BLOCK_EXPECT_VALUE,
+  INVALID_PROPERTY_VALUE,
   PROPERTY_BORDER_STYLE_COLON,
   PROPERTY_BORDER_STYLE_VALUE,
-  INVALID_PROPERTY_VALUE,
+  PROPERTY_DISPLAY_COLON,
+  PROPERTY_DISPLAY_VALUE
 };
 
 struct RecognizedProperty {
   State post_name_state;
   State value_state;
+  std::unordered_set<SingleLine> valid_tokens;
 };
 
 const std::map<SingleLine, RecognizedProperty>& Properties() {
   static const std::map<SingleLine, RecognizedProperty> output = {
       {SINGLE_LINE_CONSTANT(L"border-style"),
-       RecognizedProperty{.post_name_state = PROPERTY_BORDER_STYLE_COLON,
-                          .value_state = PROPERTY_BORDER_STYLE_VALUE}}};
+       RecognizedProperty{
+           .post_name_state = PROPERTY_BORDER_STYLE_COLON,
+           .value_state = PROPERTY_BORDER_STYLE_VALUE,
+           .valid_tokens = std::unordered_set{SINGLE_LINE_CONSTANT(L"none"),
+                                              SINGLE_LINE_CONSTANT(L"hidden"),
+                                              SINGLE_LINE_CONSTANT(L"dotted"),
+                                              SINGLE_LINE_CONSTANT(L"dashed"),
+                                              SINGLE_LINE_CONSTANT(L"solid"),
+                                              SINGLE_LINE_CONSTANT(L"double"),
+                                              SINGLE_LINE_CONSTANT(L"groove"),
+                                              SINGLE_LINE_CONSTANT(L"ridge"),
+                                              SINGLE_LINE_CONSTANT(L"inset"),
+                                              SINGLE_LINE_CONSTANT(L"outset")}
+
+       }},
+      {SINGLE_LINE_CONSTANT(L"display"),
+       RecognizedProperty{
+           .post_name_state = PROPERTY_DISPLAY_COLON,
+           .value_state = PROPERTY_DISPLAY_VALUE,
+           .valid_tokens =
+               std::unordered_set{SINGLE_LINE_CONSTANT(L"none"),
+                                  SINGLE_LINE_CONSTANT(L"block"),
+                                  SINGLE_LINE_CONSTANT(L"inline"),
+                                  SINGLE_LINE_CONSTANT(L"inline-block"),
+                                  SINGLE_LINE_CONSTANT(L"flex"),
+                                  SINGLE_LINE_CONSTANT(L"inline-flex"),
+                                  SINGLE_LINE_CONSTANT(L"grid"),
+                                  SINGLE_LINE_CONSTANT(L"inline-grid"),
+                                  SINGLE_LINE_CONSTANT(L"table"),
+                                  SINGLE_LINE_CONSTANT(L"inline-table"),
+                                  SINGLE_LINE_CONSTANT(L"table-row-group"),
+                                  SINGLE_LINE_CONSTANT(L"table-header-group"),
+                                  SINGLE_LINE_CONSTANT(L"table-footer-group"),
+                                  SINGLE_LINE_CONSTANT(L"table-row"),
+                                  SINGLE_LINE_CONSTANT(L"table-column-group"),
+                                  SINGLE_LINE_CONSTANT(L"table-column"),
+                                  SINGLE_LINE_CONSTANT(L"table-cell"),
+                                  SINGLE_LINE_CONSTANT(L"table-caption"),
+                                  SINGLE_LINE_CONSTANT(L"list-item"),
+                                  SINGLE_LINE_CONSTANT(L"contents"),
+                                  SINGLE_LINE_CONSTANT(L"flow-root")}}},
+  };
   return output;
 }
 
@@ -77,10 +120,28 @@ const std::map<State, RecognizedProperty>& PropertiesByPostNameState() {
   return output;
 }
 
+const std::map<State, RecognizedProperty>& PropertiesByValueState() {
+  static const std::map<State, RecognizedProperty> output =
+      Properties() | std::views::transform([](const auto& data) {
+        return std::make_pair(data.second.value_state, data.second);
+      }) |
+      std::ranges::to<std::map>();
+  return output;
+}
+
 const std::set<State> PropertiesPostNameStates() {
   static const std::set<State> output = PropertiesByPostNameState() |
                                         std::views::keys |
                                         std::ranges::to<std::set>();
+  return output;
+}
+
+const std::set<State> PropertiesValueStates() {
+  static const std::set<State> output =
+      Properties() | std::views::transform([](const auto& data) {
+        return data.second.value_state;
+      }) |
+      std::ranges::to<std::set>();
   return output;
 }
 
@@ -93,13 +154,8 @@ static const LineModifierSet RECOGNIZED_RULE_MODIFIERS =
 static const LineModifierSet VALID_BORDER_STYLE_VALUE_MODIFIERS =
     LineModifierSet({LineModifier::kGreen});
 
-static const std::unordered_set<SingleLine> kBorderStyleValues =
-    container::MaterializeUnorderedSet(std::vector<SingleLine>{
-        SINGLE_LINE_CONSTANT(L"none"), SINGLE_LINE_CONSTANT(L"hidden"),
-        SINGLE_LINE_CONSTANT(L"dotted"), SINGLE_LINE_CONSTANT(L"dashed"),
-        SINGLE_LINE_CONSTANT(L"solid"), SINGLE_LINE_CONSTANT(L"double"),
-        SINGLE_LINE_CONSTANT(L"groove"), SINGLE_LINE_CONSTANT(L"ridge"),
-        SINGLE_LINE_CONSTANT(L"inset"), SINGLE_LINE_CONSTANT(L"outset")});
+static const LineModifierSet VALID_DISPLAY_VALUE_MODIFIERS =
+    LineModifierSet({LineModifier::kGreen});
 
 enum class HashToModifiersBold { kSometimes, kNever };
 LineModifierSet HashToModifiers(int nesting,
@@ -132,16 +188,18 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       done = result->seek().read() == L'\n';
       VLOG(5) << "State: " << result->state();
 
-      if (PropertiesPostNameStates().find(State(result->state())) !=
-          PropertiesPostNameStates().end()) {
+      if (PropertiesPostNameStates().contains(State(result->state()))) {
         ParseColon(result);
+        continue;
+      }
+      if (PropertiesValueStates().contains(State(result->state()))) {
+        ParseDefaultState(result);
         continue;
       }
       switch (result->state()) {
         case DEFAULT:
         case IN_DECLARATION_BLOCK_EXPECT_PROPERTY:
         case IN_DECLARATION_BLOCK_EXPECT_VALUE:
-        case PROPERTY_BORDER_STYLE_VALUE:
         case INVALID_PROPERTY_VALUE:
           ParseDefaultState(result);
           break;
@@ -257,12 +315,17 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         // to DEFAULT as we're outside a declaration.
         if (result->state() == IN_DECLARATION_BLOCK_EXPECT_PROPERTY ||
             result->state() == IN_DECLARATION_BLOCK_EXPECT_VALUE ||
-            result->state() == PROPERTY_BORDER_STYLE_VALUE ||
+            PropertiesValueStates().contains(State(result->state())) ||
             result->state() == INVALID_PROPERTY_VALUE) {
           result->SetState(DEFAULT);
         }
       } else
         result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
+      return;
+    }
+
+    if (PropertiesValueStates().contains(State(result->state()))) {
+      ParseProperty(result, c);
       return;
     }
 
@@ -284,65 +347,9 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       }
       case IN_DECLARATION_BLOCK_EXPECT_PROPERTY:
       case IN_DECLARATION_BLOCK_EXPECT_VALUE:
-      case PROPERTY_BORDER_STYLE_VALUE:
-      case INVALID_PROPERTY_VALUE: {
-        if (c == L':') {
-          // Missing the property.
-          result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
-        } else if (c == L';') {
-          result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim});
-          // After a semicolon, we expect a new property.
-          result->SetState(IN_DECLARATION_BLOCK_EXPECT_PROPERTY);
-        } else {
-          static const std::unordered_set<wchar_t> css_prop_val_chars =
-              container::MaterializeUnorderedSet(std::wstring_view{
-                  L"_-"
-                  L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq"
-                  L"rstuvwxyz0123456789"
-                  L"."
-                  L"%"});
-          if (css_prop_val_chars.contains(c)) {
-            LineColumn original_word_start =
-                result->position() - ColumnNumberDelta{1};
-            result->seek().UntilCurrentCharNotIn(css_prop_val_chars);
-            ColumnNumberDelta length =
-                result->position().column - original_word_start.column;
-            CHECK_GT(length, ColumnNumberDelta{});
-
-            const auto& line_object =
-                result->buffer().at(result->position().line);
-            const SingleLine& current_line_contents = line_object.contents();
-            SingleLine token = current_line_contents.Substring(
-                original_word_start.column, length);
-
-            if (result->state() == IN_DECLARATION_BLOCK_EXPECT_PROPERTY) {
-              if (auto it = Properties().find(token);
-                  it != Properties().end()) {
-                result->PushAndPop(length, RECOGNIZED_RULE_MODIFIERS);
-                result->SetState(it->second.post_name_state);
-              } else {
-                result->PushAndPop(length, {LineModifier::kWhite});
-                result->SetState(IN_DECLARATION_BLOCK_EXPECT_COLON);
-              }
-            } else if (result->state() == PROPERTY_BORDER_STYLE_VALUE) {
-              VLOG(5) << "Check value: " << token;
-              if (kBorderStyleValues.contains(token)) {
-                result->PushAndPop(length, VALID_BORDER_STYLE_VALUE_MODIFIERS);
-                // TODO(trivial, 2025-09-22):
-                // result->SetState(IN_DECLARATION_BLOCK_EXPECT_SEMICOLON);
-              } else {
-                result->PushAndPop(length, BAD_PARSE_MODIFIERS);
-                result->SetState(INVALID_PROPERTY_VALUE);
-              }
-            } else if (result->state() == INVALID_PROPERTY_VALUE) {
-              result->PushAndPop(length, BAD_PARSE_MODIFIERS);
-            } else {  // IN_DECLARATION_BLOCK_EXPECT_VALUE
-              result->PushAndPop(length, {LineModifier::kWhite});
-            }
-          }
-        }
+      case INVALID_PROPERTY_VALUE:
+        ParseProperty(result, c);
         return;
-      }
     }
 
     if (isdigit(c)) {
@@ -351,6 +358,70 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
   }
 
+  void ParseProperty(ParseData* result, wchar_t c) {
+    if (c == L':') {
+      // Missing the property.
+      result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
+      return;
+    }
+
+    if (c == L';') {
+      result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim});
+      // After a semicolon, we expect a new property.
+      result->SetState(IN_DECLARATION_BLOCK_EXPECT_PROPERTY);
+      return;
+    }
+
+    static const std::unordered_set<wchar_t> css_prop_val_chars =
+        container::MaterializeUnorderedSet(
+            std::wstring_view{L"_-"
+                              L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq"
+                              L"rstuvwxyz0123456789"
+                              L"."
+                              L"%"});
+    if (!css_prop_val_chars.contains(c)) return;
+    LineColumn original_word_start = result->position() - ColumnNumberDelta{1};
+    result->seek().UntilCurrentCharNotIn(css_prop_val_chars);
+    ColumnNumberDelta length =
+        result->position().column - original_word_start.column;
+    CHECK_GT(length, ColumnNumberDelta{});
+
+    const auto& line_object = result->buffer().at(result->position().line);
+    const SingleLine& current_line_contents = line_object.contents();
+    SingleLine token =
+        current_line_contents.Substring(original_word_start.column, length);
+
+    if (result->state() == IN_DECLARATION_BLOCK_EXPECT_PROPERTY) {
+      if (auto it = Properties().find(token); it != Properties().end()) {
+        result->PushAndPop(length, RECOGNIZED_RULE_MODIFIERS);
+        result->SetState(it->second.post_name_state);
+      } else {
+        result->PushAndPop(length, {LineModifier::kWhite});
+        result->SetState(IN_DECLARATION_BLOCK_EXPECT_COLON);
+      }
+      return;
+    }
+
+    if (auto it = PropertiesByValueState().find(State(result->state()));
+        it != PropertiesByValueState().end()) {
+      VLOG(5) << "Check value: " << token;
+      if (it->second.valid_tokens.contains(token)) {
+        result->PushAndPop(length, VALID_BORDER_STYLE_VALUE_MODIFIERS);
+        // TODO(trivial, 2025-09-22):
+        // result->SetState(IN_DECLARATION_BLOCK_EXPECT_SEMICOLON);
+      } else {
+        result->PushAndPop(length, BAD_PARSE_MODIFIERS);
+        result->SetState(INVALID_PROPERTY_VALUE);
+      }
+      return;
+    }
+
+    if (result->state() == INVALID_PROPERTY_VALUE) {
+      result->PushAndPop(length, BAD_PARSE_MODIFIERS);
+    } else {  // IN_DECLARATION_BLOCK_EXPECT_VALUE
+      result->PushAndPop(length, {LineModifier::kWhite});
+    }
+  }
   void ParseMultiLineComment(ParseData* result) {
     Seek seek = result->seek();
     ColumnNumber start_column_for_highlight = result->position().column;
