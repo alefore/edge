@@ -30,8 +30,8 @@ class IterationHandlerImpl : public IterationHandler {
     struct pollfd fds[handler_.size()];
     for (size_t i = 0; i < handler_.size(); i++) fds[i] = handler_[i].first;
     // buffers.reserve(sizeof(fds) / sizeof(fds[0]));
-    auto now = Now();
-    auto next_execution = options.get_next_alarm();
+    Time now = Now();
+    std::optional<Time> next_execution = options.get_next_alarm();
     int timeout_ms = next_execution.has_value()
                          ? static_cast<int>(ceil(std::min(
                                std::max(0.0, MillisecondsBetween(
