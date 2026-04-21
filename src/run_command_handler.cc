@@ -51,6 +51,7 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
+using afc::language::HasValue;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
@@ -458,23 +459,24 @@ class ForkEditorCommand : public Command {
       // TODO(easy, 2022-05-16): Why is this safe?
       CHECK(original_buffer.has_value());
       static const vm::Namespace kEmptyNamespace;
-      // TODO(trivial, 2025-05-29): Crash with a nicer error if
-      // GetShellPromptContextProgram is undefined.
+      vm::Identifier callback_identifier =
+          IDENTIFIER_CONSTANT(L"GetShellPromptContextProgram");
+      std::optional<vm::Environment::LookupResult> callback =
+          original_buffer->ptr()->environment()->Lookup(
+              kEmptyNamespace, callback_identifier,
+              vm::types::Function{.output = vm::Type{vm::types::String{}},
+                                  .inputs = {vm::types::String{}}});
+      CHECK(callback.has_value())
+          << callback_identifier << ": Required symbol is not defined.";
+      CHECK(std::holds_alternative<gc::Root<vm::Value>>(callback->value))
+          << callback_identifier
+          << ": Required symbol is defined but not initialized.";
       NonNull<std::shared_ptr<PromptState>> prompt_state =
           MakeNonNullShared<PromptState>(PromptState{
               .original_buffer = *original_buffer,
               .base_command = std::nullopt,
-              .context_command_callback = std::get<gc::Root<vm::Value>>(
-                  original_buffer->ptr()
-                      ->environment()
-                      ->Lookup(
-                          kEmptyNamespace,
-                          IDENTIFIER_CONSTANT(L"GetShellPromptContextProgram"),
-                          vm::types::Function{
-                              .output = vm::Type{vm::types::String{}},
-                              .inputs = {vm::types::String{}}})
-                      ->value)});
-
+              .context_command_callback =
+                  std::get<gc::Root<vm::Value>>(std::move(callback)->value)});
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       LineBuilder prompt;
       std::visit(
