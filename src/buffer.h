@@ -111,12 +111,17 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
     enum class SaveType { kMainFile, kBackup };
     // Optional function that saves the buffer. If not provided, attempts to
     // save the buffer will fail.
-    struct HandleSaveOptions {
+    struct SaveOptions {
       language::gc::Root<OpenBuffer> buffer;
       SaveType save_type = SaveType::kMainFile;
     };
-    std::function<futures::Value<language::PossibleError>(HandleSaveOptions)>
-        handle_save = nullptr;
+    using SaveCallback =
+        std::function<futures::Value<language::PossibleError>(SaveOptions)>;
+    std::function<language::ValueOrError<SaveCallback>()> get_save_callback =
+        [] {
+          return language::Error{language::lazy_string::LazyString{
+              L"Unable to save this buffer."}};
+        };
 
     std::function<
         futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>>(

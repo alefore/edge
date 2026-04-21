@@ -88,6 +88,9 @@ using afc::language::view::SkipErrors;
 
 namespace afc::editor {
 namespace {
+Error SaveDirectoryError() {
+  return Error{LazyString{L"Buffer can't be saved: Buffer is a directory."}};
+}
 
 futures::ValueOrError<ResolvePathOptions::ValidatorOutput> CanStatPath(
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
@@ -153,21 +156,15 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
 
 futures::Value<PossibleError> Save(
     EditorState& editor, NonNull<std::shared_ptr<struct stat>> stat_buffer,
-    OpenBuffer::Options::HandleSaveOptions options) {
-  FUTURES_ASSIGN_OR_RETURN(
+    OpenBuffer::Options::SaveOptions options) {
+  CHECK(!S_ISDIR(stat_buffer->st_mode));
+  ASSIGN_OR_RETURN(
       Path immediate_path,
       AugmentError(
           LazyString{L"Buffer can't be saved: Invalid “path” variable"},
           Path::New(options.buffer->Read(buffer_variables::path))));
 
   futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
-
-  if (S_ISDIR(stat_buffer->st_mode)) {
-    return options.save_type == OpenBuffer::Options::SaveType::kBackup
-               ? futures::Past(Success())
-               : futures::Past(PossibleError(Error{LazyString{
-                     L"Buffer can't be saved: Buffer is a directory."}}));
-  }
 
   switch (options.save_type) {
     case OpenBuffer::Options::SaveType::kMainFile:
@@ -386,18 +383,17 @@ gc::Root<OpenBuffer> CreateBuffer(
   buffer_options->handle_visit = [stat_buffer](OpenBuffer& buffer) {
     HandleVisit(stat_buffer.value(), buffer);
   };
-  buffer_options->handle_save =
-      options.path == std::nullopt
-          ? std::function([](OpenBuffer::Options::HandleSaveOptions) {
-              return futures::Past(Success());
-            })
-          : std::function(
-                [&editor_state = options.editor_state, stat_buffer](
-                    OpenBuffer::Options::HandleSaveOptions save_options)
-                    -> futures::Value<PossibleError> {
-                  return Save(editor_state, stat_buffer,
-                              std::move(save_options));
-                });
+  if (options.path != std::nullopt)
+    buffer_options->get_save_callback =
+        [&editor_state = options.editor_state,
+         stat_buffer]() -> ValueOrError<OpenBuffer::Options::SaveCallback> {
+      if (S_ISDIR(stat_buffer->st_mode)) return SaveDirectoryError();
+      return [stat_buffer,
+              &editor_state](OpenBuffer::Options::SaveOptions save_options)
+                 -> futures::Value<PossibleError> {
+        return Save(editor_state, stat_buffer, std::move(save_options));
+      };
+    };
   buffer_options->log_supplier =
       [&editor_state = options.editor_state](Path edge_state_directory) {
         FileSystemDriver driver(editor_state.thread_pool());

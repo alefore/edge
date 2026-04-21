@@ -341,27 +341,31 @@ class OpenBufferMutableLineSequenceObserver
                                  buffer_)
                                  .ptr())});
     if (update_disk_state) {
-      root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
-      if (root_this->ptr()->Read(buffer_variables::persist_state)) {
-        switch (root_this->ptr()->backup_state_) {
-          case OpenBuffer::DiskState::kCurrent: {
-            root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
-            auto flush_backup_time = Now();
-            flush_backup_time.tv_sec += 30;
-            root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
-                .time = flush_backup_time,
-                .callback = gc::LockCallback(
-                    gc::BindFront(
-                        root_this->ptr()->editor().gc_pool(),
-                        [](gc::Root<OpenBuffer> locked_root_this) {
-                          locked_root_this->UpdateBackup();
-                        },
-                        root_this->ptr().ToWeakPtr())
-                        .ptr())});
-          } break;
+      if (HasValue(root_this->ptr()->options_.get_save_callback())) {
+        root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
+        if (root_this->ptr()->Read(buffer_variables::persist_state)) {
+          switch (root_this->ptr()->backup_state_) {
+            case OpenBuffer::DiskState::kCurrent: {
+              root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
+              auto flush_backup_time = Now();
+              flush_backup_time.tv_sec += 30;
+              root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
+                  .time = flush_backup_time,
+                  .callback = gc::LockCallback(
+                      gc::BindFront(
+                          root_this->ptr()->editor().gc_pool(),
+                          [](gc::Root<OpenBuffer> locked_root_this) {
+                            LOG(INFO) << locked_root_this->name()
+                                      << ": Updating backup.";
+                            locked_root_this->UpdateBackup();
+                          },
+                          root_this->ptr().ToWeakPtr())
+                          .ptr())});
+            } break;
 
-          case OpenBuffer::DiskState::kStale:
-            break;  // Nothing.
+            case OpenBuffer::DiskState::kStale:
+              break;  // Nothing.
+          }
         }
       }
     }
@@ -1062,15 +1066,13 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
 
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
-  if (options_.handle_save == nullptr) {
-    Error error{LazyString{L"Buffer can't be saved."}};
-    status_->InsertError(error);
-    return error;
-  }
+  CHECK(options_.get_save_callback != nullptr);
+  DECLARE_OR_RETURN(Options::SaveCallback save_callback,
+                    status_->LogErrors(options_.get_save_callback()));
+  CHECK(save_callback != nullptr);
   LineSequence contents_snapshot = contents().snapshot();
-  futures::Value<PossibleError> output =
-      options_.handle_save(Options::HandleSaveOptions{.buffer = RootFromThis(),
-                                                      .save_type = save_type});
+  futures::Value<PossibleError> output = save_callback(
+      Options::SaveOptions{.buffer = RootFromThis(), .save_type = save_type});
   if (save_type == OpenBuffer::Options::SaveType::kMainFile)
     output = std::move(output).Transform(
         [&editor = editor(), contents_snapshot, root_buffer = RootFromThis()](
@@ -1178,10 +1180,14 @@ Log& OpenBuffer::log() const { return log_.value(); }
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
   log_->Append(LazyString{L"UpdateBackup starts."});
-  if (options_.handle_save != nullptr) {
-    options_.handle_save(Options::HandleSaveOptions{
-        .buffer = RootFromThis(), .save_type = Options::SaveType::kBackup});
-  }
+  CHECK(options_.get_save_callback != nullptr);
+  std::visit(overload{[&](Options::SaveCallback save_callback) {
+                        save_callback(Options::SaveOptions{
+                            .buffer = RootFromThis(),
+                            .save_type = Options::SaveType::kBackup});
+                      },
+                      IgnoreErrors{}},
+             options_.get_save_callback());
   backup_state_ = DiskState::kCurrent;
 }
 
