@@ -41,7 +41,8 @@ BufferRegistry::BufferRegistry(
 gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
     const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
   return data_.lock([id, &factory](Data& data) {
-    // TODO(trivial, 2024-05-30): Only traverse the map once.
+    // We could avoid the double-tree-traversal by passing an iterator to Add,
+    // but it doesn't seem worth the trouble.
     if (auto it = data.buffer_map.find(id); it != data.buffer_map.end())
       if (std::optional<gc::Root<OpenBuffer>> previous_buffer =
               it->second.Lock();
