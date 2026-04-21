@@ -14,8 +14,11 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::AddSeconds;
 using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::Now;
 using afc::infrastructure::Path;
+using afc::infrastructure::Time;
 using afc::infrastructure::execution::ExecutionEnvironment;
 using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::IsError;
@@ -52,7 +55,14 @@ bool args_tests_registration = tests::Register(
                                    stop(editor.value());
                           },
                       .get_next_alarm =
-                          [&] { return editor->WorkQueueNextExecution(); },
+                          [&] {
+                            Time limit = AddSeconds(Now(), 0.1);
+                            if (std::optional<Time> work_queue_time =
+                                    editor->WorkQueueNextExecution();
+                                work_queue_time.has_value())
+                              return std::min(limit, work_queue_time.value());
+                            return limit;
+                          },
                       .on_signals = [] {},
                       .on_iteration =
                           [&](afc::infrastructure::execution::IterationHandler&
@@ -105,6 +115,13 @@ bool args_tests_registration = tests::Register(
                                 BufferName{BufferFileId{
                                     VALUE_OR_DIE(Path::New(path_str))}},
                                 editor);
+                            if (buffer.has_value())
+                              LOG(INFO) << (buffer.value()
+                                                    ->work_queue()
+                                                    ->NextExecution()
+                                                    .has_value()
+                                                ? "execution"
+                                                : "no execution");
                             return buffer.has_value() && !buffer.value()
                                                               ->work_queue()
                                                               ->NextExecution()
