@@ -61,41 +61,46 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
 
   buffer->ptr()->ResetMode();
   FUTURES_ASSIGN_OR_RETURN(Path path, Path::New(ToLazyString(input)));
-  return futures::OnError(
-      ResolvePath(ResolvePathOptions::New(MakeNonNullShared<FileSystemDriver>(
-                                              editor_state.thread_pool()),
-                                          path))
-          .Transform([buffer, input,
-                      &editor_state](ResolvePathOutput resolved_path)
-                         -> futures::Value<PossibleError> {
-            using futures::IterationControlCommand;
-            auto index = MakeNonNullShared<size_t>(0);
-            return futures::While([buffer, total = editor_state.repetitions(),
-                                   adjusted_input = resolved_path.path,
-                                   index]() {
-                     if (index.value() >= total)
-                       return futures::Past(IterationControlCommand::kStop);
-                     ++index.value();
-                     return buffer->ptr()
-                         ->execution_context()
-                         ->EvaluateFile(adjusted_input)
-                         .Transform([](gc::Root<vm::Value>) {
-                           return Success(IterationControlCommand::kContinue);
-                         })
-                         .ConsumeErrors([](Error) {
-                           return futures::Past(IterationControlCommand::kStop);
-                         });
-                   })
-                .Transform([&editor_state](IterationControlCommand) {
-                  editor_state.ResetRepetitions();
-                  return Success();
-                });
-          }),
-      [buffer, input](Error nested_error) {
-        Error error{LazyString{L"🗱  File not found: "} + ToLazyString(input) +
-                    LazyString{L": "} + ToLazyString(nested_error)};
-        buffer.value()->status().InsertError(error);
-        return futures::Past(error);
+  NonNull<std::shared_ptr<std::optional<Error>>> possible_error;
+  return ResolvePath(
+             ResolvePathOptions::New(MakeNonNullShared<FileSystemDriver>(
+                                         editor_state.thread_pool()),
+                                     path))
+      .Transform([buffer, input, &editor_state,
+                  possible_error](ResolvePathOutput resolved_path)
+                     -> futures::Value<PossibleError> {
+        using futures::IterationControlCommand;
+        auto index = MakeNonNullShared<size_t>(0);
+        return futures::While(
+            [buffer, total = editor_state.repetitions(),
+             adjusted_input = resolved_path.path, index,
+             possible_error] -> futures::Value<IterationControlCommand> {
+              if (index.value() >= total) return IterationControlCommand::kStop;
+              ++index.value();
+              return buffer->ptr()
+                  ->execution_context()
+                  ->EvaluateFile(adjusted_input)
+                  .Transform([](gc::Root<vm::Value>)
+                                 -> ValueOrError<IterationControlCommand> {
+                    return IterationControlCommand::kContinue;
+                  })
+                  .ConsumeErrors([possible_error](Error error) {
+                    possible_error.value() = std::move(error);
+                    return IterationControlCommand::kStop;
+                  });
+            });
+      })
+      .Transform([&editor_state, buffer, input,
+                  possible_error](EmptyValue) -> futures::Value<PossibleError> {
+        editor_state.ResetRepetitions();
+        if (possible_error->has_value()) {
+          Error error = AugmentError(
+              LazyString{L"🗱  File not found: "} + ToLazyString(input),
+              possible_error->value());
+          buffer.value()->status().InsertError(error);
+          return error;
+        }
+        return Success();
       });
 }
 

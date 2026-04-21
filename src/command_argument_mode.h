@@ -136,16 +136,13 @@ void SetOptionsForBufferTransformation(
         cursors_affected_factory,
     typename CommandArgumentMode<Argument>::Options& options) {
   namespace gc = afc::language::gc;
-  auto buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
+  auto buffers = language::MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
       options.editor_state.active_buffers());
   auto for_each_buffer =
       [buffers](
           const std::function<futures::Value<futures::IterationControlCommand>(
               const gc::Root<OpenBuffer>&)>& callback) {
-        return futures::ForEach(buffers->begin(), buffers->end(), callback)
-            .Transform([buffers](futures::IterationControlCommand) {
-              return language::EmptyValue();
-            });
+        return futures::ForEach(buffers, callback);
       };
 
   options.undo = [for_each_buffer] {

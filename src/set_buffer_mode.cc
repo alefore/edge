@@ -435,7 +435,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                                      futures::IterationControlCommand> {
                                return std::move(output);
                              })
-                      .Transform([new_state](futures::IterationControlCommand) {
+                      .Transform([new_state](EmptyValue) {
                         return std::move(*new_state);
                       });
                 });

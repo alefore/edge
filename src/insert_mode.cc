@@ -769,20 +769,16 @@ class InsertMode : public InputReceiver,
       std::function<futures::Value<EmptyValue>(OpenBuffer&)> callable) {
     WriteLineBuffer(buffers, line_buffer);
     return futures::ForEach(
-               buffers->begin(), buffers->end(),
-               [buffers = buffers.ToRoot(),
-                callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
-                 return buffer_ptr->fd() == nullptr
-                            ? callable(buffer_ptr.value())
-                                  .Transform([](EmptyValue) {
-                                    return futures::IterationControlCommand::
-                                        kContinue;
-                                  })
-                            : futures::Past(
-                                  futures::IterationControlCommand::kContinue);
-               })
-        .Transform(
-            [](futures::IterationControlCommand) { return EmptyValue(); });
+        buffers->begin(), buffers->end(),
+        [buffers = buffers.ToRoot(),
+         callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
+          return buffer_ptr->fd() == nullptr
+                     ? callable(buffer_ptr.value()).Transform([](EmptyValue) {
+                         return futures::IterationControlCommand::kContinue;
+                       })
+                     : futures::Past(
+                           futures::IterationControlCommand::kContinue);
+        });
   }
 
   void StartNewInsertion() {

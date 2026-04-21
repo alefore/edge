@@ -12,6 +12,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::language::EmptyValue;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
 namespace afc {
@@ -47,9 +48,7 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
                             : futures::IterationControlCommand::kStop;
                });
          })
-      .Transform([data](futures::IterationControlCommand) {
-        return std::move(*data->output);
-      });
+      .Transform([data](EmptyValue) { return std::move(*data->output); });
 }
 
 std::wstring ToStringBase(const Repetitions& v) {

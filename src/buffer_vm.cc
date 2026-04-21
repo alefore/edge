@@ -319,8 +319,7 @@ void DefineSortLinesByKey(
                                return ICC::kStop;
                              });
                        })
-                .Transform([data,
-                            boundaries](futures::IterationControlCommand) {
+                .Transform([data, boundaries](EmptyValue) {
                   return std::visit(
                       overload{
                           [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
@@ -364,8 +363,7 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
            .callback = callback,
            .contents = contents});
   return futures::While([data]() -> futures::Value<ICC> {
-           if (data->line > data->contents.EndLine())
-             return futures::Past(ICC::kStop);
+           if (data->line > data->contents.EndLine()) return ICC::kStop;
            std::vector<language::gc::Root<vm::Value>> args{
                vm::Value::NewNumber(
                    data->trampoline.pool(),
@@ -385,7 +383,7 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
                  return ICC::kStop;
                });
          })
-      .Transform([data](ICC) { return data->output; });
+      .Transform([data](EmptyValue) { return data->output; });
 }
 }  // namespace
 

@@ -153,20 +153,18 @@ futures::Value<EmptyValue> ApplyStackDirectly(
     NonNull<std::shared_ptr<Log>> trace,
     NonNull<std::shared_ptr<Result>> output) {
   return futures::ForEach(
-             begin, end,
-             [output, input,
-              trace](const transformation::Variant& transformation) {
-               trace->Append(LazyString{L"Transformation: "} +
-                             LazyString{ToString(transformation)});
-               return Apply(transformation, input.NewChild(output->position))
-                   .Transform([output](Result result) {
-                     output->MergeFrom(std::move(result));
-                     return output->success
-                                ? futures::IterationControlCommand::kContinue
-                                : futures::IterationControlCommand::kStop;
-                   });
-             })
-      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
+      begin, end,
+      [output, input, trace](const transformation::Variant& transformation) {
+        trace->Append(LazyString{L"Transformation: "} +
+                      LazyString{ToString(transformation)});
+        return Apply(transformation, input.NewChild(output->position))
+            .Transform([output](Result result) {
+              output->MergeFrom(std::move(result));
+              return output->success
+                         ? futures::IterationControlCommand::kContinue
+                         : futures::IterationControlCommand::kStop;
+            });
+      });
 }
 
 void FlattenInto(std::list<Variant>& output, Variant& input) {

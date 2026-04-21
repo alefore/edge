@@ -1150,7 +1150,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                          });
                    });
              })
-      .Transform([path, error](IterationControlCommand) -> ValueOrError<Path> {
+      .Transform([path, error](EmptyValue) -> ValueOrError<Path> {
         if (error->has_value()) return error->value();
         return *path;
       });
@@ -2190,10 +2190,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                    [] { return ICC::kStop; });
              })
       .Transform(
-          [data](ICC iteration_control_command)
+          [data](EmptyValue)
               -> futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> {
-            if (iteration_control_command == ICC::kContinue)
-              return std::nullopt;
             return std::move(data->output);
           });
 }

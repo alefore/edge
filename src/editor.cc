@@ -516,14 +516,13 @@ void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
 futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
     std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback) {
   auto buffers = active_buffers();
-  return futures::ForEachWithCopy(
-             buffers.begin(), buffers.end(),
-             [callback](const gc::Root<OpenBuffer>& buffer) {
-               return callback(buffer.ptr().value()).Transform([](EmptyValue) {
-                 return futures::IterationControlCommand::kContinue;
-               });
-             })
-      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
+  return futures::ForEach(
+      MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(buffers),
+      [callback](const gc::Root<OpenBuffer>& buffer) {
+        return callback(buffer.ptr().value()).Transform([](EmptyValue) {
+          return futures::IterationControlCommand::kContinue;
+        });
+      });
 }
 
 futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(

@@ -361,7 +361,7 @@ class SearchCommand : public Command {
                                   return futures::Past(Control::kStop);
                                 });
                           })
-                   .Transform([results, line](Control) {
+                   .Transform([results, line](EmptyValue) {
                      VLOG(5) << "Drawing of search results.";
                      return SearchResultsModifiers(line,
                                                    std::move(results.value()));

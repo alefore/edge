@@ -366,25 +366,20 @@ gc::Root<Environment> BuildEditorEnvironment(
                  std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
                  buffers_to_wait) {
             return futures::ForEach(
-                       MakeNonNullShared<
-                           std::vector<futures::Value<EmptyValue>>>(
-                           buffers_to_wait->lock(
-                               [](const std::vector<gc::Ptr<OpenBuffer>>&
-                                      buffers) {
-                                 return container::MaterializeVector(
-                                     buffers |
-                                     std::views::transform(
-                                         [](gc::Ptr<OpenBuffer> buffer) {
-                                           return buffer->NewCloseFuture();
-                                         }));
-                               })),
-                       [](futures::Value<EmptyValue>& future) {
-                         return std::move(future).Transform([](EmptyValue) {
-                           return futures::IterationControlCommand::kContinue;
-                         });
-                       })
-                .Transform([](futures::IterationControlCommand) {
-                  return EmptyValue();
+                MakeNonNullShared<std::vector<futures::Value<EmptyValue>>>(
+                    buffers_to_wait->lock(
+                        [](const std::vector<gc::Ptr<OpenBuffer>>& buffers) {
+                          return buffers |
+                                 std::views::transform(
+                                     [](gc::Ptr<OpenBuffer> buffer) {
+                                       return buffer->NewCloseFuture();
+                                     }) |
+                                 std::ranges::to<std::vector>();
+                        })),
+                [](futures::Value<EmptyValue>& future) {
+                  return std::move(future).Transform([](EmptyValue) {
+                    return futures::IterationControlCommand::kContinue;
+                  });
                 });
           })
           .ptr());

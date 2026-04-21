@@ -306,6 +306,45 @@ static Value<Type> Past(Type value) {
   return std::move(output.value);
 }
 
+template <typename Callable>
+Value<language::EmptyValue> While(Callable callable) {
+  Future<language::EmptyValue> final_future;
+
+  struct LoopState {
+    Callable callable;
+    typename Value<language::EmptyValue>::Consumer final_consumer;
+  };
+
+  auto loop_state = language::MakeNonNullShared<LoopState>(
+      LoopState{.callable = std::move(callable),
+                .final_consumer = std::move(final_future.consumer)});
+
+  auto run_loop = [loop_state](auto self) mutable -> void {
+    while (true) {
+      auto current_value = loop_state->callable();
+      if (!current_value.has_value()) {
+        std::move(current_value)
+            .SetConsumer([loop_state,
+                          self](IterationControlCommand value) mutable {
+              if (value == IterationControlCommand::kStop) {
+                std::move(loop_state->final_consumer)(language::EmptyValue{});
+              } else {
+                self(self);
+              }
+            });
+        return;
+      }
+      IterationControlCommand result = current_value.Get().value();
+      if (result == IterationControlCommand::kStop) {
+        std::move(loop_state->final_consumer)(language::EmptyValue{});
+        return;
+      }
+    }
+  };
+  run_loop(run_loop);
+  return std::move(final_future.value);
+}
+
 // Evaluate `callable` for each element in the range [begin, end). `callable`
 // receives a reference to each element and must return a
 // Value<IterationControlCommand>.
@@ -316,16 +355,14 @@ static Value<Type> Past(Type value) {
 // Must ensure that the iterators won't expire before the iteration is done.
 // Customers are encouraged to use the `ForEach(std::shared_ptr<Container>,
 // ...)` version provided below, when feasible.
-template <ErrorHandling ErrorHandlingValue = ErrorHandling::Enable,
-          typename Iterator, typename Callable>
-Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
-                                       Callable callable) {
-  if (begin == end) return futures::Past(IterationControlCommand::kContinue);
-  return callable(*begin).template Transform<ErrorHandlingValue>(
-      [begin, end, callable](IterationControlCommand result) mutable {
-        if (result == IterationControlCommand::kStop)
-          return futures::Past(result);
-        return ForEach(++begin, end, callable);
+template <typename Iterator, typename Callable>
+futures::Value<language::EmptyValue> ForEach(Iterator begin, Iterator end,
+                                             Callable callable) {
+  auto current = language::MakeNonNullShared<Iterator>(begin);
+  return While(
+      [current, end, callable]() -> futures::Value<IterationControlCommand> {
+        if (current.value() == end) return IterationControlCommand::kStop;
+        return callable(*(current.value()++));
       });
 }
 
@@ -334,24 +371,12 @@ Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
 // container.
 //
 // Unlike ForEachWithCopy, avoids having to copy the container.
-template <ErrorHandling ErrorHandlingValue = ErrorHandling::Enable,
-          typename Container, typename Callable>
-Value<IterationControlCommand> ForEach(
+template <typename Container, typename Callable>
+futures::Value<language::EmptyValue> ForEach(
     language::NonNull<std::shared_ptr<Container>> container,
     Callable callable) {
-  return ForEach<ErrorHandlingValue>(
-      container->begin(), container->end(),
-      [container, callable](auto& T) { return callable(T); });
-}
-
-template <typename Callable>
-Value<IterationControlCommand> While(Callable callable) {
-  return callable().Transform(
-      [callable](IterationControlCommand result) mutable {
-        if (result == IterationControlCommand::kStop)
-          return futures::Past(result);
-        return While(std::move(callable));
-      });
+  return ForEach(container->begin(), container->end(),
+                 [container, callable](auto& T) { return callable(T); });
 }
 
 Value<language::PossibleError> IgnoreErrors(
@@ -379,16 +404,18 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
 }
 
 template <typename Iterator, typename Callable>
-Value<IterationControlCommand> ForEachWithCopy(Iterator begin, Iterator end,
-                                               Callable callable) {
-  auto copy = std::make_shared<std::vector<typename std::remove_const<
-      typename std::remove_reference<decltype(*begin)>::type>::type>>();
+Value<language::EmptyValue> ForEachWithCopy(Iterator begin, Iterator end,
+                                            Callable callable) {
+  auto copy =
+      language::MakeNonNullShared<std::vector<typename std::remove_const<
+          typename std::remove_reference<decltype(*begin)>::type>::type>>();
   while (begin != end) {
     copy->push_back(std::move(*begin));
     ++begin;
   }
   return ForEach(copy->begin(), copy->end(), std::move(callable))
-      .Transform([copy](IterationControlCommand output) { return output; });
+      .Transform(
+          [copy](language::EmptyValue) { return language::EmptyValue{}; });
 }
 
 #define FUTURES_ASSIGN_OR_RETURN(variable, expression)                         \
@@ -427,18 +454,18 @@ futures::Value<std::vector<Value>> UnwrapVectorFuture(
     language::NonNull<std::shared_ptr<std::vector<futures::Value<Value>>>>
         input) {
   language::NonNull<std::shared_ptr<std::vector<Value>>> output;
-  return futures::ForEach<ErrorHandling::Disable>(
-             input,
-             [output](futures::Value<Value>& future_item) {
-               return std::move(future_item)
-                   .template Transform<ErrorHandling::Disable>(
-                       [output](Value item) {
-                         output->push_back(std::move(item));
-                         return IterationControlCommand::kContinue;
-                       });
-             })
-      .Transform(
-          [output](IterationControlCommand) mutable { return output.value(); });
+  return futures::ForEach(input,
+                          [output](futures::Value<Value>& future_item) {
+                            return std::move(future_item)
+                                .template Transform<ErrorHandling::Disable>(
+                                    [output](Value item) {
+                                      output->push_back(std::move(item));
+                                      return IterationControlCommand::kContinue;
+                                    });
+                          })
+      .Transform([output](language::EmptyValue) mutable {
+        return std::move(output.value());
+      });
 }
 
 // Convenience wrapper (saves customers from creating the NonNullShared-vector
