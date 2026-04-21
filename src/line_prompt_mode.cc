@@ -241,6 +241,7 @@ futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
   buffer.Set(buffer_variables::save_on_close, false);
   buffer.Set(buffer_variables::persist_state, false);
   buffer.Set(buffer_variables::completion_model_paths, LazyString{});
+  buffer.Set(buffer_variables::is_prompt, true);
   return buffer.Reload()
       .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); })
       .Transform([&buffer, prompt_contents_type, initial_value](EmptyValue) {
