@@ -54,7 +54,17 @@ enum State {
   PROPERTY_BORDER_STYLE_COLON,
   PROPERTY_BORDER_STYLE_VALUE,
   PROPERTY_DISPLAY_COLON,
-  PROPERTY_DISPLAY_VALUE
+  PROPERTY_DISPLAY_VALUE,
+  PROPERTY_FLEX_DIRECTION_COLON,
+  PROPERTY_FLEX_DIRECTION_VALUE,
+  PROPERTY_JUSTIFY_CONTENT_COLON,
+  PROPERTY_JUSTIFY_CONTENT_VALUE,
+  PROPERTY_POSITION_COLON,
+  PROPERTY_POSITION_VALUE,
+  PROPERTY_VISIBILITY_COLON,
+  PROPERTY_VISIBILITY_VALUE,
+  PROPERTY_OVERFLOW_COLON,
+  PROPERTY_OVERFLOW_VALUE,
 };
 
 struct RecognizedProperty {
@@ -69,18 +79,17 @@ const std::map<SingleLine, RecognizedProperty>& Properties() {
        RecognizedProperty{
            .post_name_state = PROPERTY_BORDER_STYLE_COLON,
            .value_state = PROPERTY_BORDER_STYLE_VALUE,
-           .valid_tokens = std::unordered_set{SINGLE_LINE_CONSTANT(L"none"),
-                                              SINGLE_LINE_CONSTANT(L"hidden"),
-                                              SINGLE_LINE_CONSTANT(L"dotted"),
-                                              SINGLE_LINE_CONSTANT(L"dashed"),
-                                              SINGLE_LINE_CONSTANT(L"solid"),
-                                              SINGLE_LINE_CONSTANT(L"double"),
-                                              SINGLE_LINE_CONSTANT(L"groove"),
-                                              SINGLE_LINE_CONSTANT(L"ridge"),
-                                              SINGLE_LINE_CONSTANT(L"inset"),
-                                              SINGLE_LINE_CONSTANT(L"outset")}
-
-       }},
+           .valid_tokens =
+               std::unordered_set{SINGLE_LINE_CONSTANT(L"none"),
+                                  SINGLE_LINE_CONSTANT(L"hidden"),
+                                  SINGLE_LINE_CONSTANT(L"dotted"),
+                                  SINGLE_LINE_CONSTANT(L"dashed"),
+                                  SINGLE_LINE_CONSTANT(L"solid"),
+                                  SINGLE_LINE_CONSTANT(L"double"),
+                                  SINGLE_LINE_CONSTANT(L"groove"),
+                                  SINGLE_LINE_CONSTANT(L"ridge"),
+                                  SINGLE_LINE_CONSTANT(L"inset"),
+                                  SINGLE_LINE_CONSTANT(L"outset")}}},
       {SINGLE_LINE_CONSTANT(L"display"),
        RecognizedProperty{
            .post_name_state = PROPERTY_DISPLAY_COLON,
@@ -107,6 +116,57 @@ const std::map<SingleLine, RecognizedProperty>& Properties() {
                                   SINGLE_LINE_CONSTANT(L"list-item"),
                                   SINGLE_LINE_CONSTANT(L"contents"),
                                   SINGLE_LINE_CONSTANT(L"flow-root")}}},
+      {SINGLE_LINE_CONSTANT(L"flex-direction"),
+       RecognizedProperty{.post_name_state = PROPERTY_FLEX_DIRECTION_COLON,
+                          .value_state = PROPERTY_FLEX_DIRECTION_VALUE,
+                          .valid_tokens =
+                              std::unordered_set{
+                                  SINGLE_LINE_CONSTANT(L"row"),
+                                  SINGLE_LINE_CONSTANT(L"row-reverse"),
+                                  SINGLE_LINE_CONSTANT(L"column"),
+                                  SINGLE_LINE_CONSTANT(L"column-reverse"),
+                              }}},
+      {SINGLE_LINE_CONSTANT(L"justify-content"),
+       RecognizedProperty{.post_name_state = PROPERTY_JUSTIFY_CONTENT_COLON,
+                          .value_state = PROPERTY_JUSTIFY_CONTENT_VALUE,
+                          .valid_tokens =
+                              std::unordered_set{
+                                  SINGLE_LINE_CONSTANT(L"flex-start"),
+                                  SINGLE_LINE_CONSTANT(L"flex-end"),
+                                  SINGLE_LINE_CONSTANT(L"center"),
+                                  SINGLE_LINE_CONSTANT(L"space-between"),
+                                  SINGLE_LINE_CONSTANT(L"space-around"),
+                                  SINGLE_LINE_CONSTANT(L"space-evenly"),
+                                  SINGLE_LINE_CONSTANT(L"start"),
+                                  SINGLE_LINE_CONSTANT(L"end"),
+                              }}},
+      {SINGLE_LINE_CONSTANT(L"position"),
+       RecognizedProperty{
+           .post_name_state = PROPERTY_POSITION_COLON,
+           .value_state = PROPERTY_POSITION_VALUE,
+           .valid_tokens =
+               std::unordered_set{SINGLE_LINE_CONSTANT(L"static"),
+                                  SINGLE_LINE_CONSTANT(L"relative"),
+                                  SINGLE_LINE_CONSTANT(L"absolute"),
+                                  SINGLE_LINE_CONSTANT(L"fixed"),
+                                  SINGLE_LINE_CONSTANT(L"sticky")}}},
+      {SINGLE_LINE_CONSTANT(L"visibility"),
+       RecognizedProperty{
+           .post_name_state = PROPERTY_VISIBILITY_COLON,
+           .value_state = PROPERTY_VISIBILITY_VALUE,
+           .valid_tokens =
+               std::unordered_set{SINGLE_LINE_CONSTANT(L"visible"),
+                                  SINGLE_LINE_CONSTANT(L"hidden"),
+                                  SINGLE_LINE_CONSTANT(L"collapse")}}},
+      {SINGLE_LINE_CONSTANT(L"overflow"),
+       RecognizedProperty{
+           .post_name_state = PROPERTY_OVERFLOW_COLON,
+           .value_state = PROPERTY_OVERFLOW_VALUE,
+           .valid_tokens = std::unordered_set{SINGLE_LINE_CONSTANT(L"visible"),
+                                              SINGLE_LINE_CONSTANT(L"hidden"),
+                                              SINGLE_LINE_CONSTANT(L"scroll"),
+                                              SINGLE_LINE_CONSTANT(L"auto"),
+                                              SINGLE_LINE_CONSTANT(L"clip")}}},
   };
   return output;
 }
