@@ -2120,6 +2120,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
 OpenBuffer::OpenBufferForCurrentPosition(
     RemoteURLBehavior remote_url_behavior) {
+  if (Read(buffer_variables::is_prompt)) return std::nullopt;
+
   // When the cursor moves quickly, there's a race between multiple executions
   // of this logic. To avoid this, each call captures the original position
   // and uses that to avoid taking any effects when the position changes in
