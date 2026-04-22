@@ -21,6 +21,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:hash",
+        "//src/language/lazy_string",
     ],
 )
 

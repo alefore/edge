@@ -1,0 +1,517 @@
+#include "src/transformation_expand.h"
+
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/file_link_mode.h"
+#include "src/file_predictor.h"
+#include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
+#include "src/language/overload.h"
+#include "src/predictor.h"
+#include "src/run_command_handler.h"
+#include "src/run_cpp_command.h"
+#include "src/tests/tests.h"
+#include "src/transformation_composite.h"
+#include "src/transformation_delete.h"
+#include "src/transformation_insert.h"
+#include "src/transformation_set_position.h"
+#include "src/transformation_stack.h"
+#include "src/transformation_type.h"
+#include "src/transformation_vm.h"
+
+namespace gc = afc::language::gc;
+namespace container = afc::language::container;
+
+using afc::futures::OnError;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::ValueOrError;
+using afc::language::VisitOptional;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::FindLastNotOf;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+using afc::language::text::SortedLineSequence;
+using afc::language::text::SortedLineSequenceUniqueLines;
+
+namespace afc::editor {
+namespace {
+
+SingleLine GetToken(const CompositeTransformation::Input& input,
+                    EdgeVariable<LazyString>* characters_variable) {
+  if (input.position.column < ColumnNumber(2)) return SingleLine{};
+  const ColumnNumber end = input.position.column.previous().previous();
+  const SingleLine line =
+      input.buffer.contents().snapshot().at(input.position.line).contents();
+
+  ColumnNumber symbol_start = VisitOptional(
+      [](ColumnNumber index_before_symbol) {
+        return index_before_symbol.next();
+      },
+      [] { return ColumnNumber(0); },
+      FindLastNotOf(line.Substring(ColumnNumber{}, end.ToDelta()),
+                    container::MaterializeUnorderedSet(
+                        input.buffer.Read(characters_variable))));
+
+  return line.Substring(symbol_start,
+                        end - symbol_start + ColumnNumberDelta(1));
+}
+
+transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
+  CHECK_GT(characters, ColumnNumberDelta());
+  return transformation::Delete{
+      .modifiers = {.direction = Direction::kBackwards,
+                    .repetitions = characters.read(),
+                    .paste_buffer_behavior =
+                        Modifiers::PasteBufferBehavior::kDoNothing},
+      .initiator = transformation::Delete::Initiator::kInternal};
+}
+
+class PredictorTransformation : public CompositeTransformation {
+ public:
+  PredictorTransformation(Predictor predictor, SingleLine text)
+      : predictor_(std::move(predictor)), text_(std::move(text)) {
+    CHECK_GT(text_.size(), ColumnNumberDelta());
+  }
+
+  std::wstring Serialize() const override {
+    return L"PredictorTransformation();";
+  }
+
+  futures::Value<Output> Apply(Input input) const override {
+    return Predict(
+               predictor_,
+               PredictorInput{
+                   .editor = input.buffer.editor(),
+                   .input = text_,
+                   .input_column = ColumnNumber() + text_.size(),
+                   // TODO: Ugh, the const_cast below is fucking ugly. I have a
+                   // lake in my model: should PredictionOptions::source_buffer
+                   // be `const` so that it can be applied here? But then...
+                   // search handler can't really be mapped to a predictor,
+                   // since it wants to modify the buffer. Perhaps the answer
+                   // is to make search handler not modify the buffer, but
+                   // rather do that on the caller, based on its outputs.
+                   .source_buffers = {const_cast<OpenBuffer*>(&input.buffer)
+                                          ->RootFromThis()}})
+        .Transform([text = text_, &buffer = input.buffer](
+                       std::optional<PredictResults> results) {
+          if (!results.has_value()) {
+            return Output();
+          }
+          if (!results->common_prefix.has_value() ||
+              ColumnNumberDelta(results->common_prefix.value().size()) <
+                  text.size()) {
+            CHECK_LE(results->predictor_output.longest_prefix, text.size());
+            if (SingleLine prefix = text.Substring(
+                    ColumnNumber(0), results->predictor_output.longest_prefix);
+                !prefix.size().IsZero()) {
+              VLOG(5) << "Setting buffer status.";
+              buffer.status().SetInformationText(LineBuilder{
+                  SINGLE_LINE_CONSTANT(
+                      L"No matches found. Longest prefix with matches: \"") +
+                  prefix + SINGLE_LINE_CONSTANT(L"\"")}
+                                                     .Build());
+            }
+            return Output();
+          }
+
+          Output output;
+          CHECK_GT(text.size(), ColumnNumberDelta());
+          output.Push(DeleteLastCharacters(text.size()));
+          output.Push(transformation::Insert{
+              .contents_to_insert = LineSequence::WithLine(
+                  // TODO(easy, 2024-09-11): Change common_prefix to use
+                  // SingleLine.
+                  Line{SingleLine{
+                      LazyString{results.value().common_prefix.value()}}})});
+          return output;
+        });
+  }
+
+ private:
+  const Predictor predictor_;
+  const SingleLine text_;
+};
+
+class InsertHistoryTransformation : public CompositeTransformation {
+ public:
+  InsertHistoryTransformation(transformation::Variant delete_transformation,
+                              SingleLine query)
+      : delete_transformation_(std::move(delete_transformation)),
+        search_options_({.query = std::move(query)}) {}
+
+  std::wstring Serialize() const override {
+    return L"InsertHistoryTransformation";
+  }
+
+  futures::Value<Output> Apply(Input input) const override {
+    Output output;
+    VisitPointer(
+        input.editor.insert_history().Search(input.editor, search_options_),
+        [&](LineSequence text) {
+          output.Push(delete_transformation_);
+          output.Push(
+              transformation::Insert{.contents_to_insert = std::move(text)});
+        },
+        [&] {
+          input.editor.status().InsertError(
+              Error{LazyString{L"No matches: "} + search_options_.query});
+        });
+    return output;
+  }
+
+ private:
+  const transformation::Variant delete_transformation_;
+  const InsertHistory::SearchOptions search_options_;
+};
+
+class ExternalCompletion : public CompositeTransformation {
+  const LazyString trigger_;
+
+ public:
+  ExternalCompletion(LazyString trigger) : trigger_(trigger) {}
+
+  std::wstring Serialize() const override {
+    return L"ExternalCompletionTransformation";
+  }
+
+  futures::Value<Output> Apply(Input input) const override {
+    VLOG(5) << "ExternalCompletionTransformation starts";
+    ValueOrError<Path> command_path_or_error = Path::New(
+        input.buffer.Read(buffer_variables::external_completion_command));
+    if (IsError(command_path_or_error)) {
+      input.buffer.status().InsertError(
+          AugmentError(LazyString{L"external_completion_command"},
+                       std::get<Error>(command_path_or_error)));
+      return Output{};
+    }
+    Path command_path =
+        Path::Join(input.buffer.editor().edge_path()[0],
+                   ValueOrDie(std::move(command_path_or_error)));
+    LOG(INFO) << "ExternalCompletionTransformation: " << command_path;
+    return input.buffer.file_system_driver()
+        ->WriteTmpFile(LazyString{L"external-command-input"},
+                       GetContents(input.buffer))
+        .Transform([buffer_root = input.buffer.RootFromThis(), command_path,
+                    trigger = trigger_](Path data_path) {
+          return ForkCommand(
+                     buffer_root->editor(),
+                     ForkCommandOptions{
+                         .command = ToLazyString(command_path) +
+                                    LazyString{L" "} + ToLazyString(data_path),
+                         .environment =
+                             {
+                                 {L"EDGE_TRIGGER", trigger},
+                                 {L"EDGE_PATH",
+                                  buffer_root->Read(buffer_variables::path)},
+                                 {L"EDGE_LINE",
+                                  ToLazyString(NonEmptySingleLine(
+                                      buffer_root->position().line.read()))},
+                                 {L"EDGE_COLUMN",
+                                  ToLazyString(NonEmptySingleLine(
+                                      buffer_root->position().column.read()))},
+                             },
+                         .insertion_type = BuffersList::AddBufferType::kIgnore,
+                         .existing_buffer_behavior = ForkCommandOptions::
+                             ExistingBufferBehavior::kIgnore})
+              ->WaitForEndOfFile();
+        })
+        .Transform(
+            [execution_context = input.buffer.execution_context().ToRoot()](
+                gc::Root<OpenBuffer> buffer)
+                -> futures::ValueOrError<gc::Root<vm::Value>> {
+              buffer->Set(buffer_variables::allow_dirty_delete, true);
+              VLOG(5) << "Got EOF.";
+              // TODO(2026-04-15, easy): First compile, then validate type, only
+              // then execute.
+              return execution_context->EvaluateString(
+                  buffer->contents().snapshot().ToLazyString());
+            })
+        .Transform([input](gc::Root<vm::Value> value)
+                       -> futures::ValueOrError<Output> {
+          LOG(INFO) << "Evaluation finished: "
+                    << vm::ToSingleLine(value->type());
+          using TypeMapper = vm::VMTypeMapper<
+              NonNull<std::shared_ptr<CompositeTransformation::Output>>>;
+          if (!value->IsObjectType(TypeMapper::object_type_name)) {
+            Error error{LazyString{L"Expression produced unexpected type: "} +
+                        vm::ToSingleLine(value->type()) +
+                        LazyString{L". Expected: "} +
+                        TypeMapper::object_type_name};
+            LOG(INFO) << error;
+            return error;
+          }
+          return TypeMapper::get(value.value())->Copy();
+        })
+        .ConsumeErrors([](Error) { return Output{}; });
+  }
+
+  static LazyString GetContents(const OpenBuffer& buffer) {
+    return ToLazyString(buffer.Read(buffer_variables::path));
+  }
+};
+
+bool predictor_transformation_tests_register = tests::Register(
+    L"PredictorTransformation",
+    {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
+        futures::Future<PredictorOutput> inner_future;
+        NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests(std::nullopt);
+        auto final_value =
+            NewBufferForTests(editor.value())
+                .ptr()
+                ->ApplyToCursors(MakeNonNullShared<PredictorTransformation>(
+                    [&](PredictorInput) -> futures::Value<PredictorOutput> {
+                      return std::move(inner_future.value);
+                    },
+                    SINGLE_LINE_CONSTANT(L"foo")));
+        LOG(INFO) << "Notifying inner future";
+        CHECK(!final_value.has_value());
+        std::move(inner_future.consumer)(
+            PredictorOutput{.longest_prefix = ColumnNumberDelta(2),
+                            .contents = SortedLineSequenceUniqueLines(
+                                SortedLineSequence(LineSequence()))});
+        CHECK(final_value.has_value());
+      }}});
+
+using OpenFileCallback =
+    std::function<futures::ValueOrError<gc::Root<OpenBuffer>>(
+        const OpenFileOptions& options)>;
+
+class ReadAndInsert : public CompositeTransformation {
+  const Path path_;
+  const OpenFileCallback open_file_callback_;
+
+ public:
+  ReadAndInsert(Path path, OpenFileCallback open_file_callback)
+      : path_(std::move(path)),
+        open_file_callback_(std::move(open_file_callback)) {
+    CHECK(open_file_callback_ != nullptr);
+  }
+
+  std::wstring Serialize() const override { return L"ReadAndInsert();"; }
+
+  futures::Value<Output> Apply(Input input) const override {
+    if (input.buffer.editor().edge_path().empty()) {
+      LOG(INFO) << "Error preparing path for completion: Empty "
+                   "edge_path.";
+      return Output{};
+    }
+    Path full_path =
+        Path::Join(input.buffer.editor().edge_path().front(),
+                   Path::Join(PathComponent::FromString(L"expand"), path_));
+
+    return open_file_callback_(
+               OpenFileOptions{
+                   .editor_state = input.buffer.editor(),
+                   .path = full_path,
+                   .insertion_type = BuffersList::AddBufferType::kIgnore})
+        .Transform([](gc::Root<OpenBuffer> buffer_to_insert)
+                       -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+          return buffer_to_insert->WaitForEndOfFile();
+        })
+        .Transform(
+            [input = std::move(input)](
+                gc::Root<OpenBuffer> buffer_to_insert) -> ValueOrError<Output> {
+              Output output;
+              output.Push(transformation::Insert{
+                  .contents_to_insert =
+                      buffer_to_insert.ptr()->contents().snapshot()});
+              LineColumn position = buffer_to_insert.ptr()->position();
+              if (position.line.IsZero()) {
+                position.column += input.position.column.ToDelta();
+              }
+              position.line += input.position.line.ToDelta();
+              output.Push(transformation::SetPosition(position));
+              return output;
+            })
+        .ConsumeErrors([full_path](Error) -> futures::Value<Output> {
+          LOG(INFO) << "Unable to open file: " << full_path;
+          return Output{};
+        });
+  }
+};
+
+const bool read_and_insert_tests_registration = tests::Register(
+    L"ReadAndInsert",
+    {
+        {.name = L"BadPathCorrectlyHandled",
+         .callback =
+             [] {
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests(
+                   Path{LazyString{L"/home/edge-test-user/.edge"}});
+               gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
+               std::optional<Path> path_opened;
+               futures::Value<CompositeTransformation::Output> output =
+                   ReadAndInsert(
+                       ValueOrDie(Path::New(LazyString{L"unexistent"})),
+                       [&](OpenFileOptions options) {
+                         path_opened = options.path;
+                         return Error{LazyString{L"File does not exist."}};
+                       })
+                       .Apply(CompositeTransformation::Input{
+                           .editor = buffer.ptr()->editor(),
+                           .buffer = buffer.ptr().value()});
+               CHECK(output.has_value());
+               CHECK(path_opened.has_value());
+               CHECK_EQ(path_opened.value(),
+                        ValueOrDie(Path::New(LazyString{
+                            L"/home/edge-test-user/.edge/expand/unexistent"})));
+             }},
+    });
+
+class Execute : public CompositeTransformation {
+  const SingleLine command_;
+
+ public:
+  Execute(SingleLine command) : command_(std::move(command)) {}
+
+  std::wstring Serialize() const override { return L"Execute();"; }
+
+  futures::Value<Output> Apply(Input input) const override {
+    return RunCppCommandShell(command_, input.editor)
+        .Transform(
+            [](gc::Root<vm::Value> value) -> futures::ValueOrError<Output> {
+              Output output;
+              if (value.ptr()->IsString()) {
+                output.Push(transformation::Insert{
+                    .contents_to_insert =
+                        LineSequence::BreakLines(value.ptr()->get_string())});
+              }
+              return output;
+            })
+        .ConsumeErrors([](Error) { return Output{}; });
+  }
+};
+
+class ExpandTransformation : public CompositeTransformation {
+ public:
+  std::wstring Serialize() const override { return L"ExpandTransformation();"; }
+
+  futures::Value<Output> Apply(Input input) const override {
+    using transformation::ModifiersAndComposite;
+    if (input.position.column.IsZero()) return Output{};
+
+    auto output = std::make_shared<Output>();
+    auto line = input.buffer.LineAt(input.position.line);
+    wchar_t c = line->get(input.position.column.previous());
+    futures::Value<std::unique_ptr<CompositeTransformation>>
+        transformation_future = nullptr;
+    switch (c) {
+      case 'r': {
+        SingleLine symbol =
+            GetToken(input, buffer_variables::symbol_characters);
+        output->Push(
+            DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size()));
+        std::visit(overload{IgnoreErrors{},
+                            [&](Path path) {
+                              transformation_future =
+                                  std::make_unique<ReadAndInsert>(
+                                      path, OpenFileIfFound);
+                            }},
+                   Path::New(symbol.read()));
+      } break;
+      case '/':
+        if (SingleLine path =
+                GetToken(input, buffer_variables::path_characters);
+            !path.size().IsZero()) {
+          output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
+          transformation_future = std::make_unique<PredictorTransformation>(
+              GetFilePredictor(FilePredictorOptions{}),
+              vm::EscapedString::FromString(path.read())
+                  .EscapedRepresentation());
+        }
+        break;
+      case ' ':
+        if (SingleLine symbol =
+                GetToken(input, buffer_variables::symbol_characters);
+            !symbol.size().IsZero()) {
+          output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
+          futures::Value<Predictor> predictor_future = SyntaxBasedPredictor;
+          if (ValueOrError<Path> dictionary_path =
+                  Path::New(input.buffer.Read(buffer_variables::dictionary));
+              !IsError(dictionary_path)) {
+            predictor_future =
+                OpenFileIfFound(
+                    OpenFileOptions{
+                        .editor_state = input.buffer.editor(),
+                        .path = ValueOrDie(std::move(dictionary_path)),
+                        .insertion_type = BuffersList::AddBufferType::kIgnore})
+                    .Transform([](gc::Root<OpenBuffer> dictionary)
+                                   -> futures::ValueOrError<Predictor> {
+                      return ComposePredictors(
+                          DictionaryPredictor(std::move(dictionary)),
+                          SyntaxBasedPredictor);
+                    })
+                    .ConsumeErrors([](Error) -> futures::Value<Predictor> {
+                      return SyntaxBasedPredictor;
+                    });
+          }
+          transformation_future =
+              std::move(predictor_future)
+                  .Transform([symbol](Predictor predictor) {
+                    return std::make_unique<PredictorTransformation>(predictor,
+                                                                     symbol);
+                  });
+        }
+        break;
+      case ':': {
+        SingleLine symbol =
+            GetToken(input, buffer_variables::symbol_characters);
+        output->Push(DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size() +
+                                          ColumnNumberDelta(1)));
+        transformation_future = std::make_unique<Execute>(symbol);
+      } break;
+      case '.': {
+        SingleLine query = GetToken(input, buffer_variables::path_characters);
+        transformation_future = std::make_unique<InsertHistoryTransformation>(
+            DeleteLastCharacters(query.size() + ColumnNumberDelta(1)), query);
+      } break;
+      case '1': {
+        output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
+        transformation_future = std::make_unique<ExternalCompletion>(
+            LazyString{ColumnNumberDelta{1}, c});
+        break;
+      }
+    }
+    return std::move(transformation_future)
+        .Transform(
+            [output = std::move(output)](
+                std::unique_ptr<CompositeTransformation> transformation_input) {
+              VisitPointer(
+                  std::move(transformation_input),
+                  [&output](NonNull<std::unique_ptr<CompositeTransformation>>
+                                transformation) {
+                    output->Push(ModifiersAndComposite{
+                        .transformation = std::move(transformation)});
+                  },
+                  [] {});
+              return std::move(*output);
+            });
+  }
+};
+}  // namespace
+
+NonNull<std::unique_ptr<CompositeTransformation>> NewExpandTransformation() {
+  return MakeNonNullUnique<ExpandTransformation>();
+}
+}  // namespace afc::editor

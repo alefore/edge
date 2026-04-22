@@ -53,14 +53,14 @@
 #include "src/set_variable_command.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
-#include "src/transformation/composite.h"
-#include "src/transformation/delete.h"
-#include "src/transformation/insert.h"
-#include "src/transformation/move.h"
-#include "src/transformation/set_position.h"
-#include "src/transformation/stack.h"
-#include "src/transformation/switch_case.h"
-#include "src/transformation/type.h"
+#include "src/transformation_composite.h"
+#include "src/transformation_delete.h"
+#include "src/transformation_insert.h"
+#include "src/transformation_move.h"
+#include "src/transformation_set_position.h"
+#include "src/transformation_stack.h"
+#include "src/transformation_switch_case.h"
+#include "src/transformation_type.h"
 
 namespace gc = afc::language::gc;
 

@@ -7,9 +7,9 @@
 #include "src/tests/tests.h"
 
 namespace afc::language::lazy_string {
-
+namespace {
 LazyString Trim(LazyString in) { return Trim(in, {L' '}); }
-SingleLine Trim(SingleLine in) { return Trim(in, {L' '}); }
+}  // namespace
 
 namespace {
 const bool trim_whitespace_tests_registration = tests::Register(

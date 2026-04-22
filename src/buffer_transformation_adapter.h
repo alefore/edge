@@ -5,7 +5,7 @@
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/text/line.h"
-#include "src/transformation/input.h"
+#include "src/transformation_input.h"
 
 namespace afc::editor {
 class OpenBuffer;

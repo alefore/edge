@@ -3,7 +3,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/safe_types.h"
-#include "src/transformation/stack.h"
+#include "src/transformation_stack.h"
 
 namespace afc::editor {
 class UndoState {

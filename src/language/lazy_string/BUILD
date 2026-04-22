@@ -58,6 +58,7 @@ cc_library(
     deps = [
         ":char_buffer",
         ":lazy_string",
+        ":single_line",
     ],
 )
 
@@ -73,27 +74,23 @@ cc_library(
 )
 
 cc_library(
-    name = "substring",
-    srcs = ["substring.cc"],
-    hdrs = ["substring.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":lazy_string",
-    ],
-)
-
-cc_library(
     name = "tokenize",
     srcs = ["tokenize.cc"],
     hdrs = ["tokenize.h"],
+    deps = [
+        ":lazy_string",
+        ":lowercase",
+        ":single_line",
+    ],
 )
 
 cc_library(
     name = "trim",
     srcs = ["trim.cc"],
     hdrs = ["trim.h"],
+    # TODO(P3, 2026-04-22, easy): Trim should not depend on :single_line.
     deps = [
         ":lazy_string",
-        ":substring",
+        ":single_line",
     ],
 )

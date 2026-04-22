@@ -9,9 +9,9 @@
 #include "src/editor.h"
 #include "src/set_mode_command.h"
 #include "src/transformation.h"
-#include "src/transformation/composite.h"
-#include "src/transformation/set_position.h"
-#include "src/transformation/stack.h"
+#include "src/transformation_composite.h"
+#include "src/transformation_set_position.h"
+#include "src/transformation_stack.h"
 
 namespace afc::editor {
 using language::MakeNonNullUnique;

@@ -19,7 +19,6 @@ cc_library(
         "//src/language:safe_types",
         "//src/language/lazy_string",
         "//src/language/lazy_string:append",
-        "//src/language/lazy_string:substring",
     ],
 )
 

@@ -22,14 +22,14 @@
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
-#include "src/transformation/bisect.h"
-#include "src/transformation/composite.h"
-#include "src/transformation/delete.h"
-#include "src/transformation/move.h"
-#include "src/transformation/noop.h"
-#include "src/transformation/paste.h"
-#include "src/transformation/reach_query.h"
-#include "src/transformation/stack.h"
+#include "src/transformation_bisect.h"
+#include "src/transformation_composite.h"
+#include "src/transformation_delete.h"
+#include "src/transformation_move.h"
+#include "src/transformation_noop.h"
+#include "src/transformation_paste.h"
+#include "src/transformation_reach_query.h"
+#include "src/transformation_stack.h"
 
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;

@@ -1,8 +1,8 @@
 #include "src/undo_state.h"
 
 #include "src/language/container.h"
-#include "src/transformation/type.h"
-#include "src/transformation/variant.h"
+#include "src/transformation_type.h"
+#include "src/transformation_variant.h"
 
 namespace container = afc::language::container;
 

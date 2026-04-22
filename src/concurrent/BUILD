@@ -38,7 +38,10 @@ cc_library(
     srcs = ["thread_pool.cc"],
     hdrs = ["thread_pool.h"],
     visibility = ["//visibility:public"],
-    deps = [":work_queue"],
+    deps = [
+        ":work_queue",
+        "//src/infrastructure:time_human",
+    ],
 )
 
 cc_library(

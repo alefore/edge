@@ -32,7 +32,7 @@
 #include "src/modifiers.h"
 #include "src/status.h"
 #include "src/transformation.h"
-#include "src/transformation/type.h"
+#include "src/transformation_type.h"
 #include "src/widget.h"
 #include "src/widget_list.h"
 

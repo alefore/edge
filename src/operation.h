@@ -14,7 +14,7 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
-#include "src/transformation/stack.h"
+#include "src/transformation_stack.h"
 
 namespace afc::editor {
 class EditorState;

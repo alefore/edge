@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "src/transformation/composite.h"
+#include "src/transformation_composite.h"
 
 namespace afc::editor {
 class FindTransformation : public CompositeTransformation {

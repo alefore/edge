@@ -12,11 +12,11 @@
 #include "src/editor_mode.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/set_mode_command.h"
-#include "src/transformation/composite.h"
-#include "src/transformation/delete.h"
-#include "src/transformation/set_position.h"
-#include "src/transformation/stack.h"
-#include "src/transformation/type.h"
+#include "src/transformation_composite.h"
+#include "src/transformation_delete.h"
+#include "src/transformation_set_position.h"
+#include "src/transformation_stack.h"
+#include "src/transformation_type.h"
 
 namespace gc = afc::language::gc;
 

@@ -20,7 +20,7 @@
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/tests/tests.h"
-#include "src/transformation/vm.h"
+#include "src/transformation_vm.h"
 #include "src/vm/callbacks_gc.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/container.h"

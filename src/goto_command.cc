@@ -14,8 +14,8 @@
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/transformation.h"
-#include "src/transformation/composite.h"
-#include "src/transformation/set_position.h"
+#include "src/transformation_composite.h"
+#include "src/transformation_set_position.h"
 
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;

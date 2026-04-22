@@ -11,7 +11,7 @@
 #include "src/language/text/line_column.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
-#include "src/transformation/type.h"
+#include "src/transformation_type.h"
 
 namespace afc::editor {
 class OpenBuffer;

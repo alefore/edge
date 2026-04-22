@@ -34,6 +34,15 @@ cc_library(
 )
 
 cc_library(
+    name = "gc_concepts",
+    hdrs = ["gc_concepts.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gc",
+    ],
+)
+
+cc_library(
     name = "gc_view",
     hdrs = ["gc_view.h"],
     visibility = ["//visibility:public"],
@@ -50,6 +59,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":gc",
+        ":gc_concepts",
         ":safe_types",
         "//src/futures:delete_notification",
         "//src/tests",

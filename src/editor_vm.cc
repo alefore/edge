@@ -25,7 +25,7 @@
 #include "src/set_variable_command.h"
 #include "src/shapes.h"
 #include "src/terminal.h"
-#include "src/transformation/vm.h"
+#include "src/transformation_vm.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/default_environment.h"
 #include "src/vm/file_system.h"
