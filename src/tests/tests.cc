@@ -232,8 +232,10 @@ void Run(std::vector<std::wstring> tests_filter) {
     }
 
     if (!running_tests.empty()) {
-      Time now = Now();
-      if (SecondsBetween(last_update, now) >= 1.0) {
+      // TODO(2026-04-23, P2, easy): Also produce an update if the example that
+      // was previously shown has completed. In other words, the example shown
+      // should always be accurate.
+      if (Time now = Now(); SecondsBetween(last_update, now) >= 1.0) {
         TestInfoToSchedule info = running_tests.begin()->second;
         std::cerr << "[" << next_test_to_launch_index - running_tests.size()
                   << " / " << tests_to_schedule.size()
