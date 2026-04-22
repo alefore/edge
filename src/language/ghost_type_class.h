@@ -349,7 +349,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   }
 
   template <typename T>
-    requires requires(Internal value, T other) { value / other; }
+    requires requires(Internal internal_value, T other) {
+      internal_value / other;
+    }
   auto operator/(const T& other) const {
     return External::New(value / other);
   }
