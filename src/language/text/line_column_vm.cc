@@ -28,22 +28,33 @@ using afc::vm::kPurityTypePure;
 
 namespace afc::vm {
 template <>
-const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+/* static */ const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<language::text::LineColumn>>>>>::object_type_name =
     types::ObjectName{
         Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorLineColumn")}};
 
+template struct VMTypeMapper<language::NonNull<std::shared_ptr<
+    concurrent::Protected<std::vector<language::text::LineColumn>>>>>;
+
 template <>
+/* static */
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::set<language::text::LineColumn>>>>>::object_type_name =
     types::ObjectName{
         Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SetLineColumn")}};
 
+template struct VMTypeMapper<language::NonNull<std::shared_ptr<
+    concurrent::Protected<std::set<language::text::LineColumn>>>>>;
+
 template <>
+/* static */
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<std::optional<language::text::Range>>>>::object_type_name =
     types::ObjectName{
         Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"OptionalRange")}};
+
+template struct VMTypeMapper<
+    language::NonNull<std::shared_ptr<std::optional<language::text::Range>>>>;
 
 /* static */
 language::text::LineColumn VMTypeMapper<language::text::LineColumn>::get(
