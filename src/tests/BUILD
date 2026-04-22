@@ -33,6 +33,18 @@ cc_library(
 )
 
 cc_library(
+    name = "concurrent",
+    srcs = ["concurrent.cc"],
+    hdrs = ["concurrent.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/concurrent:thread_pool",
+        "//src/infrastructure:time",
+        "//src/language:safe_types",
+    ],
+)
+
+cc_library(
     name = "fuzz",
     srcs = ["fuzz.cc"],
     hdrs = ["fuzz.h"],
@@ -60,6 +72,7 @@ cc_library(
     hdrs = ["tests.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//src/infrastructure:time",
         "//src/language:container",
         "//src/language:wstring",
     ],
