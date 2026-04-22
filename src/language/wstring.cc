@@ -12,6 +12,8 @@ typedef std::codecvt<wchar_t, char, std::mbstate_t> Converter;
 std::string ToByteString(std::wstring input) {
   VLOG(5) << "ToByteString: " << input;
 
+  if (input.empty()) return "";
+
   static std::locale loc("en_US.utf-8");
 
   const wchar_t* src = input.data();
