@@ -275,8 +275,10 @@ const bool iterator_tests_registration = tests::Register(
      {.name = L"ComparisonDifferentContainersCrashes",
       .callback =
           [] {
-            tests::ForkAndWaitForFailure(
-                [] { LazyString{L"a"}.begin() == LazyString{L"a"}.begin(); });
+            tests::ForkAndWaitForFailure([] {
+              // Cast is to silence a compiler warning: unused result.
+              (void)(LazyString{L"a"}.begin() == LazyString{L"a"}.begin());
+            });
           }},
      {.name = L"EventuallyReachesEnd", .callback = [] {
         LazyString input{L"foo"};
