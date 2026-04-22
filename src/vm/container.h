@@ -115,8 +115,7 @@ struct NestedTypeTraits<gc::Ptr<NestedType>> {
   static std::vector<
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand(const auto& value) {
-    // TODO(P0, 2026-04-21): Investigate infinite recursion here.
-    return Expand(value);
+    return value | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
   }
 };
 
@@ -127,7 +126,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   using language::lazy_string::LazyString;
   using language::lazy_string::ToLazyString;
   const types::ObjectName& object_type_name =
-      VMTypeMapper<ContainerPtr>::object_type_name;
+      vm::VMTypeMapper<ContainerPtr>::object_type_name;
   const vm::Type vmtype = GetVMType<ContainerPtr>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
