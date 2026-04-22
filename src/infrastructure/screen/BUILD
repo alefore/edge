@@ -9,7 +9,6 @@ cc_library(
         "//src/futures",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:char_buffer",
-        "//src/language/lazy_string:substring",
         "//src/language/text:line_column",
     ],
 )

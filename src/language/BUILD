@@ -43,6 +43,49 @@ cc_library(
 )
 
 cc_library(
+    name = "gc_container",
+    hdrs = ["gc_container.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gc",
+        ":gc_view",
+    ],
+)
+
+cc_library(
+    name = "lazy_value",
+    hdrs = ["lazy_value.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":once_only_function",
+        "//src/concurrent:protected",
+    ],
+)
+
+cc_library(
+    name = "cached_supplier",
+    hdrs = ["cached_supplier.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":once_only_function",
+        "//src/concurrent:protected",
+    ],
+)
+
+cc_library(
+    name = "gc_expanders",
+    hdrs = ["gc_expanders.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gc",
+        ":gc_concepts",
+        ":gc_view",
+        ":safe_types",
+        "//src/concurrent:protected",
+    ],
+)
+
+cc_library(
     name = "gc_view",
     hdrs = ["gc_view.h"],
     visibility = ["//visibility:public"],

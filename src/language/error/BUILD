@@ -23,3 +23,17 @@ cc_library(
     hdrs = ["view.h"],
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "log",
+    srcs = ["log.cc"],
+    hdrs = ["log.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":value_or_error",
+        "//src/concurrent:protected",
+        "//src/infrastructure:time",
+        "//src/language:container",
+        "//src/tests",
+    ],
+)

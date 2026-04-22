@@ -19,6 +19,7 @@ cc_library(
     hdrs = ["assign_expression.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":types",
         ":value",
@@ -31,6 +32,7 @@ cc_library(
     hdrs = ["binary_operator.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":value",
     ],
@@ -148,14 +150,29 @@ cc_library(
 )
 
 cc_library(
+    name = "stack",
+    srcs = ["stack.cc"],
+    hdrs = ["stack.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":types",
+        "//src/language:gc",
+        "//src/language:safe_types",
+    ],
+)
+
+cc_library(
     name = "escape",
     srcs = ["escape.cc"],
     hdrs = ["escape.h"],
     deps = [
+        ":types",
         "//src/language:ghost_type",
         "//src/language/error:value_or_error",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
+        "//src/language/lazy_string:single_line",
+        "//src/language/lazy_string:tokenize",
     ],
 )
 
@@ -164,6 +181,7 @@ cc_library(
     srcs = ["expression.cc"],
     hdrs = ["expression.h"],
     deps = [
+        ":stack",
         ":types",
         ":value",
         "//src/futures",
@@ -195,6 +213,7 @@ cc_library(
         ":value",
         "//src/futures",
         "//src/language:gc",
+        "//src/language:gc_container",
         "//src/language/error:view",
     ],
 )
@@ -221,6 +240,7 @@ cc_library(
     hdrs = ["if_expression.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":value",
     ],
@@ -232,6 +252,7 @@ cc_library(
     hdrs = ["lambda.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
     ],
 )
@@ -295,6 +316,7 @@ cc_library(
 cc_library(
     name = "optional",
     hdrs = ["optional.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -316,6 +338,7 @@ cc_library(
         ":callbacks",
         ":container",
         ":expression",
+        ":optional",
     ],
 )
 
@@ -347,6 +370,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:gc",
+        "//src/language:gc_expanders",
         "//src/language:gc_view",
         "//src/language:hash",
     ],
@@ -411,6 +435,25 @@ cc_library(
         "//src/futures",
         "//src/infrastructure:dirname",
         "//src/language:gc",
+        "//src/language/text:line",
+        "//src/language/text:line_sequence",
+    ],
+)
+
+cc_library(
+    name = "delegating_expression",
+    srcs = ["delegating_expression.cc"],
+    hdrs = ["delegating_expression.h"],
+    deps = [
+        ":compilation",
+        ":expression",
+        ":types",
+        "//src/futures",
+        "//src/language:gc",
+        "//src/language:overload",
+        "//src/language:safe_types",
+        "//src/language/error:log",
+        "//src/language/error:value_or_error",
     ],
 )
 
@@ -420,6 +463,7 @@ cc_library(
     hdrs = ["while_expression.h"],
     deps = [
         ":append_expression",
+        ":delegating_expression",
         ":expression",
         ":value",
         "//src/language:safe_types",
