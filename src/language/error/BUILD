@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 cc_library(
     name = "value_or_error",
     srcs = ["value_or_error.cc"],
