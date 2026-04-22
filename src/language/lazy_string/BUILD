@@ -21,11 +21,31 @@ cc_library(
 )
 
 cc_library(
+    name = "convert",
+    srcs = ["convert.cc"],
+    hdrs = ["convert.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lazy_string",
+        "//src/language/error:value_or_error",
+    ],
+)
+
+cc_library(
     name = "column_number",
     hdrs = ["column_number.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:ghost_type_class",
+    ],
+)
+
+cc_library(
+    name = "hash",
+    hdrs = ["hash.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lazy_string",
     ],
 )
 
@@ -39,6 +59,11 @@ cc_library(
         "functional.h",
         "lazy_string.h",
     ],
+    copts = [
+        "-fno-asynchronous-unwind-tables",
+        "-fno-unwind-tables",
+    ],
+    features = ["-unwind_tables"],
     visibility = ["//visibility:public"],
     deps = [
         ":column_number",
@@ -47,6 +72,7 @@ cc_library(
         "//src/language:ghost_type",
         "//src/language:hash",
         "//src/language:safe_types",
+        "//src/language:wstring",
     ],
 )
 
@@ -89,6 +115,7 @@ cc_library(
     name = "trim",
     srcs = ["trim.cc"],
     hdrs = ["trim.h"],
+    visibility = ["//visibility:public"],
     # TODO(P3, 2026-04-22, easy): Trim should not depend on :single_line.
     deps = [
         ":lazy_string",

@@ -53,9 +53,11 @@ cc_binary(
         "completion_model.cc",
         "completion_model.h",
         "cpp_command.cc",
+        "cpp_command.h",
         "delay_input_receiver.cc",
         "delay_input_receiver.h",
         "direction.cc",
+        "direction.h",
         "directory_listing.cc",
         "directory_listing.h",
         "editor.cc",
@@ -69,11 +71,13 @@ cc_binary(
         "execution_context.cc",
         "execution_context.h",
         "file_link_mode.cc",
+        "file_link_mode.h",
         "file_predictor.cc",
         "file_predictor.h",
         "file_tags.cc",
         "file_tags.h",
         "find_mode.cc",
+        "find_mode.h",
         "flashcard.cc",
         "flashcard.h",
         "fragments.cc",
@@ -81,7 +85,9 @@ cc_binary(
         "frame_output_producer.cc",
         "frame_output_producer.h",
         "goto_command.cc",
+        "goto_command.h",
         "help_command.cc",
+        "help_command.h",
         "horizontal_center_output_producer.cc",
         "horizontal_center_output_producer.h",
         "insert_history.cc",
@@ -89,6 +95,7 @@ cc_binary(
         "insert_history_buffer.cc",
         "insert_history_buffer.h",
         "insert_mode.cc",
+        "insert_mode.h",
         "key_commands_map.cc",
         "key_commands_map.h",
         "line_marks.cc",
@@ -101,6 +108,7 @@ cc_binary(
         "line_output.cc",
         "line_output.h",
         "line_prompt_mode.cc",
+        "line_prompt_mode.h",
         "line_with_cursor.cc",
         "line_with_cursor.h",
         "log.cc",
@@ -109,12 +117,15 @@ cc_binary(
         "lru_cache.h",
         "main.cc",
         "map_mode.cc",
+        "map_mode.h",
         "modifiers.cc",
         "modifiers.h",
         "navigate_command.cc",
+        "navigate_command.h",
         "navigation_buffer.cc",
         "navigation_buffer.h",
         "open_directory_command.cc",
+        "open_directory_command.h",
         "open_file_command.cc",
         "open_file_command.h",
         "open_file_position.cc",
@@ -148,10 +159,15 @@ cc_binary(
         "path_flags.cc",
         "path_flags.h",
         "predictor.cc",
+        "predictor.h",
         "quit_command.cc",
+        "quit_command.h",
         "record_command.cc",
+        "record_command.h",
         "repeat_mode.cc",
+        "repeat_mode.h",
         "run_command_handler.cc",
+        "run_command_handler.h",
         "run_cpp_command.cc",
         "run_cpp_command.h",
         "run_cpp_file.cc",
@@ -161,6 +177,7 @@ cc_binary(
         "screen_vm.cc",
         "screen_vm.h",
         "search_command.cc",
+        "search_command.h",
         "search_handler.cc",
         "search_handler.h",
         "search_handler_vm.cc",
@@ -170,6 +187,7 @@ cc_binary(
         "seek.cc",
         "seek.h",
         "server.cc",
+        "server.h",
         "set_buffer_mode.cc",
         "set_buffer_mode.h",
         "set_mode_command.cc",
@@ -203,6 +221,7 @@ cc_binary(
         "transformation_delete.h",
         "transformation_expand.cc",
         "transformation_expand.h",
+        "transformation_input.h",
         "transformation_insert.cc",
         "transformation_insert.h",
         "transformation_move.cc",
@@ -215,6 +234,7 @@ cc_binary(
         "transformation_reach_query.h",
         "transformation_repetitions.cc",
         "transformation_repetitions.h",
+        "transformation_result.h",
         "transformation_set_position.cc",
         "transformation_set_position.h",
         "transformation_stack.cc",
@@ -239,24 +259,51 @@ cc_binary(
         "widget_list.cc",
         "widget_list.h",
     ],
-    deps = [
-        ":args",
-        ":audio",
-        ":buffer_variables",
-        ":status_tests",
+    linkopts = [
+        "-lncursesw",
+        "-lpthread",
+        "-lao",
     ],
-)
-
-cc_library(
-    name = "args",
-    srcs = ["args.cc"],
-    hdrs = ["args.h"],
     deps = [
-        ":server",
+        "//src/concurrent:version_property_receiver",
+        "//src/futures:serializer",
         "//src/infrastructure:command_line",
-        "//src/infrastructure:dirname",
-        "//src/language:ghost_type",
+        "//src/infrastructure:dirname_vm",
+        "//src/infrastructure:execution",
+        "//src/infrastructure:extended_char",
+        "//src/infrastructure:file_adapter",
+        "//src/infrastructure:file_descriptor_reader",
+        "//src/infrastructure:file_system_driver",
+        "//src/infrastructure:glob",
+        "//src/infrastructure:path_suffix_map",
+        "//src/infrastructure:regular_file_adapter",
+        "//src/infrastructure:terminal_adapter",
+        "//src/infrastructure/screen",
+        "//src/infrastructure/screen:cursors",
+        "//src/infrastructure/screen:line_modifier",
+        "//src/infrastructure/screen:visual_overlay",
+        "//src/language:observers",
+        "//src/language:observers_gc",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:convert",
+        "//src/language/lazy_string:hash",
+        "//src/language/lazy_string:single_line",
+        "//src/language/lazy_string:trim",
+        "//src/language/text:delegating_mutable_line_sequence_observer",
+        "//src/language/text:line",
+        "//src/language/text:line_builder",
+        "//src/language/text:line_column_vm",
+        "//src/language/text:line_processor_map",
+        "//src/language/text:line_sequence",
+        "//src/language/text:mutable_line_sequence",
+        "//src/language/text:sorted_line_sequence",
+        "//src/math:naive_bayes",
         "//src/tests:benchmarks",
+        "//src/vm",
+        "//src/vm:callbacks_gc",
+        "//src/vm:default_environment",
+        "//src/vm:file_system",
+        "//src/vm:natural",
     ],
 )
 
@@ -264,7 +311,6 @@ cc_library(
     name = "buffer_contents",
     srcs = ["buffer_contents.cc"],
     hdrs = ["buffer_contents.h"],
-    visibility = ["//src/transformation:__pkg__"],
     deps = [
         "//src/language:const_tree",
         "//src/language:safe_types",
@@ -293,7 +339,6 @@ cc_library(
     name = "buffer_display_data",
     srcs = ["buffer_display_data.cc"],
     hdrs = ["buffer_display_data.h"],
-    visibility = ["//src/transformation:__pkg__"],
     deps = [
         "//src/language:observers",
         "//src/language/text:line_column",
@@ -304,40 +349,6 @@ cc_library(
     name = "buffer_flags",
     srcs = ["buffer_flags.cc"],
     hdrs = ["buffer_flags.h"],
-)
-
-cc_library(
-    name = "buffer",
-    srcs = ["buffer.cc"],
-    hdrs = ["buffer.h"],
-    deps = [
-        ":audio",
-        ":buffer_contents",
-        ":buffer_name",
-        ":buffer_syntax_parser",
-        ":file_descriptor_reader",
-        ":line_marks",
-        ":log",
-        ":parse_tree",
-        ":status",
-        ":terminal_input_parser",
-        ":transformation",
-        ":undo_state",
-        ":variables",
-        "//src/concurrent:work_queue",
-        "//src/futures",
-        "//src/infrastructure:dirname",
-        "//src/infrastructure/screen:cursors",
-        "//src/infrastructure/screen:visual_overlay",
-        "//src/language:ghost_type",
-        "//src/language:observers",
-        "//src/language/lazy_string",
-        "//src/language/lazy_string:substring",
-        "//src/language/text:line",
-        "//src/language/text:line_column",
-        "//src/transformation:type",
-        "//src/vm",
-    ],
 )
 
 cc_library(
@@ -455,7 +466,6 @@ cc_library(
         "//src/concurrent:protected",
         "//src/futures",
         "//src/language/lazy_string:lowercase",
-        "//src/language/lazy_string:substring",
     ],
 )
 
@@ -509,7 +519,6 @@ cc_library(
         "//src/language:wstring",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
-        "//src/language/lazy_string:substring",
         "//src/language/text:line",
     ],
 )
@@ -525,7 +534,7 @@ cc_library(
     srcs = ["find_mode.cc"],
     hdrs = ["find_mode.h"],
     deps = [
-        "//src/transformation:composite",
+        "//src/transformation_composite",
     ],
 )
 
@@ -652,14 +661,13 @@ cc_library(
     name = "modifiers",
     srcs = ["modifiers.cc"],
     hdrs = ["modifiers.h"],
-    visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":buffer_name",
         ":direction",
         ":structure",
         "//src/language/text:line_column",
-        "//src/public:callbacks",
-        "//src/public:environment",
+        "//src/vm:callbacks",
+        "//src/vm:environment",
     ],
 )
 
@@ -751,17 +759,6 @@ cc_library(
 )
 
 cc_library(
-    name = "predictor",
-    srcs = ["predictor.cc"],
-    hdrs = ["predictor.h"],
-    deps = [
-        ":buffer_name",
-        ":status",
-        "//src/concurrent:work_queue",
-    ],
-)
-
-cc_library(
     name = "quit_command",
     srcs = ["quit_command.cc"],
     hdrs = ["quit_command.h"],
@@ -844,18 +841,6 @@ cc_library(
 )
 
 cc_library(
-    name = "server",
-    srcs = ["server.cc"],
-    hdrs = ["server.h"],
-    deps = [
-        ":buffer",
-        "//src/infrastructure:dirname",
-        "//src/infrastructure:file_system_driver",
-        "//src/language:gc",
-    ],
-)
-
-cc_library(
     name = "set_buffer_mode",
     srcs = ["set_buffer_mode.cc"],
     hdrs = ["set_buffer_mode.h"],
@@ -884,25 +869,12 @@ cc_library(
     srcs = ["status.cc"],
     hdrs = ["status.h"],
     deps = [
-        ":audio",
         "//src/infrastructure:time",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:gc",
         "//src/language:ghost_type",
         "//src/language:overload",
         "//src/language/text:line",
-    ],
-)
-
-cc_library(
-    name = "status_tests",
-    srcs = ["status_tests.cc"],
-    deps = [
-        ":buffer",
-        ":status",
-        "//src/language:gc",
-        "//src/language:safe_types",
-        "//src/tests",
     ],
 )
 
@@ -960,7 +932,6 @@ cc_library(
         "//src/language:wstring",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
-        "//src/language/lazy_string:substring",
         "//src/language/text:line_column",
         "//src/tests:fuzz_testable",
     ],
@@ -970,24 +941,11 @@ cc_library(
     name = "transformation",
     srcs = ["transformation.cc"],
     hdrs = ["transformation.h"],
-    visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":direction",
         ":modifiers",
         "//src/futures",
         "//src/language/text:line",
-        "//src/transformation:type",
-    ],
-)
-
-cc_library(
-    name = "undo_state",
-    srcs = ["undo_state.cc"],
-    hdrs = ["undo_state.h"],
-    deps = [
-        "//src/futures",
-        "//src/language:safe_types",
-        "//src/transformation:stack",
     ],
 )
 
@@ -1003,7 +961,7 @@ cc_library(
     deps = [
         ":predictor",
         "//src/language:observers",
-        "//src/public:types",
+        "//src/vm:types",
     ],
 )
 

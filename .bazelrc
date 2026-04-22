@@ -1,5 +1,17 @@
-build --repo_env=CC=clang
-build --repo_env=CXX=clang++
+#build --repo_env=CC=clang
+#build --repo_env=CXX=clang++
+build --repo_env=CC=gcc
+build --repo_env=CXX=g++
+
+# Fix for "relocation refers to local symbol in discarded section" (.sframe)
+#build --linkopt=-fuse-ld=lld
+build --linkopt=-fuse-ld=bfd
+build --nostart_end_lib
+#build --copt=-fno-unwind-tables
+#build --cxxopt=-fno-unwind-tables
+#build --copt=-fno-asynchronous-unwind-tables
+#build --cxxopt=-fno-asynchronous-unwind-tables
+#build --linkopt=-Wl,--no-check-sections
 
 # Set C++ standard to C++23.
 build --cxxopt=-std=c++23
@@ -16,9 +28,9 @@ build --copt=-Werror=unused-function
 build --copt=-Werror=missing-field-initializers
 build --copt=-Werror=unused-but-set-variable
 
-# C++ specific warnings/errors
-build --cxxopt=-Werror=range-loop-construct
-build --cxxopt=-Wunused-lambda-capture
+# Clang errors: C++ specific warnings/errors
+#build --cxxopt=-Werror=range-loop-construct
+#build --cxxopt=-Wunused-lambda-capture
 
 # Set preprocessor definition
 build --copt=-DDOCDIR='"$(docdir)"'

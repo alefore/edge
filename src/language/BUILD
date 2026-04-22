@@ -20,7 +20,7 @@ cc_library(
 
 cc_library(
     name = "const_tree_benchmarks",
-    srcs = ["const_tree_benchmarks"],
+    srcs = ["const_tree_benchmarks.cc"],
     deps = [
         ":const_tree",
         "//src/tests:benchmarks",
@@ -143,6 +143,7 @@ cc_library(
 cc_library(
     name = "observers_gc",
     hdrs = ["observers_gc.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(

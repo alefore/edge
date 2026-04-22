@@ -4,12 +4,13 @@ cc_library(
     name = "cursors",
     srcs = ["cursors.cc"],
     hdrs = ["cursors.h"],
-    visibility = ["//src/transformation:__pkg__"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src/futures",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:char_buffer",
         "//src/language/text:line_column",
+        "//src/language/text:mutable_line_sequence",
     ],
 )
 
@@ -40,5 +41,7 @@ cc_library(
         "//src/language:ghost_type",
         "//src/language/lazy_string",
         "//src/language/text:line",
+        "//src/language/text:line_builder",
+        "//src/language/text:range",
     ],
 )

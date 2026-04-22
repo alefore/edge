@@ -34,8 +34,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/infrastructure:tracker",
-        "//src/language:ghost_type",
+        "//src/language:ghost_type_class",
         "//src/language:wstring",
+        "//src/language/error:value_or_error",
+        "//src/language/lazy_string",
     ],
 )
 

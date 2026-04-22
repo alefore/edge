@@ -45,6 +45,20 @@ cc_library(
 )
 
 cc_library(
+    name = "version_property_receiver",
+    srcs = ["version_property_receiver.cc"],
+    hdrs = ["version_property_receiver.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/infrastructure:audio",
+        "//src/infrastructure/screen:line_modifier",
+        "//src/language:gc",
+        "//src/language/error:log",
+        "//src/language/text:line",
+    ],
+)
+
+cc_library(
     name = "work_queue",
     srcs = ["work_queue.cc"],
     hdrs = ["work_queue.h"],

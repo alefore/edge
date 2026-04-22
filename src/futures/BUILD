@@ -34,6 +34,7 @@ cc_library(
     name = "serializer",
     srcs = ["serializer.cc"],
     hdrs = ["serializer.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":futures",
     ],

@@ -4,6 +4,7 @@ cc_library(
     name = "line_builder",
     srcs = ["line_builder.cc"],
     hdrs = ["line_builder.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src/futures",
         "//src/futures:listenable_value",
@@ -84,6 +85,7 @@ cc_library(
     name = "range",
     srcs = ["range.cc"],
     hdrs = ["range.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src/language:ghost_type_class",
         "//src/language:hash",
@@ -110,5 +112,76 @@ cc_library(
         "//src/language/text:range",
         "//src/tests",
         "//src/tests:fuzz_testable",
+    ],
+)
+
+cc_library(
+    name = "sorted_line_sequence",
+    srcs = ["sorted_line_sequence.cc"],
+    hdrs = ["sorted_line_sequence.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":line_sequence",
+        ":line_sequence_functional",
+        ":mutable_line_sequence",
+        "//src/language:safe_types",
+    ],
+)
+
+cc_library(
+    name = "line_processor_map",
+    srcs = ["line_processor_map.cc"],
+    hdrs = ["line_processor_map.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/concurrent:protected",
+        "//src/futures",
+        "//src/futures:listenable_value",
+        "//src/language/lazy_string:single_line",
+    ],
+)
+
+cc_library(
+    name = "line_sequence_functional",
+    srcs = ["line_sequence_functional.cc"],
+    hdrs = ["line_sequence_functional.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":line_sequence",
+        ":mutable_line_sequence",
+    ],
+)
+
+cc_library(
+    name = "mutable_line_sequence",
+    srcs = ["mutable_line_sequence.cc"],
+    hdrs = [
+        "mutable_line_sequence.h",
+        "mutable_line_sequence_observer.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/infrastructure:tracker",
+        "//src/language:const_tree",
+        "//src/language:safe_types",
+        "//src/language:wstring",
+        "//src/language/lazy_string:append",
+        "//src/language/lazy_string:char_buffer",
+        "//src/language/text:line",
+        "//src/language/text:line_builder",
+        "//src/language/text:line_column",
+        "//src/language/text:line_sequence",
+        "//src/tests",
+        "//src/tests:fuzz_testable",
+    ],
+)
+
+cc_library(
+    name = "delegating_mutable_line_sequence_observer",
+    srcs = ["delegating_mutable_line_sequence_observer.cc"],
+    hdrs = ["delegating_mutable_line_sequence_observer.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":mutable_line_sequence",
     ],
 )

@@ -51,6 +51,17 @@ cc_library(
 )
 
 cc_library(
+    name = "callbacks_gc",
+    hdrs = ["callbacks_gc.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":callbacks",
+        "//src/language:gc",
+        "//src/language:safe_types",
+    ],
+)
+
+cc_library(
     name = "class_expression",
     srcs = ["class_expression.cc"],
     hdrs = ["class_expression.h"],
@@ -138,6 +149,36 @@ cc_library(
 )
 
 cc_library(
+    name = "file_system",
+    srcs = ["file_system.cc"],
+    hdrs = ["file_system.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":container",
+        ":environment",
+        ":string",
+        "//src/infrastructure:dirname_vm",
+        "//src/infrastructure:file_system_driver",
+    ],
+)
+
+cc_library(
+    name = "natural",
+    srcs = ["natural.cc"],
+    hdrs = ["natural.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":constant_expression",
+        ":default_environment",
+        ":delegating_expression",
+        ":environment",
+        ":function_call",
+        "//src/language:gc",
+        "//src/language/error:value_or_error",
+    ],
+)
+
+cc_library(
     name = "environment",
     srcs = ["environment.cc"],
     hdrs = ["environment.h"],
@@ -146,6 +187,24 @@ cc_library(
         ":callbacks",
         ":expression",
         ":types",
+    ],
+)
+
+cc_library(
+    name = "expression_equality",
+    srcs = ["expression_equality.cc"],
+    hdrs = ["expression_equality.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":binary_operator",
+        ":compilation",
+        ":delegating_expression",
+        ":expression",
+        ":types",
+        ":value",
+        "//src/language:gc",
+        "//src/language/error:value_or_error",
+        "//src/math:numbers",
     ],
 )
 
@@ -206,6 +265,7 @@ cc_library(
     deps = [
         ":compilation",
         ":constant_expression",
+        ":delegating_expression",
         ":environment",
         ":expression",
         ":filter_similar_names",
@@ -272,6 +332,7 @@ cc_library(
     hdrs = ["logical_expression.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":value",
         "//src/language:safe_types",
@@ -285,6 +346,7 @@ cc_library(
     hdrs = ["namespace_expression.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":value",
     ],
@@ -296,6 +358,7 @@ cc_library(
     hdrs = ["negate_expression.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":types",
         ":value",
@@ -325,6 +388,7 @@ cc_library(
     hdrs = ["return_expression.h"],
     deps = [
         ":compilation",
+        ":delegating_expression",
         ":expression",
         ":value",
     ],
@@ -421,6 +485,7 @@ cc_library(
         ":class_expression",
         ":compilation",
         ":cpp_c",
+        ":expression_equality",
         ":function_call",
         ":if_expression",
         ":lambda",
