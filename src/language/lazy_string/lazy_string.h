@@ -7,8 +7,8 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-class ColumnNumber;
-class ColumnNumberDelta;
+struct ColumnNumber;
+struct ColumnNumberDelta;
 
 // An immutable string. Implementations must ensure that identical calls to
 // methods in a given instance always output the same values.
