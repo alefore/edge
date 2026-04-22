@@ -19,16 +19,18 @@ class Pool;
 namespace afc::vm {
 class Environment;
 template <>
-const types::ObjectName
+/* static */ const types::ObjectName
     VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
         std::vector<language::text::LineColumn>>>>>::object_type_name;
 
 template <>
+/* static */
 const types::ObjectName
     VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
         std::set<language::text::LineColumn>>>>>::object_type_name;
 
 template <>
+/* static */
 const types::ObjectName VMTypeMapper<language::NonNull<
     std::shared_ptr<std::optional<language::text::Range>>>>::object_type_name;
 
@@ -39,6 +41,7 @@ struct VMTypeMapper<language::text::LineColumn> {
                                        language::text::LineColumn value);
   static const types::ObjectName object_type_name;
 };
+
 template <>
 struct VMTypeMapper<language::text::LineColumnDelta> {
   static language::text::LineColumnDelta get(Value& value);
@@ -46,6 +49,7 @@ struct VMTypeMapper<language::text::LineColumnDelta> {
                                        language::text::LineColumnDelta value);
   static const types::ObjectName object_type_name;
 };
+
 template <>
 struct VMTypeMapper<language::text::Range> {
   static language::text::Range get(Value& value);
