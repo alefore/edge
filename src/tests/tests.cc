@@ -13,10 +13,14 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/infrastructure/time.h"
 #include "src/language/container.h"
 
 namespace container = afc::language::container;
 
+using afc::infrastructure::Now;
+using afc::infrastructure::SecondsBetween;
+using afc::infrastructure::Time;
 using afc::language::InsertOrDie;
 
 namespace afc::tests {
@@ -212,6 +216,8 @@ void Run(std::vector<std::wstring> tests_filter) {
   const size_t kMaxConcurrentTests = 32;
   size_t next_test_to_launch_index = 0;
 
+  Time last_update = Now();
+
   while (next_test_to_launch_index < tests_to_schedule.size() ||
          !running_tests.empty()) {
     // Launch new tests as long as we are under capacity and have tests left to
@@ -226,12 +232,16 @@ void Run(std::vector<std::wstring> tests_filter) {
     }
 
     if (!running_tests.empty()) {
-      if (running_tests.size() == 1) {
+      Time now = Now();
+      if (SecondsBetween(last_update, now) >= 1.0) {
         TestInfoToSchedule info = running_tests.begin()->second;
-        std::cerr << " " << info.group_name << "." << info.test_name;
-      } else if (running_tests.size() < std::min(kMaxConcurrentTests, 10ul))
-        std::cerr << " " << running_tests.size();
-
+        std::cerr << "[" << next_test_to_launch_index - running_tests.size()
+                  << " / " << tests_to_schedule.size()
+                  << "] Running: " << running_tests.size() << " (e.g., "
+                  << info.group_name << "." << info.test_name << ")"
+                  << std::endl;
+        last_update = now;
+      }
       LOG(INFO) << "Waiting for a test to complete.";
 
       int wait_status;
@@ -248,7 +258,6 @@ void Run(std::vector<std::wstring> tests_filter) {
       CHECK(!execution_results[info.group_name].contains(info.test_name));
       execution_results[info.group_name][info.test_name] = wait_status;
       running_tests.erase(completed_pid);  // Clean up from tracking maps
-      if (!running_tests.empty()) std::cerr << ".";
     }
   }
   std::cerr << std::endl;
