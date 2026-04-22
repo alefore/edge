@@ -267,18 +267,24 @@ Predictor PrecomputedPredictor(
 namespace {
 const bool precomputed_predictor_tests_registration =
     tests::Register(L"PrecomputedPredictor", [] {
-      const static Predictor test_predictor = PrecomputedPredictor(
-          {NonEmptySingleLine{SingleLine{LazyString{L"foo"}}},
-           NonEmptySingleLine{SingleLine{LazyString{L"bar"}}},
-           NonEmptySingleLine{SingleLine{LazyString{L"bard"}}},
-           NonEmptySingleLine{SingleLine{LazyString{L"foo_bar"}}},
-           NonEmptySingleLine{SingleLine{LazyString{L"alejo"}}}},
-          L'_');
+      auto test_predictor = [] {
+        // We wrap this in a lambda so that it only gets evaluated *when* the
+        // tests run (so that PrecomputedPredictor and its dependencies can
+        // use glog).
+        const static Predictor output = PrecomputedPredictor(
+            {NonEmptySingleLine{SingleLine{LazyString{L"foo"}}},
+             NonEmptySingleLine{SingleLine{LazyString{L"bar"}}},
+             NonEmptySingleLine{SingleLine{LazyString{L"bard"}}},
+             NonEmptySingleLine{SingleLine{LazyString{L"foo_bar"}}},
+             NonEmptySingleLine{SingleLine{LazyString{L"alejo"}}}},
+            L'_');
+        return output;
+      };
       auto predict = [&](std::wstring input) {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
         PredictorOutput output =
-            test_predictor(
+            test_predictor()(
                 PredictorInput{
                     .editor = editor.value(),
                     .input = SingleLine{LazyString{input}},
@@ -298,7 +304,7 @@ const bool precomputed_predictor_tests_registration =
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
         bool executed = false;
-        Predict(test_predictor,
+        Predict(test_predictor(),
                 PredictorInput{.editor = editor.value(),
                                .input = SingleLine{LazyString{input}},
                                .input_column = ColumnNumber(input.size()),

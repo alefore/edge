@@ -156,8 +156,9 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
 
 const bool get_range_tests_registration = [] {
   using afc::language::gc::Root;
-  LineSequence snapshot =
-      LineSequence::ForTests({L"", L"Alejandro", L"Forero", L"Cuervo"});
+  auto snapshot = [] {
+    return LineSequence::ForTests({L"", L"Alejandro", L"Forero", L"Cuervo"});
+  };
   return tests::Register(
       L"Bisect::GetRange",
       {{.name = L"EmptyBufferCharForwards",
@@ -192,7 +193,7 @@ const bool get_range_tests_registration = [] {
         .callback =
             [=] {
               CHECK_EQ(
-                  GetRange(snapshot, Direction::kForwards, Structure::kChar,
+                  GetRange(snapshot(), Direction::kForwards, Structure::kChar,
                            LineColumn(LineNumber(1), ColumnNumber(4))),
                   Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                         LineColumn(LineNumber(1), ColumnNumber(9))));
@@ -201,7 +202,7 @@ const bool get_range_tests_registration = [] {
         .callback =
             [=] {
               CHECK_EQ(
-                  GetRange(snapshot, Direction::kBackwards, Structure::kChar,
+                  GetRange(snapshot(), Direction::kBackwards, Structure::kChar,
                            LineColumn(LineNumber(1), ColumnNumber(4))),
                   Range(LineColumn(LineNumber(1), ColumnNumber(0)),
                         LineColumn(LineNumber(1), ColumnNumber(4))));
@@ -210,13 +211,13 @@ const bool get_range_tests_registration = [] {
         .callback =
             [=] {
               CHECK_EQ(
-                  GetRange(snapshot, Direction::kForwards, Structure::kLine,
+                  GetRange(snapshot(), Direction::kForwards, Structure::kLine,
                            LineColumn(LineNumber(1), ColumnNumber(4))),
                   Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                         LineColumn(LineNumber(3), ColumnNumber(6))));
             }},
        {.name = L"NonEmptyBufferLineBackwards", .callback = [=] {
-          CHECK_EQ(GetRange(snapshot, Direction::kBackwards, Structure::kLine,
+          CHECK_EQ(GetRange(snapshot(), Direction::kBackwards, Structure::kLine,
                             LineColumn(LineNumber(1), ColumnNumber(4))),
                    Range(LineColumn(LineNumber(0), ColumnNumber(0)),
                          LineColumn(LineNumber(1), ColumnNumber(4))));

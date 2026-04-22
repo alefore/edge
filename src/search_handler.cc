@@ -274,8 +274,9 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
 
 namespace {
 bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
-  LineSequence contents =
-      LineSequence::ForTests({L"Alejandro", L"Forero", L"Cuervo"});
+  auto contents = [] {
+    return LineSequence::ForTests({L"Alejandro", L"Forero", L"Cuervo"});
+  };
   return std::vector<tests::Test>(
       {{.name = L"NoMatch",
         .callback =
@@ -285,12 +286,12 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             Direction::kForwards,
                             SearchOptions{
                                 .starting_position = LineColumn(
-                                    contents.range().end().line,
+                                    contents().range().end().line,
                                     std::numeric_limits<ColumnNumber>::max()),
                                 .search_query = SingleLine{LazyString{L"xxxx"}},
                                 .required_positions = std::nullopt,
                                 .case_sensitive = false},
-                            contents))
+                            contents()))
                         .empty());
             }},
        {.name = L"WithPositionAtEndInfiniteColumn",
@@ -300,12 +301,12 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                         Direction::kForwards,
                         SearchOptions{
                             .starting_position = LineColumn(
-                                contents.range().end().line,
+                                contents().range().end().line,
                                 std::numeric_limits<ColumnNumber>::max()),
                             .search_query = SingleLine{LazyString{L"rero"}},
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
-                        contents)) ==
+                        contents())) ==
                     std::vector<LineColumn>(
                         {LineColumn(LineNumber(1), ColumnNumber(2))}));
             }},
@@ -315,11 +316,11 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
               CHECK(ValueOrDie(SearchHandler(
                         Direction::kForwards,
                         SearchOptions{
-                            .starting_position = contents.range().end(),
+                            .starting_position = contents().range().end(),
                             .search_query = SingleLine{LazyString{L"rero"}},
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
-                        contents)) ==
+                        contents())) ==
                     std::vector<LineColumn>(
                         {LineColumn(LineNumber(1), ColumnNumber(2))}));
             }},
@@ -334,7 +335,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             .search_query = SingleLine{LazyString{L"r"}},
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
-                        contents)) ==
+                        contents())) ==
                     std::vector<LineColumn>(
                         {LineColumn(LineNumber(1), ColumnNumber(2)),
                          LineColumn(LineNumber(0), ColumnNumber(7)),
@@ -352,34 +353,34 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             .search_query = SingleLine{LazyString{L"ro"}},
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
-                        contents)) ==
+                        contents())) ==
                     std::vector<LineColumn>({
                         LineColumn(LineNumber(1), ColumnNumber(4)),
                         LineColumn(LineNumber(0), ColumnNumber(7)),
                     }));
             }},
        {.name = L"ReachMatchLimit", .callback = [=] {
-          CHECK(
-              ValueOrDie(SearchHandler(
-                  Direction::kForwards,
-                  SearchOptions{.starting_position =
-                                    LineColumn(LineNumber(1), ColumnNumber(3)),
-                                .search_query = SingleLine{LazyString{L"."}},
-                                .required_positions = 1,
-                                .case_sensitive = false},
-                  contents)) == std::vector<LineColumn>({
-                                    LineColumn(LineNumber(1), ColumnNumber(4)),
-                                    LineColumn(LineNumber(1), ColumnNumber(5)),
-                                    LineColumn(LineNumber(0), ColumnNumber(0)),
-                                    LineColumn(LineNumber(0), ColumnNumber(1)),
-                                    LineColumn(LineNumber(0), ColumnNumber(2)),
-                                    LineColumn(LineNumber(0), ColumnNumber(3)),
-                                    LineColumn(LineNumber(0), ColumnNumber(4)),
-                                    LineColumn(LineNumber(0), ColumnNumber(5)),
-                                    LineColumn(LineNumber(0), ColumnNumber(6)),
-                                    LineColumn(LineNumber(0), ColumnNumber(7)),
-                                    LineColumn(LineNumber(0), ColumnNumber(8)),
-                                }));
+          CHECK(ValueOrDie(SearchHandler(
+                    Direction::kForwards,
+                    SearchOptions{.starting_position = LineColumn(
+                                      LineNumber(1), ColumnNumber(3)),
+                                  .search_query = SingleLine{LazyString{L"."}},
+                                  .required_positions = 1,
+                                  .case_sensitive = false},
+                    contents())) ==
+                std::vector<LineColumn>({
+                    LineColumn(LineNumber(1), ColumnNumber(4)),
+                    LineColumn(LineNumber(1), ColumnNumber(5)),
+                    LineColumn(LineNumber(0), ColumnNumber(0)),
+                    LineColumn(LineNumber(0), ColumnNumber(1)),
+                    LineColumn(LineNumber(0), ColumnNumber(2)),
+                    LineColumn(LineNumber(0), ColumnNumber(3)),
+                    LineColumn(LineNumber(0), ColumnNumber(4)),
+                    LineColumn(LineNumber(0), ColumnNumber(5)),
+                    LineColumn(LineNumber(0), ColumnNumber(6)),
+                    LineColumn(LineNumber(0), ColumnNumber(7)),
+                    LineColumn(LineNumber(0), ColumnNumber(8)),
+                }));
         }}});
 }());
 }  // namespace
