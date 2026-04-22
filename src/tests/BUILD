@@ -19,7 +19,7 @@ cc_binary(
     srcs = ["benchmarks_main.cc"],
     deps = [
         ":benchmarks",
-        "@com_github_google_glog//:glog",
+        "@glog",
     ],
 )
 
@@ -50,7 +50,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:wstring",
-        "@com_github_google_glog//:glog",
+        "@glog",
     ],
 )
 

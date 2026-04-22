@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
 cc_binary(
     name = "edge",
     srcs = ["main.cc"],
@@ -97,10 +99,8 @@ cc_library(
         "//src/language/lazy_string:substring",
         "//src/language/text:line",
         "//src/language/text:line_column",
-        "//src/public:environment",
-        "//src/public:value",
-        "//src/public:vm",
         "//src/transformation:type",
+        "//src/vm",
     ],
 )
 

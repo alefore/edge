@@ -1,19 +1,24 @@
+build --repo_env=CC=clang
+build --repo_env=CXX=clang++
+
 # Set C++ standard to C++23.
-build --copt=-std=c++23
-# Enable debugging information
-build --copt=-g
+build --cxxopt=-std=c++23
+
 # Enable common warning flags
 build --copt=-Wall
 build --copt=-Wextra
-# Set preprocessor definition
-build --copt=-DDOCDIR='"$(docdir)"'
+build --copt=-Wshadow
+
 # Enable specific error flags
 build --copt=-Werror=return-type
 build --copt=-Werror=switch
 build --copt=-Werror=unused-function
 build --copt=-Werror=missing-field-initializers
 build --copt=-Werror=unused-but-set-variable
-build --copt=-Werror=range-loop-construct
-build --copt=-Wunused-lambda-capture
-# Enable shadow warnings
-build --copt=-Wshadow
+
+# C++ specific warnings/errors
+build --cxxopt=-Werror=range-loop-construct
+build --cxxopt=-Wunused-lambda-capture
+
+# Set preprocessor definition
+build --copt=-DDOCDIR='"$(docdir)"'
