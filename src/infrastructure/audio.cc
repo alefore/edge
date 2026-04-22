@@ -53,7 +53,7 @@ Generator::Callback Oscillate(audio::Frequency freq) {
   };
 }
 
-#if HAVE_LIBAO
+#if defined(HAVE_LIBAO)
 class Frame {
  public:
   Frame(int size)
@@ -215,7 +215,7 @@ NonNull<std::unique_ptr<Player>> NewNullPlayer() {
 }
 
 NonNull<std::unique_ptr<Player>> NewPlayer() {
-#if HAVE_LIBAO
+#if defined(HAVE_LIBAO)
   ao_initialize();
   ao_sample_format format;
   memset(&format, 0, sizeof(format));

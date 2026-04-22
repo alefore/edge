@@ -1,11 +1,7 @@
 #ifndef __AFC_EDITOR_INFRASTRUCTURE_AUDIO_H__
 #define __AFC_EDITOR_INFRASTRUCTURE_AUDIO_H__
 
-// clang-format off
-#include "config.h"
-// clang-format on
-
-#if HAVE_LIBAO
+#if defined(HAVE_LIBAO)
 #include <ao/ao.h>
 #endif
 
