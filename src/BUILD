@@ -262,7 +262,7 @@ cc_binary(
     linkopts = [
         "-lncursesw",
         "-lpthread",
-        "-lao",
+        # "-lao",
     ],
     deps = [
         "//src/concurrent:version_property_receiver",
