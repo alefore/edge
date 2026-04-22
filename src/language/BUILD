@@ -111,7 +111,11 @@ cc_library(
 
 cc_library(
     name = "gc",
-    srcs = ["gc.cc"],
+    srcs = [
+        "gc.cc",
+        # TODO(P2, 2026-04-22): Enable.
+        # "gc_tests.cc",
+    ],
     hdrs = ["gc.h"],
     visibility = ["//visibility:public"],
     deps = [
