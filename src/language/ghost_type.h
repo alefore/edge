@@ -625,7 +625,6 @@
 // of variables that don'the define corresponding operators.
 #define GHOST_TYPE_OUTPUT(ClassName, variable)                              \
   inline std::ostream& operator<<(std::ostream& os, const ClassName& obj) { \
-    using ::operator<<;                                                     \
     os << "[" #ClassName ":" << obj.variable << "]";                        \
     return os;                                                              \
   }                                                                         \
