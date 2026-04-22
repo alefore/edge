@@ -282,6 +282,7 @@ cc_binary(
         "//src/infrastructure/screen:cursors",
         "//src/infrastructure/screen:line_modifier",
         "//src/infrastructure/screen:visual_overlay",
+        "//src/language:gc_tests",
         "//src/language:observers",
         "//src/language:observers_gc",
         "//src/language/lazy_string",

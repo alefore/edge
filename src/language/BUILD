@@ -113,13 +113,28 @@ cc_library(
     name = "gc",
     srcs = [
         "gc.cc",
-        # TODO(P2, 2026-04-22): Enable.
-        # "gc_tests.cc",
     ],
     hdrs = ["gc.h"],
     visibility = ["//visibility:public"],
     deps = [
         "//src/concurrent:bag",
+    ],
+)
+
+cc_library(
+    name = "gc_tests",
+    srcs = ["gc_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":container",
+        ":gc",
+        ":gc_view",
+        ":safe_types",
+        "//src/concurrent:protected",
+        "//src/futures:delete_notification",
+        "//src/language/lazy_string",
+        "//src/tests",
+        "//src/tests:concurrent",
     ],
 )
 
