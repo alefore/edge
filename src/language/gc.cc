@@ -15,6 +15,7 @@ extern "C" {
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
 using afc::concurrent::Bag;
@@ -26,6 +27,7 @@ using afc::concurrent::ThreadPool;
 using afc::infrastructure::CountDownTimer;
 using afc::language::EraseIf;
 using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::language {
 namespace gc {
@@ -115,16 +117,19 @@ bool ObjectMetadata::IsAlive() const {
 Pool::Pool(Options options)
     : options_([&] {
         if (options.operation_factory == nullptr)
-          options.operation_factory = std::make_shared<OperationFactory>(
-              MakeNonNullShared<ThreadPool>(8));
+          options.operation_factory =
+              std::make_shared<OperationFactory>(MakeNonNullShared<ThreadPool>(
+                  LazyString{L"PoolOperationsFactory"}, 8));
         return std::move(options);
       }()),
-      eden_(Eden(options_.max_bag_shards, 0)),
+      eden_(Eden(options_.max_bag_shards, 0, std::nullopt)),
       data_(Data{.expansion_schedule = concurrent::Bag<ObjectExpandVector>(
-                     {.shards = options_.max_bag_shards})}),
+                     {.name = LazyString{L"GCPoolExpansionSchedule"},
+                      .shards = options_.max_bag_shards})}),
       root_backtrace_(VLOG_IS_ON(9)
                           ? std::make_optional(Bag<Backtrace>(
-                                BagOptions{.shards = options_.max_bag_shards}))
+                                BagOptions{.name = LazyString{L"RootBacktrace"},
+                                           .shards = options_.max_bag_shards}))
                           : std::optional<Bag<Backtrace>>()),
       async_work_(options_.operation_factory->New(nullptr)) {
   LOG(INFO) << "GC: root_backtrace: "
@@ -216,9 +221,9 @@ Pool::CollectOutput Pool::Collect(bool full) {
           }
         }
         return std::exchange(
-            eden_data,
-            Eden(options_.max_bag_shards,
-                 eden_data.consecutive_unfinished_collect_calls + 1));
+            eden_data, Eden(options_.max_bag_shards,
+                            eden_data.consecutive_unfinished_collect_calls + 1,
+                            ObjectExpandVector{}));
       });
 
   if (eden == std::nullopt) {
@@ -230,7 +235,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
   // unlocked data_. We don't need high parallelism here (the only concurrent
   // operation is adding vectors of objects), so 4 shards are good enough.
   Bag<std::vector<ObjectMetadata::ExpandCallback>> expired_objects_callbacks(
-      BagOptions{.shards = std::min(options_.max_bag_shards, 4ul)});
+      BagOptions{.name = LazyString{L"GCObjectExpiration"},
+                 .shards = std::min(options_.max_bag_shards, 4ul)});
 
   FullCollectStats stats;
   if (!data_.lock([&](Data& data) {
@@ -270,9 +276,9 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
             TRACK_OPERATION(gc_Pool_Collect_EdenChanged);
             return std::exchange(
-                eden_data,
-                Eden(options_.max_bag_shards,
-                     eden_data.consecutive_unfinished_collect_calls));
+                eden_data, Eden(options_.max_bag_shards,
+                                eden_data.consecutive_unfinished_collect_calls,
+                                ObjectExpandVector{}));
           });
         }
 
@@ -308,6 +314,8 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
   PushAndClean(data.object_metadata_list, std::move(eden.object_metadata));
 
   if (eden.expansion_schedule.has_value()) {
+    LOG(INFO) << "GC: Add eden expansion schedule: "
+              << eden.expansion_schedule->size();
     TRACK_OPERATION(gc_Pool_ConsumeEden_expansion_schedule);
     data.expansion_schedule.Add(std::move(eden.expansion_schedule.value()));
   }
@@ -368,8 +376,10 @@ void Pool::Expand(const Operation& parallel_operation,
                                                 std::list<ObjectExpandVector>&
                                                     shard) {
     TRACK_OPERATION(gc_Pool_Expand_shard);
+    size_t vectors = 0;
     while (!shard.empty() &&
            !(count_down_timer.has_value() && count_down_timer->IsDone())) {
+      ++vectors;
       std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
           std::move(shard.back());
       shard.pop_back();
@@ -403,6 +413,7 @@ void Pool::Expand(const Operation& parallel_operation,
         if (!expansion.empty()) shard.push_back(std::move(expansion));
       }
     }
+    VLOG(6) << "Shard expanded: " << vectors;
   });
 }
 
@@ -514,9 +525,13 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
 }
 
 Pool::Eden::Eden(size_t bag_shards,
-                 size_t input_consecutive_unfinished_collect_calls)
-    : object_metadata(concurrent::BagOptions{.shards = bag_shards}),
-      roots(concurrent::BagOptions{.shards = bag_shards}),
+                 size_t input_consecutive_unfinished_collect_calls,
+                 std::optional<ObjectExpandVector> initial_expansion_schedule)
+    : object_metadata(concurrent::BagOptions{
+          .name = LazyString{L"GCEdenObjectMetadata"}, .shards = bag_shards}),
+      roots(concurrent::BagOptions{.name = LazyString{L"GCEdenRoots"},
+                                   .shards = bag_shards}),
+      expansion_schedule(std::move(initial_expansion_schedule)),
       consecutive_unfinished_collect_calls(
           input_consecutive_unfinished_collect_calls) {}
 

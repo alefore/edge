@@ -292,7 +292,8 @@ class Pool {
   // The eden area holds information about recent activity. This is optimized to
   // be locked only very briefly, to avoid blocking progress.
   struct Eden {
-    Eden(size_t bag_shards, size_t consecutive_unfinished_collect_calls);
+    Eden(size_t bag_shards, size_t consecutive_unfinished_collect_calls,
+         std::optional<ObjectExpandVector> initial_expansion_schedule);
 
     bool IsEmpty() const;
 
@@ -303,7 +304,7 @@ class Pool {
     // Normally is absent. If a `Collect` operation is interrupted, set to a
     // list to which `AddToEdenExpandList` will add objects (so that when the
     // collection is resumed, those expansions happen). See `Ptr::Protect`.
-    std::optional<ObjectExpandVector> expansion_schedule = std::nullopt;
+    std::optional<ObjectExpandVector> expansion_schedule;
 
     // Incremented each time a call to `Collect` stops without finishing, and
     // reset as soon as the call finishes. Used to adjust the execution
@@ -481,6 +482,7 @@ class Ptr {
   Ptr(std::weak_ptr<U> value,
       language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata)
       : value_(value), object_metadata_(object_metadata) {
+    Protect();
     VLOG(10) << "Ptr(pool, value): " << object_metadata_.get_shared()
              << " (value: " << value_.lock() << ")";
   }

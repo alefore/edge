@@ -6,6 +6,7 @@
 
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::concurrent {
 namespace {
@@ -14,11 +15,11 @@ const bool tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            ThreadPool thread_pool(5);
+            ThreadPool thread_pool(LazyString{L"TestPool"}, 5);
             Operation op(thread_pool);
           }},
      {.name = L"Sleeps", .callback = [] {
-        ThreadPool thread_pool(4);
+        ThreadPool thread_pool(LazyString{L"TestPool"}, 4);
         Protected<int> executions(0);
         auto op = std::make_unique<Operation>(thread_pool);
         for (size_t i = 0; i < 8; i++)
@@ -29,9 +30,9 @@ const bool tests_registration = tests::Register(
         op = nullptr;
         CHECK_EQ(*executions.lock(), 8);
       }}});
-}
+}  // namespace
 
-OperationFactory ::OperationFactory(
+OperationFactory::OperationFactory(
     NonNull<std::shared_ptr<ThreadPool>> thread_pool)
     : thread_pool_(std::move(thread_pool)) {}
 

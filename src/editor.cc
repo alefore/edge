@@ -232,7 +232,8 @@ class BuffersListAdapter : public BuffersList::CustomerAdapter {
 /* static */ NonNull<std::unique_ptr<EditorState>> EditorState::New(
     CommandLineValues args, infrastructure::audio::Player& audio_player) {
   auto thread_pool = MakeNonNullShared<ThreadPoolWithWorkQueue>(
-      MakeNonNullShared<ThreadPool>(32), WorkQueue::New());
+      MakeNonNullShared<ThreadPool>(LazyString{L"EditorDefault"}, 32),
+      WorkQueue::New());
   NonNull<std::unique_ptr<language::gc::Pool>> gc_pool =
       MakeNonNullUnique<language::gc::Pool>(gc::Pool::Options{
           .collect_duration_threshold = 0.05,

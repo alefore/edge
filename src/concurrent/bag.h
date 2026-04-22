@@ -11,9 +11,11 @@
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::concurrent {
 struct BagOptions {
+  language::lazy_string::LazyString name;
   size_t shards = 64;
 };
 

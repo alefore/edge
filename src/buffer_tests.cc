@@ -461,25 +461,34 @@ const bool buffer_registry_tests_registration = tests::Register(
               editor->gc_pool().BlockUntilDone();
             }
           }},
+     // GLOG_alsologtostderr=y GLOG_vmodule=gc=8 bazel-bin/src/edge
+     // --tests_filter=BufferRegistry.FuturePasteBufferSurvives
      {.name = L"FuturePasteBufferSurvives", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
         std::optional<gc::Root<OpenBuffer>> buffer_root =
             OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
                                                 .name = FuturePasteBuffer{}});
+        LOG(INFO) << "Created buffer." << editor->gc_pool();
+
         gc::WeakPtr<OpenBuffer> buffer_weak = buffer_root->ptr().ToWeakPtr();
         editor->buffer_registry().Add(FuturePasteBuffer{}, buffer_weak);
-        editor->CloseBuffer(buffer_root->ptr().value());
         buffer_root = std::nullopt;
 
+        LOG(INFO) << "Starting collection.";
+        LOG(INFO) << editor->gc_pool();
         editor->gc_pool().FullCollect();
+        LOG(INFO) << "Block until done.";
         editor->gc_pool().BlockUntilDone();
         CHECK(buffer_weak.Lock().has_value());
 
+        LOG(INFO) << "Now removing it.";
         editor->buffer_registry().Remove(FuturePasteBuffer{});
+        LOG(INFO) << editor->gc_pool();
         editor->gc_pool().FullCollect();
         editor->gc_pool().BlockUntilDone();
         CHECK(!buffer_weak.Lock().has_value());
+        LOG(INFO) << "Returning.";
       }}});
 
 template <typename T>

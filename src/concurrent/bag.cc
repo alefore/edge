@@ -6,12 +6,16 @@
 
 #include "src/concurrent/protected.h"
 #include "src/concurrent/thread_pool.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/tests/tests.h"
+
+using afc::language::lazy_string::LazyString;
 
 namespace afc::concurrent {
 namespace {
 Bag<size_t> NumbersBag(size_t begin, size_t end, size_t shards = 10) {
-  Bag<size_t> bag(BagOptions{.shards = shards});
+  Bag<size_t> bag(
+      BagOptions{.name = LazyString{L"NumbersBag"}, .shards = shards});
   for (size_t i = begin; i < end; i++) bag.Add(i);
   return bag;
 }
@@ -28,7 +32,8 @@ const bool tests_registration = tests::Register(
         {.name = L"Empty",
          .callback =
              [] {
-               Bag<size_t> bag(BagOptions{.shards = 10});
+               Bag<size_t> bag(
+                   BagOptions{.name = LazyString{L"TestBag"}, .shards = 10});
                CHECK(bag.empty());
                CHECK_EQ(bag.size(), 0ul);
                CHECK(BagToSet(bag) == std::set<size_t>());
@@ -36,7 +41,8 @@ const bool tests_registration = tests::Register(
         {.name = L"Erase",
          .callback =
              [] {
-               Bag<size_t> bag(BagOptions{.shards = 10});
+               Bag<size_t> bag(
+                   BagOptions{.name = LazyString{L"TestBag"}, .shards = 10});
                std::optional<Bag<size_t>::Registration> iterator;
                for (size_t i = 0; i < 1000; i++)
                  if (i == 257)
@@ -57,7 +63,7 @@ const bool tests_registration = tests::Register(
         {.name = L"RemoveIf",
          .callback =
              [] {
-               ThreadPool thread_pool(5);
+               ThreadPool thread_pool(LazyString{L"Test"}, 5);
 
                std::set<size_t> expected = BagToSet(NumbersBag(0, 100));
                expected.erase(27);

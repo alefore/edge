@@ -50,7 +50,8 @@ class BufferSyntaxParser {
  private:
   void ParseInternal(language::text::LineSequence contents);
 
-  mutable concurrent::ThreadPool thread_pool_ = concurrent::ThreadPool(1);
+  mutable concurrent::ThreadPool thread_pool_ = concurrent::ThreadPool(
+      language::lazy_string::LazyString{L"BufferSyntaxParser"}, 1);
   concurrent::ChannelLast<language::text::LineSequence> parse_channel_ =
       concurrent::ChannelLast<language::text::LineSequence>(
           std::bind_front(

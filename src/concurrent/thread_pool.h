@@ -9,13 +9,25 @@
 
 #include "src/concurrent/work_queue.h"
 #include "src/futures/futures.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::concurrent {
 // Prefer using concurrent::OperationFactory over scheduling directly to the
 // thread pool.
 class ThreadPool {
+  const language::lazy_string::LazyString name_;
+  const size_t size_;
+  struct Data {
+    bool shutting_down = false;
+    std::vector<std::thread> threads = {};
+    size_t active_work = 0;
+    std::list<std::function<void()>> work = {};
+  };
+  ProtectedWithCondition<Data, EmptyValidator<Data>, false> data_ =
+      ProtectedWithCondition<Data, EmptyValidator<Data>, false>(Data{});
+
  public:
-  ThreadPool(size_t size);
+  ThreadPool(language::lazy_string::LazyString name, size_t size);
   ~ThreadPool();
 
   size_t size() const;
@@ -32,16 +44,6 @@ class ThreadPool {
  private:
   void Schedule(std::function<void()> work);
   void BackgroundThread();
-
-  const size_t size_;
-  struct Data {
-    bool shutting_down = false;
-    std::vector<std::thread> threads = {};
-    size_t active_work = 0;
-    std::list<std::function<void()>> work = {};
-  };
-  ProtectedWithCondition<Data, EmptyValidator<Data>, false> data_ =
-      ProtectedWithCondition<Data, EmptyValidator<Data>, false>(Data{});
 };
 
 // This is very similar to ThreadPool, but holds a work_queue. This allows us to

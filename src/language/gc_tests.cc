@@ -7,6 +7,7 @@
 #include "src/language/container.h"
 #include "src/language/gc.h"
 #include "src/language/gc_view.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/tests/concurrent.h"
 #include "src/tests/tests.h"
@@ -19,6 +20,7 @@ using afc::concurrent::Protected;
 using afc::concurrent::ThreadPool;
 using afc::futures::DeleteNotification;
 using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
 using afc::tests::concurrent::TestFlows;
 
 namespace afc::language::gc {
@@ -58,7 +60,8 @@ Root<Node> MakeLoop(Pool& pool, int size) {
 bool tests_gc_races_registration = tests::Register(
     L"GCRaces",
     {{.name = L"Simple", .runs = 0, .callback = [] {
-        auto thread_pool = MakeNonNullShared<ThreadPool>(64);
+        auto thread_pool =
+            MakeNonNullShared<ThreadPool>(LazyString{L"GCRacesTest"}, 64);
         auto operation_factory =
             MakeNonNullShared<OperationFactory>(thread_pool);
         TestFlows({.thread_pool = thread_pool,

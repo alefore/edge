@@ -25,7 +25,7 @@ using afc::language::lazy_string::ToLazyString;
 namespace afc::editor {
 namespace {
 ThreadPool& LoggingThreadPool() {
-  static ThreadPool* output = new ThreadPool(1);
+  static ThreadPool* output = new ThreadPool(LazyString{L"Logging"}, 1);
   return *output;
 }
 

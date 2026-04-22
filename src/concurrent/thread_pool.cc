@@ -5,9 +5,11 @@
 #include "src/tests/tests.h"
 
 using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::concurrent {
-ThreadPool::ThreadPool(size_t size) : size_(size) {
+ThreadPool::ThreadPool(LazyString name, size_t size)
+    : name_(std::move(name)), size_(size) {
   data_.lock([this](Data& data, std::condition_variable&) {
     for (size_t i = 0; i < size_; i++) {
       data.threads.push_back(std::thread([this]() { BackgroundThread(); }));
@@ -24,7 +26,7 @@ size_t ThreadPool::pending_work_units() const {
 }
 
 ThreadPool::~ThreadPool() {
-  LOG(INFO) << "Starting destruction of ThreadPool.";
+  LOG(INFO) << name_ << ": Starting destruction of ThreadPool.";
   std::vector<std::thread> threads;
   data_.lock([&threads](Data& data, std::condition_variable& condition) {
     CHECK(!data.shutting_down);
@@ -32,9 +34,9 @@ ThreadPool::~ThreadPool() {
     condition.notify_all();
     threads.swap(data.threads);
   });
-  LOG(INFO) << "Joining threads.";
+  LOG(INFO) << name_ << ": Joining threads.";
   for (auto& t : threads) t.join();
-  LOG(INFO) << "All threads are joined.";
+  LOG(INFO) << name_ << ": All threads are joined.";
 }
 
 void ThreadPool::Schedule(std::function<void()> work) {
@@ -54,7 +56,7 @@ void ThreadPool::BackgroundThread() {
   bool active_work_thread = false;
   while (true) {
     std::function<void()> callback;
-    VLOG(8) << "BackgroundThread waits for work.";
+    VLOG(8) << name_ << ": BackgroundThread waits for work.";
     data_.wait([this, &callback, &active_work_thread](Data& data) {
       if (active_work_thread) {
         CHECK_GE(data.active_work, 0ul);
@@ -72,10 +74,10 @@ void ThreadPool::BackgroundThread() {
       return true;
     });
     if (callback == nullptr) {
-      VLOG(4) << "BackgroundThread exits.";
+      VLOG(4) << name_ << ": BackgroundThread exits.";
       return;
     }
-    VLOG(9) << "BackgroundThread executing work.";
+    VLOG(9) << name_ << ": BackgroundThread executing work.";
     callback();
   }
 }
