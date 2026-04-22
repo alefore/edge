@@ -77,6 +77,7 @@ cc_library(
     name = "tokenize",
     srcs = ["tokenize.cc"],
     hdrs = ["tokenize.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":lazy_string",
         ":lowercase",
