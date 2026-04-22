@@ -4,6 +4,9 @@
 #include "src/concurrent/protected.h"
 #include "src/language/once_only_function.h"
 
+// TODO(P1, 2026-04-22, trivial): Deduplicate against LazyValue? They seem to
+// do the same?
+
 namespace afc::language {
 // This class is thread-compatible. Ret is assumed to be a thread-compatible
 // object.
