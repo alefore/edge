@@ -11,7 +11,7 @@
 
 namespace afc::math::numbers {
 
-class BigIntDivideOutput;
+struct BigIntDivideOutput;
 class BigInt;
 class NonZeroBigInt;
 
