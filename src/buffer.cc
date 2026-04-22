@@ -2627,6 +2627,7 @@ void OpenBuffer::set_filter(gc::Root<Value> filter) {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 OpenBuffer::Expand() const {
+  LOG(INFO) << "Buffer::Expand: " << name();
   return {default_commands_.object_metadata(), mode_.object_metadata(),
           execution_context_.object_metadata()};
 }
