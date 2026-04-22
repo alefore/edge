@@ -20,7 +20,7 @@ namespace afc::vm {
 class Value;
 class ObjectType;
 namespace types {
-class ObjectName;
+struct ObjectName;
 }
 // Represents a namespace in the VM environment, where symbols can be defined.
 // For example, a reference `lib::zk::Today` is actually the symbol "Today" in
