@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "src/language/container.h"
 #include "src/language/gc.h"
 #include "src/language/gc_view.h"
 
@@ -12,7 +11,7 @@ template <typename T>
 struct ExpandHelper<std::vector<gc::Ptr<T>>> {
   std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
       const std::vector<gc::Ptr<T>>& input) {
-    return container::MaterializeVector(input | gc::view::ObjectMetadata);
+    return input | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
   }
 };
 
