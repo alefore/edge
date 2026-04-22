@@ -192,6 +192,7 @@ std::optional<size_t> BufferRegistry::GetListedBufferIndex(
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
   return data_.lock([](const Data& data) {
+    LOG(INFO) << "BufferRegistry: Expand: " << data.retained_buffers.size();
     return data.retained_buffers | gc::ExpandMapPtrValues |
            std::ranges::to<std::vector>();
   });
