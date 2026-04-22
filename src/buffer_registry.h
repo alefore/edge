@@ -66,6 +66,10 @@ class BufferRegistry {
                  std::function<bool(const OpenBuffer&)> is_dirty,
                  std::function<void(OpenBuffer&)> close_buffer);
 
+  ~BufferRegistry() { LOG(INFO) << "Registry deleted."; }
+
+  BufferRegistry(const BufferRegistry&) = delete;
+
   language::gc::Root<OpenBuffer> MaybeAdd(
       const BufferName& name,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
