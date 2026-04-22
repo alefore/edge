@@ -55,7 +55,7 @@ struct VMTypeMapper<void> {
 
 template <>
 struct VMTypeMapper<bool> {
-  static int get(Value& value) { return value.get_bool(); }
+  static bool get(Value& value) { return value.get_bool(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool, bool value) {
     return Value::NewBool(pool, value);
   }
@@ -206,10 +206,9 @@ struct VMTypeMapperResolver {
 };
 
 template <typename Callable, std::size_t Index, typename ArgsVector>
-auto ProcessArg(const ArgsVector& args) ->
-    typename ArgTupleMaker<
-        decltype(VMTypeMapperResolver<Callable, Index>::type::get(
-            args.at(Index).ptr().value()))>::type {
+auto ProcessArg(const ArgsVector& args) -> typename ArgTupleMaker<
+    decltype(VMTypeMapperResolver<Callable, Index>::type::get(
+        args.at(Index).ptr().value()))>::type {
   return VMTypeMapperResolver<Callable, Index>::type::get(
       args.at(Index).ptr().value());
 }
