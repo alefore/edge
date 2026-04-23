@@ -41,6 +41,8 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
 language::text::LineMetadataMap GetLineMetadata(Spec spec);
 Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values);
 
+std::vector<language::lazy_string::LazyString> GetValidParses(
+    language::lazy_string::LazyString input, SuffixMode suffix_mode);
 }  // namespace afc::editor::open_file_position
 
 #endif  // __AFC_EDITOR_OPEN_FILE_POSITION_H__

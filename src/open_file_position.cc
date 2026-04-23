@@ -1,6 +1,9 @@
 #include "src/open_file_position.h"
 
+#include <ranges>
+
 #include "src/language/error/value_or_error.h"
+#include "src/language/error/view.h"
 #include "src/language/lazy_string/convert.h"
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
@@ -24,6 +27,7 @@ using afc::language::text::LineMetadataKey;
 using afc::language::text::LineMetadataMap;
 using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
+using afc::language::view::SkipErrors;
 
 namespace afc::editor::open_file_position {
 bool operator==(const Default&, const Default&) { return true; }
@@ -196,4 +200,129 @@ Spec SpecFromLineMetadata(const language::text::LineMetadataMap& values) {
   return OptionalFrom(SpecFromLineMetadataInternal(values)).value_or(Default{});
 }
 
+std::vector<LazyString> GetValidParses(LazyString input,
+                                       SuffixMode suffix_mode) {
+  LOG(INFO) << "GetValid: " << input;
+  std::vector<LazyString> output =
+      FindAllOf(input, {L':'}) |
+      std::views::transform(
+          [&](ColumnNumber end_column) -> ValueOrError<LazyString> {
+            std::optional<Spec> parse_output =
+                Parse(input.Substring(end_column), suffix_mode);
+            if (parse_output == std::nullopt ||
+                (std::holds_alternative<Default>(parse_output.value()) &&
+                 end_column.ToDelta() != input.size()))
+              return Error{LazyString{L"Bad suffix."}};
+            return input.Substring(ColumnNumber{}, end_column.ToDelta());
+          }) |
+      SkipErrors | std::ranges::to<std::vector>();
+  output.push_back(input);
+  for (LazyString o : output) LOG(INFO) << "Output: " << o;
+  return output;
+}
+
+namespace {
+const bool get_valid_parses_tests_registration = tests::Register(
+    L"open_file_position_GetValidParses",
+    {
+        {.name = L"NoColonAllow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"/foo/bar/foo"},
+                                    SuffixMode::Allow) ==
+                     std::vector{LazyString{L"/foo/bar/foo"}});
+             }},
+        {.name = L"NoColonDisallow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"/foo/bar/foo"},
+                                    SuffixMode::Disallow) ==
+                     std::vector{LazyString{L"/foo/bar/foo"}});
+             }},
+        {.name = L"ColonInPathDisallow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"/foo:bar"},
+                                    SuffixMode::Disallow) ==
+                     std::vector{LazyString{L"/foo:bar"}});
+             }},
+        {.name = L"ColonSearchAllow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"/foo:/bar/quux:/meh"},
+                                    SuffixMode::Allow) ==
+                     (std::vector{LazyString{L"/foo"},
+                                  LazyString{L"/foo:/bar/quux"},
+                                  LazyString{L"/foo:/bar/quux:/meh"}}));
+             }},
+        {.name = L"ColonSearchDisallow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"/foo:/bar/quux:/meh"},
+                                    SuffixMode::Disallow) ==
+                     (std::vector{LazyString{L"/foo"},
+                                  LazyString{L"/foo:/bar/quux"},
+                                  LazyString{L"/foo:/bar/quux:/meh"}}));
+             }},
+        {.name = L"SimpleWithLineAllow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"animals/cat:23"},
+                                    SuffixMode::Allow) ==
+                     (std::vector{LazyString{L"animals/cat"},
+                                  LazyString{L"animals/cat:23"}}));
+             }},
+        {.name = L"SimpleWithLineDisallow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"animals/cat:23"},
+                                    SuffixMode::Disallow) ==
+                     (std::vector{LazyString{L"animals/cat"},
+                                  LazyString{L"animals/cat:23"}}));
+             }},
+        {.name = L"SimpleWithLineAllowWithGarbage",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"animals/cat:23 errors"},
+                                    SuffixMode::Allow) ==
+                     (std::vector{LazyString{L"animals/cat"},
+                                  LazyString{L"animals/cat:23 errors"}}));
+             }},
+        {.name = L"SimpleAllowNoFalsePositive",
+         .callback =
+             [] {
+               CHECK(
+                   GetValidParses(LazyString{L"cat:bar"}, SuffixMode::Allow) ==
+                   (std::vector{
+                       LazyString{L"cat:bar"},
+                   }));
+             }},
+
+        {.name = L"ManyMatchesAllow",
+         .callback =
+             [] {
+               CHECK(GetValidParses(LazyString{L"cat:23:errors:12:/foo:83:bar"},
+                                    SuffixMode::Allow) ==
+                     (std::vector{
+                         LazyString{L"cat"},
+                         LazyString{L"cat:23:errors"},
+                         LazyString{L"cat:23:errors:12"},
+                         LazyString{L"cat:23:errors:12:/foo"},
+                         LazyString{L"cat:23:errors:12:/foo:83:bar"},
+                     }));
+             }},
+        {.name = L"ManyMatchesDisallow",
+         .callback =
+             [] {
+               CHECK(
+                   GetValidParses(LazyString{L"cat:/23:errors:12:/foo:83:bar"},
+                                  SuffixMode::Disallow) ==
+                   (std::vector{
+                       LazyString{L"cat"},
+                       LazyString{L"cat:/23:errors:12"},
+                       LazyString{L"cat:/23:errors:12:/foo:83:bar"},
+                   }));
+             }},
+    });
+}  // namespace
 }  // namespace afc::editor::open_file_position
