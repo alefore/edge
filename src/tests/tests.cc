@@ -56,6 +56,8 @@ struct TestInfoToSchedule {
   std::wstring group_name;
   std::wstring test_name;
   const Test& test;
+
+  std::wstring full_name() const { return group_name + L"." + test_name; }
 };
 
 struct TestCompletionReport {
@@ -89,7 +91,9 @@ std::vector<TestInfoToSchedule> GetSchedule(
                 return matcher.Match(LazyString{name}).match_type ==
                        GlobMatcher::MatchResults::MatchType::Exact;
               }))
-        output.push_back({name, test_obj.name, test_obj});
+        output.push_back(TestInfoToSchedule{.group_name = group_name,
+                                            .test_name = test_obj.name,
+                                            .test = test_obj});
     }
   }
   return output;
@@ -101,8 +105,7 @@ pid_t ForkTest(const TestInfoToSchedule& info) {
 
   if (child_pid != 0) return child_pid;
   // Child process: execute the test callback
-  LOG(INFO) << "Child process: starting callback for " << info.group_name
-            << L"." << info.test_name;
+  LOG(INFO) << "Child process: starting callback for " << info.full_name();
 
   // Set process name for easier debugging with 'ps'
   std::string process_name =
@@ -255,9 +258,8 @@ void Run(std::vector<std::wstring> tests_filter) {
         TestInfoToSchedule info = running_tests.begin()->second;
         std::cerr << "[" << next_test_to_launch_index - running_tests.size()
                   << " / " << tests_to_schedule.size()
-                  << "] Running: " << running_tests.size() << " (e.g., "
-                  << info.group_name << "." << info.test_name << ")"
-                  << std::endl;
+                  << "] Running: " << running_tests.size() << " ("
+                  << info.full_name() << ")" << std::endl;
         last_update = now;
       }
       LOG(INFO) << "Waiting for a test to complete.";
