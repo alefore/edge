@@ -98,6 +98,14 @@ std::set<typename Container::key_type> GetSetWithKeys(
 }
 
 namespace container {
+// Given a range of variants, filter it down to a range of one of the sub-types.
+template <typename T>
+inline constexpr auto filter_variant =
+    std::views::filter([](auto&& v) { return std::holds_alternative<T>(v); }) |
+    std::views::transform([](auto&& v) -> decltype(auto) {
+      return std::get<T>(std::forward<decltype(v)>(v));
+    });
+
 template <std::ranges::input_range Range, typename Predicate>
 std::optional<std::ranges::range_value_t<Range>> FindFirstIf(Range&& range,
                                                              Predicate pred) {
