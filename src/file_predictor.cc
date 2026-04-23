@@ -184,7 +184,8 @@ std::generator<ComponentData> ViewComponents(
     const GlobMatcher& glob_matcher, FilePredictorMatchType match_type) {
   if (glob_matcher.pattern_type() == GlobMatcher::PatternType::Literal &&
       match_type == FilePredictorMatchType::Exact) {
-    ValueOrError<Path> input_path = Path::New(glob_matcher.pattern());
+    ValueOrError<Path> input_path =
+        Path::New(TrimRight(glob_matcher.pattern(), {L'/'}));
     if (HasValue(input_path)) {
       std::error_code ec;
       std::filesystem::directory_entry entry(
@@ -539,6 +540,7 @@ const bool predict_in_search_path_tests_registration =
         std::optional<ColumnNumberDelta> longest_prefix = std::nullopt;
         std::optional<bool> found_exact_match = std::nullopt;
         static Expectations Predictions(std::vector<std::wstring> value) {
+          CHECK(!value.empty());
           return Expectations{.predictions = value};
         }
         static Expectations NoPrediction() { return Predictions({L""}); }
@@ -656,7 +658,7 @@ const bool predict_in_search_path_tests_registration =
                       FilePredictorOptions{.match_type =
                                                FilePredictorMatchType::Exact}),
                  test(L"TrailingComponentsAfterFile",
-                      L"animals/dog.txt/foo/bar", Expectations::Predictions({}),
+                      L"animals/dog.txt/foo/bar", Expectations::NoPrediction(),
                       FilePredictorOptions{.match_type =
                                                FilePredictorMatchType::Exact}),
                  test(L"WithPosition", L"*/dog.txt:5",
