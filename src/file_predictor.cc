@@ -34,6 +34,7 @@ extern "C" {
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/lazy_string/trim.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/sorted_line_sequence.h"
@@ -85,6 +86,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::lazy_string::ToLazyString;
+using afc::language::lazy_string::TrimRight;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -152,9 +154,23 @@ struct DescendDirectoryTreeOutput {
 enum class FileType { Directory, Regular, Special };
 
 struct ComponentData {
-  PathComponent path;
-  FileType file_type;
-  GlobMatcher::MatchResults glob_match_results;
+  const PathComponent path;
+  const FileType file_type;
+  const GlobMatcher::MatchResults glob_match_results;
+
+  ComponentData(const std::filesystem::directory_entry& entry,
+                const GlobMatcher& matcher)
+      : path(ValueOrDie(PathComponent::New(
+            LazyString{FromByteString(entry.path().filename().string())}))),
+        file_type(std::invoke([&entry]() {
+          std::error_code ec;
+          if (entry.is_directory(ec)) return FileType::Directory;
+          ec.clear();
+          if (entry.is_regular_file(ec)) return FileType::Regular;
+          return FileType::Special;
+        })),
+        glob_match_results(matcher.Match(ValueOrDie(PathComponent::New(
+            LazyString{FromByteString(entry.path().filename().string())})))) {}
 
   FilePredictorMatchType match_type() const {
     return glob_match_results.component_prefix_size == ToLazyString(path).size()
@@ -165,7 +181,21 @@ struct ComponentData {
 
 std::generator<ComponentData> ViewComponents(
     Path path, const DeleteNotification::Value& abort_value,
-    const GlobMatcher& glob_matcher) {
+    const GlobMatcher& glob_matcher, FilePredictorMatchType match_type) {
+  if (glob_matcher.pattern_type() == GlobMatcher::PatternType::Literal &&
+      match_type == FilePredictorMatchType::Exact) {
+    ValueOrError<Path> input_path = Path::New(glob_matcher.pattern());
+    if (HasValue(input_path)) {
+      std::error_code ec;
+      std::filesystem::directory_entry entry(
+          ToLazyString(Path::Join(path, ValueOrDie(std::move(input_path))))
+              .ToBytes(),
+          ec);
+      if (!ec && entry.exists(ec)) co_yield ComponentData(entry, glob_matcher);
+    }
+    co_return;
+  }
+
   std::error_code ec;
   auto it =
       std::filesystem::directory_iterator(ToLazyString(path).ToBytes(), ec);
@@ -175,46 +205,14 @@ std::generator<ComponentData> ViewComponents(
     if (abort_value.has_value()) co_return;
     const auto& entry = *it;
     if (ec) ec.clear();
-    PathComponent component_path = ValueOrDie(PathComponent::New(
-        LazyString{FromByteString(entry.path().filename().string())}));
-    co_yield ComponentData{
-        .path = component_path,
-        .file_type = std::invoke([&entry] {
-          std::error_code ec_inner;
-          if (entry.is_directory(ec_inner)) return FileType::Directory;
-          ec_inner.clear();
-          if (entry.is_regular_file(ec_inner)) return FileType::Regular;
-          return FileType::Special;
-        }),
-        .glob_match_results = glob_matcher.Match(component_path)};
+    ComponentData candidate(entry, glob_matcher);
+    if (match_type == FilePredictorMatchType::Partial ||
+        candidate.glob_match_results.match_type ==
+            GlobMatcher::MatchResults::MatchType::Exact)
+      co_yield candidate;
     it.increment(ec);
     if (ec) break;
   }
-}
-
-std::vector<PathContext> MatchComponent(
-    const PathContext& context, PathComponent pattern_component,
-    const DeleteNotification::Value& abort_value) {
-  GlobMatcher glob_matcher = GlobMatcher::New(ToLazyString(pattern_component));
-  switch (glob_matcher.pattern_type()) {
-    using enum GlobMatcher::PatternType;
-    case Special:
-      return ViewComponents(context.path, abort_value, glob_matcher) |
-             std::views::filter([pattern_size = glob_matcher.pattern().size()](
-                                    const ComponentData& data) {
-               return pattern_size ==
-                          data.glob_match_results.pattern_prefix_size &&
-                      data.match_type() == FilePredictorMatchType::Exact;
-             }) |
-             std::views::transform([&context](const ComponentData& data) {
-               return context.Append(data.path);
-             }) |
-             std::ranges::to<std::vector>();
-    case Literal:
-      return {context.Append(pattern_component)};
-  }
-  LOG(FATAL) << "Invalid pattern type";
-  return {};
 }
 
 DescendDirectoryTreeOutput DescendDirectoryTree(
@@ -241,19 +239,24 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
       ++output.valid_prefix_length;
       continue;  // Skip consecutive slash.
     }
-    PathComponent next_component = ValueOrDie(PathComponent::New(
-        path.Substring(ColumnNumber{} + output.valid_prefix_length,
-                       component_end - output.valid_prefix_length)));
-
     const std::optional<ColumnNumber> reminder_start = FindFirstNotOf(
         path, {L'/'},
         ColumnNumber{} +
             std::min(component_end + ColumnNumberDelta{1}, path.size()));
     if (reminder_start == std::nullopt) return output;
+    GlobMatcher next_component = GlobMatcher::New(
+        path.Substring(ColumnNumber{} + output.valid_prefix_length,
+                       component_end - output.valid_prefix_length));
+    CHECK(HasValue(PathComponent::New(next_component.pattern())));
     std::vector<PathContext> next_matches =
         output.matches |
         std::views::transform([&](const PathContext& previous_match) {
-          return MatchComponent(previous_match, next_component, abort_value) |
+          return ViewComponents(previous_match.path, abort_value,
+                                next_component, FilePredictorMatchType::Exact) |
+                 std::views::transform(
+                     [&previous_match](const ComponentData& data) {
+                       return previous_match.Append(data.path);
+                     }) |
                  std::views::filter([](const PathContext& context) {
                    return context.IsDirectory();
                  });
@@ -274,7 +277,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
 struct ScanDirectoryInput {
   const FilePredictorOptions& options;
   const std::wregex& noise_regex;
-  GlobMatcher glob_matcher;
+  LazyString input;
   PathContext path_context;
   ColumnNumberDelta pattern_prefix_size;
   const DeleteNotification::Value& abort_value;
@@ -317,7 +320,7 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
   LazyString remaining_suffix = std::invoke([&] {
     ColumnNumber next =
         ColumnNumber{} + component_data.glob_match_results.pattern_prefix_size;
-    LazyString pattern = input.glob_matcher.pattern();
+    LazyString pattern = input.input;
     if (component_data.file_type == FileType::Directory)  // Skip slashes.
       next = FindFirstNotOf(pattern, {L'/'}, next)
                  .value_or(ColumnNumber{} + pattern.size());
@@ -328,10 +331,10 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
       remaining_suffix, input.options.open_file_position_suffix_mode);
   if (!spec.has_value()) {
     VLOG(5) << "open_file_position didn't allow match: " << remaining_suffix
-            << ", pattern: " << input.glob_matcher.pattern();
+            << ", pattern: " << input.input;
     return ScanMatchNotAccepted{};
   }
-  longest_pattern_match = input.glob_matcher.pattern().size();
+  longest_pattern_match = input.input.size();
   VLOG(10) << "Interesting entry: " << path_context.path
            << " exact: " << component_data.match_type()
            << ", spec: " << spec.value();
@@ -364,12 +367,15 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
   TRACK_OPERATION(FilePredictor_ScanDirectory);
 
   VLOG(5) << "Scanning directory \"" << input.path_context.path
-          << "\" looking for: " << input.glob_matcher.pattern();
+          << "\" looking for: " << input.input;
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
 
-  for (const ComponentData& component : ViewComponents(
-           input.path_context.path, input.abort_value, input.glob_matcher)) {
+  GlobMatcher glob_matcher = GlobMatcher::New(input.input);
+
+  for (const ComponentData& component :
+       ViewComponents(input.path_context.path, input.abort_value, glob_matcher,
+                      input.options.match_type)) {
     VLOG(8) << "Dir match: " << component.glob_match_results;
     ScanMatch file_result = HandlePossibleMatch(
         input, component, input.path_context.Append(component.path),
@@ -484,8 +490,8 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
             return ScanDirectory(ScanDirectoryInput{
                 .options = options,
                 .noise_regex = noise_regex,
-                .glob_matcher = GlobMatcher::New(path_input.Substring(
-                    ColumnNumber{} + descend_results.valid_prefix_length)),
+.input = path_input.Substring(
+                    ColumnNumber{} + descend_results.valid_prefix_length),
                 .path_context = match,
                 .pattern_prefix_size = descend_results.valid_prefix_length,
                 .abort_value = abort_value,
@@ -647,6 +653,10 @@ const bool predict_in_search_path_tests_registration =
                                                FilePredictorMatchType::Exact}),
                  test(L"DirExactSlashMatchExact", L"plants/",
                       Expectations::Predictions({L"plants/"}),
+                      FilePredictorOptions{.match_type =
+                                               FilePredictorMatchType::Exact}),
+                 test(L"TrailingComponentsAfterFile",
+                      L"animals/dog.txt/foo/bar", Expectations::Predictions({}),
                       FilePredictorOptions{.match_type =
                                                FilePredictorMatchType::Exact}),
                  test(L"WithPosition", L"*/dog.txt:5",
