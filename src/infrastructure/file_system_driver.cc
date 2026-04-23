@@ -223,9 +223,4 @@ futures::Value<Path> FileSystemDriver::WriteTmpFile(LazyString tmp_file_type,
     return output;
   });
 }
-
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-FileSystemDriver::Expand() const {
-  return {};
-}
 }  // namespace afc::infrastructure

@@ -173,8 +173,6 @@ cc_library(
     deps = [
         ":dirname",
         "//src/concurrent:thread_pool",
-        # TODO(P1, 2026-04-22): Get rid of this dependency. Shouldn't be here.
-        "//src/language:gc",
         "//src/language/error:view",
     ],
 )

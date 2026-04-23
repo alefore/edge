@@ -14,7 +14,6 @@ extern "C" {
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
-#include "src/language/gc.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
@@ -85,13 +84,6 @@ class FileSystemDriver {
   futures::Value<Path> WriteTmpFile(
       language::lazy_string::LazyString tmp_file_type,
       language::lazy_string::LazyString contents) const;
-
-  // Allow a FileSystemDriver to be managed by a gc::Pool.
-  //
-  // TODO(P2, 2026-04-21, easy): Get rid of this? We don't put file systems in
-  // pools.
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
 };
 
 }  // namespace afc::infrastructure
