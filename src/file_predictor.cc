@@ -179,21 +179,40 @@ struct ComponentData {
   }
 };
 
+enum class PathComponentType { Final, Directory };
+
 std::generator<ComponentData> ViewComponents(
     Path path, const DeleteNotification::Value& abort_value,
-    const GlobMatcher& glob_matcher, FilePredictorMatchType match_type) {
+    const GlobMatcher& glob_matcher, FilePredictorMatchType match_type,
+    PathComponentType path_component_type,
+    open_file_position::SuffixMode suffix_mode) {
   if (glob_matcher.pattern_type() == GlobMatcher::PatternType::Literal &&
       match_type == FilePredictorMatchType::Exact) {
-    ValueOrError<Path> input_path =
-        Path::New(TrimRight(glob_matcher.pattern(), {L'/'}));
-    if (HasValue(input_path)) {
-      std::error_code ec;
-      std::filesystem::directory_entry entry(
-          ToLazyString(Path::Join(path, ValueOrDie(std::move(input_path))))
-              .ToBytes(),
-          ec);
-      if (!ec && entry.exists(ec)) co_yield ComponentData(entry, glob_matcher);
-    }
+    co_yield std::ranges::elements_of(
+        std::invoke([&] -> std::vector<LazyString> {
+          switch (path_component_type) {
+            using enum PathComponentType;
+            case Final:
+              return open_file_position::GetValidParses(glob_matcher.pattern(),
+                                                        suffix_mode);
+            case Directory:
+              return {TrimRight(glob_matcher.pattern(), {L'/'})};
+          }
+          LOG(FATAL) << "Invalid path_component_type.";
+          return {};
+        }) |
+        std::views::transform(
+            [&path, glob_matcher](LazyString p) -> ValueOrError<ComponentData> {
+              DECLARE_OR_RETURN(Path sub_path, Path::New(TrimRight(p, {L'/'})));
+              std::error_code ec;
+              std::filesystem::directory_entry entry(
+                  ToLazyString(Path::Join(path, std::move(sub_path))).ToBytes(),
+                  ec);
+              if (ec || !entry.exists(ec))
+                return Error{LazyString{L"Not found"}};
+              return ComponentData(entry, glob_matcher);
+            }) |
+        SkipErrors);
     co_return;
   }
 
@@ -253,7 +272,9 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
         output.matches |
         std::views::transform([&](const PathContext& previous_match) {
           return ViewComponents(previous_match.path, abort_value,
-                                next_component, FilePredictorMatchType::Exact) |
+                                next_component, FilePredictorMatchType::Exact,
+                                PathComponentType::Directory,
+                                open_file_position::SuffixMode::Disallow) |
                  std::views::transform(
                      [&previous_match](const ComponentData& data) {
                        return previous_match.Append(data.path);
@@ -376,7 +397,8 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
 
   for (const ComponentData& component :
        ViewComponents(input.path_context.path, input.abort_value, glob_matcher,
-                      input.options.match_type)) {
+                      input.options.match_type, PathComponentType::Final,
+                      input.options.open_file_position_suffix_mode)) {
     VLOG(8) << "Dir match: " << component.glob_match_results;
     ScanMatch file_result = HandlePossibleMatch(
         input, component, input.path_context.Append(component.path),
@@ -663,6 +685,12 @@ const bool predict_in_search_path_tests_registration =
                                                FilePredictorMatchType::Exact}),
                  test(L"WithPosition", L"*/dog.txt:5",
                       Expectations::Predictions({L"animals/dog.txt"})),
+                 test(L"WithPositionExact", L"*/dog.txt:5",
+                      Expectations::Predictions({L"animals/dog.txt"}),
+                      FilePredictorOptions{
+                          .match_type = FilePredictorMatchType::Exact,
+                          .open_file_position_suffix_mode =
+                              open_file_position::SuffixMode::Allow}),
                  test(L"WithGarbageAllow", L"*/dog.txt:5: nothing",
                       Expectations::Predictions({L"animals/dog.txt"}),
                       FilePredictorOptions{
