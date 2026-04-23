@@ -251,6 +251,7 @@ class Pool {
     size_t roots = 0;
     size_t begin_total = 0;
     size_t eden_size = 0;
+    size_t eden_expansion_schedule_size = 0;
     size_t end_total = 0;
     size_t generations = 0;
   };

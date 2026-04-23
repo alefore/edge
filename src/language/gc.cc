@@ -243,6 +243,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
         while (eden.has_value()) {
           VLOG(3) << "Starting with generations: " << data.roots_list.size();
           stats.eden_size = eden->object_metadata.size();
+          stats.eden_expansion_schedule_size =
+              eden->expansion_schedule.has_value()
+                  ? eden->expansion_schedule->size()
+                  : 0ul;
           ConsumeEden(std::move(*eden), data);
 
           stats.generations = data.roots_list.size();
