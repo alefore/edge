@@ -43,6 +43,19 @@ const bool trim_whitespace_tests_registration = tests::Register(
                CHECK_EQ(Trim(LazyString{L" foo bar quux "}),
                         LazyString{L"foo bar quux"});
              }},
+        {.name = L"TrimRightSlashesSome",
+         .callback =
+             [] {
+               CHECK_EQ(TrimRight(LazyString{L"//foo////"}, {L'/'}),
+                        LazyString{L"//foo"});
+             }},
+        {.name = L"TrimRightSlashesNone",
+         .callback =
+             [] {
+               CHECK_EQ(TrimRight(LazyString{L"//bar"}, {L'/'}),
+                        LazyString{L"//bar"});
+             }},
+
     });
 }  // namespace
 }  // namespace afc::language::lazy_string
