@@ -491,30 +491,21 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                 .abort_value = abort_value,
                 .predictor_output = predictor_output});
           }) |
-          std::views::join | std::views::filter([](const ScanMatch& result) {
-            return std::holds_alternative<ScanMatchValid>(result);
-          }) |
+          std::views::join | container::filter_variant<ScanMatchValid> |
+          std::views::filter(options.match_type == FilePredictorMatchType::Exact
+                                 ? [](const ScanMatchValid& v) {
+                                     return v.match_type ==
+                                            FilePredictorMatchType::Exact;
+                                   }
+                                 : [](const auto&) { return true; }) |
           std::views::take(
               options.match_limit.has_value()
                   ? static_cast<int64_t>(options.match_limit.value())
                   : std::numeric_limits<int64_t>::max()),
-      [&](ScanMatch scan_result) {
-        std::visit(
-            overload{[&](ScanMatchValid v) {
-                       if (options.match_type ==
-                               FilePredictorMatchType::Exact &&
-                           v.match_type == FilePredictorMatchType::Partial)
-                         return;
-                       predictions.push_back(std::move(v.line));
-                       predictor_output.found_exact_match |=
-                           v.match_type == FilePredictorMatchType::Exact;
-                     },
-                     [](ScanMatchNotAccepted) {},
-                     [&](ScanMatchIgnored v) {
-                       predictor_output.found_exact_match |=
-                           v.match_type == FilePredictorMatchType::Exact;
-                     }},
-            std::move(scan_result));
+      [&](ScanMatchValid scan_result) {
+        predictions.push_back(std::move(scan_result.line));
+        predictor_output.found_exact_match |=
+            scan_result.match_type == FilePredictorMatchType::Exact;
       });
 }
 
