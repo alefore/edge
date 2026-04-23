@@ -2,6 +2,7 @@
 #define __AFC_LANGUAGE_LAZY_STRING_FUNCTIONAL_H__
 
 #include <optional>
+#include <ranges>
 #include <unordered_set>
 
 #include "src/language/hash.h"
@@ -112,6 +113,18 @@ std::optional<ColumnNumber> FindLastNotOf(
     const StringType& input, const std::unordered_set<wchar_t>& chars) {
   return FindLastColumnWithPredicate(
       input, [&chars](ColumnNumber, wchar_t c) { return !chars.contains(c); });
+}
+
+template <typename StringType>
+auto FindAllOf(const StringType& input,
+               const std::unordered_set<wchar_t>& chars) {
+  // TODO(2026-04-23, P3, easy, boring): Figure out why iota can't operate
+  // directly on ColumnNumber/ColumnNumberDelta.
+  return std::views::iota(0ul, (ColumnNumber{} + input.size()).read()) |
+         std::views::transform([](size_t pos) { return ColumnNumber{pos}; }) |
+         std::views::filter([input, chars](ColumnNumber pos) {
+           return chars.contains(input.get(pos));
+         });
 }
 
 template <typename StringType, typename StringTypePrefix>
