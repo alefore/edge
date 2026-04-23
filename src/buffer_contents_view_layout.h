@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_LINE_SCROLL_CONTROL_H__
-#define __AFC_EDITOR_LINE_SCROLL_CONTROL_H__
+#ifndef __AFC_EDITOR_BUFFER_CONTENTS_VIEW_LAYOUT_H__
+#define __AFC_EDITOR_BUFFER_CONTENTS_VIEW_LAYOUT_H__
 
 #include <list>
 #include <map>
@@ -86,4 +86,4 @@ struct hash<afc::editor::BufferContentsViewLayout> {
       const afc::editor::BufferContentsViewLayout& window) const;
 };
 }  // namespace std
-#endif  // __AFC_EDITOR_LINE_SCROLL_CONTROL_H__
+#endif  // __AFC_EDITOR_BUFFER_CONTENTS_VIEW_LAYOUT_H__
