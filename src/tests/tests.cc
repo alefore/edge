@@ -13,15 +13,18 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/infrastructure/glob.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
 
 namespace container = afc::language::container;
 
+using afc::infrastructure::GlobMatcher;
 using afc::infrastructure::Now;
 using afc::infrastructure::SecondsBetween;
 using afc::infrastructure::Time;
 using afc::language::InsertOrDie;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::tests {
 namespace {
@@ -64,16 +67,30 @@ struct TestCompletionReport {
 std::vector<TestInfoToSchedule> GetSchedule(
     const std::unordered_set<std::wstring>& tests_filter_set) {
   std::vector<TestInfoToSchedule> output;
-  // First pass: Identify all tests to run.
+  // TODO(2026-04-23, P2): Improve the GlobMatcher API to be able to apply
+  // multiple matches all at once.
+  std::vector<GlobMatcher> tests_filter_globs =
+      tests_filter_set | std::views::transform([](std::wstring pattern) {
+        return GlobMatcher::New(LazyString{pattern});
+      }) |
+      std::ranges::to<std::vector>();
+
   for (const std::pair<const std::wstring, std::vector<Test>>& group_pair :
        *tests_map()) {
-    const std::wstring& name = group_pair.first;
+    const std::wstring& group_name = group_pair.first;
     const std::vector<Test>& tests = group_pair.second;
-    for (const Test& test_obj : tests)
-      if (tests_filter_set.empty() ||
-          tests_filter_set.contains(name + L"." + test_obj.name) ||
-          tests_filter_set.contains(name))
+    for (const Test& test_obj : tests) {
+      const std::wstring name = group_name + L"." + test_obj.name;
+      if (tests_filter_set.empty() || tests_filter_set.contains(name) ||
+          tests_filter_set.contains(group_name) ||
+          tests_filter_set.contains(test_obj.name) ||
+          std::ranges::any_of(
+              tests_filter_globs, [&](const GlobMatcher& matcher) {
+                return matcher.Match(LazyString{name}).match_type ==
+                       GlobMatcher::MatchResults::MatchType::Exact;
+              }))
         output.push_back({name, test_obj.name, test_obj});
+    }
   }
   return output;
 }
