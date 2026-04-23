@@ -19,6 +19,7 @@ using afc::concurrent::OperationFactory;
 using afc::concurrent::Protected;
 using afc::concurrent::ThreadPool;
 using afc::futures::DeleteNotification;
+using afc::infrastructure::Duration;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
 using afc::tests::concurrent::TestFlows;
@@ -30,6 +31,18 @@ struct Node {
   ~Node() { VLOG(5) << "Deleting Node: " << this; }
   std::vector<gc::Ptr<Node>> children;
   DeleteNotification delete_notification;
+};
+
+struct SlowExpandContainer {
+  mutable size_t expansions = 0;
+  std::vector<gc::Ptr<Node>> nodes;
+
+  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand() const {
+    LOG(INFO) << "Expand timeout.";
+    ++expansions;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    return nodes | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
+  }
 };
 }  // namespace
 
@@ -466,6 +479,88 @@ bool full_vs_light_collect_tests_registration = tests::Register(
 bool concurrency_tests = tests::Register(
     L"GC::Concurrency",
     {
+        {.name = L"Interrupted",
+         .callback =
+             [] {
+               gc::Pool pool(Pool::Options{.collect_duration_threshold =
+                                               Duration{0.050}});
+
+               std::optional<gc::Root<SlowExpandContainer>> container =
+                   pool.NewRoot(MakeNonNullUnique<SlowExpandContainer>());
+               // Have to add an element to the container to ensure that the
+               // collection operation will not finish.
+               container.value()->nodes.push_back(
+                   pool.NewRoot(MakeNonNullUnique<Node>()).ptr());
+               LOG(INFO) << "At start: " << pool;
+
+               MakeLoop(pool, 2000);  // To actually trigger collection.
+               CHECK_EQ(container.value()->expansions, 0ul);
+               CHECK(std::holds_alternative<Pool::UnfinishedCollectStats>(
+                   pool.Collect()));
+               pool.BlockUntilDone();
+               LOG(INFO) << "After interrupted collection: " << pool;
+               CHECK_EQ(container.value()->expansions, 1ul);
+
+               // Add a new element *after* the container has been expanded.
+               container.value()->nodes.push_back(
+                   pool.NewRoot(MakeNonNullUnique<Node>()).ptr());
+               gc::WeakPtr<Node> node_weak_ptr =
+                   container.value()->nodes.back().ToWeakPtr();
+               CHECK(node_weak_ptr.Lock().has_value());
+               LOG(INFO) << "After node creation: " << pool;
+
+               // Collection should finish now.
+               CHECK(std::holds_alternative<Pool::FullCollectStats>(
+                   pool.Collect()));
+               pool.BlockUntilDone();
+               LOG(INFO) << "After full collection: " << pool;
+               CHECK_EQ(container.value()->expansions, 1ul);
+               CHECK(node_weak_ptr.Lock().has_value());
+
+               container = std::nullopt;
+               MakeLoop(pool, 2000);  // To actually trigger collection.
+               CHECK(std::holds_alternative<Pool::FullCollectStats>(
+                   pool.Collect()));
+               pool.BlockUntilDone();
+               CHECK(node_weak_ptr.Lock() == std::nullopt);
+             }},
+        {.name = L"ExpansionDeduplicates",
+         .callback =
+             [] {
+               gc::Pool pool(Pool::Options{.collect_duration_threshold =
+                                               Duration{0.050}});
+
+               std::optional<gc::Root<SlowExpandContainer>> container =
+                   pool.NewRoot(MakeNonNullUnique<SlowExpandContainer>());
+               // Have to add an element to the container to ensure that the
+               // collection operation will not finish.
+               container.value()->nodes.push_back(
+                   pool.NewRoot(MakeNonNullUnique<Node>()).ptr());
+               LOG(INFO) << "At start: " << pool;
+
+               MakeLoop(pool, 2000);  // To actually trigger collection.
+               CHECK_EQ(container.value()->expansions, 0ul);
+               CHECK(std::holds_alternative<Pool::UnfinishedCollectStats>(
+                   pool.Collect()));
+               pool.BlockUntilDone();
+               LOG(INFO) << "After interrupted collection: " << pool;
+               CHECK_EQ(container.value()->expansions, 1ul);
+
+               // Add a new element *after* the container has been expanded.
+               for (size_t i = 0; i < 13; ++i)
+                 pool.NewRoot(MakeNonNullUnique<Node>()).ptr();
+               for (size_t i = 0; i < 197; ++i)
+                 gc::Ptr<Node>(container.value()->nodes.back());
+               LOG(INFO) << "After node creation: " << pool;
+
+               // Collection should finish now.
+               Pool::FullCollectStats stats =
+                   std::get<Pool::FullCollectStats>(pool.Collect());
+
+               // This is the real assertion: the expansion schedule didn't grow
+               // unbounded.
+               CHECK_EQ(stats.eden_expansion_schedule_size, 13ul);
+             }},
         {.name = L"CollectWithAssignment",
          .callback =
              [] {
