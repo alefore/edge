@@ -1,8 +1,7 @@
-#include "src/language/lazy_string/tokenize.h"
-
 #include <glog/logging.h>
 
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 

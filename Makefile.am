@@ -66,7 +66,7 @@ src/concurrent/bag.cc \
 src/concurrent/bag.h \
 src/concurrent/operation.cc \
 src/concurrent/operation.h \
-src/concurrent/protected.cc \
+src/concurrent/protected_tests.cc \
 src/concurrent/protected.h \
 src/concurrent/thread_pool.cc \
 src/concurrent/thread_pool.h \
@@ -114,6 +114,7 @@ src/infrastructure/audio.cc \
 src/infrastructure/audio.h \
 src/infrastructure/command_line.h \
 src/infrastructure/command_line.cc \
+src/infrastructure/dirname_tests.cc \
 src/infrastructure/dirname.cc \
 src/infrastructure/dirname.h \
 src/infrastructure/dirname_vm.cc \
@@ -129,6 +130,7 @@ src/infrastructure/file_descriptor_reader.cc \
 src/infrastructure/file_descriptor_reader.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
+src/infrastructure/glob_tests.cc \
 src/infrastructure/glob.cc \
 src/infrastructure/glob.h \
 src/infrastructure/path_suffix_map.cc \
@@ -159,10 +161,11 @@ src/key_commands_map.cc \
 src/key_commands_map.h \
 src/language/cached_supplier.h \
 src/language/container.h \
-src/language/const_tree.cc \
+src/language/const_tree_tests.cc \
 src/language/const_tree.h \
 src/language/error/log.cc \
 src/language/error/log.h \
+src/language/error/value_or_error_tests.cc \
 src/language/error/value_or_error.cc \
 src/language/error/value_or_error.h \
 src/language/error/view.h \
@@ -180,7 +183,7 @@ src/language/gc_tests.cc \
 src/language/gc_util.cc \
 src/language/gc_util.h \
 src/language/gc_view.h \
-src/language/hash.cc \
+src/language/hash_tests.cc \
 src/language/hash.h \
 src/language/lazy_string/append.h \
 src/language/lazy_string/char_buffer.cc \
@@ -188,8 +191,9 @@ src/language/lazy_string/char_buffer.h \
 src/language/lazy_string/convert.cc \
 src/language/lazy_string/convert.h \
 src/language/lazy_string/column_number.h \
-src/language/lazy_string/functional.cc \
+src/language/lazy_string/functional_tests.cc \
 src/language/lazy_string/functional.h \
+src/language/lazy_string/lazy_string_tests.cc \
 src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
 src/language/lazy_string/lowercase.cc \
@@ -198,7 +202,7 @@ src/language/lazy_string/single_line.cc \
 src/language/lazy_string/single_line.h \
 src/language/lazy_string/tokenize.cc \
 src/language/lazy_string/tokenize.h \
-src/language/lazy_string/tokenize_test.cc \
+src/language/lazy_string/tokenize_tests.cc \
 src/language/lazy_string/trim.cc \
 src/language/lazy_string/trim.h \
 src/language/lazy_value.cc \
@@ -454,7 +458,7 @@ src/vm/variable_lookup.cc \
 src/widget.h
 
 BENCHMARK_SOURCES = \
-src/concurrent/protected.cc \
+src/concurrent/protected_tests.cc \
 src/concurrent/protected.h \
 src/infrastructure/tracker.cc \
 src/infrastructure/tracker.h \
@@ -463,6 +467,7 @@ src/language/const_tree.h \
 src/language/const_tree_benchmarks.cc \
 src/language/hash.cc \
 src/language/hash.h \
+src/language/lazy_string/functional_tests.cc \
 src/language/lazy_string/functional.cc \
 src/language/lazy_string/functional.h \
 src/language/lazy_string/lazy_string.cc \

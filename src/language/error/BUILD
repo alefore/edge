@@ -1,6 +1,12 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
+    name = "tests",
+    visibility = ["//visibility:public"],
+    deps = [":value_or_error_tests"],
+)
+
+cc_library(
     name = "value_or_error",
     srcs = ["value_or_error.cc"],
     hdrs = ["value_or_error.h"],
@@ -14,8 +20,18 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:char_buffer",
+    ],
+)
+
+cc_library(
+    name = "value_or_error_tests",
+    srcs = ["value_or_error_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":value_or_error",
         "//src/tests",
     ],
+    alwayslink = 1,
 )
 
 cc_library(

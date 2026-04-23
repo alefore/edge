@@ -1,6 +1,15 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
+    name = "tests",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":dirname_tests",
+        ":glob_tests",
+    ],
+)
+
+cc_library(
     name = "audio",
     srcs = ["audio.cc"],
     hdrs = ["audio.h"],
@@ -40,6 +49,18 @@ cc_library(
 )
 
 cc_library(
+    name = "glob_tests",
+    srcs = ["glob_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":dirname",
+        "//src/language/lazy_string:column_number",
+        "//src/tests",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "dirname",
     srcs = ["dirname.cc"],
     hdrs = ["dirname.h"],
@@ -50,6 +71,19 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
     ],
+)
+
+cc_library(
+    name = "dirname_tests",
+    srcs = [
+        "dirname_tests.cc",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":dirname",
+        "//src/tests",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -198,6 +232,7 @@ cc_library(
     deps = [
         "//src/concurrent:protected",
         "//src/infrastructure:time",
+        "//src/language:container",
         "//src/language:safe_types",
     ],
 )

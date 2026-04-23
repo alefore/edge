@@ -4,7 +4,6 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
-#include "src/tests/tests.h"
 
 using afc::language::lazy_string::LazyString;
 
@@ -27,13 +26,4 @@ ValueOrError<EmptyValue> Success() {
 }
 
 void IgnoreErrors::operator()(Error) {}
-
-namespace {
-bool tests_register = tests::Register(
-    L"ValueOrError", {{.name = L"EmptyConstructor", .callback = [] {
-                         ValueOrError<int> foo;
-                         CHECK(!IsError(foo));
-                         CHECK_EQ(std::get<int>(foo), int());
-                       }}});
-}  // namespace
 }  // namespace afc::language

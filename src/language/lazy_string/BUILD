@@ -1,6 +1,15 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
+    name = "tests",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lazy_string_tests",
+        ":tokenize_tests",
+    ],
+)
+
+cc_library(
     name = "append",
     hdrs = ["append.h"],
     visibility = ["//visibility:public"],
@@ -77,6 +86,20 @@ cc_library(
 )
 
 cc_library(
+    name = "lazy_string_tests",
+    srcs = [
+        "functional_tests.cc",
+        "lazy_string_tests.cc",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lazy_string",
+        "//src/tests",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "lowercase",
     srcs = ["lowercase.cc"],
     hdrs = ["lowercase.h"],
@@ -85,6 +108,7 @@ cc_library(
         ":char_buffer",
         ":lazy_string",
         ":single_line",
+        "//src/tests",
     ],
 )
 
@@ -112,6 +136,17 @@ cc_library(
 )
 
 cc_library(
+    name = "tokenize_tests",
+    srcs = ["tokenize_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":tokenize",
+        "//src/tests",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "trim",
     srcs = ["trim.cc"],
     hdrs = ["trim.h"],
@@ -120,5 +155,7 @@ cc_library(
     deps = [
         ":lazy_string",
         ":single_line",
+        "//src/tests",
     ],
+    alwayslink = 1,
 )

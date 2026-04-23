@@ -21,6 +21,7 @@ cc_library(
         "//src/language:function_traits",
         "//src/language:once_only_function",
         "//src/language/error:value_or_error",
+        "//src/tests",
     ],
 )
 

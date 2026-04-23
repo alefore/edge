@@ -1,3 +1,5 @@
+// Unit tests for ConstTree.
+
 #include "src/language/const_tree.h"
 
 #include "src/tests/tests.h"

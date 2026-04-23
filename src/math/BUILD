@@ -8,13 +8,20 @@ cc_library(
     deps = [
         ":checked_operation",
         "//src/language/error:value_or_error",
+        "//src/tests",
     ],
 )
 
 cc_library(
     name = "checked_operation",
+    srcs = ["checked_operation.cc"],
     hdrs = ["checked_operation.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//src/language/error:value_or_error",
+        "//src/tests",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -38,6 +45,7 @@ cc_library(
         "//src/language:wstring",
         "//src/language/error:value_or_error",
         "//src/language/lazy_string",
+        "//src/tests",
     ],
 )
 

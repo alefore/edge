@@ -1,6 +1,17 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
+    name = "tests",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":const_tree_tests",
+        ":gc_tests",
+        ":ghost_type_tests",
+        ":hash_tests",
+    ],
+)
+
+cc_library(
     name = "container",
     hdrs = ["container.h"],
     visibility = ["//visibility:public"],
@@ -8,14 +19,23 @@ cc_library(
 
 cc_library(
     name = "const_tree",
-    srcs = ["const_tree.cc"],
     hdrs = ["const_tree.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":overload",
         ":safe_types",
+    ],
+)
+
+cc_library(
+    name = "const_tree_tests",
+    srcs = ["const_tree_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":const_tree",
         "//src/tests",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -54,12 +74,17 @@ cc_library(
 
 cc_library(
     name = "lazy_value",
+    srcs = ["lazy_value.cc"],
     hdrs = ["lazy_value.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":once_only_function",
+        ":overload",
+        ":safe_types",
         "//src/concurrent:protected",
+        "//src/tests",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -107,6 +132,7 @@ cc_library(
         "//src/futures:delete_notification",
         "//src/tests",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -119,6 +145,7 @@ cc_library(
     deps = [
         "//src/concurrent:bag",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -136,13 +163,28 @@ cc_library(
         "//src/tests",
         "//src/tests:concurrent",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
     name = "ghost_type",
-    srcs = ["ghost_type.cc"],
+    srcs = [
+        "ghost_type.cc",
+    ],
     hdrs = ["ghost_type.h"],
     visibility = ["//visibility:public"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "ghost_type_tests",
+    srcs = ["ghost_type_test.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":ghost_type",
+        "//src/tests",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -153,10 +195,19 @@ cc_library(
 
 cc_library(
     name = "hash",
-    srcs = ["hash.cc"],
     hdrs = ["hash.h"],
     visibility = ["//visibility:public"],
-    deps = ["//src/tests"],
+)
+
+cc_library(
+    name = "hash_tests",
+    srcs = ["hash_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":hash",
+        "//src/tests",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(

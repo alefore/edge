@@ -203,7 +203,6 @@ const bool kRegisterProcessNameTruncationTests = afc::tests::Register(
     });
 
 void Run(std::vector<std::wstring> tests_filter) {
-  std::cerr << "# Test Groups" << std::endl << std::endl;
   const std::unordered_set<std::wstring> tests_filter_set(tests_filter.begin(),
                                                           tests_filter.end());
   CHECK_EQ(tests_filter_set.size(), tests_filter.size());
@@ -279,9 +278,9 @@ void Run(std::vector<std::wstring> tests_filter) {
       running_tests.erase(completed_pid);  // Clean up from tracking maps
     }
   }
-  std::cerr << std::endl;
 
   LOG(INFO) << "All tests have completed; producing final output.";
+  std::cerr << "# Test Groups" << std::endl << std::endl;
   for (const std::pair<const std::wstring, std::map<std::wstring, int>>& group :
        execution_results) {
     std::cerr << "## Group: " << group.first << std::endl << std::endl;
@@ -332,14 +331,14 @@ void Run(std::vector<std::wstring> tests_filter) {
 
 void List() {
   std::cerr << "Available tests:" << std::endl;
-  for (const std::pair<const std::wstring, std::vector<Test>>& group_pair :
-       *tests_map()) {
-    const std::wstring& name = group_pair.first;
-    const std::vector<Test>& tests_in_group = group_pair.second;
-    std::cerr << "* " << name << std::endl;
-    for (const Test& test_obj : tests_in_group) {
+  std::vector<std::wstring> keys =
+      *tests_map() | std::views::keys | std::ranges::to<std::vector>();
+  std::ranges::sort(keys);
+  for (const std::wstring& key : keys) {
+    std::cerr << "* " << key << std::endl;
+    std::ranges::for_each((*tests_map())[key], [](const Test& test_obj) {
       std::cerr << "  * " << test_obj.name << std::endl;
-    }
+    });
   }
 }
 

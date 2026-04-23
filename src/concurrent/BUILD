@@ -1,6 +1,14 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
 cc_library(
+    name = "tests",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":protected_tests",
+    ],
+)
+
+cc_library(
     name = "bag",
     srcs = ["bag.cc"],
     hdrs = ["bag.h"],
@@ -9,6 +17,7 @@ cc_library(
         ":operation",
         "//src/infrastructure:tracker",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -24,13 +33,21 @@ cc_library(
 
 cc_library(
     name = "protected",
-    srcs = ["protected.cc"],
     hdrs = ["protected.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/tests",
         "//src/tests:concurrent_interfaces",
     ],
+)
+
+cc_library(
+    name = "protected_tests",
+    srcs = ["protected_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/tests",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(

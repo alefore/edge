@@ -1,6 +1,12 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_library(
+    name = "tests",
+    visibility = ["//visibility:public"],
+    deps = [":types_promotion_tests"],
+)
+
+cc_library(
     name = "append_expression",
     srcs = ["append_expression.cc"],
     hdrs = ["append_expression.h"],
@@ -425,6 +431,7 @@ cc_library(
         ":default_environment",
         "//src/tests",
     ],
+    alwayslink = 1,
 )
 
 cc_library(
