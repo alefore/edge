@@ -46,9 +46,21 @@ class GlobMatcher {
     // Length of the longest prefix of `component` that is matched by the
     // longest prefix of `pattern` that matches something.
     language::lazy_string::ColumnNumberDelta component_prefix_size;
+
+    enum class MatchType {
+      // Could not match the entirety of the pattern to the input.
+      None,
+      // Matched the entirety of the pattern to the input, but the input
+      // containing unconsumed training characters.
+      Partial,
+      // The pattern matched the input exactly.
+      Exact
+    };
+    MatchType match_type;
   };
 
   MatchResults Match(PathComponent component) const;
+  MatchResults Match(language::lazy_string::LazyString input) const;
 
  private:
   static std::pair<std::vector<Node>, PatternType> NodesForPattern(

@@ -155,12 +155,15 @@ GlobMatcher::PatternType GlobMatcher::pattern_type() const {
 }
 
 GlobMatcher::MatchResults GlobMatcher::Match(PathComponent component) const {
-  VLOG(6) << "Match " << pattern_ << " to: " << component;
-  LazyString input = ToLazyString(component);
+  return Match(ToLazyString(component));
+}
+
+GlobMatcher::MatchResults GlobMatcher::Match(LazyString input) const {
+  VLOG(6) << "Match " << pattern_ << " to: " << input;
   NodeId current_index{0};
-  ColumnNumberDelta component_index;
-  for (; component_index < input.size(); ++component_index) {
-    wchar_t c = input.get(ColumnNumber{} + component_index);
+  ColumnNumberDelta input_index;
+  for (; input_index < input.size(); ++input_index) {
+    wchar_t c = input.get(ColumnNumber{} + input_index);
     const Node& current_node = nodes_[current_index.read()];
     if (auto it = current_node.edges.find(c); it != current_node.edges.end())
       current_index = it->second;
@@ -173,8 +176,14 @@ GlobMatcher::MatchResults GlobMatcher::Match(PathComponent component) const {
   MatchResults output{
       .pattern_prefix_size = nodes_[current_index.read()].pattern_prefix_size,
       .component_prefix_size =
-          ColumnNumberDelta{static_cast<int>(component_index.read())}};
-  VLOG(2) << "Match " << pattern_ << " to: " << component << ": " << output;
+          ColumnNumberDelta{static_cast<int>(input_index.read())},
+      .match_type = std::invoke([&] {
+        if (nodes_[current_index.read()].pattern_prefix_size < pattern_.size())
+          return MatchResults::MatchType::None;
+        if (input_index < input.size()) return MatchResults::MatchType::Partial;
+        return MatchResults::MatchType::Exact;
+      })};
+  VLOG(2) << "Match " << pattern_ << " to: " << input << ": " << output;
   return output;
 }
 
