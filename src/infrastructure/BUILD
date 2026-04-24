@@ -42,7 +42,6 @@ cc_library(
     hdrs = ["glob.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":dirname",
         "//src/language:ghost_type_class",
         "//src/language/lazy_string:column_number",
         "//src/math:graph_deterministic",

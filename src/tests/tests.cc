@@ -71,11 +71,11 @@ std::vector<TestInfoToSchedule> GetSchedule(
   std::vector<TestInfoToSchedule> output;
   // TODO(2026-04-23, P2): Improve the GlobMatcher API to be able to apply
   // multiple matches all at once.
-  std::vector<GlobMatcher> tests_filter_globs =
+  GlobMatcher tests_filter_glob_matcher = GlobMatcher::New(
       tests_filter_set | std::views::transform([](std::wstring pattern) {
-        return GlobMatcher::New(LazyString{pattern});
+        return LazyString{pattern};
       }) |
-      std::ranges::to<std::vector>();
+      std::ranges::to<std::vector>());
 
   for (const std::pair<const std::wstring, std::vector<Test>>& group_pair :
        *tests_map()) {
@@ -86,11 +86,8 @@ std::vector<TestInfoToSchedule> GetSchedule(
       if (tests_filter_set.empty() || tests_filter_set.contains(name) ||
           tests_filter_set.contains(group_name) ||
           tests_filter_set.contains(test_obj.name) ||
-          std::ranges::any_of(
-              tests_filter_globs, [&](const GlobMatcher& matcher) {
-                return matcher.Match(LazyString{name}).match_type ==
-                       GlobMatcher::MatchResults::MatchType::Exact;
-              }))
+          tests_filter_glob_matcher.Match(LazyString{name}).match_type ==
+              GlobMatcher::MatchResults::MatchType::Exact)
         output.push_back(TestInfoToSchedule{.group_name = group_name,
                                             .test_name = test_obj.name,
                                             .test = test_obj});

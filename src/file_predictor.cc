@@ -59,6 +59,7 @@ using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::PathJoin;
+using afc::infrastructure::SinglePatternGlobMatcher;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -159,7 +160,7 @@ struct ComponentData {
   const GlobMatcher::MatchResults glob_match_results;
 
   ComponentData(const std::filesystem::directory_entry& entry,
-                const GlobMatcher& matcher)
+                const SinglePatternGlobMatcher& matcher)
       : path(ValueOrDie(PathComponent::New(
             LazyString{FromByteString(entry.path().filename().string())}))),
         file_type(std::invoke([&entry]() {
@@ -169,8 +170,9 @@ struct ComponentData {
           if (entry.is_regular_file(ec)) return FileType::Regular;
           return FileType::Special;
         })),
-        glob_match_results(matcher.Match(ValueOrDie(PathComponent::New(
-            LazyString{FromByteString(entry.path().filename().string())})))) {}
+        glob_match_results(
+            matcher.Match(ToLazyString(ValueOrDie(PathComponent::New(LazyString{
+                FromByteString(entry.path().filename().string())}))))) {}
 
   FilePredictorMatchType match_type() const {
     return glob_match_results.component_prefix_size == ToLazyString(path).size()
@@ -183,8 +185,8 @@ enum class PathComponentType { Final, Directory };
 
 std::generator<ComponentData> ViewComponents(
     Path path, const DeleteNotification::Value& abort_value,
-    const GlobMatcher& glob_matcher, FilePredictorMatchType match_type,
-    PathComponentType path_component_type,
+    const SinglePatternGlobMatcher& glob_matcher,
+    FilePredictorMatchType match_type, PathComponentType path_component_type,
     open_file_position::SuffixMode suffix_mode) {
   if (glob_matcher.pattern_type() == GlobMatcher::PatternType::Literal &&
       match_type == FilePredictorMatchType::Exact) {
@@ -264,7 +266,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(
         ColumnNumber{} +
             std::min(component_end + ColumnNumberDelta{1}, path.size()));
     if (reminder_start == std::nullopt) return output;
-    GlobMatcher next_component = GlobMatcher::New(
+    SinglePatternGlobMatcher next_component = SinglePatternGlobMatcher(
         path.Substring(ColumnNumber{} + output.valid_prefix_length,
                        component_end - output.valid_prefix_length));
     CHECK(HasValue(PathComponent::New(next_component.pattern())));
@@ -340,8 +342,9 @@ ScanMatch HandlePossibleMatch(const ScanDirectoryInput& input,
   namespace ofp = open_file_position;
 
   LazyString remaining_suffix = std::invoke([&] {
-    ColumnNumber next =
-        ColumnNumber{} + component_data.glob_match_results.pattern_prefix_size;
+    ColumnNumber next = ColumnNumber{} +
+                        component_data.glob_match_results.patterns[0].size() -
+                        component_data.glob_match_results.patterns_suffix_size;
     LazyString pattern = input.input;
     if (component_data.file_type == FileType::Directory)  // Skip slashes.
       next = FindFirstNotOf(pattern, {L'/'}, next)
@@ -393,7 +396,7 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
   // The length of the longest prefix of `pattern` that matches an entry.
   ColumnNumberDelta longest_pattern_match;
 
-  GlobMatcher glob_matcher = GlobMatcher::New(input.input);
+  SinglePatternGlobMatcher glob_matcher(input.input);
 
   for (const ComponentData& component :
        ViewComponents(input.path_context.path, input.abort_value, glob_matcher,
@@ -406,7 +409,8 @@ std::generator<ScanMatch> ScanDirectory(const ScanDirectoryInput input) {
     if (std::holds_alternative<ScanMatchNotAccepted>(file_result))
       longest_pattern_match =
           std::max(longest_pattern_match,
-                   component.glob_match_results.pattern_prefix_size);
+                   component.glob_match_results.patterns[0].size() -
+                       component.glob_match_results.patterns_suffix_size);
     co_yield std::move(file_result);
   }
   input.predictor_output.longest_prefix =

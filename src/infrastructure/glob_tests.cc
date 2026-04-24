@@ -21,49 +21,61 @@ const bool tests_registration = tests::Register(
         {.name = L"Simple",
          .callback =
              [] {
-               auto results = GlobMatcher::New(LazyString{L"foo"})
-                                  .Match(PathComponent::FromString(L"foo"));
-               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{3});
+               auto results = SinglePatternGlobMatcher(LazyString{L"foo"})
+                                  .Match(LazyString(L"foo"));
+               CHECK_EQ(results.patterns.size(), 1ul);
+               CHECK_EQ(results.patterns[0], LazyString{L"foo"});
+               CHECK_EQ(results.patterns_suffix_size, ColumnNumberDelta{});
                CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{3});
              }},
         {.name = L"PatternFull",
          .callback =
              [] {
-               auto results = GlobMatcher::New(LazyString{L"foo"})
-                                  .Match(PathComponent::FromString(L"foobar"));
-               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{3});
+               auto results = SinglePatternGlobMatcher(LazyString{L"foo"})
+                                  .Match(LazyString(L"foobar"));
+               CHECK_EQ(results.patterns.size(), 1ul);
+               CHECK_EQ(results.patterns[0], LazyString{L"foo"});
+               CHECK_EQ(results.patterns_suffix_size, ColumnNumberDelta{});
                CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{3});
              }},
         {.name = L"ComponentFull",
          .callback =
              [] {
-               auto results = GlobMatcher::New(LazyString{L"foobar"})
-                                  .Match(PathComponent::FromString(L"fo"));
-               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{2});
+               auto results = SinglePatternGlobMatcher(LazyString{L"foobar"})
+                                  .Match(LazyString(L"fo"));
+               CHECK_EQ(results.patterns.size(), 1ul);
+               CHECK_EQ(results.patterns[0], LazyString{L"foobar"});
+               CHECK_EQ(results.patterns_suffix_size, ColumnNumberDelta{4});
                CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{2});
              }},
         {.name = L"SingleWildcard",
          .callback =
              [] {
-               auto results = GlobMatcher::New(LazyString{L"*"})
-                                  .Match(PathComponent::FromString(L"quux"));
-               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{1});
+               auto results = SinglePatternGlobMatcher(LazyString{L"*"})
+                                  .Match(LazyString(L"quux"));
+               CHECK_EQ(results.patterns.size(), 1ul);
+               CHECK_EQ(results.patterns[0], LazyString{L"*"});
+               CHECK_EQ(results.patterns_suffix_size, ColumnNumberDelta{});
                CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{4});
              }},
         {.name = L"AdvancedWildcard",
          .callback =
              [] {
-               auto results = GlobMatcher::New(LazyString{L"a*a"})
-                                  .Match(PathComponent::FromString(L"aba"));
-               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{3});
+               auto results = SinglePatternGlobMatcher(LazyString{L"a*a"})
+                                  .Match(LazyString(L"aba"));
+               CHECK_EQ(results.patterns.size(), 1ul);
+               CHECK_EQ(results.patterns[0], LazyString{L"a*a"});
+               CHECK_EQ(results.patterns_suffix_size, ColumnNumberDelta{});
                CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{3});
              }},
         {.name = L"AdvancedWildcardPrefix",
          .callback =
              [] {
-               auto results = GlobMatcher::New(LazyString{L"a*a"})
-                                  .Match(PathComponent::FromString(L"abcd"));
-               CHECK_EQ(results.pattern_prefix_size, ColumnNumberDelta{2});
+               auto results = SinglePatternGlobMatcher(LazyString{L"a*a"})
+                                  .Match(LazyString(L"abcd"));
+               CHECK_EQ(results.patterns.size(), 1ul);
+               CHECK_EQ(results.patterns[0], LazyString{L"a*a"});
+               CHECK_EQ(results.patterns_suffix_size, ColumnNumberDelta{1});
                CHECK_EQ(results.component_prefix_size, ColumnNumberDelta{4});
              }},
     });
