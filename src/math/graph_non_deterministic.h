@@ -22,10 +22,10 @@ struct Node {
 
   // This node automatically reaches the following nodes (without consuing
   // characters).
-  NodeGroup automatic_edges;
+  NodeGroup automatic_edges = {};
 
   // On any EdgeValue, this node also reaches these nodes.
-  NodeGroup any_value_edges;
+  NodeGroup any_value_edges = {};
 
   NodeValue value;
 
@@ -39,8 +39,9 @@ struct Node {
     };
     copy.edges =
         std::move(copy.edges) |
-        std::views::transform([&](std::pair<const EdgeValue, NodeGroup>& data) {
+        std::views::transform([&](std::pair<const EdgeValue, NodeGroup> data) {
           shift_group(data.second);
+          return data;
         }) |
         std::ranges::to<std::map<EdgeValue, NodeGroup>>();
     shift_group(copy.automatic_edges);
@@ -60,10 +61,13 @@ struct Graph
       language::GhostType<Graph<EdgeValue, NodeValue>, std::vector<Node>>;
   using Base::Base;
 
-  const Node& at(const NodeId& key) const { return Base::at(key.read()); }
   template <typename Self>
-  auto& operator[](this Self&& self, const NodeId& key) {
-    return self->Base::operator[](key);
+  auto&& at(this Self&& self, const NodeId& key) {
+    return std::forward<Self>(self).Base::at(key.read());
+  }
+  template <typename Self>
+  auto&& operator[](this Self&& self, const NodeId& key) {
+    return std::forward<Self>(self).Base::operator[](key);
   }
 
   template <typename Callable>
@@ -86,7 +90,7 @@ struct Graph
       output.push_back(typename decltype(output)::Node{
           .value =
               value_aggregator(group | std::views::transform([this](NodeId i) {
-                                 return this->at(i).value;
+                                 return (*this).at(i).value;
                                }) |
                                std::ranges::to<std::vector>())});
       return node_id;
@@ -135,6 +139,7 @@ struct Graph
                         std::back_inserter(output));
       if (start > 0) output.at(NodeId{0}).automatic_edges.insert(NodeId{start});
     });
+    return output;
   }
 
  private:

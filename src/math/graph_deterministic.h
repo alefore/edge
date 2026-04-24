@@ -34,8 +34,14 @@ struct Graph
       language::GhostType<Graph<EdgeValue, NodeValue>, std::vector<Node>>;
   using Base::Base;
 
-  const Node& at(const NodeId& key) const { return Base::at(key.read()); }
-  auto& operator[](const NodeId& key) { return Base::operator[](key.read()); }
+  template <typename Self>
+  auto&& at(this Self&& self, const NodeId& key) {
+    return std::forward<Self>(self).Base::at(key.read());
+  }
+  template <typename Self>
+  auto&& operator[](this Self&& self, const NodeId& key) {
+    return std::forward<Self>(self).Base::operator[](key.read());
+  }
 };
 }  // namespace afc::math::graph_deterministic
 
