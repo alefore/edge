@@ -2,6 +2,7 @@
 #define __AFC_LANGUAGE_CONTAINERS__
 
 #include <algorithm>
+#include <generator>
 #include <list>
 #include <optional>
 #include <ranges>
@@ -191,6 +192,20 @@ template <typename Container, typename OutputType = std::decay_t<
 OutputType Sum(Container&& container) {
   return Fold([](auto input, OutputType output) { return input + output; },
               OutputType(), std::forward<Container>(container));
+}
+
+template <std::ranges::viewable_range R>
+auto UniqueValuesOf(R&& elements) {
+  auto impl = []<std::ranges::view V>(
+                  V view) -> std::generator<std::ranges::range_value_t<V>> {
+    using T = std::ranges::range_value_t<V>;
+    std::unordered_set<T> seen;
+
+    for (auto&& value : view)
+      if (seen.insert(value).second)
+        co_yield std::forward<decltype(value)>(value);
+  };
+  return impl(std::views::all(std::forward<R>(elements)));
 }
 }  // namespace container
 }  // namespace afc::language
