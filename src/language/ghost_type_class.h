@@ -1,8 +1,19 @@
-// Example usage: declare an alias `Foo` of a given type `InnerType`:
+// Example usage: declare an alias `Foo` of a given type `Bar`:
 //
-// struct Foo : public language::GhostType<Foo, InnerType> {
+// struct Foo : public language::GhostType<Foo, Bar> {
 //   using GhostType::GhostType;
 // };
+//
+// To enable validation (at construction):
+//
+// struct FooValidator {
+//   static language::PossibleError Validate(const Bar& input);
+// };
+//
+// class Foo
+//     : public language::GhostType<Foo, Bar, FooValidator> {
+//   using GhostType::GhostType;
+// }
 
 #ifndef __AFC_EDITOR_GHOST_TYPE_CLASS_H__
 #define __AFC_EDITOR_GHOST_TYPE_CLASS_H__
@@ -259,11 +270,11 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value.ToBytes();
   }
 
-  template <typename Key>
-  decltype(auto) at(const Key& key) const
+  template <typename Self, typename Key>
+  auto&& at(this Self&& self, const Key& key)
     requires ghost_type_internal::HasAt<Internal, Key>
   {
-    return value.at(key);
+    return std::forward<Self>(self).value.at(key);
   }
 
   template <typename Key>
@@ -311,11 +322,11 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value.end();
   }
 
-  template <typename Key>
-  auto& operator[](const Key& key)
+  template <typename Self, typename Key>
+  auto&& operator[](this Self&& self, const Key& key)
     requires ghost_type_internal::HasSubscriptOperator<Internal, Key>
   {
-    return value[key];
+    return std::forward<Self>(self).value[key];
   }
 
   auto operator<=>(
