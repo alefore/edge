@@ -259,6 +259,8 @@ src/math/checked_operation.cc \
 src/math/checked_operation.h \
 src/math/decaying_counter.cc \
 src/math/decaying_counter.h \
+src/math/graph_non_deterministic.cc \
+src/math/graph_non_deterministic.h \
 src/math/naive_bayes.cc \
 src/math/naive_bayes.h \
 src/math/numbers.cc \

@@ -45,6 +45,8 @@ cc_library(
         ":dirname",
         "//src/language:ghost_type_class",
         "//src/language/lazy_string:column_number",
+        "//src/math:graph_deterministic",
+        "//src/math:graph_non_deterministic",
     ],
 )
 
