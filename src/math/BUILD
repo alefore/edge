@@ -69,7 +69,10 @@ cc_library(
     name = "graph_non_deterministic",
     hdrs = ["graph_non_deterministic.h"],
     visibility = ["//visibility:public"],
-    deps = ["//src/language:ghost_type_class"],
+    deps = [
+        ":graph_deterministic",
+        "//src/language:ghost_type_class",
+    ],
 )
 
 cc_library(
@@ -77,7 +80,6 @@ cc_library(
     hdrs = ["graph_deterministic.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":graph_non_deterministic",
         "//src/language:ghost_type_class",
     ],
 )

@@ -49,12 +49,12 @@ std::pair<NDG, GlobMatcher::PatternType> BuildNDGraph(LazyString pattern) {
 /* static */ GlobMatcher GlobMatcher::New(
     language::lazy_string::LazyString pattern) {
   std::pair<NDG, PatternType> data = BuildNDGraph(pattern);
-  GlobMatcher::Graph graph =
-      afc::math::graph_deterministic::FromNonDeterministic(
-          data.first, [](std::vector<ColumnNumberDelta> values) {
-            return std::ranges::max(values);
-          });
-  return GlobMatcher(pattern, std::move(graph), data.second);
+  return GlobMatcher(
+      pattern,
+      data.first.ToDeterministic([](std::vector<ColumnNumberDelta> values) {
+        return std::ranges::max(values);
+      }),
+      data.second);
 }
 
 GlobMatcher::GlobMatcher(LazyString pattern, Graph graph,
