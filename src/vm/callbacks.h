@@ -269,7 +269,7 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
   if (std::optional<afc::language::Error> error =
           ExtractFirstError(processed_args_or_error_tuple);
       error.has_value())
-    return futures::Past(error.value());
+    return error.value();
 
   auto processed_args_tuple = RemoveValueOrError(processed_args_or_error_tuple);
 
@@ -278,7 +278,7 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
   // modify the objects.
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
     std::apply(callback, processed_args_tuple);
-    return futures::Past(language::Success(Value::NewVoid(pool)));
+    return Value::NewVoid(pool);
   } else if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
     if constexpr (language::IsValueOrError<typename ft::ReturnType>::value) {
       using SuccessType = std::decay<decltype(std::get<0>(
@@ -287,18 +287,16 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
           language::overload{
               [&](language::Error error)
                   -> futures::ValueOrError<language::gc::Root<vm::Value>> {
-                return futures::Past(error);
+                return error;
               },
               [&](SuccessType value)
                   -> futures::ValueOrError<language::gc::Root<vm::Value>> {
-                return futures::Past(
-                    VMTypeMapper<SuccessType>::New(pool, std::move(value)));
+                return VMTypeMapper<SuccessType>::New(pool, std::move(value));
               }},
           std::apply(callback, processed_args_tuple));
     } else {
-      return futures::Past(
-          language::Success(VMTypeMapper<typename ft::ReturnType>::New(
-              pool, std::apply(callback, processed_args_tuple))));
+      return VMTypeMapper<typename ft::ReturnType>::New(
+          pool, std::apply(callback, processed_args_tuple));
     }
   } else if constexpr (language::IsValueOrError<
                            typename ft::ReturnType::type>::value) {
@@ -307,10 +305,9 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     return std::apply(callback, processed_args_tuple)
         .Transform([&pool](NestedType value) {
           if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
-            return language::Success(Value::NewVoid(pool));
+            return Value::NewVoid(pool);
           } else {
-            return language::Success(
-                VMTypeMapper<NestedType>::New(pool, value));
+            return VMTypeMapper<NestedType>::New(pool, value);
           }
         });
   } else {
@@ -318,10 +315,9 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     return std::apply(callback, processed_args_tuple)
         .Transform([&pool](NestedType value) {
           if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
-            return language::Success(Value::NewVoid(pool));
+            return Value::NewVoid(pool);
           } else {
-            return language::Success(
-                (VMTypeMapper<NestedType>::New(pool, value)));
+            return (VMTypeMapper<NestedType>::New(pool, value));
           }
         });
   }
