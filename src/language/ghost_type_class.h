@@ -102,6 +102,11 @@ concept HasBegin = requires(Internal i) {
   { i.begin() } -> std::same_as<typename Internal::iterator>;
 };
 
+template <typename Internal>
+concept HasRBegin = requires(Internal i) {
+  { i.rbegin() } -> std::same_as<typename Internal::reverse_iterator>;
+};
+
 template <typename Internal, typename ElementValue>
 concept HasPushBack =
     requires(Internal i, ElementValue element) { i.push_back(element); };
@@ -292,6 +297,12 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires ghost_type_internal::HasBegin<Internal>
   {
     return value.begin();
+  }
+
+  auto rbegin() const
+    requires ghost_type_internal::HasRBegin<Internal>
+  {
+    return value.rbegin();
   }
 
   auto end() const
