@@ -28,6 +28,25 @@ struct Node {
   NodeGroup any_value_edges;
 
   NodeValue value;
+
+  Node WithPositionsShifted(size_t delta) const {
+    Node copy = *this;
+    auto shift_group = [delta](NodeGroup& group) {
+      group = std::move(group) | std::views::transform([delta](NodeId input) {
+                return NodeId{input.read() + delta};
+              }) |
+              std::ranges::to<NodeGroup>();
+    };
+    copy.edges =
+        std::move(copy.edges) |
+        std::views::transform([&](std::pair<const EdgeValue, NodeGroup>& data) {
+          shift_group(data.second);
+        }) |
+        std::ranges::to<std::map<EdgeValue, NodeGroup>>();
+    shift_group(copy.automatic_edges);
+    shift_group(copy.any_value_edges);
+    return copy;
+  }
 };
 
 template <typename EdgeValue, typename NodeValue>
@@ -102,6 +121,20 @@ struct Graph
         output[node_id].default_edge = get_or_create_node(any_value_edges);
     }
     return output;
+  }
+
+  static Graph Merge(std::ranges::input_range auto&& graphs)
+    requires std::same_as<std::ranges::range_value_t<decltype(graphs)>, Graph>
+  {
+    Graph output;
+    std::ranges::for_each(graphs, [&](const Graph& input) {
+      size_t start = output.size();
+      std::ranges::copy(input | std::views::transform([&](const Node& node) {
+                          return node.WithPositionsShifted(start);
+                        }),
+                        std::back_inserter(output));
+      if (start > 0) output.at(NodeId{0}).automatic_edges.insert(NodeId{start});
+    });
   }
 
  private:
