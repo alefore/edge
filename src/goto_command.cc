@@ -233,8 +233,8 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
   TRACK_OPERATION(GotoTransformation_Apply);
   auto position = ComputeGoToPosition(input.modifiers.structure, input.buffer,
                                       input.modifiers, input.position, calls_);
-  return futures::Past(
-      position.has_value() ? Output::SetPosition(position.value()) : Output());
+  return position.has_value() ? Output::SetPosition(position.value())
+                              : Output{};
 }
 
 gc::Root<Command> NewGotoCommand(EditorState& editor_state) {

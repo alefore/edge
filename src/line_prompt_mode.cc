@@ -129,7 +129,7 @@ std::multimap<Identifier, EscapedString> GetCurrentFeatures(
     output.insert(
         {HistoryIdentifierActive(),
          EscapedString{LazyString{buffer.Read(buffer_variables::name)}}});
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   });
   return output;
 }
@@ -140,7 +140,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
   if (std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state.buffer_registry().Find(buffer_name);
       buffer.has_value())
-    return futures::Past(buffer.value());
+    return buffer.value();
   return OpenOrCreateFile(
              {.editor_state = editor_state,
               .name = buffer_name,
@@ -243,7 +243,7 @@ futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
   buffer.Set(buffer_variables::completion_model_paths, LazyString{});
   buffer.Set(buffer_variables::is_prompt, true);
   return buffer.Reload()
-      .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); })
+      .ConsumeErrors([](Error) { return EmptyValue{}; })
       .Transform([&buffer, prompt_contents_type, initial_value](EmptyValue) {
         buffer.Set(buffer_variables::contents_type, prompt_contents_type);
         return buffer.ApplyToCursors(transformation::Insert{
@@ -429,7 +429,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
 
   if (options().colorize_options_provider == nullptr ||
       status().GetType() != Status::Type::kPrompt)
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
 
   auto status_value_viewer = MakeNonNullShared<StatusVersionAdapter>(
       NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
@@ -585,7 +585,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
     OpenBuffer& buffer = prompt_state_->prompt_buffer().ptr().value();
     CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
     Line input = buffer.contents().at(LineNumber(0));
-    return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
+    return MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
                           prompt_state_->history(),
@@ -597,7 +597,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
                       history_filtered.ptr()->contents().size());
                   return history_filtered;
                 })),
-        input, prompt_state_));
+        input, prompt_state_);
   }
 
  private:
@@ -865,7 +865,7 @@ void Prompt(PromptOptions options) {
               EnterInsertMode(prompt_state->insert_mode_options());
 
               prompt_state->OnModify();
-              return futures::Past(EmptyValue());
+              return EmptyValue{};
             });
       });
 }

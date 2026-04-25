@@ -195,7 +195,7 @@ class HelpCommand : public Command {
     output.InsertInPosition(GenerateLines(commands, input.ptr().value()),
                             LineColumn(), {});
     output.set_current_position_line(LineNumber(0));
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
 
   static LineSequence GenerateLines(const MapModeCommands& commands,

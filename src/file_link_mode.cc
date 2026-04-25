@@ -163,7 +163,7 @@ futures::Value<PossibleError> Save(
           LazyString{L"Buffer can't be saved: Invalid “path” variable"},
           Path::New(options.buffer->Read(buffer_variables::path))));
 
-  futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
+  futures::ValueOrError<Path> path_future = immediate_path;
 
   switch (options.save_type) {
     case OpenBuffer::Options::SaveType::kMainFile:
@@ -171,7 +171,7 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kBackup:
       path_future =
           OnError(options.buffer->GetEdgeStateDirectory(), [](Error error) {
-            return futures::Past(
+            return MakeUnexpected(
                 AugmentError(LazyString{L"Unable to backup buffer"}, error));
           }).Transform([](Path state_directory) {
             return Success(Path::Join(state_directory,
@@ -180,14 +180,16 @@ futures::Value<PossibleError> Save(
   }
 
   return std::move(path_future)
-      .Transform([&editor, stat_buffer, options](Path path) mutable {
+      .Transform([&editor, stat_buffer,
+                  options](Path path) mutable -> futures::Value<PossibleError> {
         return SaveContentsToFile(path, options.buffer->contents().snapshot(),
                                   editor.thread_pool(),
                                   options.buffer->file_system_driver().value())
             .Transform([options](EmptyValue) mutable {
               return options.buffer->PersistState();
             })
-            .Transform([&editor, stat_buffer, options, path](EmptyValue) {
+            .Transform([&editor, stat_buffer, options,
+                        path](EmptyValue) -> futures::Value<PossibleError> {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   options.buffer->status().SetInformationText(LineBuilder{
@@ -203,7 +205,7 @@ futures::Value<PossibleError> Save(
                 case OpenBuffer::Options::SaveType::kBackup:
                   break;
               }
-              return futures::Past(Success());
+              return EmptyValue{};
             });
       });
 }
@@ -257,7 +259,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                struct stat value;
                value.st_mode =
                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-               return futures::Past(Success(value));
+               return value;
              })
       .Transform([path, &file_system_driver, tmp_path](struct stat stat_value) {
         return OnError(
@@ -265,7 +267,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                                     stat_value.st_mode),
             [tmp_path](Error error) {
               LOG(INFO) << tmp_path << ": Error opening file: " << error;
-              return futures::Past(error);
+              return MakeUnexpected(error);
             });
       })
       .Transform([&thread_pool, path, contents = std::move(contents), tmp_path,
@@ -275,7 +277,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                                               contents),
                        [&file_system_driver, fd](Error error) {
                          file_system_driver.Close(fd);
-                         return futures::Past(error);
+                         return MakeUnexpected(error);
                        })
             .Transform([&file_system_driver, fd](EmptyValue) {
               return file_system_driver.Close(fd);
@@ -331,15 +333,15 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
                            editor_state.buffer_registry()
                                .FindBuffersPathEndingIn(path_to_validate);
                        !buffers.empty()) {
-                     return futures::Past(buffers.at(0));
+                     return buffers.at(0);
                    }
-                   return futures::Past(
+                   return MakeUnexpected(
                        Error{LazyString{L"Unable to find buffer"}});
                  }})
       .Transform([options_position = options.position](ResolvePathOutput input)
                      -> futures::ValueOrError<ResolvePathOutput> {
         ApplyPosition(input.validator_output.value(), options_position);
-        return futures::Past(Success(std::move(input)));
+        return input;
       });
 }
 
@@ -462,11 +464,12 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
   LOG(INFO) << "OpenFileIfFound with path: " << options.path.value();
   return futures::OnError(
       FindAlreadyOpenBuffer(options, options.path.value())
-          .Transform([options](ResolvePathOutput already_open_buffer) {
+          .Transform([options](ResolvePathOutput already_open_buffer)
+                         -> futures::ValueOrError<gc::Root<OpenBuffer>> {
             gc::Root<OpenBuffer> buffer =
                 std::move(already_open_buffer.validator_output.value());
             options.editor_state.AddBuffer(buffer, options.insertion_type);
-            return futures::Past(Success(buffer));
+            return buffer;
           }),
       [options](Error) {
         return ResolvePath(ResolvePathOptions{
@@ -478,16 +481,15 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                                    options.stat_validator)})
             .Transform([options](ResolvePathOutput input)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-              return futures::Past(Success(CreateBuffer(options, input)));
+              return CreateBuffer(options, input);
             });
       });
 }
 
 futures::Value<gc::Root<OpenBuffer>> OpenOrCreateFile(
     const OpenFileOptions& options) {
-  return OpenFileIfFound(options).ConsumeErrors([options](Error) {
-    return futures::Past(CreateBuffer(options, std::nullopt));
-  });
+  return OpenFileIfFound(options).ConsumeErrors(
+      [options](Error) { return CreateBuffer(options, std::nullopt); });
 }
 
 futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(

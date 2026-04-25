@@ -31,11 +31,9 @@ namespace afc::language::text {
 
 using ::operator<<;
 
-LineMetadataValue LineMetadataValue::FromSingleLine(
-    lazy_string::SingleLine known_value) {
-  return LineMetadataValue{
-      .initial_value = known_value,
-      .value = futures::ListenableValue(futures::Past(known_value))};
+LineMetadataValue LineMetadataValue::FromSingleLine(SingleLine known_value) {
+  return LineMetadataValue{.initial_value = known_value,
+                           .value = futures::Value<SingleLine>(known_value)};
 }
 
 Line::Line() : Line(MakeNonNullShared<const Data>(Line::Data{})) {}

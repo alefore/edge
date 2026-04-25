@@ -133,13 +133,13 @@ futures::Value<CompositeTransformation::Output> GoTo(
   VisitPointer(
       position, [&](LineColumn value) { output.Push(SetPosition(value)); },
       [] {});
-  return futures::Past(std::move(output));
+  return output;
 }
 
 futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     CompositeTransformation::Input input) const {
   if (query_.empty() || query_.size() > kQueryLength + ColumnNumberDelta(1))
-    return futures::Past(Output{});
+    return Output{};
 
   PositionIdentifierMap matches = FindIdentifiers(
       FindPositions(
@@ -149,7 +149,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
 
   LOG(INFO) << "Found matches: " << matches.size();
 
-  if (matches.empty()) return futures::Past(Output{});
+  if (matches.empty()) return Output{};
 
   if (matches.size() == 1 && matches.begin()->second.size() == 1) {
     return GoTo(matches.begin()->second.begin()->second);
@@ -173,8 +173,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
                                        : std::make_optional(it->second));
   }
 
-  if (input.mode == transformation::Input::Mode::kFinal)
-    return futures::Past(Output());
+  if (input.mode == transformation::Input::Mode::kFinal) return Output{};
   VisualOverlayMap overlays;
   for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
        matches) {
@@ -200,7 +199,6 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
                   infrastructure::screen::VisualOverlay::Behavior::kToggle}));
     }
   }
-  return futures::Past(
-      Output(VisualOverlay{.visual_overlay_map = std::move(overlays)}));
+  return Output(VisualOverlay{.visual_overlay_map = std::move(overlays)});
 }
 }  // namespace afc::editor::transformation
