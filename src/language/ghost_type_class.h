@@ -64,6 +64,12 @@ class Factory<External> {
   static External New(External::InternalType value) { return External(value); };
 };
 
+template <typename T, typename Internal>
+concept NotInternalInitializerList =
+    !requires { typename Internal::value_type; } ||
+    !std::is_same_v<std::remove_cvref_t<T>,
+                    std::initializer_list<typename Internal::value_type>>;
+
 template <typename Internal>
 concept HasValueType = requires { typename Internal::value_type; };
 
@@ -206,11 +212,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
 
   template <typename T>
   GhostType(T&& initial_value)
-    requires(
-        std::is_constructible_v<Internal, T> &&
-        !std::is_same_v<std::remove_cvref_t<T>, GhostType> &&
-        !std::is_same_v<std::remove_cvref_t<T>,
-                        std::initializer_list<typename Internal::value_type>>)
+    requires(std::is_constructible_v<Internal, T> &&
+             !std::is_same_v<std::remove_cvref_t<T>, GhostType> &&
+             ghost_type_internal::NotInternalInitializerList<T, Internal>)
       : GhostType(Internal(std::forward<T>(initial_value))) {}
 
   template <typename T>
