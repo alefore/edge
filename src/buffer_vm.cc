@@ -666,7 +666,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                  keys,
              LazyString path_str) -> futures::ValueOrError<EmptyValue> {
             LOG(INFO) << "AddBindingToFile: " << path_str;
-            FUTURES_ASSIGN_OR_RETURN(Path path, Path::New(path_str));
+            DECLARE_OR_RETURN(Path path, Path::New(path_str));
             keys->lock([&](std::vector<ExtendedChar>& keys_values) {
               buffer->default_commands()->Add(
                   keys_values,
@@ -783,9 +783,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             gc::Ptr<OpenBuffer> buffer =
                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                     args[0].ptr().value());
-            FUTURES_ASSIGN_OR_RETURN(LineProcessorKey key,
-                                     LineProcessorKey::New(SingleLine::New(
-                                         args[1].ptr()->get_string())));
+            DECLARE_OR_RETURN(LineProcessorKey key,
+                              LineProcessorKey::New(SingleLine::New(
+                                  args[1].ptr()->get_string())));
             buffer->AddLineProcessor(key, [buffer,
                                            callback = std::move(args[2])](
                                               LineProcessorInput input) {

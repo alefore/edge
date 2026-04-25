@@ -90,10 +90,10 @@ PossibleError FinishClassDeclaration(
     Compilation& compilation,
     gc::Root<Expression> constructor_expression_input) {
   gc::Pool& pool = compilation.pool;
-  ASSIGN_OR_RETURN(gc::Root<Expression> constructor_expression,
-                   compilation.RegisterErrors(NewAppendExpression(
-                       compilation, constructor_expression_input.ptr(),
-                       NewVoidExpression(compilation.pool).ptr())));
+  DECLARE_OR_RETURN(gc::Root<Expression> constructor_expression,
+                    compilation.RegisterErrors(NewAppendExpression(
+                        compilation, constructor_expression_input.ptr(),
+                        NewVoidExpression(compilation.pool).ptr())));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
   gc::Root<ObjectType> class_object_type = ObjectType::New(pool, class_type);

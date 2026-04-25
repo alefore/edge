@@ -115,9 +115,9 @@ ValueOrError<gc::Root<Expression>> NewIfExpression(
     return error;
   }
 
-  ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
-                   compilation.RegisterErrors(CombineReturnTypes(
-                       true_case->ReturnTypes(), false_case->ReturnTypes())));
+  DECLARE_OR_RETURN(std::unordered_set<Type> return_types,
+                    compilation.RegisterErrors(CombineReturnTypes(
+                        true_case->ReturnTypes(), false_case->ReturnTypes())));
 
   return IfExpression::New(std::move(condition), std::move(true_case),
                            std::move(false_case), std::move(return_types));

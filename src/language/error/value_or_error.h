@@ -196,7 +196,6 @@ struct IgnoreErrors {
 
 template <typename V>
 auto ValueOrDie(V&& value, language::lazy_string::LazyString error_location) {
-  using T = ValueOrErrorTraits<std::decay_t<V>>::value_type;
 #if USE_EXPECTED
   if (IsError(value)) {
     LOG(FATAL) << error_location << ": " << value.error();
@@ -204,6 +203,7 @@ auto ValueOrDie(V&& value, language::lazy_string::LazyString error_location) {
   }
   return std::forward<V>(value).value();
 #else
+  using T = ValueOrErrorTraits<std::decay_t<V>>::value_type;
   return std::visit(
       language::overload{[&](const Error& error) -> T {
                            LOG(FATAL) << error_location << ": " << error;

@@ -131,8 +131,7 @@ void RegisterVariableFields(
             pool, kPurityTypeUnknown,
             [variable, setter](EditorState& editor, FieldVmValue value)
                 -> futures::Value<PossibleError> {
-              FUTURES_ASSIGN_OR_RETURN(auto processed_value,
-                                       FromVmValue(value));
+              DECLARE_OR_RETURN(auto processed_value, FromVmValue(value));
               (editor.*setter)(variable, processed_value);
               return futures::Past(Success());
             })

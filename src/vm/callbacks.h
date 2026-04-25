@@ -287,7 +287,7 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
           language::overload{
               [&](language::Error error)
                   -> futures::ValueOrError<language::gc::Root<vm::Value>> {
-                return error;
+                return MakeUnexpected(error);
               },
               [&](SuccessType value)
                   -> futures::ValueOrError<language::gc::Root<vm::Value>> {

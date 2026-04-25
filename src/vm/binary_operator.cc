@@ -27,10 +27,10 @@ ValueOrError<gc::Root<Expression>> BinaryOperator::New(
     std::function<ValueOrError<gc::Root<Value>>(gc::Pool& pool, const Value&,
                                                 const Value&)>
         callback) {
-  ASSIGN_OR_RETURN(gc::Ptr<Expression> a, a_or_error);
-  ASSIGN_OR_RETURN(gc::Ptr<Expression> b, b_or_error);
-  ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
-                   CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
+  DECLARE_OR_RETURN(gc::Ptr<Expression> a, a_or_error);
+  DECLARE_OR_RETURN(gc::Ptr<Expression> b, b_or_error);
+  DECLARE_OR_RETURN(std::unordered_set<Type> return_types,
+                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   gc::Pool& pool = a.pool();
   return pool.NewRoot(MakeNonNullUnique<BinaryOperator>(
       ConstructorAccessTag{}, std::move(a), std::move(b), std::move(type),

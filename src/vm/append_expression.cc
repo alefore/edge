@@ -94,8 +94,8 @@ ValueOrError<gc::Root<Expression>> NewAppendExpression(gc::Ptr<Expression> a,
   if (!a->purity().writes_external_outputs &&
       !a->purity().writes_local_variables && a->ReturnTypes().empty())
     return Success(b.ToRoot());
-  ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
-                   CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
+  DECLARE_OR_RETURN(std::unordered_set<Type> return_types,
+                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   return Success<gc::Root<Expression>>(AppendExpression::New(
       std::move(a), std::move(b), std::move(return_types)));
 }

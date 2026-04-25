@@ -100,14 +100,13 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           .ptr());
   time_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"AddDays"}}}},
-      vm::NewCallback(pool, kPurityTypePure,
-                      [](Time input, int days) -> futures::ValueOrError<Time> {
-                        FUTURES_ASSIGN_OR_RETURN(struct tm t,
-                                                 LocalTime(&input.tv_sec));
-                        t.tm_mday += days;
-                        return futures::Past(Time{.tv_sec = mktime(&t),
-                                                  .tv_nsec = input.tv_nsec});
-                      })
+      vm::NewCallback(
+          pool, kPurityTypePure,
+          [](Time input, int days) -> futures::ValueOrError<Time> {
+            DECLARE_OR_RETURN(struct tm t, LocalTime(&input.tv_sec));
+            t.tm_mday += days;
+            return Time{.tv_sec = mktime(&t), .tv_nsec = input.tv_nsec};
+          })
           .ptr());
   time_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"format"}}}},
@@ -115,22 +114,22 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           pool, kPurityTypePure,
           [](Time input,
              LazyString format_str) -> futures::ValueOrError<std::wstring> {
-            FUTURES_ASSIGN_OR_RETURN(struct tm t, LocalTime(&input.tv_sec));
+            DECLARE_OR_RETURN(struct tm t, LocalTime(&input.tv_sec));
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer), format_str.ToBytes().c_str(),
                          &t) == 0) {
-              return futures::Past(Error{LazyString{L"strftime error"}});
+              return MakeUnexpected(Error{LazyString{L"strftime error"}});
             }
-            return futures::Past(FromByteString(buffer));
+            return FromByteString(buffer);
           })
           .ptr());
   time_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"year"}}}},
       vm::NewCallback(pool, kPurityTypePure,
                       [](Time input) -> futures::ValueOrError<int> {
-                        FUTURES_ASSIGN_OR_RETURN(struct tm t,
-                                                 LocalTime(&input.tv_sec));
-                        return futures::Past(t.tm_year);
+                        DECLARE_OR_RETURN(struct tm t,
+                                          LocalTime(&input.tv_sec));
+                        return t.tm_year;
                       })
           .ptr());
   environment.Define(
@@ -142,22 +141,21 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       }));
   environment.Define(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"ParseTime"}}}},
-      vm::NewCallback(
-          pool, kPurityTypePure,
-          [](LazyString value,
-             LazyString format) -> futures::ValueOrError<Time> {
-            struct tm t = {};
-            if (strptime(value.ToBytes().c_str(), format.ToBytes().c_str(),
-                         &t) == nullptr)
-              return futures::Past(
-                  Error{LazyString{L"strptime error: value: "} + value +
-                        LazyString{L", format: "} + format});
-            if (time_t output = mktime(&t); output != -1)
-              return futures::Past(Time{.tv_sec = output, .tv_nsec = 0});
-            return futures::Past(Error{LazyString{L"mktime error: value: "} +
-                                       value + LazyString{L", format: "} +
-                                       format});
-          }));
+      vm::NewCallback(pool, kPurityTypePure,
+                      [](LazyString value,
+                         LazyString format) -> futures::ValueOrError<Time> {
+                        struct tm t = {};
+                        if (strptime(value.ToBytes().c_str(),
+                                     format.ToBytes().c_str(), &t) == nullptr)
+                          return MakeUnexpected(Error{
+                              LazyString{L"strptime error: value: "} + value +
+                              LazyString{L", format: "} + format});
+                        if (time_t output = mktime(&t); output != -1)
+                          return Time{.tv_sec = output, .tv_nsec = 0};
+                        return MakeUnexpected(
+                            Error{LazyString{L"mktime error: value: "} + value +
+                                  LazyString{L", format: "} + format});
+                      }));
 
   gc::Root<ObjectType> duration_type =
       ObjectType::New(pool, VMTypeMapper<Duration>::object_type_name);

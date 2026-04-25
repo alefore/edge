@@ -69,18 +69,19 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const LineSequence& expression_str) {
-  FUTURES_ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       gc::Root<ExecutionContext::CompilationResult> compilation_result,
       buffer.execution_context()->CompileString(
           expression_str.ToLazyString(),
           ExecutionContext::ErrorHandling::Ignore));
   buffer.status().Reset();
   return compilation_result->expression()->purity().writes_external_outputs
-             ? futures::Past(Success())
+             ? EmptyValue{}
              : compilation_result->evaluate()
-                   .Transform([&buffer](gc::Root<vm::Value> value) {
+                   .Transform([&buffer](gc::Root<vm::Value> value)
+                                  -> futures::Value<PossibleError> {
                      ShowValue(buffer, nullptr, value.ptr().value());
-                     return Success();
+                     return EmptyValue{};
                    })
                    .ConsumeErrors([&buffer](Error error) {
                      LineBuilder builder;

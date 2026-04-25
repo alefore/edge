@@ -83,9 +83,7 @@ futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
       [path = std::move(path), flags, mode]() -> ValueOrError<FileDescriptor> {
         LOG(INFO) << "Opening file:" << path;
         int fd = open(path.ToBytes().c_str(), flags, mode);
-        ASSIGN_OR_RETURN(EmptyValue value,
-                         SyscallReturnValue(path, LazyString{L"Open"}, fd));
-        (void)value;
+        RETURN_IF_ERROR(SyscallReturnValue(path, LazyString{L"Open"}, fd));
         return FileDescriptor::New(fd);
       });
 }

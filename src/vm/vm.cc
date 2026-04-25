@@ -66,7 +66,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineNumber;
-using afc ::language::text::LineSequence;
+using afc::language::text::LineSequence;
 using numbers::BigInt;
 
 namespace afc::vm {
@@ -132,7 +132,7 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
         str};
   }
 
-  ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       Path path,
       AugmentError(
           LazyString{L"#include was unable to extract path; in line: "} + str +

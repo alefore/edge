@@ -152,13 +152,13 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
 }
 
 ValueOrError<FileDescriptor> SyncConnectToParentServer() {
-  ASSIGN_OR_RETURN(Path path, GetEdgeParentAddress());
+  DECLARE_OR_RETURN(Path path, GetEdgeParentAddress());
   return SyncConnectToServer(path);
 }
 
 ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   LOG(INFO) << "Connecting to server: " << path.read();
-  ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       FileDescriptor server_fd,
       AugmentError(
           path.read() + LazyString{L": Connecting to server: open failed: "} +
@@ -171,7 +171,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   std::unique_ptr<int, decltype(fd_deleter_callback)> fd_deleter(
       new int(server_fd.read()), fd_deleter_callback);
 
-  ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       Path private_fifo,
       AugmentError(
           LazyString{L"Unable to create fifo for communication with server"},
@@ -211,8 +211,7 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
 }
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
-  FUTURES_ASSIGN_OR_RETURN(Path path,
-                           Path::New(target.Read(buffer_variables::path)));
+  DECLARE_OR_RETURN(Path path, Path::New(target.Read(buffer_variables::path)));
 
   LOG(INFO) << L"Server starts: " << path;
   return target.SetInputFromPath(path);
