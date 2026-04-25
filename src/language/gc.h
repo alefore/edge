@@ -393,6 +393,19 @@ std::ostream& operator<<(std::ostream& os,
 // can wrap `Ptr` in `std::optional` instead (e.g., `std::optional<Ptr<T>>`).
 template <typename T>
 class Ptr {
+  // We keep only a weak reference to the value here, locking it each time. The
+  // real reference is kept inside ObjectMetadata::expand_callback_. The
+  // ownership is shared through the shared ownership of the object metadata.
+  //
+  // When the last Ptr instance to a given value and object metadata are
+  // dropped, the ObjectMetadata is destroyed, allowing the object to be
+  // collected.
+  //
+  // If the MemoryPool detects that an object is no longer reachable, it will
+  // trigger its collection by overriding `ObjectMetadata::expand_callback_`.
+  std::weak_ptr<T> value_;
+  language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata_;
+
  public:
   Root<T> ToRoot() const { return Root<T>(*this); }
 
@@ -487,19 +500,6 @@ class Ptr {
     VLOG(10) << "Ptr(pool, value): " << object_metadata_.get_shared()
              << " (value: " << value_.lock() << ")";
   }
-
-  // We keep only a weak reference to the value here, locking it each time. The
-  // real reference is kept inside ObjectMetadata::expand_callback_. The
-  // ownership is shared through the shared ownership of the object metadata.
-  //
-  // When the last Ptr instance to a given value and object metadata are
-  // dropped, the ObjectMetadata is destroyed, allowing the object to be
-  // collected.
-  //
-  // If the MemoryPool detects that an object is no longer reachable, it will
-  // trigger its collection by overriding `ObjectMetadata::expand_callback_`.
-  std::weak_ptr<T> value_;
-  language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata_;
 };
 
 template <typename T>
