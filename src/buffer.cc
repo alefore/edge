@@ -203,49 +203,40 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
   static const LineProcessorOutputFuture kEmptyOutput{
       .initial_value = LineProcessorOutput(SingleLine{}),
       .value = futures::Past(LineProcessorOutput{SingleLine{}})};
-  return std::visit(
-      overload{
-          [&](gc::Root<ExecutionContext::CompilationResult> compilation_result)
-              -> ValueOrError<LineProcessorOutputFuture> {
-            LineProcessorOutputFuture output{
-                .initial_value = LineProcessorOutput(
-                    SINGLE_LINE_CONSTANT(L"C++: ") +
-                    vm::TypesToString(
-                        compilation_result->expression()->Types())),
-                .value = futures::Future<LineProcessorOutput>().value};
-            if (!compilation_result->expression()
-                     ->purity()
-                     .writes_external_outputs) {
-              output.initial_value = LineProcessorOutput(
-                  output.initial_value.read() + SINGLE_LINE_CONSTANT(L" ..."));
-              if (compilation_result->expression()->Types() ==
-                  std::vector<vm::Type>({vm::types::Void{}}))
-                return kEmptyOutput;
-              output.value = buffer.work_queue()->Wait(Now()).Transform(
-                  [compilation_result =
-                       std::move(compilation_result)](EmptyValue) mutable {
-                    return compilation_result->evaluate()
-                        .Transform([](gc::Root<vm::Value> value) {
-                          std::ostringstream oss;
-                          oss << value.ptr().value();
-                          return LineProcessorOutput::New(SingleLine::New(
-                              LazyString{FromByteString(oss.str())}));
-                        })
-                        .ConsumeErrors([](Error error) {
-                          return LineProcessorOutput(
-                              SINGLE_LINE_CONSTANT(L"E: ") +
-                              LineSequence::BreakLines(error.read())
-                                  .FoldLines());
-                        });
-                  });
-            }
-            return output;
-          },
-          [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
-            return error;
-          }},
+  DECLARE_OR_RETURN(
+      gc::Root<ExecutionContext::CompilationResult> compilation_result,
       buffer.execution_context()->CompileString(
           input.read(), ExecutionContext::ErrorHandling::Ignore));
+  LineProcessorOutputFuture output{
+      .initial_value = LineProcessorOutput(
+          SINGLE_LINE_CONSTANT(L"C++: ") +
+          vm::TypesToString(compilation_result->expression()->Types())),
+      .value = futures::Future<LineProcessorOutput>().value};
+  if (!compilation_result->expression()->purity().writes_external_outputs) {
+    output.initial_value = LineProcessorOutput(output.initial_value.read() +
+                                               SINGLE_LINE_CONSTANT(L" ..."));
+    if (compilation_result->expression()->Types() ==
+        std::vector<vm::Type>({vm::types::Void{}}))
+      return kEmptyOutput;
+    output.value = buffer.work_queue()->Wait(Now()).Transform(
+        [compilation_result =
+             std::move(compilation_result)](EmptyValue) mutable {
+          return compilation_result->evaluate()
+              .Transform([](gc::Root<vm::Value> value)
+                             -> ValueOrError<LineProcessorOutput> {
+                std::ostringstream oss;
+                oss << value.ptr().value();
+                return LineProcessorOutput::New(
+                    SingleLine::New(LazyString{FromByteString(oss.str())}));
+              })
+              .ConsumeErrors([](Error error) {
+                return LineProcessorOutput(
+                    SINGLE_LINE_CONSTANT(L"E: ") +
+                    LineSequence::BreakLines(error.read()).FoldLines());
+              });
+        });
+  }
+  return output;
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
@@ -436,7 +427,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                   .Transform(
                       [](gc::Root<Value>)
                           -> futures::ValueOrError<IterationControlCommand> {
-                        return Past(IterationControlCommand::kContinue);
+                        return IterationControlCommand::kContinue;
                       })
                   .ConsumeErrors([](Error) {
                     return Past(IterationControlCommand::kContinue);
@@ -1113,7 +1104,7 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor().edge_path();
   if (path_vector.empty()) return Error{LazyString{L"Empty edge path."}};
-  FUTURES_ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       Path file_path,
       AugmentError(
           LazyString{L"Unable to persist buffer with invalid path "} +
@@ -1130,9 +1121,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
         file_path.read()};
   }
 
-  FUTURES_ASSIGN_OR_RETURN(std::list<PathComponent> file_path_components,
-                           AugmentError(LazyString{L"Unable to split path"},
-                                        file_path.DirectorySplit()));
+  DECLARE_OR_RETURN(std::list<PathComponent> file_path_components,
+                    AugmentError(LazyString{L"Unable to split path"},
+                                 file_path.DirectorySplit()));
 
   file_path_components.push_front(EditorState::StatePathComponent());
 
