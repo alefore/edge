@@ -230,7 +230,7 @@ class SearchCommand : public Command {
                                     editor_state_](OpenBuffer& buffer) {
             Range range = buffer.FindPartialRange(editor_state.modifiers(),
                                                   buffer.position());
-            if (range.empty()) return futures::Past(EmptyValue());
+            if (range.empty()) return EmptyValue{};
             VLOG(5) << "FindPartialRange: [position:" << buffer.position()
                     << "][range:" << range
                     << "][modifiers:" << editor_state.modifiers() << "]";
@@ -248,7 +248,7 @@ class SearchCommand : public Command {
             }
             CHECK_EQ(range.begin().line, range.end().line);
             if (range.begin() == range.end()) {
-              return futures::Past(EmptyValue{});
+              return EmptyValue{};
             }
             CHECK_LT(range.begin().column, range.end().column);
             buffer.set_position(range.begin());
@@ -260,7 +260,7 @@ class SearchCommand : public Command {
                                         ->Substring(range.begin().column,
                                                     range.end().column -
                                                         range.begin().column)});
-            return futures::Past(EmptyValue{});
+            return EmptyValue{};
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {
             editor_state.ResetStructure();
@@ -294,7 +294,8 @@ class SearchCommand : public Command {
                           buffers,
                           [&editor_state, line, progress_aggregator,
                            abort_value,
-                           results](const gc::Root<OpenBuffer>& buffer_root) {
+                           results](const gc::Root<OpenBuffer>& buffer_root)
+                              -> futures::Value<Control> {
                             OpenBuffer& buffer = buffer_root.ptr().value();
                             NonNull<std::shared_ptr<ProgressChannel>>
                                 progress_channel =
@@ -309,13 +310,13 @@ class SearchCommand : public Command {
                                         SINGLE_LINE_CONSTANT(L"on")}}});
                             }
                             if (line.size().IsZero()) {
-                              return futures::Past(Control::kContinue);
+                              return Control::kContinue;
                             }
                             auto search_options = BuildPromptSearchOptions(
                                 line, buffer, abort_value);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
-                              return futures::Past(Control::kContinue);
+                              return Control::kContinue;
                             }
                             search_options->progress_channel =
                                 std::move(progress_channel);
@@ -332,7 +333,9 @@ class SearchCommand : public Command {
                                 .Transform([results, abort_value, line,
                                             buffer_root, search_options](
                                                std::vector<LineColumn>
-                                                   positions) {
+                                                   positions)
+                                               -> futures::ValueOrError<
+                                                   Control> {
                                   MergeInto(
                                       SearchResultsSummary{
                                           .matches = positions.size(),
@@ -353,12 +356,13 @@ class SearchCommand : public Command {
                                                             kFull},
                                       results.value());
                                   return abort_value.has_value()
-                                             ? Success(Control::kStop)
-                                             : Success(Control::kContinue);
+                                             ? Control::kStop
+                                             : Control::kContinue;
                                 })
-                                .ConsumeErrors([results](Error error) {
+                                .ConsumeErrors([results](Error error)
+                                                   -> futures::Value<Control> {
                                   results.value() = error;
-                                  return futures::Past(Control::kStop);
+                                  return Control::kStop;
                                 });
                           })
                    .Transform([results, line](EmptyValue) {
@@ -376,7 +380,7 @@ class SearchCommand : public Command {
                          search_options.has_value()) {
                        DoSearch(buffer, *search_options);
                      }
-                     return futures::Past(EmptyValue());
+                     return EmptyValue{};
                    })
                    .Transform([&editor_state](EmptyValue) {
                      editor_state.ResetDirection();

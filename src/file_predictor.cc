@@ -422,8 +422,9 @@ futures::Value<LineSequence> GetSearchPathsBuffer(EditorState& editor_state,
                                                   const Path& edge_path) {
   BufferName buffer_name{LazyString{L"- search paths"}};
   return VisitOptional(
-             [](gc::Root<OpenBuffer> buffer) { return futures::Past(buffer); },
-             [&] {
+             [](gc::Root<OpenBuffer> buffer)
+                 -> futures::Value<gc::Root<OpenBuffer>> { return buffer; },
+             [&] -> futures::Value<gc::Root<OpenBuffer>> {
                return OpenOrCreateFile(
                           OpenFileOptions{
                               .editor_state = editor_state,

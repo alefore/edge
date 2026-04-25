@@ -190,7 +190,7 @@ futures::Value<std::optional<PredictResults>> Predict(
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput) {
-  return futures::Past(PredictorOutput{});
+  return PredictorOutput{};
 }
 
 namespace {
@@ -242,7 +242,7 @@ Predictor PrecomputedPredictor(
   return [contents](PredictorInput input) {
     ValueOrError<NonEmptySingleLine> input_value =
         NonEmptySingleLine::New(input.input);
-    if (IsError(input_value)) return futures::Past(PredictorOutput{});
+    if (IsError(input_value)) return PredictorOutput{};
     MutableLineSequence output_contents;
     for (auto it = contents->lower_bound(ValueOrDie(std::move(input_value)));
          it != contents->end(); ++it) {
@@ -258,9 +258,8 @@ Predictor PrecomputedPredictor(
         .values = {
             {VersionPropertyKey{NON_EMPTY_SINGLE_LINE_CONSTANT(L"values")},
              NonEmptySingleLine(output_contents.size().read() - 1).read()}}});
-    return futures::Past(
-        PredictorOutput({.contents = SortedLineSequenceUniqueLines(
-                             SortedLineSequence(output_contents.snapshot()))}));
+    return PredictorOutput{.contents = SortedLineSequenceUniqueLines(
+                               SortedLineSequence(output_contents.snapshot()))};
   };
 }
 
@@ -268,9 +267,9 @@ namespace {
 const bool precomputed_predictor_tests_registration =
     tests::Register(L"PrecomputedPredictor", [] {
       auto test_predictor = [] {
-        // We wrap this in a lambda so that it only gets evaluated *when* the
-        // tests run (so that PrecomputedPredictor and its dependencies can
-        // use glog).
+        // We wrap this in a lambda so that it only gets evaluated *when*
+        // the tests run (so that PrecomputedPredictor and its dependencies
+        // can use glog).
         const static Predictor output = PrecomputedPredictor(
             {NonEmptySingleLine{SingleLine{LazyString{L"foo"}}},
              NonEmptySingleLine{SingleLine{LazyString{L"bar"}}},
@@ -313,7 +312,7 @@ const bool precomputed_predictor_tests_registration =
               CHECK(!std::exchange(executed, true));
               CHECK(predict_results.has_value());
               callback(predict_results.value());
-              return futures::Past(EmptyValue());
+              return EmptyValue{};
             });
         CHECK(executed);
       };
@@ -359,7 +358,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
   SortedLineSequenceUniqueLines contents(
       SortedLineSequence(dictionary_root.ptr()->contents().snapshot()));
 
-  return [contents](PredictorInput input) {
+  return [contents](PredictorInput input) -> futures::Value<PredictorOutput> {
     Line input_line{input.input};
     // TODO: This has complexity N log N. We could instead extend
     // BufferContents to expose a wrapper around `Suffix`, allowing this to
@@ -375,9 +374,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     // add methods to SortedLineSequence that allows us to extract a sub-range
     // view, and filter. There shouldn't be a need to re-sort.
     TRACK_OPERATION(DictionaryPredictor_Sorting);
-    return futures::Past(
-        PredictorOutput({.contents = SortedLineSequenceUniqueLines{
-                             SortedLineSequence{LineSequence{begin, end}}}}));
+    return PredictorOutput{.contents = SortedLineSequenceUniqueLines{
+                               SortedLineSequence{LineSequence{begin, end}}}};
   };
 }
 
@@ -404,9 +402,8 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   if (input.source_buffers.empty())
-    return futures::Past(
-        PredictorOutput({.contents = SortedLineSequenceUniqueLines(
-                             SortedLineSequence(LineSequence()))}));
+    return PredictorOutput{.contents = SortedLineSequenceUniqueLines(
+                               SortedLineSequence(LineSequence()))};
   std::set<NonEmptySingleLine> words;
   for (const OpenBuffer& buffer : input.source_buffers | gc::view::Value) {
     RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
