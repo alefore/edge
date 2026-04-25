@@ -73,6 +73,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::PossibleError;
 using afc::language::ToByteString;
 using afc::language::VisitOptional;
 using afc::language::VisitOptionalCallback;
@@ -287,7 +288,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
     output.Push(transformation::ModifiersAndComposite{
         Modifiers(), MakeNonNullUnique<NewLineTransformation>()});
     output.Push(transformation::SetPosition(input.position));
-    return futures::Past(std::move(output));
+    return output;
   }
 
  private:
@@ -425,7 +426,8 @@ class InsertMode : public InputReceiver,
 
         ForEachActiveBuffer(
             buffers_, old_literal ? std::wstring{27} : L"",
-            [options = options_, old_literal](OpenBuffer& buffer) {
+            [options = options_,
+             old_literal](OpenBuffer& buffer) -> futures::Value<EmptyValue> {
               if (buffer.fd() != nullptr) {
                 if (old_literal) {
                   buffer.status().SetInformationText(
@@ -433,14 +435,15 @@ class InsertMode : public InputReceiver,
                 } else {
                   buffer.status().Reset();
                 }
-                return futures::Past(EmptyValue());
+                return EmptyValue{};
               }
               buffer.MaybeAdjustPositionCol();
               gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
               // TODO(easy): Honor `old_literal`.
               return buffer
                   .ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
-                  .Transform([options, buffer_root](EmptyValue) {
+                  .Transform([options, buffer_root](
+                                 EmptyValue) -> futures::Value<EmptyValue> {
                     buffer_root->PopTransformationStack();
                     auto repetitions =
                         options.editor_state.repetitions().value_or(1);
@@ -449,21 +452,23 @@ class InsertMode : public InputReceiver,
                     }
                     return buffer_root->RepeatLastTransformation();
                   })
-                  .Transform([options, buffer_root](EmptyValue) {
+                  .Transform([options, buffer_root](
+                                 EmptyValue) -> futures::Value<EmptyValue> {
                     buffer_root->PopTransformationStack();
                     buffer_root->status().Reset();
-                    return EmptyValue();
+                    return EmptyValue{};
                   });
             })
-            .Transform([options = options_, old_literal](EmptyValue) {
-              if (old_literal) return EmptyValue();
+            .Transform([options = options_,
+                        old_literal](EmptyValue) -> futures::Value<EmptyValue> {
+              if (old_literal) return EmptyValue{};
               options.editor_state.status().Reset();
               CHECK(options.escape_handler != nullptr);
               options.escape_handler();  // Probably deletes us.
               options.editor_state.ResetRepetitions();
               options.editor_state.ResetInsertionModifier();
               options.editor_state.set_keyboard_redirect(std::nullopt);
-              return EmptyValue();
+              return EmptyValue{};
             });
         return;
 
@@ -522,25 +527,28 @@ class InsertMode : public InputReceiver,
         StartNewInsertion();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         ForEachActiveBuffer(
-            buffers_, {21}, [options = options_](OpenBuffer& buffer) {
+            buffers_, {21},
+            [options =
+                 options_](OpenBuffer& buffer) -> futures::Value<EmptyValue> {
               return std::visit(
                   overload{
                       [&buffer,
                        &options](gc::Root<ExecutionContext::CompilationResult>
-                                     compilation_result) {
+                                     compilation_result)
+                          -> futures::Value<EmptyValue> {
                         return compilation_result->evaluate()
-                            .ConsumeErrors([&pool = buffer.editor().gc_pool()](
-                                               Error) {
-                              return futures::Past(vm::Value::NewVoid(pool));
-                            })
+                            .ConsumeErrors(
+                                [&pool = buffer.editor().gc_pool()](Error) {
+                                  return vm::Value::NewVoid(pool);
+                                })
                             .Transform(ModifyHandler<gc::Root<vm::Value>>(
                                 options.modify_handler, buffer));
                       },
-                      [](Error error) {
+                      [](Error error) -> futures::Value<EmptyValue> {
                         LOG(WARNING) << "Unable to compile call for "
                                         "HandleKeyboardControlU: "
                                      << error;
-                        return futures::Past(EmptyValue{});
+                        return EmptyValue{};
                       }},
                   options.editor_state.execution_context()->FunctionCall(
                       IDENTIFIER_CONSTANT(L"HandleKeyboardControlU"),
@@ -606,7 +614,7 @@ class InsertMode : public InputReceiver,
               [options = options_, &started_completion](OpenBuffer& buffer) {
                 if (buffer.fd() == nullptr && options.start_completion(buffer))
                   started_completion = true;
-                return futures::Past(EmptyValue());
+                return EmptyValue{};
               });
           if (started_completion) {
             // Whatever was being typed, was probably just for completion
@@ -731,7 +739,7 @@ class InsertMode : public InputReceiver,
                                                     token, value);
                                    }},
                           output);
-                      return futures::Past(EmptyValue{});
+                      return EmptyValue{};
                     });
               })
               .Transform(
@@ -775,8 +783,7 @@ class InsertMode : public InputReceiver,
                      ? callable(buffer_ptr.value()).Transform([](EmptyValue) {
                          return futures::IterationControlCommand::kContinue;
                        })
-                     : futures::Past(
-                           futures::IterationControlCommand::kContinue);
+                     : futures::IterationControlCommand::kContinue;
         });
   }
 
@@ -842,7 +849,7 @@ class InsertMode : public InputReceiver,
                                 if (buffer.fd() == nullptr) {
                                   (scroll_behavior.value().*method)(buffer);
                                 }
-                                return futures::Past(EmptyValue());
+                                return EmptyValue{};
                               });
         });
   }
@@ -999,7 +1006,8 @@ class InsertMode : public InputReceiver,
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,
                                         buffer_root, completion_model_supplier](
-                                           EmptyValue) mutable {
+                                           EmptyValue) mutable
+                                           -> futures::Value<EmptyValue> {
       return completion_model_supplier
           ->Query(std::move(model_paths.value()), token)
           .Transform(VisitCallback(overload{
@@ -1007,7 +1015,8 @@ class InsertMode : public InputReceiver,
                token_range = LineRange(
                    LineColumn(position.line, position.column - token.size()),
                    token.size()),
-               modify_mode](DictionaryValue value) {
+               modify_mode](
+                  DictionaryValue value) -> futures::Value<EmptyValue> {
                 transformation::Stack stack;
                 stack.push_back(transformation::Delete{
                     .range = token_range.read(),
@@ -1023,14 +1032,14 @@ class InsertMode : public InputReceiver,
                     ColumnNumberDelta(1)));
                 return buffer_root->ApplyToCursors(std::move(stack));
               },
-              [buffer_root, token](DictionaryKey key) {
+              [buffer_root,
+               token](DictionaryKey key) -> futures::Value<EmptyValue> {
                 ShowSuggestion(buffer_root.ptr().value(), key,
                                DictionaryValue{token.read().read()});
-                return futures::Past(EmptyValue());
+                return EmptyValue{};
               },
-              [](DictionaryManager::NothingFound) {
-                return futures::Past(EmptyValue());
-              }}));
+              [](DictionaryManager::NothingFound)
+                  -> futures::Value<EmptyValue> { return EmptyValue{}; }}));
     });
   }
 };
