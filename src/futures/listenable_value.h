@@ -54,6 +54,9 @@ class ListenableValue {
         });
   }
 
+  ListenableValue(Type immediate_value)
+      : ListenableValue(Value<Type>(std::move(immediate_value))) {}
+
   void AddListener(Listener listener) const {
     data_->lock([&](Data& data) {
       if (data.value.has_value()) {
