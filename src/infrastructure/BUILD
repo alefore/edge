@@ -43,6 +43,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:ghost_type_class",
+        "//src/language/error:value_or_error",
         "//src/language/lazy_string:column_number",
         "//src/math:graph_deterministic",
         "//src/math:graph_non_deterministic",
