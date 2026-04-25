@@ -464,10 +464,10 @@ src/concurrent/protected_tests.cc \
 src/concurrent/protected.h \
 src/infrastructure/tracker.cc \
 src/infrastructure/tracker.h \
-src/language/const_tree.cc \
+src/language/const_tree_tests.cc \
 src/language/const_tree.h \
 src/language/const_tree_benchmarks.cc \
-src/language/hash.cc \
+src/language/hash_tests.cc \
 src/language/hash.h \
 src/language/lazy_string/functional_tests.cc \
 src/language/lazy_string/functional.cc \
