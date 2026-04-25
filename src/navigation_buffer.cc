@@ -146,10 +146,11 @@ futures::Value<PossibleError> GenerateContents(
           target.environment()->Lookup(kEmptyNamespace, kDepthSymbol,
                                        vm::types::Number{});
       depth_value.has_value()) {
-    FUTURES_ASSIGN_OR_RETURN(depth,
-                             std::get<gc::Root<vm::Value>>(depth_value->value)
-                                 ->get_number()
-                                 .ToSizeT());
+    DECLARE_OR_RETURN(size_t depth_conv,
+                      std::get<gc::Root<vm::Value>>(depth_value->value)
+                          ->get_number()
+                          .ToSizeT());
+    depth = depth_conv;
   }
   DisplayTree(source->ptr().value(), depth, tree.value(), SingleLine{}, target);
   return futures::Past(Success());

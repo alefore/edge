@@ -418,15 +418,6 @@ Value<language::EmptyValue> ForEachWithCopy(Iterator begin, Iterator end,
           [copy](language::EmptyValue) { return language::EmptyValue{}; });
 }
 
-#define FUTURES_ASSIGN_OR_RETURN(variable, expression)                         \
-  variable = ({                                                                \
-    auto tmp = expression;                                                     \
-    if (afc::language::Error* error = std::get_if<afc::language::Error>(&tmp); \
-        error != nullptr)                                                      \
-      return futures::Past(std::move(*error));                                 \
-    std::get<0>(std::move(tmp));                                               \
-  })
-
 // Combines futures (of possibly different values) into a single future with a
 // tuple with the contained values.
 template <typename T0, typename T1>

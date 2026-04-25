@@ -60,7 +60,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   }
 
   buffer->ptr()->ResetMode();
-  FUTURES_ASSIGN_OR_RETURN(Path path, Path::New(ToLazyString(input)));
+  DECLARE_OR_RETURN(Path path, Path::New(ToLazyString(input)));
   NonNull<std::shared_ptr<std::optional<Error>>> possible_error;
   return ResolvePath(
              ResolvePathOptions::New(MakeNonNullShared<FileSystemDriver>(

@@ -69,6 +69,7 @@ GlobMatcher::BuildNDGraph(std::vector<LazyString> patterns) {
 
 /* static */ GlobMatcher GlobMatcher::New(
     std::vector<language::lazy_string::LazyString> patterns) {
+  CHECK(!patterns.empty());
   std::pair<NDGraph, std::vector<PatternType>> data = BuildNDGraph(patterns);
   CHECK_EQ(data.second.size(), patterns.size());
   return GlobMatcher(patterns,
