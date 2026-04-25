@@ -68,13 +68,13 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      SingleLine input_name) {
   ValueOrError<vm::Identifier> name_or_error =
       vm::Identifier::New(NonEmptySingleLine::New(Trim(input_name, {L' '})));
-  if (IsError(name_or_error)) return futures::Past(EmptyValue());
+  if (IsError(name_or_error)) return EmptyValue{};
   vm::Identifier name = ValueOrDie(std::move(name_or_error));
   LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
 
   std::vector<gc::Root<OpenBuffer>> active_buffers =
       editor_state.active_buffers();
-  if (active_buffers.size() != 1) return futures::Past(EmptyValue());
+  if (active_buffers.size() != 1) return EmptyValue{};
   Status& default_error_status = active_buffers.size() == 1
                                      ? active_buffers[0].ptr()->status()
                                      : editor_state.status();
@@ -100,13 +100,13 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                             LineBuilder{var->name().read() +
                                         SingleLine{LazyString{L" := "}} + input}
                                 .Build());
-                        return futures::Past(EmptyValue());
+                        return EmptyValue{};
                       });
                 },
             .cancel_handler = []() { /* Nothing. */ },
             .predictor = var->predictor(),
             .status = PromptOptions::Status::kBuffer});
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
 
   if (auto var = editor_variables::BoolStruct()->find_variable(name);
@@ -118,7 +118,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                             : SINGLE_LINE_CONSTANT(L"⛶ ")) +
                     name.read()}
             .Build());
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
@@ -140,11 +140,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                         Error{LazyString{L"Invalid value for double value “"} +
                               var->name() + LazyString{L"”: "} + input.read()});
                   }
-                  return futures::Past(EmptyValue());
+                  return EmptyValue{};
                 },
             .cancel_handler = []() { /* Nothing. */ },
             .status = PromptOptions::Status::kEditor});
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
       var != nullptr) {
@@ -156,11 +156,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                             : SINGLE_LINE_CONSTANT(L"⛶ ")) +
                           name.read()}
                   .Build());
-          return futures::Past(EmptyValue());
+          return EmptyValue{};
         })
         .Transform([&editor_state](EmptyValue) {
           editor_state.ResetRepetitions();
-          return EmptyValue();
+          return EmptyValue{};
         });
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
@@ -182,19 +182,19 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                     Error{LazyString{L"Invalid value for integer value “"} +
                           var->name() + LazyString{L"”: "} +
                           LazyString{FromByteString(ia.what())}});
-                return futures::Past(EmptyValue());
+                return EmptyValue{};
               }
               editor_state.ForEachActiveBuffer(
                   [var, value](OpenBuffer& buffer) {
                     buffer.Set(var, value);
-                    return futures::Past(EmptyValue());
+                    return EmptyValue{};
                   });
-              return futures::Past(EmptyValue());
+              return EmptyValue{};
             },
         .cancel_handler = []() { /* Nothing. */ },
         .predictor = var->predictor(),
         .status = PromptOptions::Status::kBuffer});
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
@@ -214,23 +214,23 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                 editor_state.ForEachActiveBuffer(
                     [var, value](OpenBuffer& buffer) {
                       buffer.Set(var, value);
-                      return futures::Past(EmptyValue());
+                      return EmptyValue{};
                     });
               } else {
                 default_error_status.InsertError(
                     Error{LazyString{L"Invalid value for double value “"} +
                           var->name() + LazyString{L"”: "} + input.read()});
               }
-              return futures::Past(EmptyValue());
+              return EmptyValue{};
             },
         .cancel_handler = []() { /* Nothing. */ },
         .status = PromptOptions::Status::kBuffer});
-    return futures::Past(EmptyValue());
+    return EmptyValue{};
   }
 
   default_error_status.InsertError(
       Error{LazyString{L"Unknown variable: "} + name});
-  return futures::Past(EmptyValue());
+  return EmptyValue{};
 }
 
 gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
