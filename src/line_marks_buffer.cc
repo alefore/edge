@@ -94,6 +94,7 @@ futures::Value<PossibleError> GenerateContents(const EditorState& editor,
   output.push_back(L"");
 
   const LineMarks& marks = editor.line_marks();
+  // TODO(P2, trivial, 2026-04-25): Use ranges::for_each.
   for (const LineSequence& buffer_data :
        marks.GetMarkTargets() |
            std::views::transform(std::bind_front(
@@ -101,7 +102,7 @@ futures::Value<PossibleError> GenerateContents(const EditorState& editor,
     output.insert(output.EndLine(), std::move(buffer_data), std::nullopt);
   buffer.InsertInPosition(output.snapshot(), buffer.contents().range().end(),
                           std::nullopt);
-  return futures::Past(EmptyValue());
+  return EmptyValue{};
 }
 
 class Impl : public Command {

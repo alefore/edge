@@ -386,7 +386,7 @@ class ResetStateCommand : public Command {
       buffer.work_queue()->DeleteLater(
           AddSeconds(Now(), 0.2), buffer.status().SetExpiringInformationText(
                                       Line{SingleLine{LazyString{L"❌ ESC"}}}));
-      return futures::Past(EmptyValue());
+      return EmptyValue{};
     });
     editor_state_.set_modifiers(Modifiers());
   }

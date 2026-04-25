@@ -43,10 +43,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                                                 SingleLine input) {
   // TODO(easy): Honor `multiple_buffers`.
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
-  if (!buffer.has_value()) {
-    return futures::Past(
-        ValueOrError<EmptyValue>(Error{LazyString{L"No current buffer"}}));
-  }
+  if (!buffer.has_value()) return Error{L"No current buffer"};
   if (editor_state.structure() == Structure::kLine) {
     if (std::optional<OutgoingLink> outgoing_link =
             buffer->ptr()->CurrentLine().outgoing_link();
@@ -132,7 +129,7 @@ class RunCppFileCommand : public Command {
          .handler =
              [&editor = editor_state_](SingleLine input) {
                return RunCppFileHandler(editor, input).ConsumeErrors([](Error) {
-                 return futures::Past(EmptyValue());
+                 return EmptyValue{};
                });
              },
          .cancel_handler = []() { /* Nothing. */ },

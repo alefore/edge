@@ -84,7 +84,7 @@ Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant)
   return NewFunction(
       pool, purity_type, std::move(output), std::move(inputs),
       [callback](std::vector<gc::Root<Value>> args, Trampoline&) {
-        return futures::Past(Success(callback(std::move(args))));
+        return callback(std::move(args));
       });
 }
 

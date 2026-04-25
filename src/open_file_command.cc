@@ -63,8 +63,7 @@ namespace {
 // Returns the buffer to show for context, or nullptr.
 futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
     EditorState& editor, const PredictResults& results, SingleLine line) {
-  futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
-      futures::Past(std::optional<gc::Root<OpenBuffer>>());
+  futures::Value<std::optional<gc::Root<OpenBuffer>>> output = std::nullopt;
   if (results.predictor_output.found_exact_match) {
     ValueOrError<Path> path_or_error = Path::New(ToLazyString(line));
     if (IsError(path_or_error)) return output;
@@ -146,8 +145,9 @@ futures::Value<ColorizePromptOptions> AdjustPath(
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel = std::move(progress_channel),
                                 .abort_value = std::move(abort_value)})
-      .Transform([&editor, line](std::optional<PredictResults> results) {
-        if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
+      .Transform([&editor, line](std::optional<PredictResults> results)
+                     -> futures::Value<ColorizePromptOptions> {
+        if (!results.has_value()) return ColorizePromptOptions{};
         return StatusContext(editor, results.value(), line)
             .Transform(std::bind_front(DrawPath, line, results.value()));
       });

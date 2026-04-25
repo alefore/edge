@@ -39,7 +39,7 @@ const bool tests_registration = tests::Register(
             for (size_t i = 0; i < 5; i++)
               serializer.Push([&calls, i] {
                 calls.push_back(i);
-                return futures::Past(EmptyValue());
+                return EmptyValue{};
               });
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4}));
           }},
@@ -66,7 +66,7 @@ const bool tests_registration = tests::Register(
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4, 5}));
             serializer.Push([&calls] {
               calls.push_back(6);
-              return futures::Past(EmptyValue());
+              return EmptyValue{};
             });
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4, 5}));
             std::move(futures[5].consumer)(EmptyValue());
@@ -101,5 +101,5 @@ const bool tests_registration = tests::Register(
         CHECK(calls == std::vector<size_t>({0, 1, 2, 3}));
         std::move(futures[3].consumer)(EmptyValue());
       }}});
-}
+}  // namespace
 }  // namespace afc::futures

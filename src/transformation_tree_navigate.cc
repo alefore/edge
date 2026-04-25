@@ -47,7 +47,7 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
 
   auto last_position = tree->range().end();
   Seek(input.buffer.contents().snapshot(), &last_position).Backwards().Once();
-  return futures::Past(Output::SetPosition(
-      input.position == last_position ? tree->range().begin() : last_position));
+  return Output::SetPosition(
+      input.position == last_position ? tree->range().begin() : last_position);
 }
 }  // namespace afc::editor

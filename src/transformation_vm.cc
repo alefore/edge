@@ -76,7 +76,7 @@ class FunctionTransformation : public CompositeTransformation {
                             value.ptr().value())
                             .value()));
         })
-        .ConsumeErrors([](Error) { return futures::Past(Output()); });
+        .ConsumeErrors([](Error) { return Output{}; });
   }
 
  private:

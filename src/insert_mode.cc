@@ -713,11 +713,12 @@ class InsertMode : public InputReceiver,
                       Line{SingleLine{LazyString{consumed_input}}}),
                   .modifiers = {.insertion = options.editor_state.modifiers()
                                                  .insertion}})
-              .Transform([buffer_root, completion_model_supplier](EmptyValue) {
+              .Transform([buffer_root, completion_model_supplier](
+                             EmptyValue) -> futures::Value<EmptyValue> {
                 TRACK_OPERATION(InsertMode_ProcessInput_Regular_ShowCompletion);
                 LineRange token_range =
                     GetTokenRange(buffer_root.ptr().value());
-                if (token_range.empty()) return futures::Past(EmptyValue{});
+                if (token_range.empty()) return EmptyValue{};
                 DictionaryKey token = GetCompletionToken(
                     buffer_root->contents().snapshot(), token_range);
                 return completion_model_supplier
@@ -1143,8 +1144,8 @@ ScrollBehaviorFactory::Default() {
   class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
     futures::Value<NonNull<std::unique_ptr<ScrollBehavior>>> Build(
         DeleteNotification::Value) override {
-      return futures::Past(NonNull<std::unique_ptr<ScrollBehavior>>(
-          MakeNonNullUnique<DefaultScrollBehavior>()));
+      return NonNull<std::unique_ptr<ScrollBehavior>>(
+          MakeNonNullUnique<DefaultScrollBehavior>());
     }
   };
 
@@ -1164,8 +1165,8 @@ void EnterInsertMode(InsertModeOptions options) {
                shared_options->buffers.value().push_back(buffer);
                return EmptyValue();
              })
-       : futures::Past(EmptyValue()))
-      .Transform([shared_options](EmptyValue) {
+       : futures::ValueOrError<EmptyValue>(EmptyValue{}))
+      .Transform([shared_options](EmptyValue) -> futures::Value<PossibleError> {
         for (gc::Root<OpenBuffer>& buffer_root :
              shared_options->buffers.value()) {
           VisitPointer(
@@ -1184,7 +1185,7 @@ void EnterInsertMode(InsertModeOptions options) {
 
         if (shared_options->modify_handler == nullptr) {
           shared_options->modify_handler = [](OpenBuffer&) {
-            return futures::Past(EmptyValue()); /* Nothing. */
+            return EmptyValue{}; /* Nothing. */
           };
         }
 

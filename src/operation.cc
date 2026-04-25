@@ -34,7 +34,6 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
-using afc::futures::Past;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::LineModifier;
@@ -418,7 +417,7 @@ class State {
            "code assumes survival of various now-deleted objects).";
 
     undo_callback_ = std::make_shared<UndoCallback>(
-        []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
+        []() -> futures::Value<EmptyValue> { return EmptyValue{}; });
   }
 
   void UndoLast() {
@@ -431,16 +430,17 @@ class State {
 
   futures::Value<gc::Root<OpenBuffer>> GetHelpBuffer() {
     return VisitOptional(
-        [](gc::Root<OpenBuffer> buffer) {
+        [](gc::Root<OpenBuffer> buffer)
+            -> futures::Value<gc::Root<OpenBuffer>> {
           buffer.ptr()->Reload();
-          return futures::Past(std::move(buffer));
+          return buffer;
         },
         [this] {
           return OpenAnonymousBuffer(editor_state_)
               .Transform([storage = help_buffer_](gc::Root<OpenBuffer> buffer) {
                 buffer.ptr()->Set(buffer_variables::paste_mode, true);
                 storage.value() = buffer;
-                return futures::Past(buffer);
+                return buffer;
               });
         },
         help_buffer_.value());
@@ -503,7 +503,7 @@ class State {
           .Transform([consumer = std::move(consumer)](
                          UndoCallback undo_callback) mutable {
             std::move(consumer)(std::move(undo_callback));
-            return Past(EmptyValue());
+            return EmptyValue{};
           });
     });
     return std::move(output.value);
@@ -515,7 +515,7 @@ class State {
   TopCommand top_command_;
   std::vector<Command> commands_ = {};
   std::shared_ptr<UndoCallback> undo_callback_ = std::make_shared<UndoCallback>(
-      []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
+      []() -> futures::Value<EmptyValue> { return EmptyValue{}; });
 
   // If we've needed an anonymous buffer to show help, retains it here.
   //

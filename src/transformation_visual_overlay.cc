@@ -12,7 +12,7 @@ futures::Value<Result> ApplyBase(const VisualOverlay& parameters, Input input) {
   Result result(input.position);
   result.undo_stack->push_back(
       VisualOverlay{.visual_overlay_map = previous_value});
-  return futures::Past(std::move(result));
+  return result;
 }
 
 std::wstring ToStringBase(const VisualOverlay&) { return L"VisualOverlay"; }

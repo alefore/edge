@@ -257,6 +257,8 @@ class Value {
 template <typename T>
 using ValueOrError = Value<language::ValueOrError<T>>;
 
+using PossibleError = ValueOrError<language::EmptyValue>;
+
 template <typename Type>
 struct Future {
  public:
@@ -297,13 +299,6 @@ auto Value<Type>::ConsumeErrors(Callable error_callback) && {
               return std::move(error_callback)(std::move(error));
             });
       });
-}
-
-template <typename Type>
-static Value<Type> Past(Type value) {
-  Future<Type> output;
-  std::move(output.consumer)(std::move(value));
-  return std::move(output.value);
 }
 
 template <typename Callable>
@@ -379,8 +374,7 @@ futures::Value<language::EmptyValue> ForEach(
                  [container, callable](auto& T) { return callable(T); });
 }
 
-Value<language::PossibleError> IgnoreErrors(
-    Value<language::PossibleError> value);
+PossibleError IgnoreErrors(PossibleError value);
 
 // If value evaluates to an error, runs error_callback. error_callback will
 // receive the error and should return a ValueOrError<T> to replace it. If it

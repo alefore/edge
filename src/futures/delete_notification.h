@@ -38,7 +38,7 @@
 //               output_value != nullptr) {
 //             DisplayResults(output_value);
 //           }
-//           return futures::Past(EmptyResult());
+//           return EmptyResult{};
 //         });
 //   }
 //

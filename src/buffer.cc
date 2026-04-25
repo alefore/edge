@@ -202,7 +202,7 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
   TRACK_OPERATION(OpenBuffer_LineMetadataCompilation);
   static const LineProcessorOutputFuture kEmptyOutput{
       .initial_value = LineProcessorOutput(SingleLine{}),
-      .value = futures::Past(LineProcessorOutput{SingleLine{}})};
+      .value = LineProcessorOutput{SingleLine{}}};
   DECLARE_OR_RETURN(
       gc::Root<ExecutionContext::CompilationResult> compilation_result,
       buffer.execution_context()->CompileString(
@@ -429,9 +429,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                           -> futures::ValueOrError<IterationControlCommand> {
                         return IterationControlCommand::kContinue;
                       })
-                  .ConsumeErrors([](Error) {
-                    return Past(IterationControlCommand::kContinue);
-                  });
+                  .ConsumeErrors(
+                      [](Error) { return IterationControlCommand::kContinue; });
             });
         return true;
       }}),
@@ -763,7 +762,7 @@ void OpenBuffer::UpdateTreeParser() {
   ValueOrError<Path> dictionary_path =
       Path::New(Read(buffer_variables::dictionary));
   (IsError(dictionary_path)
-       ? futures::Past(SortedLineSequence(LineSequence()))
+       ? futures::Value<SortedLineSequence>(SortedLineSequence(LineSequence()))
        : OpenFileIfFound(
              OpenFileOptions{
                  .editor_state = editor(),

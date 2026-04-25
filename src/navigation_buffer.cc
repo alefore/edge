@@ -20,12 +20,12 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
+using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
-using afc::language::Success;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -133,7 +133,7 @@ futures::Value<PossibleError> GenerateContents(
   if (!source.has_value()) {
     target.AppendToLastLine(
         SINGLE_LINE_CONSTANT(L"Source buffer no longer loaded."));
-    return futures::Past(Success());
+    return EmptyValue{};
   }
 
   auto tree = source->ptr()->simplified_parse_tree();
@@ -153,7 +153,7 @@ futures::Value<PossibleError> GenerateContents(
     depth = depth_conv;
   }
   DisplayTree(source->ptr().value(), depth, tree.value(), SingleLine{}, target);
-  return futures::Past(Success());
+  return EmptyValue{};
 }
 
 class NavigationBufferCommand : public Command {

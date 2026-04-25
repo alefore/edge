@@ -95,9 +95,9 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
                },
                [weak_status = status_, path](
                    Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
-                 return futures::Past(RegisterCompilationError(
-                     weak_status, ToLazyString(path), error,
-                     ErrorHandling::LogToStatus));
+                 return RegisterCompilationError(weak_status,
+                                                 ToLazyString(path), error,
+                                                 ErrorHandling::LogToStatus);
                }},
       vm::CompileFile(path, environment_));
 }
@@ -146,7 +146,7 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
   return std::visit(
       overload{[](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
                  // No need to handle error; `CompileString` already does it.
-                 return futures::Past(error);
+                 return error;
                },
                [&](gc::Root<ExecutionContext::CompilationResult> result) {
                  LOG(INFO) << "Code compiled, evaluating.";

@@ -71,6 +71,6 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
               ? LineModifierSet({LineModifier::kUnderline, LineModifier::kBlue})
               : std::optional<LineModifierSet>()});
 
-  return futures::Past(std::move(output));
+  return output;
 }
 }  // namespace afc::editor

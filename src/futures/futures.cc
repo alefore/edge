@@ -14,19 +14,17 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
-using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::futures {
 
-Value<language::ValueOrError<EmptyValue>> IgnoreErrors(
-    Value<PossibleError> value) {
-  Future<PossibleError> output;
-  std::move(value).SetConsumer(
-      [consumer = std::move(output.consumer)](const PossibleError&) mutable {
-        std::move(consumer)(Success());
-      });
+PossibleError IgnoreErrors(PossibleError value) {
+  Future<language::PossibleError> output;
+  std::move(value).SetConsumer([consumer = std::move(output.consumer)](
+                                   const language::PossibleError&) mutable {
+    std::move(consumer)(Success());
+  });
   return std::move(output.value);
 }
 
@@ -38,10 +36,10 @@ const bool futures_ignore_errors_tests_registration = tests::Register(
          .callback =
              [] {
                bool run = false;
-               IgnoreErrors(futures::Past(Success()))
-                   .Transform([&run](EmptyValue) {
+               IgnoreErrors(futures::PossibleError{EmptyValue{}})
+                   .Transform([&run](EmptyValue) -> futures::PossibleError {
                      run = true;
-                     return futures::Past(Success());
+                     return EmptyValue{};
                    });
                CHECK(run);
              }},
@@ -49,22 +47,20 @@ const bool futures_ignore_errors_tests_registration = tests::Register(
          .callback =
              [] {
                bool run = false;
-               IgnoreErrors(futures::Past(PossibleError(
-                                Error{LazyString{L"Something bad happened"}})))
-                   .Transform([&run](EmptyValue) {
+               IgnoreErrors(PossibleError{Error{L"Something bad happened"}})
+                   .Transform([&run](EmptyValue) -> PossibleError {
                      run = true;
-                     return futures::Past(Success());
+                     return EmptyValue{};
                    });
                CHECK(run);
              }},
         {.name = L"SanityCheck",
          .callback =
              [] {
-               futures::Past(
-                   PossibleError(Error{LazyString{L"Something bad happened"}}))
-                   .Transform([](EmptyValue) {
+               PossibleError(Error{L"Something bad happened"})
+                   .Transform([](EmptyValue) -> PossibleError {
                      CHECK(false);
-                     return futures::Past(Success());
+                     return EmptyValue{};
                    });
              }},
     });
@@ -108,7 +104,7 @@ const bool futures_transform_tests_registration = tests::Register(
          .callback =
              [] {
                using V = std::variant<int, double, bool>;
-               Value<int> int_value = Past(5);
+               Value<int> int_value = 5;
                Value<V> variant_value = std::move(int_value);
                std::optional<V> immediate_value = variant_value.Get();
                CHECK(immediate_value.has_value());
@@ -143,30 +139,30 @@ const bool futures_on_error_tests_registration = tests::Register(
             auto external =
                 OnError(std::move(internal.value), [&](Error error) {
                   executed = true;
-                  CHECK_EQ(error, Error{LazyString{L"Foo"}});
-                  return futures::Past(error);
+                  CHECK_EQ(error, Error{L"Foo"});
+                  return error;
                 });
             CHECK(!executed);
-            std::move(internal.consumer)(Error{LazyString{L"Foo"}});
+            std::move(internal.consumer)(Error{L"Foo"});
             CHECK(executed);
           }},
      {.name = L"OverridesReturnedValue",
       .callback =
           [] {
             std::optional<language::ValueOrError<int>> value;
-            OnError(futures::Past(
-                        language::ValueOrError<int>(Error{LazyString{L"Foo"}})),
-                    [&](Error) { return futures::Past(Success(27)); })
+            OnError(futures::ValueOrError<int>{Error{L"Foo"}},
+                    [&](Error) -> language::ValueOrError<int> { return 27; })
                 .SetConsumer([&](language::ValueOrError<int> result) {
                   value = result;
                 });
             CHECK_EQ(std::get<int>(value.value()), 27);
           }},
      {.name = L"SkippedOnSuccess", .callback = [] {
-        OnError(futures::Past(Success(12)), [&](Error value) {
-          CHECK(false);
-          return futures::Past(value);
-        });
+        OnError(futures::ValueOrError<int>{12},
+                [&](Error value) -> language::ValueOrError<int> {
+                  CHECK(false);
+                  return value;
+                });
       }}});
 
 const bool double_registration_tests_registration = tests::Register(

@@ -126,9 +126,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
     std::function<
         futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>>(
             infrastructure::Path edge_state_directory)>
-        log_supplier = [](infrastructure::Path) {
-          return futures::Past(language::Success(NewNullLog()));
-        };
+        log_supplier = [](infrastructure::Path) { return NewNullLog(); };
   };
 
   // Calling `New` doesn't load the contents of the buffer; the customer must

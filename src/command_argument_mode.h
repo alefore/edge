@@ -80,7 +80,7 @@ class CommandArgumentMode : public EditorMode {
       }
       return (c == infrastructure::ExtendedChar(
                        infrastructure::ControlChar::kEscape)
-                  ? futures::Past(language::EmptyValue())
+                  ? futures::Value<language::EmptyValue>(language::EmptyValue{})
                   : Transform(CommandArgumentModeApplyMode::kFinal, argument))
           .Transform(
               [&editor_state = options_.editor_state, c](language::EmptyValue) {

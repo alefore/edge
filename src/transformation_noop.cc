@@ -28,9 +28,7 @@ class Noop : public CompositeTransformation {
   }
 
   std::wstring Serialize() const override { return L"NoopTransformation();"; }
-  futures::Value<Output> Apply(Input) const override {
-    return futures::Past(Output());
-  }
+  futures::Value<Output> Apply(Input) const override { return Output{}; }
 };
 }  // namespace
 }  // namespace transformation
