@@ -174,18 +174,17 @@ DictionaryManager::FindWordDataWithIndex(
     std::shared_ptr<std::vector<Path>> models_list,
     DictionaryKey compressed_text, size_t index) {
   if (index == models_list->size())
-    return futures::Past(
-        data->lock([&](const Data& locked_data) -> QueryOutput {
-          DictionaryValue text{compressed_text.read().read()};
-          if (auto text_it = locked_data.reverse_table.find(text);
-              text_it != locked_data.reverse_table.end()) {
-            for (const Path& path : *models_list)
-              if (auto path_it = text_it->second.find(path);
-                  path_it != text_it->second.end())
-                return path_it->second;
-          }
-          return NothingFound{};
-        }));
+    return data->lock([&](const Data& locked_data) -> QueryOutput {
+      DictionaryValue text{compressed_text.read().read()};
+      if (auto text_it = locked_data.reverse_table.find(text);
+          text_it != locked_data.reverse_table.end()) {
+        for (const Path& path : *models_list)
+          if (auto path_it = text_it->second.find(path);
+              path_it != text_it->second.end())
+            return path_it->second;
+      }
+      return NothingFound{};
+    });
 
   futures::ListenableValue<SortedLineSequence> current_future =
       data->lock([&](Data& locked_data) {
@@ -224,10 +223,11 @@ DictionaryManager::FindWordDataWithIndex(
                   data = std::move(data), models_list = std::move(models_list),
                   compressed_text, index](SortedLineSequence contents) mutable {
         return VisitOptional(
-            [](DictionaryValue result) {
-              return futures::Past(QueryOutput{result});
+            [](DictionaryValue result)
+                -> futures::Value<DictionaryManager::QueryOutput> {
+              return QueryOutput{result};
             },
-            [&] {
+            [&] -> futures::Value<DictionaryManager::QueryOutput> {
               return FindWordDataWithIndex(buffer_loader, std::move(data),
                                            std::move(models_list),
                                            compressed_text, index + 1);
@@ -257,11 +257,9 @@ const bool completion_model_manager_tests_registration =
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
           if (path == ValueOrDie(Path::New(LazyString{L"en"}))) {
-            return futures::Past(
-                LineSequence::ForTests({L"", L"bb baby", L"f fox", L"i i"}));
+            return LineSequence::ForTests({L"", L"bb baby", L"f fox", L"i i"});
           } else {
-            return futures::Past(
-                LineSequence::ForTests({L"", L"f firulais", L"p perrito"}));
+            return LineSequence::ForTests({L"", L"f firulais", L"p perrito"});
           }
         });
       };

@@ -196,9 +196,8 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
       std::back_inserter(output_contents));
   output_contents.MaybeEraseEmptyFirstLine();
   TRACK_OPERATION(SearchHandlerPredictor_sort);
-  return futures::Past(
-      PredictorOutput{.contents = SortedLineSequenceUniqueLines(
-                          SortedLineSequence(output_contents.snapshot()))});
+  return PredictorOutput{.contents = SortedLineSequenceUniqueLines(
+                             SortedLineSequence(output_contents.snapshot()))};
 }
 
 ValueOrError<std::vector<LineColumn>> SearchHandler(

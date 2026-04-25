@@ -26,7 +26,7 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::vm::kPurityTypeUnknown;
 
-namespace afc ::editor {
+namespace afc::editor {
 futures::ValueOrError<
     NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>>>
 Justify(NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> input_ptr,
@@ -81,7 +81,7 @@ Justify(NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> input_ptr,
       LOG(INFO) << "Returning breaks: " << output.size() << ", cost "
                 << std::get<0>(options.back());
     });
-    return futures::Past(Success(std::move(protected_output)));
+    return protected_output;
   });
 }
 

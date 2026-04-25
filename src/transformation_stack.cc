@@ -94,10 +94,8 @@ futures::Value<PossibleError> PreviewCppExpression(
                          LineModifierSet{LineModifier::kRed});
                      buffer.status().SetInformationText(
                          std::move(builder).Build());
-                     return futures::Past(EmptyValue());
-                   })
-                   .Transform(
-                       [](EmptyValue) { return futures::Past(Success()); });
+                     return EmptyValue{};
+                   });
 }
 
 futures::Value<Result> HandleCommandCpp(Input input,
@@ -114,7 +112,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
           delete_transformation->preview_modifiers = {LineModifier::kRed,
                                                       LineModifier::kUnderline};
           input.adapter.AddError(error);
-          return futures::Past(EmptyValue());
+          return EmptyValue{};
         })
         .Transform([delete_transformation, input](EmptyValue) {
           return Apply(*delete_transformation,
@@ -145,7 +143,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
           input.delete_buffer->ptr()->AppendRawLine(Line{});
           output.added_to_paste_buffer = true;
         }
-        return futures::Past(std::move(output));
+        return output;
       });
 }
 
@@ -338,7 +336,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
       input.buffer.log().NewChild(LazyString{L"ApplyBase(Stack)"});
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
                             trace, output)
-      .Transform([output, input, copy, trace](EmptyValue) {
+      .Transform([output, input, copy,
+                  trace](EmptyValue) -> futures::Value<transformation::Result> {
         Range range{input.adapter.contents().AdjustLineColumn(
                         std::min(input.position, output->position)),
                     input.adapter.contents().AdjustLineColumn(
@@ -355,8 +354,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
             return PreviewCppExpression(input.buffer, contents)
-                .ConsumeErrors(
-                    [](Error) { return futures::Past(EmptyValue()); })
+                .ConsumeErrors([](Error) { return EmptyValue{}; })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
                       input.buffer.status().text().empty()) {
@@ -368,7 +366,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                                 analyze_content_lines_limit)))))
                             .Build());
                   }
-                  return futures::Past(std::move(output.value()));
+                  return std::move(output.value());
                 });
           }
           case Stack::PostTransformationBehavior::kDeleteRegion:
@@ -411,7 +409,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                 buffer_root->Read(buffer_variables::path)}},
                           .existing_buffer_behavior = ForkCommandOptions::
                               ExistingBufferBehavior::kIgnore});
-                  return futures::Past(std::move(output.value()));
+                  return std::move(output.value());
                 });
           }
           case Stack::PostTransformationBehavior::kCommandCpp:
@@ -447,7 +445,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           }
           case Stack::PostTransformationBehavior::kCursorOnEachLine: {
             if (input.mode == Input::Mode::kPreview) {
-              return futures::Past(std::move(output.value()));
+              return std::move(output.value());
             }
             struct Cursors cursors{
                 .cursors = {},
@@ -461,7 +459,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           }
         }
         LOG(FATAL) << "Invalid post transformation behavior.";
-        return futures::Past(std::move(output.value()));
+        return std::move(output.value());
       });
 }
 

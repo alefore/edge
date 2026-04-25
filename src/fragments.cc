@@ -34,9 +34,9 @@ namespace afc::editor {
 namespace {
 futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
   return VisitOptional(
-      [](gc::Root<OpenBuffer> output) {
+      [](gc::Root<OpenBuffer> output) -> futures::Value<gc::Root<OpenBuffer>> {
         VLOG(6) << "Reusing previous fragments buffer.";
-        return futures::Past(output);
+        return output;
       },
       [&editor] {
         VLOG(5) << "Creating (loading) fragments buffer.";
@@ -75,7 +75,7 @@ void AddFragment(EditorState& editor, LineSequence fragment) {
                                {HistoryIdentifierValue(),
                                 EscapedString{fragment.ToLazyString()}}}}
                 .Serialize());
-        return futures::Past(Success());
+        return EmptyValue{};
       });
 }
 
@@ -87,7 +87,7 @@ futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
         const LineSequence history =
             fragments_buffer.ptr()->contents().snapshot();
         if (filter.empty()) {
-          return futures::Past(std::visit(
+          return std::visit(
               overload{[](Error) {
                          return std::vector<FilterSortBufferOutput::Match>{};
                        },
@@ -103,7 +103,7 @@ futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
                                        it->second.OriginalString())}};
                          return std::vector<FilterSortBufferOutput::Match>{};
                        }},
-              history.back().escaped_map()));
+              history.back().escaped_map());
         }
         return editor.thread_pool()
             .Run(std::bind_front(FilterSortBuffer,

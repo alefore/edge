@@ -69,15 +69,15 @@ class LogicalExpression : public Expression {
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (a_output.type) {
             case EvaluationOutput::OutputType::kReturn:
-              return futures::Past(Success(std::move(a_output)));
+              return a_output;
             case EvaluationOutput::OutputType::kContinue:
               return a_output.value.ptr()->get_bool() == identity
                          ? trampoline.Bounce(expr_b_root.ptr(), type)
-                         : futures::Past(Success(std::move(a_output)));
+                         : a_output;
           }
           language::Error error{LazyString{L"Unhandled OutputType case."}};
           LOG(FATAL) << error;
-          return futures::Past(error);
+          return error;
         });
   }
 

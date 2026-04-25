@@ -130,12 +130,11 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
                              -> futures::ValueOrError<
                                  LazyString> {
                 VLOG(7) << "Evaluated result: " << value.ptr()->get_string();
-                return futures::Past(LazyString{value.ptr()->get_string()});
+                return LazyString{value.ptr()->get_string()};
               })
               .ConsumeErrors([](Error error) {
                 VLOG(7) << "Evaluation error: " << error;
-                return futures::Past(
-                    LazyString{L"E: "} + std::move(error.read()));
+                return LazyString{L"E: "} + std::move(error.read());
               })};
 }
 #endif

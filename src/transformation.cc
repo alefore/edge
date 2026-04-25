@@ -31,22 +31,21 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     const LazyString& superfluous_characters =
         input.buffer.Read(buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer.LineAt(input.position.line);
-    if (!line.has_value()) return futures::Past(Output());
+    if (!line.has_value()) return Output{};
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            FindFirstOf(superfluous_characters,
                        {line->get(column - ColumnNumberDelta(1))}))
       --column;
-    if (column == line->EndColumn()) return futures::Past(Output());
+    if (column == line->EndColumn()) return Output{};
     CHECK_LT(column, line->EndColumn());
     Output output = Output::SetColumn(column);
-
     output.Push(transformation::Delete{
         .modifiers = {.repetitions = (line->EndColumn() - column).read(),
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::kDoNothing},
         .initiator = transformation::Delete::Initiator::kInternal});
-    return futures::Past(std::move(output));
+    return output;
   }
 };
 }  // namespace

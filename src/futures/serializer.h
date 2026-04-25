@@ -29,8 +29,7 @@ class Serializer {
   void Push(Callback callback);
 
  private:
-  futures::Value<language::EmptyValue> last_execution_ =
-      futures::Past(language::EmptyValue());
+  futures::Value<language::EmptyValue> last_execution_ = language::EmptyValue{};
 };
 }  // namespace afc::futures
 

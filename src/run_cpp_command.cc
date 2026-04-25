@@ -42,6 +42,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -101,9 +102,9 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
                   Line{SingleLine{LazyString{FromByteString(oss.str())}}});
               return Success();
             })
-            .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });
+            .ConsumeErrors([](Error) { return EmptyValue{}; });
       },
-      [] { return futures::Past(EmptyValue()); });
+      [] { return EmptyValue{}; });
 }
 
 struct ParsedCommand {
@@ -314,8 +315,8 @@ bool tests_parse_registration = tests::Register(
 futures::ValueOrError<gc::Root<vm::Value>> Execute(
     OpenBuffer& buffer, ParsedCommand parsed_command) {
   if (parsed_command.expression->Types().empty()) {
-    // TODO: Show the error.
-    return futures::Past(
+    // TODO(2026-04-25, P3): Show the error.
+    return MakeUnexpected(
         Error{LazyString{L"Unable to compile (type mismatch)."}});
   }
   return buffer.EvaluateExpression(parsed_command.expression.ptr(),
@@ -352,7 +353,8 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
         return std::visit(
             overload{
                 [&](gc::Root<ExecutionContext::CompilationResult>
-                        compilation_result) {
+                        compilation_result)
+                    -> futures::Value<ColorizePromptOptions> {
                   modifiers.insert(LineModifier::kCyan);
                   progress_channel->Push(ProgressInformation{
                       .values = {
@@ -364,14 +366,15 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                   MaybePushTokenAndModifiers(line, modifiers, output.tokens);
                   if (compilation_result->expression()->Types() ==
                       std::vector<vm::Type>({vm::types::Void{}}))
-                    return futures::Past(output);
+                    return output;
 
                   if (compilation_result->expression()
                           ->purity()
                           .writes_external_outputs)
-                    return futures::Past(output);
+                    return output;
                   return compilation_result->evaluate()
-                      .Transform([progress_channel](gc::Root<vm::Value> value) {
+                      .Transform([progress_channel](gc::Root<vm::Value> value)
+                                     -> futures::Value<PossibleError> {
                         std::ostringstream oss;
                         oss << value.ptr().value();
                         progress_channel->Push(
@@ -381,32 +384,35 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                                   LineSequence::BreakLines(
                                       LazyString{FromByteString(oss.str())})
                                       .FoldLines()}}});
-                        return futures::Past(Success());
+                        return EmptyValue{};
                       })
-                      .ConsumeErrors([progress_channel](Error error) {
+                      .ConsumeErrors([progress_channel](Error error)
+                                         -> futures::Value<EmptyValue> {
                         progress_channel->Push(
                             {.values = {{VersionPropertyKey{
                                              NON_EMPTY_SINGLE_LINE_CONSTANT(
                                                  L"runtime")},
                                          LineSequence::BreakLines(error.read())
                                              .FoldLines()}}});
-                        return futures::Past(EmptyValue());
+                        return EmptyValue{};
                       })
-                      .Transform([output](EmptyValue) { return output; });
+                      .Transform([output](EmptyValue)
+                                     -> futures::Value<ColorizePromptOptions> {
+                        return output;
+                      });
                 },
-                [&](Error error) {
+                [&](Error error) -> futures::Value<ColorizePromptOptions> {
                   progress_channel->Push(
                       {.values = {
                            {VersionPropertyKey{
                                 NON_EMPTY_SINGLE_LINE_CONSTANT(L"error")},
                             LineSequence::BreakLines(error.read())
                                 .FoldLines()}}});
-                  return futures::Past(ColorizePromptOptions());
+                  return ColorizePromptOptions{};
                 }},
             buffer->execution_context()->CompileString(line.read()));
       },
-      [] { return futures::Past(ColorizePromptOptions()); },
-      editor.current_buffer());
+      [] { return ColorizePromptOptions{}; }, editor.current_buffer());
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
@@ -442,15 +448,15 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
         if (results.has_value())
           output->context = ColorizePromptOptions::ContextBuffer{
               .buffer = results->predictions_buffer};
-        return futures::Past(EmptyValue());
+        return EmptyValue{};
       })
       .Transform([&editor, search_namespaces, line, output, buffer,
                   &environment](EmptyValue) -> futures::Value<EmptyValue> {
         return std::visit(
             overload{
-                [&](Error error) {
+                [&](Error error) -> futures::Value<EmptyValue> {
                   VLOG(4) << "Parse preview error: " << error;
-                  return futures::Past(EmptyValue());
+                  return EmptyValue{};
                 },
                 [&](ParsedCommand command) -> futures::Value<EmptyValue> {
                   VLOG(4) << "Successfully parsed Preview command: "
@@ -458,7 +464,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           << ", buffer: " << buffer->ptr()->name();
                   return Execute(buffer->ptr().value(), std::move(command))
                       .Transform(
-                          [buffer, output](gc::Root<vm::Value> value) mutable {
+                          [buffer, output](gc::Root<vm::Value> value) mutable
+                              -> futures::Value<PossibleError> {
                             VLOG(3) << "Successfully executed Preview command: "
                                     << value.ptr().value();
                             if (value.ptr()->type() ==
@@ -470,10 +477,11 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                                           BufferMapper::get(value.ptr().value())
                                               .ToRoot()};
                             }
-                            return futures::Past(Success());
+                            return EmptyValue{};
                           })
-                      .ConsumeErrors(
-                          [](Error) { return futures::Past(EmptyValue()); });
+                      .ConsumeErrors([](Error) -> futures::Value<EmptyValue> {
+                        return EmptyValue{};
+                      });
                 }},
             buffer.has_value()
                 ? Parse(editor.gc_pool(), line, environment,
@@ -483,9 +491,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                 : ValueOrError<ParsedCommand>(
                       Error{LazyString{L"Buffer has no value"}}));
       })
-      .Transform([output](EmptyValue) {
-        return futures::Past(std::move(output.value()));
-      });
+      .Transform([output](EmptyValue) { return std::move(output.value()); });
 }
 
 std::vector<NonEmptySingleLine> GetCppTokens(
@@ -517,27 +523,26 @@ std::vector<NonEmptySingleLine> GetCppTokens(
 
 futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
     const SingleLine& command, EditorState& editor_state) {
-  using futures::Past;
   auto buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
-    return Past(ValueOrError<gc::Root<vm::Value>>(
-        Error{LazyString{L"No active buffer."}}));
+    return MakeUnexpected(Error{LazyString{L"No active buffer."}});
   }
   buffer->ptr()->ResetMode();
 
   SearchNamespaces search_namespaces(buffer->ptr().value());
   return std::visit(
-      overload{[&](Error error) {
+      overload{[&](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
                  if (!error.read().empty()) buffer->ptr()->status().Set(error);
-                 return Past(ValueOrError<gc::Root<vm::Value>>(
-                     Error{LazyString{L"Unable to parse command"}}));
+                 return MakeUnexpected(
+                     Error{LazyString{L"Unable to parse command"}});
                },
-               [&](ParsedCommand parsed_command) {
+               [&](ParsedCommand parsed_command)
+                   -> futures::ValueOrError<gc::Root<vm::Value>> {
                  return futures::OnError(
                      Execute(buffer->ptr().value(), std::move(parsed_command)),
                      [buffer](Error error) {
                        buffer->ptr()->status().Set(error);
-                       return futures::Past(error);
+                       return MakeUnexpected(error);
                      });
                }},
       Parse(editor_state.gc_pool(), command,

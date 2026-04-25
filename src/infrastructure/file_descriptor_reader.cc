@@ -106,7 +106,7 @@ void FileDescriptorReader::Register(
         .Transform([this](EmptyValue) {
           CHECK(state_ == State::kProcessing);
           state_ = State::kReading;
-          return futures::Past(EmptyValue{});
+          return EmptyValue{};
         });
   });
 }

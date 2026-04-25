@@ -174,7 +174,7 @@ futures::Value<PossibleError> GenerateContents(
     Error error{LazyString{L"fork failed: "} +
                 LazyString{FromByteString(strerror(errno))}};
     target.status().Set(error);
-    return futures::Past(error);
+    return MakeUnexpected(error);
   }
   if (child_pid == ProcessId(0)) {
     LOG(INFO) << "I am the children. Life is beautiful!";
@@ -420,7 +420,7 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
           EscapedString::FromString(input).EscapedRepresentation().read();
   RunCommand(CommandBufferName{name}, environment, editor_state, children_path,
              input);
-  return futures::Past(EmptyValue());
+  return EmptyValue{};
 }
 
 ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
@@ -565,8 +565,8 @@ class ForkEditorCommand : public Command {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
           Error{LazyString{L"Unable to compile (type mismatch)."}});
-      return futures::Past(ColorizePromptOptions{
-          .context = ColorizePromptOptions::ContextClear()});
+      return ColorizePromptOptions{.context =
+                                       ColorizePromptOptions::ContextClear()};
     }
     return prompt_state.original_buffer.ptr()
         ->EvaluateExpression(context_command_expression.ptr(),
@@ -598,8 +598,7 @@ class ForkEditorCommand : public Command {
                                            ColorizePromptOptions::ContextBuffer{
                                                .buffer = help_buffer_root}};
         })
-        .ConsumeErrors(
-            [](Error) { return futures::Past(ColorizePromptOptions{}); });
+        .ConsumeErrors([](Error) { return ColorizePromptOptions{}; });
   }
 
   EditorState& editor_state_;
@@ -727,7 +726,7 @@ futures::Value<EmptyValue> RunCommandHandler(
     LazyString input, SingleLine name_suffix) {
   RunCommand(CommandBufferName{input + name_suffix}, environment, editor_state,
              OptionalFrom(GetChildrenPath(editor_state)), input);
-  return futures::Past(EmptyValue());
+  return EmptyValue{};
 }
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
@@ -743,7 +742,7 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
                                 input.read(),
                                 SingleLine{LazyString{L" "}} + arg.contents());
             });
-        return futures::Past(EmptyValue());
+        return EmptyValue{};
       })
       .Transform([&editor_state](EmptyValue) {
         editor_state.status().Reset();

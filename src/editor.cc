@@ -311,13 +311,13 @@ EditorState::EditorState(
     auto path =
         Path::Join(dir, ValueOrDie(Path::New(LazyString{L"hooks/start.cc"})));
     return execution_context_->EvaluateFile(path)
-        .Transform([](gc::Root<vm::Value>) {
-          return futures::Past(
-              Success(futures::IterationControlCommand::kContinue));
-        })
-        .ConsumeErrors([](Error) {
-          return futures::Past(futures::IterationControlCommand::kContinue);
-        });
+        .Transform(
+            [](gc::Root<vm::Value>)
+                -> futures::ValueOrError<futures::IterationControlCommand> {
+              return futures::IterationControlCommand::kContinue;
+            })
+        .ConsumeErrors(
+            [](Error) { return futures::IterationControlCommand::kContinue; });
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
@@ -407,20 +407,21 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
                 error);
             switch (buffer->status().InsertError(error, 30)) {
               case error::Log::InsertResult::kInserted:
-                return futures::Past(error);
+                return MakeUnexpected(error);
               case error::Log::InsertResult::kAlreadyFound:
-                return futures::Past(OpenBuffer::PrepareToCloseOutput());
+                return OpenBuffer::PrepareToCloseOutput();
             }
             LOG(FATAL) << "Invalid enum value.";
-            return futures::Past(error);
+            return MakeUnexpected(error);
           })
       .Transform([this, buffer = buffer.RootFromThis()](
-                     OpenBuffer::PrepareToCloseOutput) {
+                     OpenBuffer::PrepareToCloseOutput)
+                     -> futures::ValueOrError<EmptyValue> {
         buffer->Close(OpenBuffer::CloseAccessTag{});
         buffer_registry_->RemoveListedBuffers(std::unordered_set{
             NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
         AdjustWidgets();
-        return futures::Past(Success());
+        return EmptyValue{};
       });
 }
 
@@ -528,7 +529,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
 
 futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
     std::function<futures::Value<EmptyValue>(OpenBuffer&)> callback) {
-  auto value = futures::Past(EmptyValue());
+  futures::Value<EmptyValue> value = EmptyValue{};
   if (!modifiers().repetitions.has_value()) {
     value = ForEachActiveBuffer(callback);
   } else {
@@ -623,17 +624,18 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
               << &buffer.ptr().value();
     CHECK_EQ(data->pending_buffers.count(buffer), 1ul);
     buffer->PrepareToClose()
-        .Transform(
-            [this, data, buffer](OpenBuffer::PrepareToCloseOutput output) {
-              if (output.dirty_contents_saved_to_backup)
-                dirty_buffers_saved_to_backup_.insert(buffer->name());
-              return futures::Past(Success());
-            })
-        .ConsumeErrors([data, buffer](Error error) {
-          data->errors.push_back(error);
-          data->buffers_with_problems.push_back(buffer);
-          return futures::Past(EmptyValue());
+        .Transform([this, data, buffer](OpenBuffer::PrepareToCloseOutput output)
+                       -> futures::ValueOrError<EmptyValue> {
+          if (output.dirty_contents_saved_to_backup)
+            dirty_buffers_saved_to_backup_.insert(buffer->name());
+          return EmptyValue{};
         })
+        .ConsumeErrors(
+            [data, buffer](Error error) -> futures::Value<EmptyValue> {
+              data->errors.push_back(error);
+              data->buffers_with_problems.push_back(buffer);
+              return EmptyValue{};
+            })
         .Transform([this, data, buffer](EmptyValue) {
           LOG(INFO) << "Removing buffer: " << buffer->name()
                     << &buffer.ptr().value();
@@ -642,7 +644,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           if (data->pending_buffers.empty()) {
             if (data->termination_type == TerminationType::kIgnoringErrors) {
               exit_value_ = data->exit_value;
-              return futures::Past(EmptyValue());
+              return EmptyValue{};
             }
             LOG(INFO) << "Checking buffers state for termination.";
             if (!data->buffers_with_problems.empty()) {
@@ -657,7 +659,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                         }))},
                   5)) {
                 case error::Log::InsertResult::kInserted:
-                  return futures::Past(EmptyValue());
+                  return EmptyValue{};
                 case error::Log::InsertResult::kAlreadyFound:
                   break;
               }
@@ -666,7 +668,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             status().SetInformationText(Line{SingleLine{
                 LazyString{L"Exit: All buffers closed, shutting down."}}});
             exit_value_ = data->exit_value;
-            return futures::Past(EmptyValue());
+            return EmptyValue{};
           }
 
           const size_t max_buffers_to_show = 5;
@@ -687,7 +689,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                        ? SINGLE_LINE_CONSTANT(L"…")
                        : SingleLine{}))
                   .Build());
-          return futures::Past(EmptyValue());
+          return EmptyValue{};
         });
   }
 }
@@ -805,7 +807,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
           return ProcessInput(input, start_index);
         });
   }
-  return futures::Past(EmptyValue());
+  return EmptyValue{};
 }
 
 std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
@@ -870,7 +872,7 @@ void EditorState::ProcessSignals() {
       case SIGTSTP:
         ForEachActiveBuffer([signal](OpenBuffer& buffer) {
           buffer.PushSignal(signal);
-          return futures::Past(EmptyValue());
+          return EmptyValue{};
         });
     }
   }

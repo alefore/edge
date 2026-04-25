@@ -77,7 +77,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
   }
   Error error{LazyString{L"Invalid value for not_found_handler."}};
   LOG(FATAL) << error;
-  return futures::Past(error);
+  return MakeUnexpected(error);
 }
 }  // namespace
 

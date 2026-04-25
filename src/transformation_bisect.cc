@@ -236,7 +236,7 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
     else
       range = AdjustRange(structure_, direction, range.value());
 
-  if (range == std::nullopt) return futures::Past(Output());
+  if (range == std::nullopt) return Output{};
   LineColumn center = RangeCenter(range.value(), structure_);
   CompositeTransformation::Output output =
       CompositeTransformation::Output::SetPosition(center);
@@ -262,7 +262,7 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
       output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});
       break;
   }
-  return futures::Past(std::move(output));
+  return output;
 }
 
 }  // namespace afc::editor::transformation

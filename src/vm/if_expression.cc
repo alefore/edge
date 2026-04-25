@@ -66,7 +66,7 @@ class IfExpression : public Expression {
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (cond_output.type) {
             case EvaluationOutput::OutputType::kReturn:
-              return futures::Past(Success(std::move(cond_output)));
+              return cond_output;
             case EvaluationOutput::OutputType::kContinue:
               return trampoline.Bounce(cond_output.value.ptr()->get_bool()
                                            ? true_case.ptr()
@@ -75,7 +75,7 @@ class IfExpression : public Expression {
           }
           language::Error error{LazyString{L"Unhandled OutputType case."}};
           LOG(FATAL) << error;
-          return futures::Past(error);
+          return MakeUnexpected(error);
         });
   }
 

@@ -50,6 +50,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ObservableValue;
 using afc::language::overload;
+using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -498,7 +499,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(
           pool, vm::kPurityTypeUnknown,
           [](gc::Ptr<Flashcard> flashcard,
-             LazyString score_str) -> futures::ValueOrError<EmptyValue> {
+             LazyString score_str) -> futures::Value<PossibleError> {
             static const std::unordered_map<LazyString,
                                             FlashcardReviewLog::Score>
                 scores = {
@@ -507,18 +508,20 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                     {LazyString{L"good"}, FlashcardReviewLog::Score::kGood},
                     {LazyString{L"easy"}, FlashcardReviewLog::Score::kEasy}};
             return VisitOptional(
-                [flashcard](FlashcardReviewLog::Score score) {
+                [flashcard](FlashcardReviewLog::Score score)
+                    -> futures::Value<PossibleError> {
                   return flashcard->review_log().Transform(
-                      [score](const gc::Ptr<FlashcardReviewLog>& log) {
+                      [score](const gc::Ptr<FlashcardReviewLog>& log)
+                          -> futures::Value<PossibleError> {
                         log->SetScore(score);
-                        return futures::Past(Success());
+                        return EmptyValue{};
                       });
                 },
-                [&] {
+                [&]() -> futures::Value<PossibleError> {
                   Error error{LazyString{L"Invalid flashcard score: "} +
                               score_str};
                   LOG(ERROR) << error;
-                  return futures::Past(error);
+                  return MakeUnexpected(error);
                 },
                 GetValueOrNullOpt(scores, score_str));
           })
@@ -530,8 +533,9 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                       [](gc::Ptr<Flashcard> flashcard)
                           -> futures::ValueOrError<gc::Ptr<OpenBuffer>> {
                         return flashcard->review_log().Transform(
-                            [](const gc::Ptr<FlashcardReviewLog>& log) {
-                              return futures::Past(Success(log->buffer()));
+                            [](const gc::Ptr<FlashcardReviewLog>& log)
+                                -> futures::ValueOrError<gc::Ptr<OpenBuffer>> {
+                              return log->buffer();
                             });
                       })
           .ptr());

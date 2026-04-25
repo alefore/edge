@@ -217,17 +217,17 @@ Predictor TokenPredictor(Predictor predictor) {
               input.input_column - token_to_expand.begin.ToDelta();
           SingleLine original_input =
               std::exchange(input.input, token_to_expand.value.read());
-          return predictor(input).Transform([original_input, token_to_expand](
-                                                PredictorOutput output) {
-            return futures::Past(PredictorOutput{
-                .longest_prefix =
-                    output.longest_prefix + token_to_expand.begin.ToDelta(),
-                .longest_directory_match = output.longest_directory_match +
-                                           token_to_expand.begin.ToDelta(),
-                .found_exact_match = output.found_exact_match,
-                .contents = TransformLines(original_input, token_to_expand,
-                                           output.contents.read().lines())});
-          });
+          return predictor(input).Transform(
+              [original_input, token_to_expand](PredictorOutput output) {
+                return PredictorOutput{
+                    .longest_prefix =
+                        output.longest_prefix + token_to_expand.begin.ToDelta(),
+                    .longest_directory_match = output.longest_directory_match +
+                                               token_to_expand.begin.ToDelta(),
+                    .found_exact_match = output.found_exact_match,
+                    .contents = TransformLines(original_input, token_to_expand,
+                                               output.contents.read().lines())};
+              });
         },
         [&input, &predictor] {
           LOG(INFO) << "No expansion.";

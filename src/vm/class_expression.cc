@@ -56,8 +56,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
         Instance::Read(class_type, args[0])
             .ptr()
             ->Assign(field_name, std::move(args[1]));
-
-        return futures::Past(Success(std::move(args[0])));
+        return std::move(args[0]);
       });
 }
 
@@ -71,7 +70,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
         gc::Root<vm::Environment> environment =
             Instance::Read(class_type, args[0]);
         static const vm::Namespace empty_namespace;
-        return futures::Past(VisitOptional(
+        return VisitOptional(
             [](Environment::LookupResult value)
                 -> ValueOrError<gc::Root<Value>> {
               return Success(std::get<gc::Root<Value>>(value.value));
@@ -81,7 +80,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                   LazyString{L"Unexpected: variable value is null: "} +
                   QuoteExpr(language::lazy_string::ToSingleLine(field_name))};
             },
-            environment->Lookup(empty_namespace, field_name, field_type)));
+            environment->Lookup(empty_namespace, field_name, field_type));
       });
 }
 }  // namespace

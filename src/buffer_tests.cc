@@ -182,8 +182,8 @@ const bool buffer_tests_registration = tests::Register(
                    {{LineMetadataKey{},
                      LineMetadataValue{
                          .initial_value = SINGLE_LINE_CONSTANT(L"bar"),
-                         .value =
-                             futures::Past(SINGLE_LINE_CONSTANT(L"quux"))}}}}));
+                         .value = futures::Value<SingleLine>(
+                             SINGLE_LINE_CONSTANT(L"quux"))}}}}));
                Line line = std::move(options).Build();
                // This is important: otherwise OpenBuffer will assume that it is
                // safe to override them (recompute them).

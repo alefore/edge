@@ -66,9 +66,10 @@ class NamespaceExpression : public Expression {
                          trampoline.SetEnvironment(original_environment.ptr());
                          return Success(std::move(output));
                        }),
-                   [&trampoline, original_environment](Error error) {
+                   [&trampoline, original_environment](
+                       Error error) -> futures::ValueOrError<EvaluationOutput> {
                      trampoline.SetEnvironment(original_environment.ptr());
-                     return futures::Past(error);
+                     return MakeUnexpected(error);
                    });
   }
 

@@ -89,11 +89,11 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
               return editor
                   .ForEachActiveBuffer([method](OpenBuffer& buffer) {
                     (buffer.*method)();
-                    return futures::Past(EmptyValue());
+                    return EmptyValue{};
                   })
                   .Transform([&editor](EmptyValue) -> PossibleError {
                     editor.ResetModifiers();
-                    return EmptyValue();
+                    return EmptyValue{};
                   });
             }).ptr());
 }
@@ -133,7 +133,7 @@ void RegisterVariableFields(
                 -> futures::Value<PossibleError> {
               DECLARE_OR_RETURN(auto processed_value, FromVmValue(value));
               (editor.*setter)(variable, processed_value);
-              return futures::Past(Success());
+              return EmptyValue{};
             })
             .ptr());
   }
@@ -288,7 +288,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                       .Transform([](gc::Root<vm::Value>) { return Success(); })
                       .ConsumeErrors([output](Error error) {
                         output.value() = error;
-                        return futures::Past(EmptyValue());
+                        return EmptyValue{};
                       });
                 })
                 .Transform([output, &pool](EmptyValue) {
@@ -331,8 +331,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                       .Transform([](gc::Root<vm::Value>) { return Success(); })
                       // TODO(easy): Don't ConsumeErrors; change
                       // ForEachActiveBuffer.
-                      .ConsumeErrors(
-                          [](Error) { return futures::Past(EmptyValue()); });
+                      .ConsumeErrors([](Error) { return EmptyValue{}; });
                 })
                 .Transform(
                     [&pool](EmptyValue) { return vm::Value::NewVoid(pool); });
@@ -352,7 +351,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                       [](EditorState& editor_arg, Path target_path)
                           -> futures::ValueOrError<EmptyValue> {
                         OpenServerBuffer(editor_arg, target_path);
-                        return futures::Past(EmptyValue());
+                        return EmptyValue{};
                       })
           .ptr());
 

@@ -68,13 +68,13 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       IDENTIFIER_CONSTANT(L"toint"), pool,
       [](const LazyString& str) -> futures::ValueOrError<int> {
         try {
-          return futures::Past(Success(std::stoi(str.ToString())));
+          return std::stoi(str.ToString());
         } catch (const std::out_of_range& ia) {
-          return futures::Past(Error{LazyString{L"toint: stoi failure: "} +
-                                     LazyString{FromByteString(ia.what())}});
+          return MakeUnexpected(Error{LazyString{L"toint: stoi failure: "} +
+                                      LazyString{FromByteString(ia.what())}});
         } catch (const std::invalid_argument& ia) {
-          return futures::Past(Error{LazyString{L"toint: stoi failure: "} +
-                                     LazyString{FromByteString(ia.what())}});
+          return MakeUnexpected(Error{LazyString{L"toint: stoi failure: "} +
+                                      LazyString{FromByteString(ia.what())}});
         }
       },
       string_type);
@@ -98,10 +98,10 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, size_t pos,
          size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
-          return futures::Past(Error{
+          return MakeUnexpected(Error{
               LazyString{L"substr: Invalid index (past end of string)."}});
         }
-        return futures::Past(Success(str.substr(pos, len)));
+        return str.substr(pos, len);
       },
       string_type);
   AddMethod(

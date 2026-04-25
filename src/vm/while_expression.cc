@@ -72,13 +72,12 @@ class WhileExpression : public Expression {
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (condition_output.type) {
             case EvaluationOutput::OutputType::kReturn:
-              return futures::Past(std::move(condition_output));
+              return condition_output;
 
             case EvaluationOutput::OutputType::kContinue:
               if (!condition_output.value.ptr()->get_bool()) {
                 DVLOG(3) << "Iteration is done.";
-                return futures::Past(
-                    EvaluationOutput::New(Value::NewVoid(trampoline.pool())));
+                return EvaluationOutput::New(Value::NewVoid(trampoline.pool()));
               }
 
               DVLOG(5) << "Iterating...";
@@ -88,18 +87,19 @@ class WhileExpression : public Expression {
                                  -> futures::ValueOrError<EvaluationOutput> {
                     switch (body_output.type) {
                       case EvaluationOutput::OutputType::kReturn:
-                        return futures::Past(std::move(body_output));
+                        return body_output;
                         break;
                       case EvaluationOutput::OutputType::kContinue:
                         return Iterate(trampoline, std::move(condition),
                                        std::move(body));
                     }
                     LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
-                    return futures::Past(Error{LazyString{L"Internal error."}});
+                    return MakeUnexpected(
+                        Error{LazyString{L"Internal error."}});
                   });
           }
           LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
-          return futures::Past(Error{LazyString{L"Internal error."}});
+          return MakeUnexpected(Error{LazyString{L"Internal error."}});
         });
   }
 };

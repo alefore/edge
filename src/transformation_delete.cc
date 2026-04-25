@@ -147,7 +147,7 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
               buffer.ptr()->status().SetInformationText(
                   Line{SingleLine{LazyString{L"Ignored."}}});
             }
-            return futures::Past(EmptyValue());
+            return EmptyValue{};
           },
       .predictor = PrecomputedPredictor(
           {NonEmptySingleLine{SingleLine{LazyString{L"no"}}},
@@ -186,7 +186,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                 input.adapter.contents().AdjustLineColumn(range.end()));
   if (range.empty()) {
     VLOG(5) << "Nothing to delete.";
-    return futures::Past(std::move(*output));
+    return std::move(*output);
   }
 
   if (options.modifiers.text_delete_behavior ==
@@ -217,7 +217,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Not actually deleting region.";
     output->position = range.end();
-    return futures::Past(std::move(*output));
+    return std::move(*output);
   }
 
   input.buffer.DeleteRange(range);
@@ -226,7 +226,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   return Apply(transformation::SetPosition(range.begin()), input)
       .Transform([options, range, output, input,
-                  delete_buffer](transformation::Result result) mutable {
+                  delete_buffer](transformation::Result result) mutable
+                     -> futures::Value<transformation::Result> {
         output->MergeFrom(std::move(result));
         transformation::Insert insert_options{
             .contents_to_insert = delete_buffer.ptr()->contents().snapshot(),
@@ -238,7 +239,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         output->undo_stack->push_front(
             transformation::SetPosition(range.begin()));
         if (input.mode != Input::Mode::kPreview) {
-          return futures::Past(std::move(*output));
+          return std::move(*output);
         }
         LOG(INFO) << "Inserting preview at: " << range.begin();
         insert_options.modifiers_set =

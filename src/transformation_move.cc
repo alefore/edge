@@ -33,14 +33,14 @@ futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
   if (auto it_active = active_cursors.active();
       it_active == active_cursors.end() || *it_active != input.position) {
     LOG(INFO) << "Skipping cursor.";
-    return futures::Past(Result(input.position));
+    return Result(input.position);
   }
 
   Result output(input.buffer.FindNextCursor(input.position,
                                             swap_active_cursor.modifiers));
   if (output.position == input.position) {
     LOG(INFO) << "Cursor didn't move.";
-    return futures::Past(std::move(output));
+    return output;
   }
 
   VLOG(5) << "Moving cursor from " << input.position << " to "
@@ -50,7 +50,7 @@ futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
   CHECK(next_it != active_cursors.end());
   active_cursors.erase(next_it);
   active_cursors.insert(input.position);
-  return futures::Past(std::move(output));
+  return output;
 }
 
 std::wstring ToStringBase(const SwapActiveCursor&) {
@@ -76,8 +76,8 @@ class MoveTransformation : public CompositeTransformation {
     // TODO: Finish moving to Structure.
     Structure structure = input.modifiers.structure;
     if (structure == Structure::kCursor) {
-      return futures::Past(Output(
-          transformation::SwapActiveCursor{.modifiers = input.modifiers}));
+      return Output(
+          transformation::SwapActiveCursor{.modifiers = input.modifiers});
     }
 
     auto position = Move(operation_scope_.value().get(input.buffer), structure,
@@ -90,12 +90,12 @@ class MoveTransformation : public CompositeTransformation {
       input.buffer.status().InsertError(
           Error{LazyString{L"Unhandled structure: "} +
                 LazyString{language::FromByteString(oss.str())}});
-      return futures::Past(Output());
+      return Output{};
     }
 
     LOG(INFO) << "Move from " << input.original_position << " to "
               << position.value() << " " << input.modifiers;
-    return futures::Past(Output::SetPosition(position.value()));
+    return Output::SetPosition(position.value());
   }
 
  private:
