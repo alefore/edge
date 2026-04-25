@@ -99,7 +99,7 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
      {.name = L"hidden",
       .callback =
           [] {
-            CHECK(std::holds_alternative<Error>(
+            CHECK(IsError(
                 PathComponent::FromString(L".blah").remove_extension()));
           }},
      {.name = L"Empty",

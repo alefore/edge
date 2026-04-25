@@ -14,7 +14,7 @@ inline constexpr auto SkipErrors =
 
 inline constexpr auto GetErrors =
     std::views::filter([](const auto& v) { return IsError(v); }) |
-    std::views::transform([](auto& v) { return std::get<Error>(v); });
+    std::views::transform([](auto& v) { return GetError(v); });
 
 template <typename T>
 ValueOrError<std::vector<T>> ExtractErrors(std::vector<ValueOrError<T>> input) {

@@ -53,7 +53,7 @@ ValueOrError<Spec> TryPosition(LazyString input, SuffixMode suffix_mode) {
     ValueOrError<int> value_or_error = AsInt(tokens[i]);
     if (IsError(value_or_error)) {
       if (i == 0 || suffix_mode == SuffixMode::Disallow)
-        return std::get<Error>(value_or_error);
+        return GetError(value_or_error);
       else
         break;  // Ignoring errors in the column spec.
     }

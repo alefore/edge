@@ -201,7 +201,7 @@ class ExternalCompletion : public CompositeTransformation {
     if (IsError(command_path_or_error)) {
       input.buffer.status().InsertError(
           AugmentError(LazyString{L"external_completion_command"},
-                       std::get<Error>(command_path_or_error)));
+                       GetError(command_path_or_error)));
       return Output{};
     }
     Path command_path =

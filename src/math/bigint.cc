@@ -108,8 +108,7 @@ const bool from_string_tests_registration =
               ValueOrError<BigInt> value = BigInt::FromString(input);
               CHECK(IsError(value)) << "Expected error but received value: "
                                     << ValueOrDie(std::move(value)).ToString();
-              LOG(INFO) << "Received expected error: "
-                        << std::get<Error>(value);
+              LOG(INFO) << "Received expected error: " << GetError(value);
             }};
       };
       return std::vector<tests::Test>({

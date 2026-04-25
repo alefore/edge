@@ -2171,8 +2171,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                        return ICC::kStop;
                      }
                      ValueOrError<Path> path = url.GetLocalFilePath();
-                     if (std::holds_alternative<Error>(path))
-                       return ICC::kContinue;
+                     if (IsError(path)) return ICC::kContinue;
                      // Converting it to SingleLine (rather than LazyString) is
                      // suboptimal: it would be good, in theory, to support
                      // paths that have a \n in them. However,
@@ -2181,8 +2180,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      // from lines in the buffer.
                      ValueOrError<SingleLine> path_str = SingleLine::New(
                          ToLazyString(ValueOrDie(std::move(path))));
-                     if (std::holds_alternative<Error>(path_str))
-                       return ICC::kContinue;
+                     if (IsError(path_str)) return ICC::kContinue;
                      TRACK_OPERATION(OpenBuffer_OpenBufferForCurrentPosition);
                      VLOG(4) << "Calling open file: "
                              << std::get<SingleLine>(path_str);

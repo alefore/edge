@@ -207,12 +207,11 @@ bool cpp_unescape_string_tests_registration =
             }};
       };
       auto fail = [](std::wstring name, std::wstring input) {
-        return tests::Test{
-            .name = name, .callback = [input] {
-              LOG(INFO) << "Expecting failure from: " << input;
-              CHECK(std::holds_alternative<Error>(
-                  EscapedString::Parse(SingleLine{LazyString{input}})));
-            }};
+        return tests::Test{.name = name, .callback = [input] {
+                             LOG(INFO) << "Expecting failure from: " << input;
+                             CHECK(IsError(EscapedString::Parse(
+                                 SingleLine{LazyString{input}})));
+                           }};
       };
       return std::vector<tests::Test>({
           t(L"EmptyString", L""),

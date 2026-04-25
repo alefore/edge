@@ -284,18 +284,18 @@ template <typename Type>
 template <typename Callable>
 auto Value<Type>::ConsumeErrors(Callable error_callback) && {
   using NestedValueType = typename std::variant_alternative_t<0, Type>;
+  // using NestedValueType = language::ValueOrErrorTraits<Type>::value_type;
   return std::move(*this).template Transform<ErrorHandling::Disable>(
       [error_callback =
            std::move(error_callback)](Type value) -> Value<NestedValueType> {
-        return std::visit(
-            language::overload{
-                [&](language::Error error) mutable -> Value<NestedValueType> {
-                  return std::move(error_callback)(std::move(error));
-                },
-                [&](NestedValueType immediate) -> Value<NestedValueType> {
-                  return immediate;
-                }},
-            std::move(value));
+        return Visit(
+            std::move(value),
+            [&](NestedValueType immediate) -> Value<NestedValueType> {
+              return immediate;
+            },
+            [&](language::Error error) mutable -> Value<NestedValueType> {
+              return std::move(error_callback)(std::move(error));
+            });
       });
 }
 

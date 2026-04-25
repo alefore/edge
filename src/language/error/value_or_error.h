@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include <expected>
 #include <optional>
 #include <string>
 #include <variant>
@@ -25,8 +26,94 @@ Error AugmentError(language::lazy_string::LazyString prefix, Error error);
 Error MergeErrors(const std::vector<Error>& errors,
                   const std::wstring& separator);
 
+#define USE_EXPECTED 0
+
+#if USE_EXPECTED
+// New implementation
+template <typename T>
+using ValueOrError = std::expected<T, Error>;
+
+template <typename T>
+struct ValueOrErrorTraits;
+
+template <typename T>
+struct ValueOrErrorTraits<ValueOrError<T>> {
+  using value_type = T;
+};
+
+template <typename>
+struct IsValueOrError : std::false_type {};
+
+template <typename T>
+struct IsValueOrError<ValueOrError<T>> : std::true_type {};
+
+template <typename E>
+auto MakeUnexpected(E&& e) {
+  return std::unexpected(Error(std::forward<E>(e)));
+}
+
+template <typename T>
+bool HasValue(const ValueOrError<T>& value) {
+  return value.has_value();
+}
+
+template <typename T, typename V = std::remove_cvref_t<T>>
+  requires std::is_same_v<V, ValueOrError<typename V::value_type>>
+auto GetError(T&& e) {
+  return e.error();
+}
+
+template <typename T, typename OnSuccess, typename OnError>
+auto Visit(const ValueOrError<T>& v, OnSuccess&& s, OnError&& e) {
+  if (v)
+    return s(*v);
+  else
+    return e(v.error());
+}
+#else
+// Old
 template <typename T>
 using ValueOrError = std::variant<T, Error>;
+
+template <typename T>
+struct ValueOrErrorTraits;
+
+template <typename T>
+struct ValueOrErrorTraits<ValueOrError<T>> {
+  using value_type = T;
+};
+
+template <typename>
+struct IsValueOrError : std::false_type {};
+
+template <typename T>
+struct IsValueOrError<ValueOrError<T>> : std::true_type {};
+
+template <typename E>
+auto MakeUnexpected(E&& e) {
+  return Error(std::forward<E>(e));
+}
+
+template <typename T>
+bool HasValue(const ValueOrError<T>& value) {
+  return !std::holds_alternative<Error>(value);
+}
+
+template <typename T, typename V = std::remove_cvref_t<T>>
+  requires std::is_same_v<V, ValueOrError<std::variant_alternative_t<0, V>>>
+auto GetError(T&& e) {
+  return std::get<Error>(std::forward<T>(e));
+}
+
+template <typename V, typename OnSuccess, typename OnError,
+          typename = std::enable_if_t<IsValueOrError<std::decay_t<V>>::value>>
+auto Visit(V&& v, OnSuccess&& s, OnError&& e) {
+  return std::visit(
+      overload{std::forward<OnSuccess>(s), std::forward<OnError>(e)},
+      std::forward<V>(v));
+}
+
+#endif
 
 template <typename T>
 bool IsError(const T&) {
@@ -35,12 +122,7 @@ bool IsError(const T&) {
 
 template <typename T>
 bool IsError(const ValueOrError<T>& value) {
-  return std::holds_alternative<Error>(value);
-}
-
-template <typename T>
-bool HasValue(const ValueOrError<T>& value) {
-  return !std::holds_alternative<Error>(value);
+  return !HasValue(value);
 }
 
 template <typename T>
@@ -52,12 +134,6 @@ std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
              p);
   return os;
 }
-
-template <typename>
-struct IsValueOrError : std::false_type {};
-
-template <typename T>
-struct IsValueOrError<ValueOrError<T>> : std::true_type {};
 
 struct EmptyValue {};
 using PossibleError = ValueOrError<EmptyValue>;
@@ -86,26 +162,24 @@ ValueOrError<T> AugmentError(language::lazy_string::LazyString prefix,
 #define CONCAT_IMPL(x, y) x##y
 #define CONCAT(x, y) CONCAT_IMPL(x, y)
 
-#define RETURN_IF_ERROR(expr)                               \
-  if (auto CONCAT(return_if_error_result, __LINE__) = expr; \
-      std::holds_alternative<afc::language::Error>(         \
-          CONCAT(return_if_error_result, __LINE__)))        \
-  return std::get<afc::language::Error>(                    \
-      CONCAT(return_if_error_result, __LINE__))
+#define RETURN_IF_ERROR(expr)                                      \
+  if (auto CONCAT(return_if_error_result, __LINE__) = expr;        \
+      language::IsError(CONCAT(return_if_error_result, __LINE__))) \
+  return language::MakeUnexpected(                                 \
+      GetError(CONCAT(return_if_error_result, __LINE__)))
 
-#define DECLARE_OR_RETURN(variable, expr)                                 \
-  decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;                    \
-  if (std::holds_alternative<afc::language::Error>(                       \
-          CONCAT(tmp_result_, __LINE__)))                                 \
-    return std::get<afc::language::Error>(CONCAT(tmp_result_, __LINE__)); \
-  variable = std::get<0>(std::move(CONCAT(tmp_result_, __LINE__)));
+#define DECLARE_OR_RETURN(variable, expr)                                     \
+  decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;                        \
+  if (IsError(CONCAT(tmp_result_, __LINE__)))                                 \
+    return language::MakeUnexpected(GetError(CONCAT(tmp_result_, __LINE__))); \
+  variable = language::ValueOrDie(std::move(CONCAT(tmp_result_, __LINE__)));
 
-#define ASSIGN_OR_RETURN(variable, expression)               \
-  variable = ({                                              \
-    auto tmp = expression;                                   \
-    if (std::holds_alternative<afc::language::Error>(tmp))   \
-      return std::get<afc::language::Error>(std::move(tmp)); \
-    std::get<0>(std::move(tmp));                             \
+#define ASSIGN_OR_RETURN(variable, expression)                   \
+  variable = ({                                                  \
+    auto tmp = expression;                                       \
+    if (IsError(tmp))                                            \
+      return language::MakeUnexpected(GetError(std::move(tmp))); \
+    language::ValueOrDie(std::move(tmp));                        \
   })
 
 struct IgnoreErrors {
@@ -120,21 +194,31 @@ struct IgnoreErrors {
           afc::language::lazy_string::LazyString{L":"} + \
           afc::language::lazy_string::LazyString{std::to_wstring(__LINE__)})
 
-template <typename T>
-T ValueOrDie(ValueOrError<T>&& value,
-             language::lazy_string::LazyString error_location) {
+template <typename V>
+auto ValueOrDie(V&& value, language::lazy_string::LazyString error_location) {
+  using T = ValueOrErrorTraits<std::decay_t<V>>::value_type;
+#if USE_EXPECTED
+  if (IsError(value)) {
+    LOG(FATAL) << error_location << ": " << value.error();
+    throw std::runtime_error("Error in ValueOrDie.");
+  }
+  return std::forward<V>(value).value();
+#else
   return std::visit(
-      language::overload{[&](Error error) -> T {
+      language::overload{[&](const Error& error) -> T {
                            LOG(FATAL) << error_location << ": " << error;
                            throw std::runtime_error("Error in ValueOrDie.");
                          },
-                         [](T&& t) { return std::forward<T>(t); }},
-      std::forward<ValueOrError<T>>(value));
+                         []<typename U>(U&& t) -> T
+                           requires(!std::is_same_v<std::decay_t<U>, Error>)
+                         { return std::forward<decltype(t)>(t); }},
+                         std::forward<V>(value));
+#endif
 }
 
-template <typename T>
-T ValueOrDie(ValueOrError<T>&& value) {
-  return ValueOrDie(std::forward<ValueOrError<T>>(value),
+template <typename V>
+auto ValueOrDie(V&& value) {
+  return ValueOrDie(std::forward<V>(value),
                     language::lazy_string::LazyString{});
 }
 
@@ -152,10 +236,9 @@ auto VisitCallback(Overload overload) {
 
 template <typename T>
 std::optional<T> OptionalFrom(ValueOrError<T> value) {
-  return std::visit(
-      overload{[](Error) { return std::optional<T>(); },
-               [](T t) { return std::optional<T>(std::move(t)); }},
-      std::move(value));
+  return Visit(
+      std::move(value), [](T t) { return std::optional<T>(std::move(t)); },
+      [](Error) { return std::optional<T>(); });
 }
 
 namespace error {

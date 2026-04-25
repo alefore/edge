@@ -101,7 +101,7 @@ const bool futures_transform_tests_registration = tests::Register(
                    });
                std::move(inner_value.consumer)(Error{LazyString{L"xyz"}});
                CHECK(final_result.has_value());
-               CHECK_EQ(std::get<Error>(final_result.value()),
+               CHECK_EQ(GetError(final_result.value()),
                         Error{LazyString{L"xyz"}});
              }},
         {.name = L"CanConvertToParentWithPreviousValue",

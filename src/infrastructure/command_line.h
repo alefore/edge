@@ -121,11 +121,11 @@ class Handler {
                      return TestsBehavior::kRunAndExit;
                    if (input == language::lazy_string::LazyString{L"list"})
                      return TestsBehavior::kListAndExit;
-                   return language::Error{
+                   return language::MakeUnexpected(language::Error{
                        language::lazy_string::LazyString{
                            L"Invalid value (valid values are `run` and "
                            L"`list`): "} +
-                       language::lazy_string::LazyString{input}};
+                       language::lazy_string::LazyString{input}});
                  }),
         Handler<ParsedValues>({FlagName{L"tests_filter"}},
                               FlagShortHelp{L"Run specific tests"})
@@ -148,7 +148,7 @@ class Handler {
   }
 
   Handler<ParsedValues>& PushBackTo(
-      std::vector<language::lazy_string::LazyString> ParsedValues::*field) {
+      std::vector<language::lazy_string::LazyString> ParsedValues::* field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value())
         (data->output.*field).push_back(data->current_value.value());
@@ -156,14 +156,14 @@ class Handler {
   }
 
   Handler<ParsedValues>& AppendTo(
-      language::lazy_string::LazyString ParsedValues::*field) {
+      language::lazy_string::LazyString ParsedValues::* field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value())
         (data->output.*field) += data->current_value.value();
     });
   }
 
-  Handler<ParsedValues>& Set(bool ParsedValues::*field, bool default_value) {
+  Handler<ParsedValues>& Set(bool ParsedValues::* field, bool default_value) {
     return PushDelegate([field,
                          default_value](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value() &&
@@ -183,7 +183,7 @@ class Handler {
   }
 
   template <typename Type>
-  Handler<ParsedValues>& Set(Type ParsedValues::*field, Type value) {
+  Handler<ParsedValues>& Set(Type ParsedValues::* field, Type value) {
     return PushDelegate([field, value](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value() &&
           data->current_value != language::lazy_string::LazyString{L"true"} &&
@@ -202,7 +202,7 @@ class Handler {
   // Callable should receive a std::wstring with the input. It should return a
   // ValueOrError<Type>.
   template <typename Type, typename Class, typename Callable>
-  Handler<ParsedValues>& Set(Type Class::*field, Callable callback) {
+  Handler<ParsedValues>& Set(Type Class::* field, Callable callback) {
     return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value())
         std::visit(
@@ -218,14 +218,14 @@ class Handler {
   }
 
   Handler<ParsedValues>& Set(
-      language::lazy_string::LazyString ParsedValues::*field) {
+      language::lazy_string::LazyString ParsedValues::* field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value())
         (data->output.*field) = data->current_value.value();
     });
   }
 
-  Handler<ParsedValues>& Set(double ParsedValues::*field) {
+  Handler<ParsedValues>& Set(double ParsedValues::* field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       try {
         data->output.*field = std::stod(data->current_value.value().ToString());

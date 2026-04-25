@@ -127,8 +127,8 @@ class Line {
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
     CachedSupplier<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
         CachedSupplier<ValueOrError<vm::EscapedMap>>{[] {
-          return language::Error{
-              lazy_string::LazyString{L"No escaped map supplier."}};
+          return MakeUnexpected(
+              Error{lazy_string::LazyString{L"No escaped map supplier."}});
         }};
   };
 

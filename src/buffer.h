@@ -118,10 +118,10 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
     using SaveCallback =
         std::function<futures::Value<language::PossibleError>(SaveOptions)>;
     std::function<language::ValueOrError<SaveCallback>()> get_save_callback =
-        [] {
-          return language::Error{language::lazy_string::LazyString{
-              L"Unable to save this buffer."}};
-        };
+        [] -> language::ValueOrError<SaveCallback> {
+      return language::MakeUnexpected(language::Error{
+          language::lazy_string::LazyString{L"Unable to save this buffer."}});
+    };
 
     std::function<
         futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>>(

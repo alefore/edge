@@ -29,8 +29,8 @@ namespace gc = afc::language::gc;
 namespace afc::vm {
 language::ValueOrError<language::gc::Ptr<Expression>> ToPtr(
     const RootExpressionOrError& input) {
-  if (IsError(input)) return std::get<Error>(input);
-  return std::get<gc::Root<Expression>>(input).ptr();
+  DECLARE_OR_RETURN(gc::Root<Expression> input_root, input);
+  return input_root.ptr();
 }
 
 std::optional<gc::Ptr<Expression>> OptionalRootToPtr(

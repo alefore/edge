@@ -340,7 +340,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
         ParseBufferLine(line);
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
-      output.errors.push_back(std::get<Error>(line_keys_or_error));
+      output.errors.push_back(GetError(line_keys_or_error));
       return !input.abort_value.has_value();
     }
     auto range = line_keys->equal_range(HistoryIdentifierValue());

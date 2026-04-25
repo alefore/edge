@@ -269,7 +269,7 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
   if (std::optional<afc::language::Error> error =
           ExtractFirstError(processed_args_or_error_tuple);
       error.has_value())
-    return error.value();
+    return MakeUnexpected(error.value());
 
   auto processed_args_tuple = RemoveValueOrError(processed_args_or_error_tuple);
 
@@ -294,6 +294,9 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
                 return VMTypeMapper<SuccessType>::New(pool, std::move(value));
               }},
           std::apply(callback, processed_args_tuple));
+      //      DECLARE_OR_RETURN(SuccessType value,
+      //                       std::apply(callback, processed_args_tuple));
+      // return VMTypeMapper<SuccessType>::New(pool, std::move(value));
     } else {
       return VMTypeMapper<typename ft::ReturnType>::New(
           pool, std::apply(callback, processed_args_tuple));
@@ -303,7 +306,8 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     using NestedType = typename std::remove_reference<decltype(std::get<0>(
         std::declval<typename ft::ReturnType::type>()))>::type;
     return std::apply(callback, processed_args_tuple)
-        .Transform([&pool](NestedType value) {
+        .Transform([&pool](NestedType value)
+                       -> futures::ValueOrError<language::gc::Root<vm::Value>> {
           if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
             return Value::NewVoid(pool);
           } else {

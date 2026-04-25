@@ -211,7 +211,7 @@ std::generator<ComponentData> ViewComponents(
                   ToLazyString(Path::Join(path, std::move(sub_path))).ToBytes(),
                   ec);
               if (ec || !entry.exists(ec))
-                return Error{LazyString{L"Not found"}};
+                return MakeUnexpected(Error{LazyString{L"Not found"}});
               return ComponentData(entry, glob_matcher);
             }) |
         SkipErrors);
@@ -761,13 +761,12 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
       .Transform([options, predictor_input](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
-        LazyString path_input = std::visit(
-            overload{[&](Error) { return ToLazyString(predictor_input.input); },
-                     [&](Path path) {
-                       return ToLazyString(
-                           predictor_input.editor.expand_path(path));
-                     }},
-            Path::New(ToLazyString(predictor_input.input)));
+        LazyString path_input = Visit(
+            Path::New(ToLazyString(predictor_input.input)),
+            [&](Path path) {
+              return ToLazyString(predictor_input.editor.expand_path(path));
+            },
+            [&](Error) { return ToLazyString(predictor_input.input); });
 
         // TODO: Don't use sources_buffers[0], ignoring the other buffers.
         std::wregex noise_regex =
@@ -786,14 +785,13 @@ futures::Value<PredictorOutput> FilePredictor(FilePredictorOptions options,
                 search_paths = {Path::Root()};
               } else {
                 search_paths =
-                    search_paths | std::views::transform([](Path path) {
-                      return std::visit(
-                          overload{[](infrastructure::AbsolutePath output)
-                                       -> ValueOrError<Path> { return output; },
-                                   [](Error error) {
-                                     return ValueOrError<Path>(error);
-                                   }},
-                          path.Resolve());
+                    search_paths |
+                    std::views::transform([](Path path) -> ValueOrError<Path> {
+                      // We need this wrapping simply to convert from
+                      // AbsolutePath to Path.
+                      DECLARE_OR_RETURN(infrastructure::AbsolutePath output,
+                                        path.Resolve());
+                      return output;
                     }) |
                     SkipErrors | std::ranges::to<std::vector>();
 

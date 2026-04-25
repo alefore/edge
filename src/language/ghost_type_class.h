@@ -50,8 +50,8 @@ class Factory {
  public:
   static ValueOrError<External> New(typename External::InternalType value) {
     if (auto possible_error = External::ValidatorType::Validate(value);
-        std::holds_alternative<Error>(possible_error))
-      return std::get<Error>(possible_error);
+        IsError(possible_error))
+      return MakeUnexpected(GetError(possible_error));
     return External{value};
   };
 };
@@ -199,7 +199,7 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   explicit GhostType(Internal initial_value) : value(std::move(initial_value)) {
     if constexpr (!ghost_type_internal::IsAlwaysValid<Validator>) {
       auto result = External::ValidatorType::Validate(value);
-      CHECK(!IsError(result)) << std::get<Error>(result);
+      CHECK(!IsError(result)) << GetError(result);
     }
   }
   GhostType(const GhostType&) = default;
@@ -229,10 +229,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   static ValueOrError<External> New(ValueOrError<Internal> internal)
     requires(!ghost_type_internal::IsAlwaysValid<Validator>)
   {
-    if (const Error* error = std::get_if<Error>(&internal); error != nullptr)
-      return *error;
+    if (IsError(internal)) return MakeUnexpected(GetError(internal));
     return ghost_type_internal::Factory<External>::New(
-        std::get<Internal>(std::move(internal)));
+        ValueOrDie(std::move(internal)));
   }
 
   // Convenience constructor declared when there's no validator, allowing
@@ -240,10 +239,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   static ValueOrError<External> New(ValueOrError<Internal> internal)
     requires(ghost_type_internal::IsAlwaysValid<Validator>)
   {
-    if (const Error* error = std::get_if<Error>(&internal); error != nullptr)
-      return *error;
+    if (IsError(internal)) return MakeUnexpected(GetError(internal));
     return ghost_type_internal::Factory<External>::New(
-        std::get<Internal>(std::move(internal)));
+        ValueOrDie(std::move(internal)));
   }
 
   static External New(Internal internal)

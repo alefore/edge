@@ -129,7 +129,7 @@ ValueOrError<ParsedCommand> Parse(
 
   if (output_tokens.empty()) {
     // Deliberately empty so as to not trigger a status update.
-    return Error{LazyString{}};
+    return MakeUnexpected(Error{LazyString{}});
   }
 
   CHECK(!search_namespaces.namespaces.empty());
@@ -146,7 +146,7 @@ ValueOrError<ParsedCommand> Parse(
     Error error{LazyString{L"Unknown symbol: "} +
                 ToLazyString(function_name_prefix + output_tokens[0].value)};
     VLOG(5) << "Parse: " << error;
-    return error;
+    return MakeUnexpected(error);
   }
 
   // Filter functions that match our type expectations.
@@ -202,10 +202,10 @@ ValueOrError<ParsedCommand> Parse(
         std::get<vm::types::Function>(output_function.value().ptr()->type());
     size_t expected_arguments = function_type.inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
-      return Error{
+      return MakeUnexpected(Error{
           LazyString{L"Too many arguments given for `"} +
           ToLazyString(output_tokens[0].value) + LazyString{L"` (expected: "} +
-          LazyString{std::to_wstring(expected_arguments)} + LazyString{L")"}};
+          LazyString{std::to_wstring(expected_arguments)} + LazyString{L")"}});
     }
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it)
@@ -216,12 +216,13 @@ ValueOrError<ParsedCommand> Parse(
       output_function_inputs.push_back(NewConstantExpression(
           vm::Value::NewString(pool, LazyString{}).ptr()));
   } else if (!all_types_found.empty()) {
-    return Error{LazyString{L"Incompatible type found: "} +
-                 ToLazyString(output_tokens[0].value) + LazyString{L": "} +
-                 TypesToString(all_types_found)};
+    return MakeUnexpected(Error{LazyString{L"Incompatible type found: "} +
+                                ToLazyString(output_tokens[0].value) +
+                                LazyString{L": "} +
+                                TypesToString(all_types_found)});
   } else {
-    return Error{LazyString{L"No definition found: "} +
-                 ToLazyString(output_tokens[0].value)};
+    return MakeUnexpected(Error{LazyString{L"No definition found: "} +
+                                ToLazyString(output_tokens[0].value)});
   }
   return ParsedCommand{
       .tokens = std::move(output_tokens),
@@ -253,7 +254,7 @@ bool tests_parse_registration = tests::Register(
                 pool, SingleLine{}, environment.ptr().value(), SingleLine{},
                 std::unordered_set<vm::Type>({vm::types::String{}}),
                 SearchNamespaces(buffer.ptr().value()));
-            CHECK_EQ(std::get<Error>(output), Error{LazyString{}});
+            CHECK_EQ(GetError(output), Error{LazyString{}});
           }},
      {.name = L"BadIdentifier",
       .callback =
@@ -284,7 +285,7 @@ bool tests_parse_registration = tests::Register(
                       environment.ptr().value(), SingleLine(),
                       std::unordered_set<vm::Type>({vm::types::String{}}),
                       SearchNamespaces(buffer.ptr().value()));
-            Error error = std::get<Error>(output);
+            Error error = GetError(output);
             LOG(INFO) << "Error: " << error;
             CHECK_GT(error.read().size(),
                      ColumnNumberDelta{sizeof("Unknown ")});
@@ -306,7 +307,7 @@ bool tests_parse_registration = tests::Register(
             pool, SingleLine{LazyString{L"foo"}}, environment.ptr().value(),
             SingleLine{}, std::unordered_set<vm::Type>({vm::types::String{}}),
             SearchNamespaces(buffer.ptr().value()));
-        CHECK(!std::holds_alternative<Error>(output));
+        CHECK(!IsError(output));
       }}});
 }  // namespace
 

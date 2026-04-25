@@ -284,7 +284,7 @@ const bool int_tests_registration = tests::Register(
           [] {
             int64_t input = 9223372036854775807;
             CHECK(StartsWith(
-                std::get<Error>(
+                GetError(
                     (Number::FromInt64(input) + Number::FromInt64(1)).ToInt64())
                     .read(),
                 LazyString{L"Overflow: "}));
@@ -294,7 +294,7 @@ const bool int_tests_registration = tests::Register(
           [] {
             int64_t input = -9223372036854775807 - 1;
             CHECK(StartsWith(
-                std::get<Error>(
+                GetError(
                     (Number::FromInt64(input) - Number::FromInt64(1)).ToInt64())
                     .read(),
                 LazyString{L"Overflow: "}));
@@ -302,8 +302,7 @@ const bool int_tests_registration = tests::Register(
      {.name = L"Inexact", .callback = [] {
         ValueOrError<int64_t> value = Number::FromDouble(1.5).ToInt64();
         LOG(INFO) << "Output: " << value;
-        CHECK(
-            StartsWith(std::get<Error>(value).read(), LazyString{L"Inexact:"}));
+        CHECK(StartsWith(GetError(value).read(), LazyString{L"Inexact:"}));
       }}});
 
 }  // namespace
@@ -339,25 +338,22 @@ const bool to_size_t_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(StartsWith(
-                std::get<Error>(
-                    (Number::FromInt64(1) +
-                     Number::FromSizeT(std::numeric_limits<size_t>::max()))
-                        .ToSizeT())
+                GetError((Number::FromInt64(1) +
+                          Number::FromSizeT(std::numeric_limits<size_t>::max()))
+                             .ToSizeT())
                     .read(),
                 LazyString{L"Overflow: "}));
           }},
      {.name = L"Negative",
       .callback =
           [] {
-            CHECK(StartsWith(
-                std::get<Error>(Number::FromInt64(-1).ToSizeT()).read(),
-                LazyString{L"Negative:"}));
+            CHECK(StartsWith(GetError(Number::FromInt64(-1).ToSizeT()).read(),
+                             LazyString{L"Negative:"}));
           }},
      {.name = L"Inexact", .callback = [] {
         ValueOrError<size_t> value = Number::FromDouble(1.5).ToSizeT();
         LOG(INFO) << "Output: " << value;
-        CHECK(
-            StartsWith(std::get<Error>(value).read(), LazyString{L"Inexact:"}));
+        CHECK(StartsWith(GetError(value).read(), LazyString{L"Inexact:"}));
       }}});
 
 ValueOrError<double> Number::ToDouble() const {
