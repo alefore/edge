@@ -144,6 +144,8 @@ struct Graph
 
  private:
   NodeGroup GetAutomaticClosure(NodeGroup states) const {
+    std::ranges::for_each(
+        states, [&](const NodeId& id) { CHECK_LT(id, this->size()); });
     std::vector<NodeId> pending(std::from_range, states);
     while (!pending.empty()) {
       NodeId current = pending.back();
