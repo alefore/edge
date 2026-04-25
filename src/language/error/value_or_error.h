@@ -15,8 +15,20 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
+#define USE_EXPECTED 0
+
 class Error : public GhostType<Error, language::lazy_string::LazyString> {
   using GhostType::GhostType;
+
+ public:
+  operator std::unexpected<Error>() const {
+    return std::unexpected<Error>(*this);
+  }
+
+  template <typename T>
+  operator std::expected<T, Error>() const {
+    return std::unexpected<Error>(*this);
+  }
 };
 
 // Example: AugmentError(L"🖫 Save failed", error)
@@ -25,8 +37,6 @@ Error AugmentError(language::lazy_string::LazyString prefix, Error error);
 // Precondition: `errors` must be non-empty.
 Error MergeErrors(const std::vector<Error>& errors,
                   const std::wstring& separator);
-
-#define USE_EXPECTED 0
 
 #if USE_EXPECTED
 // New implementation
@@ -63,12 +73,21 @@ auto GetError(T&& e) {
   return e.error();
 }
 
-template <typename T, typename OnSuccess, typename OnError>
-auto Visit(const ValueOrError<T>& v, OnSuccess&& s, OnError&& e) {
+template <typename T>
+struct is_expected : std::false_type {};
+
+template <typename T, typename E>
+struct is_expected<std::expected<T, E>> : std::true_type {};
+
+template <typename T>
+concept ExpectedType = is_expected<std::remove_cvref_t<T>>::value;
+
+template <ExpectedType V, typename OnSuccess, typename OnError>
+auto Visit(V&& v, OnSuccess&& s, OnError&& e) {
   if (v)
-    return s(*v);
+    return std::forward<OnSuccess>(s)(std::forward<V>(v).value());
   else
-    return e(v.error());
+    return std::forward<OnError>(e)(std::forward<V>(v).error());
 }
 #else
 // Old
@@ -112,8 +131,10 @@ auto Visit(V&& v, OnSuccess&& s, OnError&& e) {
       overload{std::forward<OnSuccess>(s), std::forward<OnError>(e)},
       std::forward<V>(v));
 }
-
 #endif
+
+template <typename T>
+inline constexpr bool IsValueOrError_v = IsValueOrError<T>::value;
 
 template <typename T>
 bool IsError(const T&) {
@@ -127,11 +148,10 @@ bool IsError(const ValueOrError<T>& value) {
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
-  std::visit(overload{[&](const Error& error) { os << error; },
-                      [&](const T& value) {
-                        os << "[ValueOrError::Value: " << value << "]";
-                      }},
-             p);
+  Visit(
+      p,
+      [&](const T& value) { os << "[ValueOrError::Value: " << value << "]"; },
+      [&](const Error& error) { os << error; });
   return os;
 }
 
@@ -152,10 +172,9 @@ ValueOrError<T> Success(T t) {
 template <typename T>
 ValueOrError<T> AugmentError(language::lazy_string::LazyString prefix,
                              ValueOrError<T> input) {
-  std::visit(
-      overload{[&](Error& error) { error = AugmentError(prefix, error); },
-               [](T&) {}},
-      input);
+  Visit(
+      input, [](T&) {},
+      [&](Error& error) { error = AugmentError(prefix, error); });
   return input;
 }
 
@@ -174,6 +193,11 @@ ValueOrError<T> AugmentError(language::lazy_string::LazyString prefix,
     return language::MakeUnexpected(GetError(CONCAT(tmp_result_, __LINE__))); \
   variable = language::ValueOrDie(std::move(CONCAT(tmp_result_, __LINE__)));
 
+#define DECLARE_OR_RETURN_OTHER(variable, expr, other)      \
+  decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;      \
+  if (IsError(CONCAT(tmp_result_, __LINE__))) return other; \
+  variable = language::ValueOrDie(std::move(CONCAT(tmp_result_, __LINE__)));
+
 #define ASSIGN_OR_RETURN(variable, expression)                   \
   variable = ({                                                  \
     auto tmp = expression;                                       \
@@ -185,6 +209,12 @@ ValueOrError<T> AugmentError(language::lazy_string::LazyString prefix,
 struct IgnoreErrors {
   void operator()(Error);
 };
+
+template <typename V, typename OnSuccess,
+          typename = std::enable_if_t<IsValueOrError<std::decay_t<V>>::value>>
+auto VisitValue(V&& v, OnSuccess&& s) {
+  return Visit(std::forward<V>(v), std::forward<OnSuccess>(s), IgnoreErrors{});
+}
 
 #define VALUE_OR_DIE(value_expr)                         \
   afc::language::ValueOrDie(                             \

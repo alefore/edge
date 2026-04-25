@@ -120,6 +120,7 @@ using afc::language::Pointer;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::Visit;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::WeakPtrLockingObserver;
@@ -391,31 +392,27 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
               .thread_pool = editor().thread_pool(), .insert_lines = nullptr})),
       load_visual_state_(LazyValue<bool>{[this] {
         LOG(INFO) << "Loading visual state: " << Read(buffer_variables::name);
-        std::visit(
-            overload{
-                IgnoreErrors{},
-                [&](Path buffer_path) {
-                  for (const auto& dir : options_.editor.edge_path()) {
-                    Path state_path = Path::Join(
-                        Path::Join(dir, EditorState::StatePathComponent()),
-                        Path::Join(buffer_path,
-                                   PathComponent::FromString(L".edge_state")));
-                    file_system_driver()
-                        ->Stat(state_path)
-                        .Transform(LockAndVisitCallback(
-                            [state_path](struct stat,
-                                         gc::Root<ExecutionContext> context) {
-                              return context->EvaluateFile(state_path);
-                            },
-                            [](struct stat)
-                                -> futures::ValueOrError<gc::Root<Value>> {
-                              return Error{
-                                  LazyString{L"Buffer has been deleted."}};
-                            },
-                            execution_context_.ToWeakPtr()));
-                  }
-                }},
-            Path::New(Read(buffer_variables::path)));
+        VisitValue(
+            Path::New(Read(buffer_variables::path)), [&](Path buffer_path) {
+              for (const auto& dir : options_.editor.edge_path()) {
+                Path state_path = Path::Join(
+                    Path::Join(dir, EditorState::StatePathComponent()),
+                    Path::Join(buffer_path,
+                               PathComponent::FromString(L".edge_state")));
+                file_system_driver()
+                    ->Stat(state_path)
+                    .Transform(LockAndVisitCallback(
+                        [state_path](struct stat,
+                                     gc::Root<ExecutionContext> context) {
+                          return context->EvaluateFile(state_path);
+                        },
+                        [](struct stat)
+                            -> futures::ValueOrError<gc::Root<Value>> {
+                          return Error{L"Buffer has been deleted."};
+                        },
+                        execution_context_.ToWeakPtr()));
+              }
+            });
         auto paths = editor().edge_path();
         futures::ForEach(
             paths.begin(), paths.end(),
@@ -468,73 +465,70 @@ futures::ValueOrError<OpenBuffer::PrepareToCloseOutput>
 OpenBuffer::PrepareToClose() {
   log_->Append(LazyString{L"PrepareToClose"});
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
-  return std::visit(
-      overload{
-          [&](Error error) -> futures::ValueOrError<PrepareToCloseOutput> {
-            LOG(INFO) << name() << ": Unable to close: " << error;
-            return error;
-          },
-          [&](EmptyValue) {
-            return (options_.editor.modifiers().strength ==
-                            Modifiers::Strength::kNormal
-                        ? PersistState()
-                        : futures::IgnoreErrors(PersistState()))
-                .Transform([root_this = RootFromThis()](EmptyValue)
-                               -> futures::ValueOrError<PrepareToCloseOutput> {
-                  LOG(INFO) << root_this->name() << ": State persisted.";
-                  if (root_this->child_pid_.has_value()) {
-                    if (root_this->Read(buffer_variables::term_on_close)) {
-                      if (root_this->on_exit_handler_.has_value()) {
-                        return Error{
-                            LazyString{L"Already waiting for termination."}};
-                      }
-                      LOG(INFO) << "Sending termination and preparing handler: "
-                                << root_this->Read(buffer_variables::name);
-                      root_this->file_system_driver()->Kill(
-                          root_this->child_pid_.value(), UnixSignal{SIGHUP});
-                      auto future =
-                          futures::Future<ValueOrError<PrepareToCloseOutput>>();
-                      root_this->on_exit_handler_ =
-                          [root_this,
-                           consumer = std::move(future.consumer)]() mutable {
-                            CHECK(!root_this->child_pid_.has_value());
-                            LOG(INFO)
-                                << "Subprocess terminated: "
-                                << root_this->Read(buffer_variables::name);
-                            root_this->PrepareToClose().SetConsumer(
-                                std::move(consumer));
-                          };
-                      return std::move(future.value);
-                    }
-                    CHECK(root_this->options_.editor.modifiers().strength >
-                          Modifiers::Strength::kNormal);
+  return language::Visit(
+      IsUnableToPrepareToClose(),
+      [&](EmptyValue) {
+        return (options_.editor.modifiers().strength ==
+                        Modifiers::Strength::kNormal
+                    ? PersistState()
+                    : futures::IgnoreErrors(PersistState()))
+            .Transform([root_this = RootFromThis()](EmptyValue)
+                           -> futures::ValueOrError<PrepareToCloseOutput> {
+              LOG(INFO) << root_this->name() << ": State persisted.";
+              if (root_this->child_pid_.has_value()) {
+                if (root_this->Read(buffer_variables::term_on_close)) {
+                  if (root_this->on_exit_handler_.has_value()) {
+                    return Error{
+                        LazyString{L"Already waiting for termination."}};
                   }
-                  if (!root_this->dirty() ||
-                      root_this->Read(buffer_variables::allow_dirty_delete))
-                    return PrepareToCloseOutput{};
+                  LOG(INFO) << "Sending termination and preparing handler: "
+                            << root_this->Read(buffer_variables::name);
+                  root_this->file_system_driver()->Kill(
+                      root_this->child_pid_.value(), UnixSignal{SIGHUP});
+                  auto future =
+                      futures::Future<ValueOrError<PrepareToCloseOutput>>();
+                  root_this->on_exit_handler_ =
+                      [root_this,
+                       consumer = std::move(future.consumer)]() mutable {
+                        CHECK(!root_this->child_pid_.has_value());
+                        LOG(INFO) << "Subprocess terminated: "
+                                  << root_this->Read(buffer_variables::name);
+                        root_this->PrepareToClose().SetConsumer(
+                            std::move(consumer));
+                      };
+                  return std::move(future.value);
+                }
+                CHECK(root_this->options_.editor.modifiers().strength >
+                      Modifiers::Strength::kNormal);
+              }
+              if (!root_this->dirty() ||
+                  root_this->Read(buffer_variables::allow_dirty_delete))
+                return PrepareToCloseOutput{};
 
-                  LOG(INFO)
-                      << root_this->name() << ": attempting to save buffer.";
-                  if (root_this->Read(buffer_variables::save_on_close))
-                    return root_this->Save(Options::SaveType::kMainFile)
-                        .Transform(
-                            [root_this](EmptyValue)
-                                -> futures::ValueOrError<PrepareToCloseOutput> {
-                              LOG(INFO) << "Buffer saved" << root_this->name();
-                              return PrepareToCloseOutput{};
-                            });
+              LOG(INFO) << root_this->name() << ": attempting to save buffer.";
+              if (root_this->Read(buffer_variables::save_on_close))
+                return root_this->Save(Options::SaveType::kMainFile)
+                    .Transform(
+                        [root_this](EmptyValue)
+                            -> futures::ValueOrError<PrepareToCloseOutput> {
+                          LOG(INFO) << "Buffer saved" << root_this->name();
+                          return PrepareToCloseOutput{};
+                        });
 
-                  return root_this->Save(Options::SaveType::kBackup)
-                      .Transform(
-                          [root_this](EmptyValue)
-                              -> futures::ValueOrError<PrepareToCloseOutput> {
-                            LOG(INFO) << "Backup saved" << root_this->name();
-                            return PrepareToCloseOutput{
-                                .dirty_contents_saved_to_backup = true};
-                          });
-                });
-          }},
-      IsUnableToPrepareToClose());
+              return root_this->Save(Options::SaveType::kBackup)
+                  .Transform(
+                      [root_this](EmptyValue)
+                          -> futures::ValueOrError<PrepareToCloseOutput> {
+                        LOG(INFO) << "Backup saved" << root_this->name();
+                        return PrepareToCloseOutput{
+                            .dirty_contents_saved_to_backup = true};
+                      });
+            });
+      },
+      [&](Error error) -> futures::ValueOrError<PrepareToCloseOutput> {
+        LOG(INFO) << name() << ": Unable to close: " << error;
+        return error;
+      });
 }
 
 void OpenBuffer::Close(CloseAccessTag) {
@@ -974,29 +968,27 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
           LazyString{L"Reload is already in progress and new one scheduled."}};
   }
 
-  return std::visit(
-             overload{[this](gc::Root<ExecutionContext::CompilationResult>
-                                 compilation_result)
-                          -> futures::Value<PossibleError> {
-                        if (editor().exit_value().has_value())
-                          return EmptyValue{};
-                        LOG(INFO) << name() << "Starting reload: "
-                                  << Read(buffer_variables::name);
-                        return futures::IgnoreErrors(
-                            compilation_result->evaluate().Transform(
-                                [](gc::Root<vm::Value>) -> PossibleError {
-                                  return EmptyValue{};
-                                }));
-                      },
-                      [](Error error) -> futures::Value<PossibleError> {
-                        LOG(INFO) << "OnReload handler: " << error;
-                        return EmptyValue{};
-                      }},
+  return language::Visit(
              execution_context()->FunctionCall(
                  IDENTIFIER_CONSTANT(L"OnReload"),
                  {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(editor().gc_pool(),
                                                          RootFromThis().ptr())
-                      .ptr()}))
+                      .ptr()}),
+             [this](gc::Root<ExecutionContext::CompilationResult>
+                        compilation_result) -> futures::Value<PossibleError> {
+               if (editor().exit_value().has_value()) return EmptyValue{};
+               LOG(INFO) << name()
+                         << "Starting reload: " << Read(buffer_variables::name);
+               return futures::IgnoreErrors(
+                   compilation_result->evaluate().Transform(
+                       [](gc::Root<vm::Value>) -> PossibleError {
+                         return EmptyValue{};
+                       }));
+             },
+             [](Error error) -> futures::Value<PossibleError> {
+               LOG(INFO) << "OnReload handler: " << error;
+               return EmptyValue{};
+             })
       .Transform(LockAndVisitCallback(
           [](EmptyValue,
              gc::Root<OpenBuffer> root_this) -> futures::Value<PossibleError> {
@@ -1171,13 +1163,11 @@ void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
   log_->Append(LazyString{L"UpdateBackup starts."});
   CHECK(options_.get_save_callback != nullptr);
-  std::visit(overload{[&](Options::SaveCallback save_callback) {
-                        save_callback(Options::SaveOptions{
-                            .buffer = RootFromThis(),
-                            .save_type = Options::SaveType::kBackup});
-                      },
-                      IgnoreErrors{}},
-             options_.get_save_callback());
+  VisitValue(
+      options_.get_save_callback(), [&](Options::SaveCallback save_callback) {
+        save_callback(Options::SaveOptions{
+            .buffer = RootFromThis(), .save_type = Options::SaveType::kBackup});
+      });
   backup_state_ = DiskState::kCurrent;
 }
 
@@ -2042,8 +2032,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     if (subtree->properties().contains(ParseTreeProperty::Link()))
       if (ValueOrError<URL> target =
               FindLinkTarget(*subtree, buffer.contents().snapshot());
-          std::holds_alternative<URL>(target)) {
-        initial_url = std::get<URL>(target);
+          HasValue(target)) {
+        initial_url = ValueOrDie(std::move(target));
         break;
       }
 
@@ -2073,36 +2063,30 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       *initial_url);
 
   std::vector<Path> search_paths = {};
-  std::visit(overload{IgnoreErrors{},
-                      [&](Path path) {
-                        // Works if the current buffer is a directory
-                        // listing:
-                        search_paths.push_back(path);
-                        // And a fall-back for the current buffer being a
-                        // file:
-                        std::visit(overload{IgnoreErrors{},
-                                            [&](Path dir) {
-                                              search_paths.push_back(dir);
-                                            }},
-                                   path.Dirname());
-                      }},
-             Path::New(buffer.Read(buffer_variables::path)));
+  VisitValue(Path::New(buffer.Read(buffer_variables::path)), [&](Path path) {
+    // Works if the current buffer is a directory listing:
+    search_paths.push_back(path);
+    // And a fall-back for the current buffer being a file:
+    VisitValue(path.Dirname(), [&](Path dir) { search_paths.push_back(dir); });
+  });
 
   std::vector<URL> urls = urls_with_extensions;
 
   // Do the full expansion. This has square complexity, though luckily the
   // number of local_paths tends to be very small.
-  for (const Path& search_path : search_paths) {
-    for (const URL& url : urls_with_extensions) {
-      std::visit(overload{IgnoreErrors{},
-                          [&](Path path) {
-                            if (path.GetRootType() != Path::RootType::kAbsolute)
-                              urls.push_back(
-                                  URL::FromPath(Path::Join(search_path, path)));
-                          }},
-                 url.GetLocalFilePath());
-    }
-  }
+  std::ranges::copy(
+      search_paths | std::views::transform([&](const Path& search_path) {
+        return urls_with_extensions | std::views::transform([](const URL& url) {
+                 return url.GetLocalFilePath();
+               }) |
+               SkipErrors | std::views::filter([](Path path) {
+                 return path.GetRootType() != Path::RootType::kAbsolute;
+               }) |
+               std::views::transform([search_path](Path path) {
+                 return URL::FromPath(Path::Join(search_path, path));
+               });
+      }) | std::views::join,
+      std::back_inserter(urls));
   return urls;
 }
 }  // namespace
@@ -2160,28 +2144,27 @@ OpenBuffer::OpenBufferForCurrentPosition(
                        }
                        return ICC::kStop;
                      }
-                     ValueOrError<Path> path = url.GetLocalFilePath();
-                     if (IsError(path)) return ICC::kContinue;
+                     DECLARE_OR_RETURN_OTHER(Path path, url.GetLocalFilePath(),
+                                             ICC::kContinue);
                      // Converting it to SingleLine (rather than LazyString) is
                      // suboptimal: it would be good, in theory, to support
                      // paths that have a \n in them. However,
                      // OpenFilesOptions::path_pattern is a SingleLine. It
                      // probably doesn't matter in practice since the URLs come
                      // from lines in the buffer.
-                     ValueOrError<SingleLine> path_str = SingleLine::New(
-                         ToLazyString(ValueOrDie(std::move(path))));
-                     if (IsError(path_str)) return ICC::kContinue;
+                     DECLARE_OR_RETURN_OTHER(
+                         SingleLine path_str,
+                         SingleLine::New(ToLazyString(std::move(path))),
+                         ICC::kContinue);
                      TRACK_OPERATION(OpenBuffer_OpenBufferForCurrentPosition);
-                     VLOG(4) << "Calling open file: "
-                             << std::get<SingleLine>(path_str);
+                     VLOG(4) << "Calling open file: " << path_str;
                      return OpenFiles(
                                 OpenFilesOptions{
                                     .editor = editor,
                                     .match_limit = 1,
                                     .not_found_handler = OpenFilesOptions::
                                         NotFoundHandler::kIgnore,
-                                    .path_pattern =
-                                        ValueOrDie(std::move(path_str)),
+                                    .path_pattern = std::move(path_str),
                                     .open_file_position_suffix_mode =
                                         open_file_position::SuffixMode::Allow,
                                     .insertion_type =

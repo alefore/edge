@@ -83,19 +83,19 @@ class Status {
   template <typename T>
   T ConsumeErrors(language::ValueOrError<T> value_or_error,
                   T replacement_value) {
-    return std::visit(language::overload{[&](language::Error error) {
-                                           Set(error);
-                                           return replacement_value;
-                                         },
-                                         [](T value) { return value; }},
-                      std::move(value_or_error));
+    return language::Visit(
+        std::move(value_or_error), [](T value) { return value; },
+        [&](language::Error error) {
+          Set(error);
+          return replacement_value;
+        });
   }
 
   template <typename T>
   language::ValueOrError<T> LogErrors(language::ValueOrError<T> value) {
-    std::visit(language::overload{[&](language::Error error) { Set(error); },
-                                  [](const T&) {}},
-               value);
+    language::Visit(
+        std::move(value), [](const T&) {},
+        [&](language::Error error) { Set(error); });
     return value;
   }
 

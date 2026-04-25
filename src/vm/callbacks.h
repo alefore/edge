@@ -191,7 +191,7 @@ decltype(auto) UnwrapValueOrError(T& value) {
 
 template <typename T>
 decltype(auto) UnwrapValueOrError(afc::language::ValueOrError<T>& value) {
-  return std::get<T>(value);
+  return ValueOrDie(value);
 }
 
 // Given a callable and an index for its inputs, sets `type` to the appropriate
@@ -217,11 +217,9 @@ template <typename Tuple, size_t Index = 0>
 std::optional<afc::language::Error> ErrorChecker(const Tuple& tup) {
   if constexpr (Index < std::tuple_size_v<Tuple>) {
     using ElementType = std::tuple_element_t<Index, Tuple>;
-    if constexpr (afc::language::IsValueOrError<ElementType>::value) {
+    if constexpr (language::IsValueOrError<ElementType>::value) {
       const auto& element = std::get<Index>(tup);
-      if (afc::language::IsError(element))
-        return std::optional<afc::language::Error>(
-            std::get<afc::language::Error>(element));
+      if (language::IsError(element)) return language::GetError(element);
     }
     return ErrorChecker<Tuple, Index + 1>(tup);
   } else {
@@ -235,14 +233,18 @@ std::optional<afc::language::Error> ExtractFirstError(
   return ErrorChecker<std::tuple<Args...>>(tuple);
 }
 
-template <typename T>
+// Expected to handle types that are NOT a ValueOrError.
+template <typename T, typename Enable = void>
 struct UnwrapValueOrErrorType {
   using type = T;
 };
 
+// Partial specialization for the ValueOrError case.
 template <typename T>
-struct UnwrapValueOrErrorType<std::variant<T, language::Error>> {
-  using type = std::conditional_t<std::is_reference_v<T>, T, T&>;
+struct UnwrapValueOrErrorType<
+    T, std::enable_if_t<language::IsValueOrError_v<std::decay_t<T>>>> {
+  using DecayedT = std::decay_t<T>;
+  using type = typename language::ValueOrErrorTraits<DecayedT>::value_type;
 };
 
 template <typename... Args, std::size_t... Indices>

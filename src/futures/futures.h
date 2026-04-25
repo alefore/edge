@@ -98,13 +98,12 @@ struct TransformTraits<language::ValueOrError<InitialType>, Callable,
   static void FeedValue(language::ValueOrError<InitialType> initial_value,
                         Callable& callable,
                         typename ReturnType::Consumer consumer) {
-    std::visit(language::overload{
-                   [&](language::Error error) { std::move(consumer)(error); },
-                   [&](InitialType value) {
-                     ReturnTraits::Feed(callable(std::move(value)),
-                                        std::move(consumer));
-                   }},
-               std::move(initial_value));
+    language::Visit(
+        std::move(initial_value),
+        [&](InitialType value) {
+          ReturnTraits::Feed(callable(std::move(value)), std::move(consumer));
+        },
+        [&](language::Error error) { std::move(consumer)(error); });
   }
 };
 
@@ -285,8 +284,8 @@ struct Future {
 template <typename Type>
 template <typename Callable>
 auto Value<Type>::ConsumeErrors(Callable error_callback) && {
-  using NestedValueType = typename std::variant_alternative_t<0, Type>;
-  // using NestedValueType = language::ValueOrErrorTraits<Type>::value_type;
+  using NestedValueType =
+      typename language::ValueOrErrorTraits<Type>::value_type;
   return std::move(*this).template Transform<ErrorHandling::Disable>(
       [error_callback =
            std::move(error_callback)](Type value) -> Value<NestedValueType> {
@@ -386,9 +385,9 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
       [consumer = std::move(future.consumer),
        error_callback = std::move(error_callback)](
           language::ValueOrError<T> value_or_error) mutable {
-        if (std::holds_alternative<language::Error>(value_or_error)) {
-          futures::ValueOrError<T> error_callback_result = error_callback(
-              std::get<language::Error>(std::move(value_or_error)));
+        if (language::IsError(value_or_error)) {
+          futures::ValueOrError<T> error_callback_result =
+              error_callback(GetError(std::move(value_or_error)));
           std::move(error_callback_result).SetConsumer(std::move(consumer));
         } else {
           std::invoke(std::move(consumer), std::move(value_or_error));
