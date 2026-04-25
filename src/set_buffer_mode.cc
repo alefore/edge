@@ -250,7 +250,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         new_indices.push_back(index);
       }
     }
-    if (new_indices.empty()) return futures::Past(EmptyValue());
+    if (new_indices.empty()) return EmptyValue{};
     initial_indices = std::move(new_indices);
   }
 
@@ -259,11 +259,11 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     Indices indices = {};
     std::optional<Error> pattern_error = std::nullopt;
   };
-  futures::Value<State> state_future =
-      futures::Past(State{.index = data.initial_number.value_or(
-                                       editor.buffer_tree().GetCurrentIndex()) %
-                                   initial_indices.size(),
-                          .indices = std::move(initial_indices)});
+  futures::Value<State> state_future = State{
+      .index =
+          data.initial_number.value_or(editor.buffer_tree().GetCurrentIndex()) %
+          initial_indices.size(),
+      .indices = std::move(initial_indices)};
   for (const auto& operation : data.operations) {
     switch (operation.type) {
       case Operation::Type::kForward:
@@ -424,7 +424,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                             })
                             .ConsumeErrors([new_state](Error error) {
                               new_state->pattern_error = std::move(error);
-                              return futures::Past(Control::kStop);
+                              return Control::kStop;
                             }));
                   }
                   return futures::ForEachWithCopy(
@@ -513,7 +513,7 @@ std::optional<gc::Root<InputReceiver>> NewSetBufferMode(EditorState& editor) {
                         },
                         [] {});
                     editor.buffer_tree().set_filter(std::nullopt);
-                    return futures::Past(EmptyValue());
+                    return EmptyValue{};
                   },
               .apply = [&editor](
                            CommandArgumentModeApplyMode mode,

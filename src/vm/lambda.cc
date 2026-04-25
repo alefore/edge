@@ -83,8 +83,8 @@ class LambdaExpression : public Expression {
                                                    const Type& type) override {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
-    return futures::Past(Success(EvaluationOutput::New(promotion_function(
-        BuildValue(trampoline.pool(), trampoline.environment())))));
+    return EvaluationOutput::New(promotion_function(
+        BuildValue(trampoline.pool(), trampoline.environment())));
   }
 
   gc::Root<Value> BuildValue(gc::Pool& pool,

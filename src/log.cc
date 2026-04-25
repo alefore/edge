@@ -97,8 +97,9 @@ futures::ValueOrError<language::NonNull<std::unique_ptr<Log>>> NewFileLog(
             S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
       .Transform(
           [](FileDescriptor fd) -> ValueOrError<NonNull<std::unique_ptr<Log>>> {
-            return NonNull<std::unique_ptr<FileLog>>(
-                MakeNonNullShared<FileLogData>(FileLogData{.fd = fd}));
+            return NonNull<std::unique_ptr<Log>>(
+                NonNull<std::unique_ptr<FileLog>>(
+                    MakeNonNullShared<FileLogData>(FileLogData{.fd = fd})));
           });
 }
 

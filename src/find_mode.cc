@@ -30,7 +30,7 @@ futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
     CompositeTransformation::Input input) const {
   auto position = input.buffer.contents().AdjustLineColumn(input.position);
   std::optional<Line> line = input.buffer.LineAt(position.line);
-  if (!line.has_value()) return futures::Past(Output());
+  if (!line.has_value()) Output{};
   ColumnNumber column = std::min(position.column, line->EndColumn());
   for (size_t i = 0; i < input.modifiers.repetitions.value_or(1); i++) {
     auto candidate = SeekOnce(*line, column, input.modifiers);
@@ -38,9 +38,9 @@ futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
     column = candidate.value();
   }
   if (column == input.position.column) {
-    return futures::Past(Output());
+    return Output{};
   }
-  return futures::Past(Output::SetColumn(column));
+  return Output::SetColumn(column);
 }
 
 std::optional<ColumnNumber> FindTransformation::SeekOnce(

@@ -676,22 +676,22 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                         MakeNonNullShared<FileSystemDriver>(
                                             buffer->editor().thread_pool()),
                                         path))
-                            .Transform(
-                                [buffer, path](ResolvePathOutput results) {
-                                  buffer->execution_context()->EvaluateFile(
-                                      results.path);
-                                  return Success();
-                                }),
+                            .Transform([buffer, path](ResolvePathOutput results)
+                                           -> futures::Value<PossibleError> {
+                              buffer->execution_context()->EvaluateFile(
+                                  results.path);
+                              return EmptyValue{};
+                            }),
                         [buffer, path](Error error) {
                           buffer->status().Set(AugmentError(
                               LazyString{L"Unable to resolve: "} + path,
                               std::move(error)));
-                          return futures::Past(Success());
+                          return EmptyValue{};
                         });
                   },
                   LazyString{L"Load file: "} + path);
             });
-            return futures::Past(Success());
+            return EmptyValue{};
           })
           .ptr());
 
@@ -766,7 +766,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                 metadata_it != metadata_map.end())
               return metadata_it->second.value.ToFuture().Transform(
                   [](SingleLine a) { return a.read(); });
-            return futures::Past(Error{LazyString{L"Line has no value."}});
+            return Error{L"Line has no value."};
           })
           .ptr());
 
@@ -812,13 +812,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                 LazyString{FromByteString(oss.str())}));
                           })
                           .ConsumeErrors([](Error error) {
-                            return futures::Past(LineProcessorOutput(
+                            return LineProcessorOutput{
                                 SINGLE_LINE_CONSTANT(L"E: ") +
                                 LineSequence::BreakLines(error.read())
-                                    .FoldLines()));
+                                    .FoldLines()};
                           })};
             });
-            return futures::Past(vm::Value::NewVoid(pool));
+            return vm::Value::NewVoid(pool);
           })
           .ptr());
 

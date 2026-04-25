@@ -50,12 +50,12 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                  transformation::Input input) {
   size_t length = options.contents_to_insert.CountCharacters();
   if (length == 0) {
-    return futures::Past(transformation::Result(input.position));
+    return transformation::Result(input.position);
   }
 
-  auto result = std::make_shared<transformation::Result>(
-      input.adapter.contents().AdjustLineColumn(
-          options.position.value_or(input.position)));
+  auto result = MakeNonNullShared<transformation::Result>(
+      transformation::Result{input.adapter.contents().AdjustLineColumn(
+          options.position.value_or(input.position))});
 
   result->modified_buffer = true;
   result->made_progress = true;
@@ -72,7 +72,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
   result->undo_stack->push_front(TransformationAtPosition(
       start_position, GetCharactersDeleteOptions(chars_inserted)));
 
-  auto delayed_shared_result = futures::Past(result);
+  futures::Value<NonNull<std::shared_ptr<transformation::Result>>>
+      delayed_shared_result = result;
   if (options.modifiers.insertion == Modifiers::ModifyMode::kOverwrite) {
     transformation::Delete delete_options =
         GetCharactersDeleteOptions(chars_inserted);
@@ -94,9 +95,10 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 
   return std::move(delayed_shared_result)
       .Transform(
-          [position](std::shared_ptr<transformation::Result> final_result) {
+          [position](
+              NonNull<std::shared_ptr<transformation::Result>> final_result) {
             final_result->position = position;
-            return std::move(*final_result);
+            return std::move(final_result.value());
           });
 }
 

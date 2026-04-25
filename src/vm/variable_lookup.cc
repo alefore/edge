@@ -57,20 +57,21 @@ class VariableLookup : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
     TRACK_OPERATION(vm_VariableLookup_Evaluate);
-    // TODO: Enable this logging.
+    // TODO(2026-04-25, from ages ago, trivial): Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    return futures::Past(VisitOptional(
-        [](Environment::LookupResult lookup_result) {
+    return VisitOptional(
+        [](Environment::LookupResult lookup_result)
+            -> futures::ValueOrError<EvaluationOutput> {
           DVLOG(5) << "Variable lookup: "
                    << std::get<gc::Root<Value>>(lookup_result.value).value();
-          return Success(EvaluationOutput::New(
-              std::get<gc::Root<Value>>(lookup_result.value)));
+          return EvaluationOutput::New(
+              std::get<gc::Root<Value>>(lookup_result.value));
         },
-        [this] {
+        [this] -> futures::ValueOrError<EvaluationOutput> {
           return Error{LazyString{L"Unexpected: variable value is null: "} +
                        ToLazyString(symbol_) + LazyString{L"."}};
         },
-        trampoline.environment()->Lookup(symbol_namespace_, symbol_, type)));
+        trampoline.environment()->Lookup(symbol_namespace_, symbol_, type));
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
@@ -106,8 +107,8 @@ class StackFrameLookup : public Expression {
                                                    const Type& type) override {
     TRACK_OPERATION(vm_StackFrameLookup_Evaluate);
     CHECK(type == type_);
-    return futures::Past(Success(EvaluationOutput::New(
-        trampoline.stack().current_frame().get(index_).ToRoot())));
+    return EvaluationOutput::New(
+        trampoline.stack().current_frame().get(index_).ToRoot());
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()

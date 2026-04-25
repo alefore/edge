@@ -114,11 +114,11 @@ futures::ValueOrError<gc::Root<Value>> Evaluate(
                                     -> language::ValueOrError<gc::Root<Value>> {
                        DVLOG(5)
                            << "Evaluation done: " << value.value.ptr().value();
-                       return Success(std::move(value.value));
+                       return std::move(value.value);
                      }),
                  [](Error error) {
                    LOG(INFO) << "Evaluation error: " << error;
-                   return futures::Past(error);
+                   return error;
                  });
 }
 

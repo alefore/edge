@@ -228,7 +228,7 @@ class NavigateTransformation : public CompositeTransformation {
 
     output.Push(transformation::SetPosition(
         state_.navigate_options.write_index(input.position, range.MidPoint())));
-    return futures::Past(std::move(output));
+    return output;
   }
 
  private:

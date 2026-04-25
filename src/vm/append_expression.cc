@@ -62,13 +62,12 @@ class AppendExpression : public Expression {
                 -> futures::ValueOrError<EvaluationOutput> {
               switch (e0_output.type) {
                 case EvaluationOutput::OutputType::kReturn:
-                  return futures::Past(std::move(e0_output));
+                  return e0_output;
                 case EvaluationOutput::OutputType::kContinue:
                   return trampoline.Bounce(e1_root.ptr(), e1_root->Types()[0]);
               }
-              Error error(LazyString{L"Unhandled OutputType case."});
-              LOG(FATAL) << error;
-              return futures::Past(error);
+              LOG(FATAL) << "Unhandled OutputType case.";
+              std::unreachable();
             });
   }
 

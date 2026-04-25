@@ -227,7 +227,7 @@ bool value_gc_tests_registration = tests::Register(
             gc::Root<Value> child = Value::NewFunction(
                 pool, kPurityTypePure, types::Void{}, {},
                 [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
-                  return futures::Past(Value::NewVoid(pool));
+                  return Value::NewVoid(pool);
                 },
                 [nested] {
                   return std::vector<
@@ -237,7 +237,7 @@ bool value_gc_tests_registration = tests::Register(
                 pool, kPurityTypePure, types::Void{}, {},
                 [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
                                           Trampoline&) {
-                  return futures::Past(Error{LazyString{L"Some error."}});
+                  return Error(L"Some error.");
                 },
                 [child_frame = child.ptr().object_metadata()] {
                   return std::vector<

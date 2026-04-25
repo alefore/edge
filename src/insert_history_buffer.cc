@@ -10,6 +10,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::language::EmptyValue;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -27,7 +28,7 @@ futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
     output.InsertInPosition(contents, position, {});
     output.AppendEmptyLine();
   };
-  return futures::Past(Success());
+  return EmptyValue{};
 }
 }  // namespace
 

@@ -93,12 +93,11 @@ futures::ValueOrError<T> ToFuture(
     language::ValueOrError<ListenableValue<T>> input) {
   return std::visit(
       language::overload{
-          [](language::Error error) {
-            return futures::Past(language::ValueOrError<T>(error));
+          [](language::Error error) -> futures::ValueOrError<T> {
+            return error;
           },
-          [](ListenableValue<T> listenable_value) {
-            return listenable_value.ToFuture().Transform(
-                [](T t) { return language::Success(std::move(t)); });
+          [](ListenableValue<T> listenable_value) -> futures::ValueOrError<T> {
+            return listenable_value.ToFuture();
           }},
       input);
 }

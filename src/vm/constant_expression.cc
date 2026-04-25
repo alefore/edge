@@ -39,7 +39,7 @@ class ConstantExpression : public Expression {
                                                    const Type& type) override {
     CHECK(type == value_->type());
     DVLOG(5) << "Evaluating constant value: " << value_.value();
-    return futures::Past(EvaluationOutput::New(value_.ToRoot()));
+    return EvaluationOutput::New(value_.ToRoot());
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()

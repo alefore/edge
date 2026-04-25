@@ -152,7 +152,8 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
                 .Transform([](FileDescriptor fd)
                                -> futures::ValueOrError<
                                    NonNull<std::shared_ptr<Screen>>> {
-                  return futures::Past(MakeNonNullShared<ScreenVm>(fd));
+                  return NonNull<std::shared_ptr<Screen>>(
+                      MakeNonNullShared<ScreenVm>(fd));
                 });
           }));
 
@@ -231,7 +232,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen,
              LineColumnDelta line_column_delta) {
-            return futures::Past(VisitPointer(
+            return VisitPointer(
                 NonNull<std::shared_ptr<ScreenVm>>::DynamicCast(screen),
                 [line_column_delta](
                     NonNull<std::shared_ptr<ScreenVm>> vm_screen)
@@ -242,7 +243,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
                 []() -> PossibleError {
                   return Error{LazyString{
                       L"Screen type does not support set_size method."}};
-                }));
+                });
           })
           .ptr());
 

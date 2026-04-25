@@ -45,7 +45,7 @@ futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input) {
   }
   result.undo_stack->push_front(std::move(undo_position));
   result.made_progress = result.position != input.position;
-  return futures::Past(std::move(result));
+  return result;
 }
 
 std::wstring ToStringBase(const SetPosition& v) {

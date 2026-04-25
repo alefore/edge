@@ -44,15 +44,16 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   number_type.ptr()->AddField(
       IDENTIFIER_CONSTANT(L"tostring"),
       NewCallback(pool, kPurityTypePure, [](Number value) {
-        return futures::Past(LazyString{value.ToString(5)});
+        return LazyString{value.ToString(5)};
       }).ptr());
   environment_value.DefineType(number_type.ptr());
 
   environment_value.Define(
       IDENTIFIER_CONSTANT(L"Error"),
-      NewCallback(pool, kPurityTypePure, [](LazyString description) {
-        return futures::Past(PossibleError(Error{description}));
-      }));
+      NewCallback(pool, kPurityTypePure,
+                  [](LazyString description) -> futures::Value<PossibleError> {
+                    return Error{description};
+                  }));
 
   container::Export<std::vector<int>>(pool, environment_value);
   container::Export<std::set<int>>(pool, environment_value);

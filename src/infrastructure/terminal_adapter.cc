@@ -40,7 +40,7 @@ using afc::language::text::MutableLineSequence;
 namespace afc::infrastructure {
 using ::operator<<;
 
-TerminalAdapter ::TerminalAdapter(
+TerminalAdapter::TerminalAdapter(
     NonNull<std::unique_ptr<TerminalAdapter::Receiver>> receiver,
     MutableLineSequence& contents)
     : data_(MakeNonNullShared<Data>(
@@ -102,7 +102,7 @@ futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
     }
   }
   data_->receiver->JumpToPosition(data_->position);
-  return futures::Past(EmptyValue());
+  return EmptyValue{};
 }
 
 std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
