@@ -77,43 +77,43 @@ Number Number::Negate() && {
 }
 
 ValueOrError<Number> Number::Reciprocal() && {
-  return std::visit(
-      overload{[](Error) -> ValueOrError<Number> {
-                 return Error{LazyString{L"Zero has no reciprocal."}};
-               },
-               [&](NonZeroBigInt new_denominator) -> ValueOrError<Number> {
-                 return Number{positive_, std::move(denominator_).read(),
-                               std::move(new_denominator)};
-               }},
-      NonZeroBigInt::New(std::move(numerator_)));
+  return Visit(
+      NonZeroBigInt::New(std::move(numerator_)),
+      [&](NonZeroBigInt new_denominator) -> ValueOrError<Number> {
+        return Number{positive_, std::move(denominator_).read(),
+                      std::move(new_denominator)};
+      },
+      [](Error) -> ValueOrError<Number> {
+        return Error{LazyString{L"Zero has no reciprocal."}};
+      });
 }
 
 void Number::Optimize() {
-  std::visit(
-      overload{[&](Error) {
-                 CHECK(numerator_.IsZero());
-                 denominator_ = NonZeroBigInt::Constant<1>();
-               },
-               [&](NonZeroBigInt non_zero_numerator) {
-                 NonZeroBigInt gcd =
-                     non_zero_numerator.GreatestCommonDivisor(denominator_);
-                 {
-                   BigIntDivideOutput divided_numerator =
-                       Divide(std::move(non_zero_numerator).read(), gcd);
-                   CHECK(divided_numerator.remainder.IsZero());
-                   numerator_ = divided_numerator.quotient;
-                 }
-                 {
-                   BigIntDivideOutput divided_denominator =
-                       Divide(std::move(denominator_).read(), gcd);
-                   CHECK(divided_denominator.remainder.IsZero());
-                   // TODO(2024-04-09, P2): Find a way to use types to
-                   // avoid this ValueOrDie:
-                   denominator_ = ValueOrDie(
-                       NonZeroBigInt::New(divided_denominator.quotient));
-                 }
-               }},
-      NonZeroBigInt::New(std::move(numerator_)));
+  Visit(
+      NonZeroBigInt::New(std::move(numerator_)),
+      [&](NonZeroBigInt non_zero_numerator) {
+        NonZeroBigInt gcd =
+            non_zero_numerator.GreatestCommonDivisor(denominator_);
+        {
+          BigIntDivideOutput divided_numerator =
+              Divide(std::move(non_zero_numerator).read(), gcd);
+          CHECK(divided_numerator.remainder.IsZero());
+          numerator_ = divided_numerator.quotient;
+        }
+        {
+          BigIntDivideOutput divided_denominator =
+              Divide(std::move(denominator_).read(), gcd);
+          CHECK(divided_denominator.remainder.IsZero());
+          // TODO(2024-04-09, P2): Find a way to use types to
+          // avoid this ValueOrDie:
+          denominator_ =
+              ValueOrDie(NonZeroBigInt::New(divided_denominator.quotient));
+        }
+      },
+      [&](Error) {
+        CHECK(numerator_.IsZero());
+        denominator_ = NonZeroBigInt::Constant<1>();
+      });
 }
 
 std::wstring Number::ToString(size_t maximum_decimal_digits) const {
@@ -546,6 +546,8 @@ const bool comparison_tests_registration = tests::Register(
 
 }  // namespace afc::math::numbers
 
+// TODO(P1, 2026-04-26, easy): Investigate why I disabled these tests. Re-enable
+// or delete them.
 #if 0
 namespace {
 const bool as_decimal_tests_registration =
@@ -554,10 +556,10 @@ const bool as_decimal_tests_registration =
                      std::wstring name = L"") {
         return tests::Test(
             {.name = name.empty() ? expectation : name, .callback = [=] {
-               std::wstring str = std::visit(
-                   overload{[](Error error) { return error.read(); },
-                            [](Decimal d) { return ToString(d, 2); }},
-                   ToDecimal(number, 2));
+               std::wstring str = Visit(ToDecimal(number, 2),
+                            [](Decimal d) { return ToString(d, 2); },
+                            [](Error error) { return error.read(); }
+                   );
                LOG(INFO) << "Representation: " << str;
                CHECK(str == expectation);
              }});

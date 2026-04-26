@@ -347,11 +347,7 @@ class Flashcard {
                   LineColumn{}, std::nullopt);
               VisitOptional(
                   [&](gc::Root<Flashcard> root_this) {
-                    std::visit(
-                        overload{
-                            [](Error error) { LOG(INFO) << error; },
-                            [](gc::Root<ExecutionContext::CompilationResult>
-                                   result) { result->evaluate(); }},
+                    Visit(
                         output_buffer->execution_context()->FunctionCall(
                             card_type == CardType::kFront
                                 ? IDENTIFIER_CONSTANT(
@@ -363,7 +359,10 @@ class Flashcard {
                                  .ptr(),
                              vm::VMTypeMapper<gc::Ptr<Flashcard>>::New(
                                  output_buffer.pool(), root_this.ptr())
-                                 .ptr()}));
+                                 .ptr()}),
+                        [](gc::Root<ExecutionContext::CompilationResult>
+                               result) { result->evaluate(); },
+                        [](Error error) { LOG(INFO) << error; });
                   },
                   [] {}, weak_this.Lock());
               protected_object_metadata->lock(

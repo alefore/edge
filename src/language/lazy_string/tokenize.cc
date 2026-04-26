@@ -42,14 +42,13 @@ std::vector<Token> TokenizeBySpaces(const SingleLine& command) {
   // empty sometimes.
   SingleLine next_token_value;
   auto push = [&](ColumnNumber end) {
-    std::visit(
-        overload{IgnoreErrors{},
-                 [&token, &end, &output](NonEmptySingleLine token_value) {
-                   token.end = end;
-                   token.value = std::move(token_value);
-                   output.push_back(std::move(token));
-                 }},
-        NonEmptySingleLine::New(std::exchange(next_token_value, SingleLine{})));
+    VisitValue(
+        NonEmptySingleLine::New(std::exchange(next_token_value, SingleLine{})),
+        [&token, &end, &output](NonEmptySingleLine token_value) {
+          token.end = end;
+          token.value = std::move(token_value);
+          output.push_back(std::move(token));
+        });
     token.begin = ++end;
     token.has_quotes = false;
   };

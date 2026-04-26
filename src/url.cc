@@ -120,18 +120,15 @@ const bool get_local_file_path_tests_registration = tests::Register(
 std::vector<URL> GetLocalFileURLsWithExtensions(
     const SingleLine& file_context_extensions, const URL& url) {
   std::vector<URL> output = {url};
-  std::visit(
-      overload{IgnoreErrors{},
-               [&](Path path) {
-                 std::ranges::copy(
-                     TokenizeBySpaces(file_context_extensions) |
-                         std::views::transform([&path](const Token& extension) {
-                           return URL::FromPath(Path::WithExtension(
-                               path, ToLazyString(extension.value)));
-                         }),
-                     std::back_inserter(output));
-               }},
-      url.GetLocalFilePath());
+  VisitValue(url.GetLocalFilePath(), [&](Path path) {
+    std::ranges::copy(
+        TokenizeBySpaces(file_context_extensions) |
+            std::views::transform([&path](const Token& extension) {
+              return URL::FromPath(
+                  Path::WithExtension(path, ToLazyString(extension.value)));
+            }),
+        std::back_inserter(output));
+  });
   return output;
 }
 }  // namespace afc::editor

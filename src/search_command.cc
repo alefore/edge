@@ -50,27 +50,24 @@ using ::operator<<;
 
 void MergeInto(SearchResultsSummary current_results,
                ValueOrError<SearchResultsSummary>& final_results) {
-  std::visit(
-      overload{IgnoreErrors{},
-               [&](SearchResultsSummary& output) {
-                 output.matches += current_results.matches;
-                 switch (current_results.search_completion) {
-                   case SearchResultsSummary::SearchCompletion::kInterrupted:
-                     output.search_completion =
-                         SearchResultsSummary::SearchCompletion::kInterrupted;
-                     break;
-                   case SearchResultsSummary::SearchCompletion::kFull:
-                     break;
-                 }
-               }},
-      final_results);
+  VisitValue(final_results, [&](SearchResultsSummary& output) {
+    output.matches += current_results.matches;
+    switch (current_results.search_completion) {
+      case SearchResultsSummary::SearchCompletion::kInterrupted:
+        output.search_completion =
+            SearchResultsSummary::SearchCompletion::kInterrupted;
+        break;
+      case SearchResultsSummary::SearchCompletion::kFull:
+        break;
+    }
+  });
 }
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& a) {
-  std::visit(overload{[&](const Error& error) { os << error; },
-                      [&](const T& t) { os << t; }},
-             a);
+  Visit(
+      a, [&](const T& t) { os << t; },
+      [&](const Error& error) { os << error; });
   return os;
 }
 
@@ -115,33 +112,32 @@ void DoSearch(OpenBuffer& buffer, SearchOptions options) {
 ColorizePromptOptions SearchResultsModifiers(
     const SingleLine& line,
     ValueOrError<SearchResultsSummary> result_or_error) {
-  LineModifierSet modifiers = std::visit(
-      overload{[&](Error) { return LineModifierSet{LineModifier::kRed}; },
-               [&](const SearchResultsSummary& result) -> LineModifierSet {
-                 switch (result.matches) {
-                   case 0:
-                     return {};
-                   case 1:
-                     return {LineModifier::kCyan};
-                   case 2:
-                     return {LineModifier::kYellow};
-                   default:
-                     return {LineModifier::kGreen};
-                 }
-               }},
-      result_or_error);
+  LineModifierSet modifiers = Visit(
+      result_or_error,
+      [&](const SearchResultsSummary& result) -> LineModifierSet {
+        switch (result.matches) {
+          case 0:
+            return {};
+          case 1:
+            return {LineModifier::kCyan};
+          case 2:
+            return {LineModifier::kYellow};
+          default:
+            return {LineModifier::kGreen};
+        }
+      },
+      [&](Error) { return LineModifierSet{LineModifier::kRed}; });
 
-  return std::visit(
-      overload{[&modifiers](NonEmptySingleLine value) {
-                 return ColorizePromptOptions{
-                     .tokens = {
-                         {.token = Token{.value = value,
-                                         .begin = ColumnNumber(0),
-                                         .end = ColumnNumber(0) + value.size()},
-                          .modifiers = std::move(modifiers)}}};
-               },
-               [](Error) { return ColorizePromptOptions{}; }},
-      NonEmptySingleLine::New(line));
+  return Visit(
+      NonEmptySingleLine::New(line),
+      [&modifiers](NonEmptySingleLine value) {
+        return ColorizePromptOptions{
+            .tokens = {{.token = Token{.value = value,
+                                       .begin = ColumnNumber(0),
+                                       .end = ColumnNumber(0) + value.size()},
+                        .modifiers = std::move(modifiers)}}};
+      },
+      [](Error) { return ColorizePromptOptions{}; });
 }
 
 // Wraps a progress channel and provides a builder to create "child" progress

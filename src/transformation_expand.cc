@@ -422,13 +422,10 @@ class ExpandTransformation : public CompositeTransformation {
             GetToken(input, buffer_variables::symbol_characters);
         output->Push(
             DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size()));
-        std::visit(overload{IgnoreErrors{},
-                            [&](Path path) {
-                              transformation_future =
-                                  std::make_unique<ReadAndInsert>(
-                                      path, OpenFileIfFound);
-                            }},
-                   Path::New(symbol.read()));
+        VisitValue(Path::New(symbol.read()), [&](Path path) {
+          transformation_future =
+              std::make_unique<ReadAndInsert>(path, OpenFileIfFound);
+        });
       } break;
       case '/':
         if (SingleLine path =

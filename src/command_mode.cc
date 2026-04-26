@@ -451,17 +451,16 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   VLOG(5) << "Command: " << command;
-  std::visit(
-      overload{[](Error error) {
-                 LOG(FATAL)
-                     << "Internal error in ToggleVariable code: " << error;
-               },
-               [&](gc::Root<Command> value) {
-                 map_mode.Add(VectorExtendedChar(LazyString{L"v"} +
-                                                 LazyString{variable->key()}),
-                              value.ptr());
-               }},
-      NewCppCommand(editor_state.execution_context().value(), command));
+  Visit(
+      NewCppCommand(editor_state.execution_context().value(), command),
+      [&](gc::Root<Command> value) {
+        map_mode.Add(
+            VectorExtendedChar(LazyString{L"v"} + LazyString{variable->key()}),
+            value.ptr());
+      },
+      [](Error error) {
+        LOG(FATAL) << "Internal error in ToggleVariable code: " << error;
+      });
 }
 
 void ToggleVariable(EditorState& editor_state,

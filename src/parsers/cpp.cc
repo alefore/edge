@@ -67,15 +67,6 @@ static const std::unordered_set<wchar_t> digit_chars =
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
-bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
-              const SingleLine& pattern) {
-  return std::visit(overload{[](Error) { return false; },
-                             [&values](NonEmptySingleLine non_empty_pattern) {
-                               return values.contains(non_empty_pattern);
-                             }},
-                    NonEmptySingleLine::New(pattern));
-}
-
 class CppTreeParser : public parsers::LineOrientedTreeParser {
   const ParserId parser_id_;
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;

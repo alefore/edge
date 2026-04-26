@@ -55,15 +55,6 @@ static const std::unordered_set<wchar_t> digit_chars =
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
-bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
-              const SingleLine& pattern) {
-  return std::visit(overload{[](Error) { return false; },
-                             [&values](NonEmptySingleLine non_empty_pattern) {
-                               return values.contains(non_empty_pattern);
-                             }},
-                    NonEmptySingleLine::New(pattern));
-}
-
 static const std::unordered_set<NonEmptySingleLine>
     kPythonBuiltinFunctionsAndTypes =
         container::MaterializeUnorderedSet(std::array<NonEmptySingleLine, 25>{{

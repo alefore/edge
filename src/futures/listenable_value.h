@@ -94,15 +94,12 @@ class ListenableValue {
 template <typename T>
 futures::ValueOrError<T> ToFuture(
     language::ValueOrError<ListenableValue<T>> input) {
-  return std::visit(
-      language::overload{
-          [](language::Error error) -> futures::ValueOrError<T> {
-            return error;
-          },
-          [](ListenableValue<T> listenable_value) -> futures::ValueOrError<T> {
-            return listenable_value.ToFuture();
-          }},
-      input);
+  return Visit(
+      input,
+      [](ListenableValue<T> listenable_value) -> futures::ValueOrError<T> {
+        return listenable_value.ToFuture();
+      },
+      [](language::Error error) -> futures::ValueOrError<T> { return error; });
 }
 
 }  // namespace afc::futures

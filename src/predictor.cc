@@ -387,15 +387,14 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
     CHECK_LE(tree.range().begin().column, tree.range().end().column);
     std::optional<Line> line = buffer.LineAt(tree.range().begin().line);
     CHECK(line.has_value());
-    std::visit(overload{[&words](NonEmptySingleLine word) {
-                          DVLOG(5) << "Found leave: " << word;
-                          words->insert(word);
-                        },
-                        IgnoreErrors{}},
-               NonEmptySingleLine::New(line->Substring(
+    VisitValue(NonEmptySingleLine::New(line->Substring(
                    tree.range().begin().column,
                    std::min(tree.range().end().column, line->EndColumn()) -
-                       tree.range().begin().column)));
+                       tree.range().begin().column)),
+               [&words](NonEmptySingleLine word) {
+                 DVLOG(5) << "Found leave: " << word;
+                 words->insert(word);
+               });
   }
   for (auto& child : tree.children()) RegisterLeaves(buffer, child, words);
 }

@@ -162,8 +162,7 @@ Line GetInitialPromptValue(std::optional<unsigned int> repetitions,
   if (stat(path->ToBytes().c_str(), &stat_buffer) == -1 ||
       !S_ISDIR(stat_buffer.st_mode)) {
     LOG(INFO) << "Taking dirname for prompt: " << *path;
-    std::visit(overload{IgnoreErrors{}, [&](Path dir) { path = dir; }},
-               path->Dirname());
+    VisitValue(path->Dirname(), [&](Path dir) { path = dir; });
   }
   if (*path == Path::LocalDirectory()) {
     return Line{};
@@ -172,30 +171,27 @@ Line GetInitialPromptValue(std::optional<unsigned int> repetitions,
     if (repetitions.value() == 0) {
       return Line{};
     }
-    std::visit(overload{IgnoreErrors{},
-                        [&](std::list<PathComponent> split) {
-                          if (split.size() <= repetitions.value()) return;
-                          std::optional<Path> output_path;
-                          switch (path->GetRootType()) {
-                            case Path::RootType::kAbsolute:
-                              output_path = Path::Root();
-                              break;
-                            case Path::RootType::kRelative:
-                              break;
-                          }
-                          for (size_t i = 0; i < repetitions.value(); i++) {
-                            auto part = Path(split.front());
-                            split.pop_front();
-                            if (output_path.has_value()) {
-                              output_path =
-                                  Path::Join(output_path.value(), part);
-                            } else {
-                              output_path = part;
-                            }
-                          }
-                          path = output_path.value();
-                        }},
-               path->DirectorySplit());
+    VisitValue(path->DirectorySplit(), [&](std::list<PathComponent> split) {
+      if (split.size() <= repetitions.value()) return;
+      std::optional<Path> output_path;
+      switch (path->GetRootType()) {
+        case Path::RootType::kAbsolute:
+          output_path = Path::Root();
+          break;
+        case Path::RootType::kRelative:
+          break;
+      }
+      for (size_t i = 0; i < repetitions.value(); i++) {
+        auto part = Path(split.front());
+        split.pop_front();
+        if (output_path.has_value()) {
+          output_path = Path::Join(output_path.value(), part);
+        } else {
+          output_path = part;
+        }
+      }
+      path = output_path.value();
+    });
   }
   return Line{EscapedString::FromString(path->read()).EscapedRepresentation() +
               SINGLE_LINE_CONSTANT(L"/")};

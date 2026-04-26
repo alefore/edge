@@ -87,23 +87,21 @@ futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
         const LineSequence history =
             fragments_buffer.ptr()->contents().snapshot();
         if (filter.empty()) {
-          return std::visit(
-              overload{[](Error) {
-                         return std::vector<FilterSortBufferOutput::Match>{};
-                       },
-                       [](EscapedMap parsed_map) {
-                         if (auto it = parsed_map.read().find(
-                                 HistoryIdentifierValue());
-                             it != parsed_map.read().end())
-                           return std::vector<FilterSortBufferOutput::Match>{
-                               FilterSortBufferOutput::Match{
-                                   .preview =
-                                       Line{it->second.EscapedRepresentation()},
-                                   .data = LineSequence::BreakLines(
-                                       it->second.OriginalString())}};
-                         return std::vector<FilterSortBufferOutput::Match>{};
-                       }},
-              history.back().escaped_map());
+          return Visit(
+              history.back().escaped_map(),
+              [](EscapedMap parsed_map) {
+                if (auto it = parsed_map.read().find(HistoryIdentifierValue());
+                    it != parsed_map.read().end())
+                  return std::vector<FilterSortBufferOutput::Match>{
+                      FilterSortBufferOutput::Match{
+                          .preview = Line{it->second.EscapedRepresentation()},
+                          .data = LineSequence::BreakLines(
+                              it->second.OriginalString())}};
+                return std::vector<FilterSortBufferOutput::Match>{};
+              },
+              [](Error) {
+                return std::vector<FilterSortBufferOutput::Match>{};
+              });
         }
         return editor.thread_pool()
             .Run(std::bind_front(FilterSortBuffer,

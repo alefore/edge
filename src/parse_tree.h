@@ -145,6 +145,10 @@ class TreeParser {
                                  language::text::Range range) = 0;
 };
 
+bool Contains(
+    const std::unordered_set<language::lazy_string::NonEmptySingleLine>& values,
+    const language::lazy_string::SingleLine& pattern);
+
 language::NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser();
 language::NonNull<std::unique_ptr<TreeParser>> NewCharTreeParser();
 language::NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(

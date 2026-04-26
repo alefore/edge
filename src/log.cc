@@ -69,14 +69,12 @@ class FileLog : public Log {
   static void Write(NonNull<std::shared_ptr<FileLogData>> data, int id,
                     LazyString statement) {
     LazyString full_statement =
-        std::visit(overload{[](Error error) -> LazyString {
-                              return LazyString{L"[error:"} + error.read() +
-                                     LazyString{L"]"};
-                            },
-                            [](NonEmptySingleLine value) {
-                              return ToLazyString(value);
-                            }},
-                   HumanReadableTime(Now())) +
+        Visit(
+            HumanReadableTime(Now()),
+            [](NonEmptySingleLine value) { return ToLazyString(value); },
+            [](Error error) -> LazyString {
+              return LazyString{L"[error:"} + error.read() + LazyString{L"]"};
+            }) +
         LazyString{L" "} + LazyString{std::to_wstring(id)} + LazyString{L": "} +
         statement + LazyString{L"\n"};
     LoggingThreadPool().RunIgnoringResult(

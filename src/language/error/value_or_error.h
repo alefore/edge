@@ -38,6 +38,15 @@ Error AugmentError(language::lazy_string::LazyString prefix, Error error);
 Error MergeErrors(const std::vector<Error>& errors,
                   const std::wstring& separator);
 
+template <typename T>
+ValueOrError<T> CaptureErrors(ValueOrError<T> input,
+                              std::vector<Error>& output) {
+  Visit(
+      input, [](const T&) {},
+      [&output](const Error& error) { output.push_back(error); });
+  return input;
+}
+
 #if USE_EXPECTED
 // New implementation
 template <typename T>

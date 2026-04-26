@@ -104,22 +104,20 @@ void RegisterSearchOptionsVm(gc::Pool& pool, Environment& environment) {
                       input->lock([&search_options_data](VPB input_buffers) {
                         return container::MaterializeVector(
                             input_buffers |
-                            std::views::filter([&search_options_data](
-                                                   const gc::Ptr<OpenBuffer>&
-                                                       buffer) {
-                              return std::visit(
-                                  overload{
-                                      [](Error) { return false; },
-                                      [&buffer](
-                                          std::vector<LineColumn> positions) {
-                                        if (positions.empty()) return false;
-                                        buffer->set_position(positions.front());
-                                        return true;
-                                      }},
-                                  SearchHandler(Direction::kForwards,
-                                                search_options_data,
-                                                buffer->contents().snapshot()));
-                            }));
+                            std::views::filter(
+                                [&search_options_data](
+                                    const gc::Ptr<OpenBuffer>& buffer) {
+                                  DECLARE_OR_RETURN_OTHER(
+                                      std::vector<LineColumn> positions,
+                                      SearchHandler(
+                                          Direction::kForwards,
+                                          search_options_data,
+                                          buffer->contents().snapshot()),
+                                      false);
+                                  if (positions.empty()) return false;
+                                  buffer->set_position(positions.front());
+                                  return true;
+                                }));
                       }));
                 });
           })

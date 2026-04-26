@@ -29,15 +29,15 @@ namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
              const LineSequence& candidate) {
-  return std::visit(
-      overload{[](std::vector<LineColumn> matches) { return !matches.empty(); },
-               [](Error) { return false; }},
+  return Visit(
       SearchHandler(
           editor.modifiers().direction,
           afc::editor::SearchOptions{.search_query = search_options.query,
                                      .required_positions = 1,
                                      .case_sensitive = false},
-          candidate));
+          candidate),
+      [](std::vector<LineColumn> matches) { return !matches.empty(); },
+      [](Error) { return false; });
 }
 }  // namespace
 

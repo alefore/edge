@@ -328,16 +328,14 @@ const ParseTree& FollowRoute(const ParseTree& root,
   return *tree;
 }
 
-namespace {
 bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
               const SingleLine& pattern) {
-  return std::visit(overload{[](Error) { return false; },
-                             [&values](NonEmptySingleLine non_empty_pattern) {
-                               return values.contains(non_empty_pattern);
-                             }},
-                    NonEmptySingleLine::New(pattern));
+  DECLARE_OR_RETURN_OTHER(NonEmptySingleLine non_empty_pattern,
+                          NonEmptySingleLine::New(pattern), false);
+  return values.contains(non_empty_pattern);
 }
 
+namespace {
 class NullTreeParser : public TreeParser {
  public:
   ParseTree FindChildren(const LineSequence&, Range range) override {

@@ -88,7 +88,6 @@ class ParseData {
   Seek seek_;
   int nesting_ = 0;
 };
-
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_PARSE_TOOLS_H__

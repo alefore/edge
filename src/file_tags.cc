@@ -113,17 +113,6 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
   return {buffer_.object_metadata()};
 }
 
-// TODO(trivial, 2025-08-17): Move to src/language/error/value_or_error.h.
-template <typename T>
-ValueOrError<T> CaptureErrors(ValueOrError<T> input,
-                              std::vector<Error>& output) {
-  std::visit(
-      overload{[&output](const Error& error) { output.push_back(error); },
-               [](const T&) {}},
-      input);
-  return input;
-}
-
 /* static */ ValueOrError<FileTags::LoadTagsOutput> FileTags::LoadTags(
     const LineSequence& contents, const LineNumber tags_start_line) {
   LoadTagsOutput output;
