@@ -33,7 +33,7 @@ namespace afc::language {
 class Error;
 
 template <typename T>
-using ValueOrError = std::variant<T, Error>;
+using ValueOrError = std::expected<T, Error>;
 
 template <typename T>
 bool IsError(const T&);

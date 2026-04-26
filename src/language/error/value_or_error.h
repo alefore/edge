@@ -15,7 +15,7 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
-#define USE_EXPECTED 0
+#define USE_EXPECTED 1
 
 class Error : public GhostType<Error, language::lazy_string::LazyString> {
   using GhostType::GhostType;
