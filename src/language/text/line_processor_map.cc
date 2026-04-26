@@ -2,7 +2,11 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
+#include "src/language/error/value_or_error.h"
+#include "src/language/error/view.h"
 #include "src/language/overload.h"
+
+using afc::language::view::SkipErrors;
 
 namespace afc::language::text {
 void LineProcessorMap::Add(LineProcessorKey key, Callback callback) {
@@ -17,17 +21,16 @@ std::map<LineProcessorKey, LineProcessorOutputFuture> LineProcessorMap::Process(
   TRACK_OPERATION(LineProcessorMap_Process);
   return callbacks_.lock([&input](
                              const std::map<LineProcessorKey, Callback>& data) {
-    std::map<LineProcessorKey, LineProcessorOutputFuture> output;
-    std::ranges::for_each(
-        data,
-        [&output, &input](const std::pair<LineProcessorKey, Callback>& p) {
-          std::visit(overload{[&output, &p](LineProcessorOutputFuture value) {
-                                output.insert({p.first, value});
-                              },
-                              IgnoreErrors{}},
-                     p.second(input));
-        });
-    return output;
+    return data |
+           std::views::transform(
+               [&input](const std::pair<const LineProcessorKey, Callback>& p)
+                   -> ValueOrError<
+                       std::pair<LineProcessorKey, LineProcessorOutputFuture>> {
+                 DECLARE_OR_RETURN(LineProcessorOutputFuture value,
+                                   p.second(input));
+                 return std::make_pair(p.first, value);
+               }) |
+           SkipErrors | std::ranges::to<std::map>();
   });
 }
 
