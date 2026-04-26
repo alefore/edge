@@ -276,13 +276,10 @@ class Flashcard {
         hint_(std::move(hint).read()),
         review_log_(
             std::move(future_review_log)
-                .template Transform<futures::ErrorHandling::Disable>(
-                    [protected_object_metadata = object_metadata_](
-                        ValueOrError<gc::Root<FlashcardReviewLog>>
-                            input_or_error)
+                .template Transform(
+                    [protected_object_metadata =
+                         object_metadata_](gc::Root<FlashcardReviewLog> input)
                         -> ValueOrError<gc::Ptr<FlashcardReviewLog>> {
-                      DECLARE_OR_RETURN(gc::Root<FlashcardReviewLog> input,
-                                        std::move(input_or_error));
                       protected_object_metadata->lock(
                           [&input](
                               std::vector<
@@ -291,7 +288,7 @@ class Flashcard {
                             object_metadata.push_back(
                                 input.ptr().object_metadata());
                           });
-                      return Success(input.ptr());
+                      return input.ptr();
                     })),
         card_front_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
                                            CardType::kFront)),
