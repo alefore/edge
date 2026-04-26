@@ -103,14 +103,13 @@ statement(OUT) ::= class_declaration
     LBRACKET statement_list(A) RBRACKET SEMICOLON. {
   RULE_VAR(a, A);
 
-  OUT = RuleReturn(std::visit(
-      overload {
-          [](Error error) -> RootExpressionOrError { return error; },
-          [&](gc::Root<Expression> expr) -> RootExpressionOrError {
-            FinishClassDeclaration(*compilation, expr);
-            return NewVoidExpression(compilation->pool);
-          }},
-      std::move(a)));
+  OUT = RuleReturn(Visit(
+      std::move(a),
+      [&](gc::Root<Expression> expr) -> RootExpressionOrError {
+        FinishClassDeclaration(*compilation, expr);
+        return NewVoidExpression(compilation->pool);
+      },
+      [](Error error) -> RootExpressionOrError { return error; }));
 }
 
 class_declaration ::= CLASS SYMBOL(NAME) . {
@@ -238,21 +237,20 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   std::unique_ptr<UserFunction> func(FUNC);
 
   if (func == nullptr) {
-    OUT = RuleReturn(
-              RootExpressionOrError(Error{LazyString{L"Func missing."}}));
+    OUT = RuleReturn(RootExpressionOrError{Error{L"Func missing."}});
   } else {
-    OUT = RuleReturn(std::visit(
-        overload{[&](Type) -> RootExpressionOrError {
-                   return NewVoidExpression(compilation->pool);
-                 },
-                 [&](Error error) -> RootExpressionOrError {
-                   func->Abort();
-                   return compilation->AddError(error);
-                 }},
+    OUT = RuleReturn(Visit(
         DefineUninitializedVariable(
             compilation->environment.value(),
-            Identifier{NonEmptySingleLine{SingleLine{LazyString{L"auto"}}}},
-            *func->name(), func->type())));
+            Identifier{NonEmptySingleLine{SingleLine{L"auto"}}}, *func->name(),
+            func->type()),
+        [&](Type) -> RootExpressionOrError {
+          return NewVoidExpression(compilation->pool);
+        },
+        [&](Error error) -> RootExpressionOrError {
+          func->Abort();
+          return compilation->AddError(error);
+        }));
   }
 }
 
@@ -263,24 +261,22 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
   Identifier type_identifier(type->value().ptr()->get_symbol());
 
-  OUT = RuleReturn(std::visit(
-      overload{
-          [&](Error) -> RootExpressionOrError {
-            return compilation->AddError(
-                Error{LazyString{L"Need to explicitly initialize variable "} +
-                      QuoteExpr(language::lazy_string::ToSingleLine(
-                          name->value().ptr()->get_symbol())) +
-                      LazyString{L" of type "} +
-                      QuoteExpr(language::lazy_string::ToSingleLine(
-                          type_identifier))});
-          },
-          [&](gc::Root<Expression> constructor) -> RootExpressionOrError {
-            return NewDefineExpression(
-                *compilation, type->value().ptr()->get_symbol(),
-                name->value().ptr()->get_symbol(),
-                ToPtr(NewFunctionCall(*compilation, constructor.ptr(), {})));
-          }},
-      NewVariableLookup(*compilation, {type_identifier})));
+  OUT = RuleReturn(Visit(
+      NewVariableLookup(*compilation, {type_identifier}),
+      [&](gc::Root<Expression> constructor) -> RootExpressionOrError {
+        return NewDefineExpression(
+            *compilation, type->value().ptr()->get_symbol(),
+            name->value().ptr()->get_symbol(),
+            ToPtr(NewFunctionCall(*compilation, constructor.ptr(), {})));
+      },
+      [&](Error) -> RootExpressionOrError {
+        return compilation->AddError(Error{
+            LazyString{L"Need to explicitly initialize variable "} +
+            QuoteExpr(language::lazy_string::ToSingleLine(
+                name->value().ptr()->get_symbol())) +
+            LazyString{L" of type "} +
+            QuoteExpr(language::lazy_string::ToSingleLine(type_identifier))});
+      }));
 }
 
 assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
@@ -430,17 +426,17 @@ expr(OUT) ::= lambda_declaration_params(FUNC)
   RULE_VAR(body, BODY);
 
   OUT = RuleReturn(std::invoke([&] -> RootExpressionOrError {
-    if (func == nullptr) return Error{LazyString{L"Function missing."}};
-    return std::visit(
-        overload{[&](Error error) -> RootExpressionOrError {
-                   func->Abort();
-                   return error;
-                 },
-                 [&](gc::Root<Expression> body_expr) -> RootExpressionOrError {
-                   return compilation->RegisterErrors(
-                       func->BuildExpression(body_expr.ptr()));
-                 }},
-        body);
+    if (func == nullptr) return Error{L"Function missing."};
+    return Visit(
+        std::move(body),
+        [&](gc::Root<Expression> body_expr) -> RootExpressionOrError {
+          return compilation->RegisterErrors(
+              func->BuildExpression(body_expr.ptr()));
+        },
+        [&](Error error) -> RootExpressionOrError {
+          func->Abort();
+          return error;
+        });
   }));
 }
 

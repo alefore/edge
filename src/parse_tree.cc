@@ -8,6 +8,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/language/error/view.h"
 #include "src/language/hash.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/seek.h"
@@ -41,6 +42,7 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineRange;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
+using afc::language::view::SkipErrors;
 using afc::vm::Identifier;
 using afc::vm::kPurityTypeReader;
 
@@ -501,17 +503,30 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       pool, environment);
 }
 
+template <std::ranges::input_range R, typename E>
+auto FirstOrError(R&& r, E&& error) {
+  using T = std::ranges::range_value_t<R>;
+  using ReturnType = ValueOrError<T>;
+  if (auto it = std::ranges::begin(r); it != std::ranges::end(r))
+    return ReturnType{*it};
+  return ReturnType{std::forward<E>(error)};
+}
+
 ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
                                  const LineSequence& contents) {
   if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
       tree.properties().end())
     return URL::New(NonEmptySingleLine::New(
         SingleLine::New(contents.ViewRange(tree.range()).ToLazyString())));
-  for (const auto& child : tree.children())
-    if (ValueOrError<URL> output = FindLinkTarget(child, contents);
-        std::holds_alternative<URL>(output))
-      return output;
-  return Error{LazyString{L"Unable to find link."}};
+
+  return FirstOrError(
+      tree.children() |
+          std::views::transform(
+              [&contents](const auto& child) -> ValueOrError<URL> {
+                return FindLinkTarget(child, contents);
+              }) |
+          SkipErrors,
+      Error{LazyString{L"Unable to find link."}});
 }
 }  // namespace afc::editor
 namespace afc::vm {

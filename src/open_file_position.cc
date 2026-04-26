@@ -84,11 +84,11 @@ std::optional<Spec> Parse(language::lazy_string::LazyString path_suffix,
   if (StartsWith(path_suffix, LazyString{L":"})) {
     LazyString input = path_suffix.Substring(ColumnNumber{1});
     if (ValueOrError<Spec> search_candidate = TrySearchPattern(input);
-        std::holds_alternative<Spec>(search_candidate))
-      return std::get<Spec>(search_candidate);
+        HasValue(search_candidate))
+      return ValueOrDie(std::move(search_candidate));
     if (ValueOrError<Spec> position_candidate = TryPosition(input, suffix_mode);
-        std::holds_alternative<Spec>(position_candidate))
-      return std::get<Spec>(position_candidate);
+        HasValue<Spec>(position_candidate))
+      return ValueOrDie(std::move(position_candidate));
   }
   VLOG(4) << "Invalid parse: " << path_suffix;
   return path_suffix.empty() || (suffix_mode == SuffixMode::Allow &&

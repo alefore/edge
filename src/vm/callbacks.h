@@ -294,8 +294,8 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     }
   } else if constexpr (language::IsValueOrError<
                            typename ft::ReturnType::type>::value) {
-    using NestedType = typename std::remove_reference<decltype(std::get<0>(
-        std::declval<typename ft::ReturnType::type>()))>::type;
+    using NestedType = typename language::ValueOrErrorTraits<
+        typename ft::ReturnType::type>::value_type;
     return std::apply(callback, processed_args_tuple)
         .Transform([&pool](NestedType value)
                        -> futures::ValueOrError<language::gc::Root<vm::Value>> {
@@ -335,8 +335,8 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
                                  typename ft::ReturnType>::value) {
           if constexpr (language::IsValueOrError<
                             typename ft::ReturnType>::value) {
-            using SuccessType = std::decay<decltype(std::get<0>(
-                std::declval<typename ft::ReturnType>()))>::type;
+            using SuccessType = typename language::ValueOrErrorTraits<
+                typename ft::ReturnType>::value_type;
             if constexpr (std::is_same<SuccessType,
                                        language::EmptyValue>::value) {
               return types::Void();
@@ -351,9 +351,8 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
           return types::Void{};
         } else if constexpr (language::IsValueOrError<
                                  typename ft::ReturnType::type>::value) {
-          using NestedType =
-              typename std::remove_reference<decltype(std::get<0>(
-                  std::declval<typename ft::ReturnType::type>()))>::type;
+          using NestedType = typename language::ValueOrErrorTraits<
+              typename ft::ReturnType::type>::value_type;
           return GetVMType<NestedType>::vmtype();
         } else if constexpr (std::is_same<typename ft::ReturnType::type,
                                           language::EmptyValue>::value) {

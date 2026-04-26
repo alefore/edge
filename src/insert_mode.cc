@@ -530,31 +530,29 @@ class InsertMode : public InputReceiver,
             buffers_, {21},
             [options =
                  options_](OpenBuffer& buffer) -> futures::Value<EmptyValue> {
-              return std::visit(
-                  overload{
-                      [&buffer,
-                       &options](gc::Root<ExecutionContext::CompilationResult>
-                                     compilation_result)
-                          -> futures::Value<EmptyValue> {
-                        return compilation_result->evaluate()
-                            .ConsumeErrors(
-                                [&pool = buffer.editor().gc_pool()](Error) {
-                                  return vm::Value::NewVoid(pool);
-                                })
-                            .Transform(ModifyHandler<gc::Root<vm::Value>>(
-                                options.modify_handler, buffer));
-                      },
-                      [](Error error) -> futures::Value<EmptyValue> {
-                        LOG(WARNING) << "Unable to compile call for "
-                                        "HandleKeyboardControlU: "
-                                     << error;
-                        return EmptyValue{};
-                      }},
+              return Visit(
                   options.editor_state.execution_context()->FunctionCall(
                       IDENTIFIER_CONSTANT(L"HandleKeyboardControlU"),
                       {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
                            buffer.editor().gc_pool(), buffer.RootFromThis())
-                           .ptr()}));
+                           .ptr()}),
+                  [&buffer, &options](
+                      gc::Root<ExecutionContext::CompilationResult>
+                          compilation_result) -> futures::Value<EmptyValue> {
+                    return compilation_result->evaluate()
+                        .ConsumeErrors(
+                            [&pool = buffer.editor().gc_pool()](Error) {
+                              return vm::Value::NewVoid(pool);
+                            })
+                        .Transform(ModifyHandler<gc::Root<vm::Value>>(
+                            options.modify_handler, buffer));
+                  },
+                  [](Error error) -> futures::Value<EmptyValue> {
+                    LOG(WARNING) << "Unable to compile call for "
+                                    "HandleKeyboardControlU: "
+                                 << error;
+                    return EmptyValue{};
+                  });
             });
         return;
       }

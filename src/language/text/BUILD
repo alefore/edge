@@ -137,6 +137,7 @@ cc_library(
         "//src/concurrent:protected",
         "//src/futures",
         "//src/futures:listenable_value",
+        "//src/language/error:view",
         "//src/language/lazy_string:single_line",
     ],
 )

@@ -952,7 +952,7 @@ NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
   ValueOrError<NonZeroBigInt> b = other;
 
   while (!IsError(b)) {
-    BigInt remainder = a.read() % std::get<NonZeroBigInt>(b);
+    BigInt remainder = a.read() % ValueOrDie(b);
     a = ValueOrDie(std::move(b));
     b = NonZeroBigInt::New(remainder);
   }

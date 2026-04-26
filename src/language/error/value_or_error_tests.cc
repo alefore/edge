@@ -7,7 +7,7 @@ bool tests_register = tests::Register(
     L"ValueOrError", {{.name = L"EmptyConstructor", .callback = [] {
                          ValueOrError<int> foo;
                          CHECK(!IsError(foo));
-                         CHECK_EQ(std::get<int>(foo), int());
+                         CHECK_EQ(ValueOrDie(foo), int());
                        }}});
 }  // namespace
 }  // namespace afc::language

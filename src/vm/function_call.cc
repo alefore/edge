@@ -225,13 +225,9 @@ ValueOrError<gc::Root<Expression>> NewFunctionCall(
     std::vector<gc::Ptr<Expression>> args) {
   DECLARE_OR_RETURN(gc::Ptr<Expression> func, std::move(func_or_error));
   std::vector<Error> errors;
-  for (auto& type : func->Types()) {
-    PossibleError check_results = CheckFunctionArguments(type, args);
-    if (Error* error = std::get_if<Error>(&check_results); error != nullptr)
-      errors.push_back(*error);
-    else
+  for (auto& type : func->Types())
+    if (!IsError(CaptureErrors(CheckFunctionArguments(type, args), errors)))
       return NewFunctionCall(std::move(func), std::move(args));
-  }
 
   CHECK(!errors.empty());
   return compilation.AddError(MergeErrors(errors, L", "));

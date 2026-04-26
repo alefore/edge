@@ -398,31 +398,30 @@ ValueOrError<LineColumn> GetNextMatch(Direction direction,
 void HandleSearchResults(
     const ValueOrError<std::vector<LineColumn>>& results_or_error,
     OpenBuffer& buffer) {
-  const std::vector<LineColumn>* results = std::get_if<0>(&results_or_error);
-  if (results == nullptr) {
-    buffer.status().ConsumeErrors(results_or_error, {});
-    return;
-  }
+  VisitValue(
+      buffer.status().LogErrors(results_or_error),
+      [&](const std::vector<LineColumn> results) {
+        if (results.empty()) {
+          buffer.status().SetInformationText(
+              Line{SingleLine{LazyString{L"🔍 No results."}}});
+          audio::BeepFrequencies(
+              buffer.editor().audio_player(), 0.1,
+              {audio::Frequency(659.25), audio::Frequency(440.0),
+               audio::Frequency(440.0)});
 
-  if (results->empty()) {
-    buffer.status().SetInformationText(
-        Line{SingleLine{LazyString{L"🔍 No results."}}});
-    audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
-                           {audio::Frequency(659.25), audio::Frequency(440.0),
-                            audio::Frequency(440.0)});
+          if (buffer.Read(buffer_variables::search_filter_buffer)) {
+            buffer.editor().CloseBuffer(buffer);
+          }
+          return;
+        }
 
-    if (buffer.Read(buffer_variables::search_filter_buffer)) {
-      buffer.editor().CloseBuffer(buffer);
-    }
-    return;
-  }
+        buffer.set_active_cursors(results);
+        buffer.ResetMode();
 
-  buffer.set_active_cursors(*results);
-  buffer.ResetMode();
-
-  size_t size = results->size();
-  buffer.status().SetInformationText(
-      size == 1 ? Line{SingleLine{LazyString{L"🔍 1 result."}}}
+        size_t size = results.size();
+        buffer.status().SetInformationText(
+            size == 1
+                ? Line{SingleLine{LazyString{L"🔍 1 result."}}}
                 : LineBuilder{SingleLine{LazyString{
                                   ColumnNumberDelta(
                                       1 + static_cast<size_t>(log2(size))),
@@ -430,14 +429,16 @@ void HandleSearchResults(
                               SingleLine{LazyString{L" Results: "}} +
                               SingleLine{LazyString{std::to_wstring(size)}}}
                       .Build());
-  std::vector<audio::Frequency> frequencies = {
-      audio::Frequency(440.0), audio::Frequency(440.0),
-      audio::Frequency(493.88), audio::Frequency(523.25),
-      audio::Frequency(587.33)};
-  frequencies.resize(std::min(frequencies.size(), size + 1),
-                     audio::Frequency(0.0));
-  audio::BeepFrequencies(buffer.editor().audio_player(), 0.1, frequencies);
-  buffer.Set(buffer_variables::multiple_cursors, false);
+        std::vector<audio::Frequency> frequencies = {
+            audio::Frequency(440.0), audio::Frequency(440.0),
+            audio::Frequency(493.88), audio::Frequency(523.25),
+            audio::Frequency(587.33)};
+        frequencies.resize(std::min(frequencies.size(), size + 1),
+                           audio::Frequency(0.0));
+        audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
+                               frequencies);
+        buffer.Set(buffer_variables::multiple_cursors, false);
+      });
 }
 
 }  // namespace afc::editor
