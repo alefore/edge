@@ -60,17 +60,13 @@ class NamespaceExpression : public Expression {
     CHECK(namespace_environment.has_value());
     trampoline.SetEnvironment(namespace_environment->ptr());
 
-    return OnError(trampoline.Bounce(body_, type)
-                       .Transform([&trampoline, original_environment](
-                                      EvaluationOutput output) {
-                         trampoline.SetEnvironment(original_environment.ptr());
-                         return Success(std::move(output));
-                       }),
-                   [&trampoline, original_environment](
-                       Error error) -> futures::ValueOrError<EvaluationOutput> {
-                     trampoline.SetEnvironment(original_environment.ptr());
-                     return MakeUnexpected(error);
-                   });
+    return trampoline.Bounce(body_, type)
+        .Transform<futures::ErrorHandling::Disable>(
+            [&trampoline,
+             original_environment](ValueOrError<EvaluationOutput> output) {
+              trampoline.SetEnvironment(original_environment.ptr());
+              return output;
+            });
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
