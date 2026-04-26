@@ -57,8 +57,7 @@ class VariableLookup : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
     TRACK_OPERATION(vm_VariableLookup_Evaluate);
-    // TODO(2026-04-25, from ages ago, trivial): Enable this logging.
-    // DVLOG(5) << "Look up symbol: " << symbol_;
+    DVLOG(5) << "Look up symbol: " << symbol_;
     return VisitOptional(
         [](Environment::LookupResult lookup_result)
             -> futures::ValueOrError<EvaluationOutput> {
