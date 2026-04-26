@@ -15,7 +15,6 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
-#define USE_EXPECTED 1
 
 class Error : public GhostType<Error, language::lazy_string::LazyString> {
   using GhostType::GhostType;
@@ -47,8 +46,6 @@ ValueOrError<T> CaptureErrors(ValueOrError<T> input,
   return input;
 }
 
-#if USE_EXPECTED
-// New implementation
 template <typename T>
 using ValueOrError = std::expected<T, Error>;
 
@@ -98,49 +95,6 @@ auto Visit(V&& v, OnSuccess&& s, OnError&& e) {
   else
     return std::forward<OnError>(e)(std::forward<V>(v).error());
 }
-#else
-// Old
-template <typename T>
-using ValueOrError = std::variant<T, Error>;
-
-template <typename T>
-struct ValueOrErrorTraits;
-
-template <typename T>
-struct ValueOrErrorTraits<ValueOrError<T>> {
-  using value_type = T;
-};
-
-template <typename>
-struct IsValueOrError : std::false_type {};
-
-template <typename T>
-struct IsValueOrError<ValueOrError<T>> : std::true_type {};
-
-template <typename E>
-auto MakeUnexpected(E&& e) {
-  return Error(std::forward<E>(e));
-}
-
-template <typename T>
-bool HasValue(const ValueOrError<T>& value) {
-  return !std::holds_alternative<Error>(value);
-}
-
-template <typename T, typename V = std::remove_cvref_t<T>>
-  requires std::is_same_v<V, ValueOrError<std::variant_alternative_t<0, V>>>
-auto GetError(T&& e) {
-  return std::get<Error>(std::forward<T>(e));
-}
-
-template <typename V, typename OnSuccess, typename OnError,
-          typename = std::enable_if_t<IsValueOrError<std::decay_t<V>>::value>>
-auto Visit(V&& v, OnSuccess&& s, OnError&& e) {
-  return std::visit(
-      overload{std::forward<OnSuccess>(s), std::forward<OnError>(e)},
-      std::forward<V>(v));
-}
-#endif
 
 template <typename T>
 inline constexpr bool IsValueOrError_v = IsValueOrError<T>::value;
@@ -235,24 +189,11 @@ auto VisitValue(V&& v, OnSuccess&& s) {
 
 template <typename V>
 auto ValueOrDie(V&& value, language::lazy_string::LazyString error_location) {
-#if USE_EXPECTED
   if (IsError(value)) {
     LOG(FATAL) << error_location << ": " << value.error();
     throw std::runtime_error("Error in ValueOrDie.");
   }
   return std::forward<V>(value).value();
-#else
-  using T = ValueOrErrorTraits<std::decay_t<V>>::value_type;
-  return std::visit(
-      language::overload{[&](const Error& error) -> T {
-                           LOG(FATAL) << error_location << ": " << error;
-                           throw std::runtime_error("Error in ValueOrDie.");
-                         },
-                         []<typename U>(U&& t) -> T
-                           requires(!std::is_same_v<std::decay_t<U>, Error>)
-                         { return std::forward<decltype(t)>(t); }},
-                         std::forward<V>(value));
-#endif
 }
 
 template <typename V>
