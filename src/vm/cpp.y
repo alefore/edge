@@ -146,7 +146,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
         Identifier(func->name().value()), std::move(value));
     return NewVoidExpression(compilation->pool);
   }));
-  if (func != nullptr && IsError(out)) func->Abort();
+  if (func != nullptr && !out) func->Abort();
   OUT = RuleReturn(std::move(out));
 }
 
@@ -613,21 +613,21 @@ arguments_list(OUT) ::= non_empty_arguments_list(L). {
 non_empty_arguments_list(OUT) ::= expr(E). {
   RULE_VAR(e, E);
 
-  if (IsError(e))
+  if (!e)
     OUT = nullptr;
   else
-    OUT = new std::vector<gc::Root<Expression>>({VALUE_OR_DIE(std::move(e))});
+    OUT = new std::vector<gc::Root<Expression>>({std::move(e).value()});
 }
 
 non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
   std::unique_ptr<std::vector<gc::Root<Expression>>> l(L);
   RULE_VAR(e, E);
 
-  if (l == nullptr || IsError(e)) {
+  if (l == nullptr || !e) {
     OUT = nullptr;
   } else {
     OUT = l.release();
-    OUT->push_back(VALUE_OR_DIE(std::move(e)));
+    OUT->push_back(std::move(e).value());
   }
 }
 

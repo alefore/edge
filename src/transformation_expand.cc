@@ -196,17 +196,15 @@ class ExternalCompletion : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     VLOG(5) << "ExternalCompletionTransformation starts";
-    ValueOrError<Path> command_path_or_error = Path::New(
-        input.buffer.Read(buffer_variables::external_completion_command));
-    if (IsError(command_path_or_error)) {
-      input.buffer.status().InsertError(
-          AugmentError(LazyString{L"external_completion_command"},
-                       GetError(command_path_or_error)));
-      return Output{};
-    }
-    Path command_path =
-        Path::Join(input.buffer.editor().edge_path()[0],
-                   ValueOrDie(std::move(command_path_or_error)));
+    DECLARE_OR_RETURN_OTHER(
+        Path command_path_local,
+        input.buffer.status().LogErrors(
+            AugmentError(LazyString{L"external_completion_command"},
+                         Path::New(input.buffer.Read(
+                             buffer_variables::external_completion_command)))),
+        Output{});
+    Path command_path = Path::Join(input.buffer.editor().edge_path()[0],
+                                   std::move(command_path_local));
     LOG(INFO) << "ExternalCompletionTransformation: " << command_path;
     return input.buffer.file_system_driver()
         ->WriteTmpFile(LazyString{L"external-command-input"},
@@ -446,12 +444,12 @@ class ExpandTransformation : public CompositeTransformation {
           futures::Value<Predictor> predictor_future = SyntaxBasedPredictor;
           if (ValueOrError<Path> dictionary_path =
                   Path::New(input.buffer.Read(buffer_variables::dictionary));
-              !IsError(dictionary_path)) {
+              dictionary_path) {
             predictor_future =
                 OpenFileIfFound(
                     OpenFileOptions{
                         .editor_state = input.buffer.editor(),
-                        .path = ValueOrDie(std::move(dictionary_path)),
+                        .path = std::move(dictionary_path).value(),
                         .insertion_type = BuffersList::AddBufferType::kIgnore})
                     .Transform([](gc::Root<OpenBuffer> dictionary)
                                    -> futures::ValueOrError<Predictor> {

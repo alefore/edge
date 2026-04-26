@@ -222,12 +222,10 @@ const bool buffer_tests_registration = tests::Register(
                NonNull<std::unique_ptr<EditorState>> editor =
                    EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
-               ValueOrError<gc::Root<vm::Value>> result =
-                   buffer->execution_context()
-                       ->EvaluateString(LazyString{L"{ number v = 5; } v"})
-                       .Get()
-                       .value();
-               CHECK(IsError(result));
+               CHECK(!buffer->execution_context()
+                          ->EvaluateString(LazyString{L"{ number v = 5; } v"})
+                          .Get()
+                          .value());
              }},
         {.name = L"LineMetadataString",
          .callback =

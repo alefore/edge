@@ -135,8 +135,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set(&CommandLineValues::server_path,
                [](LazyString input) -> ValueOrError<std::optional<Path>> {
                  if (input.empty()) return std::nullopt;
-                 DECLARE_OR_RETURN(Path output, Path::New(input));
-                 return std::make_optional(output);
+                 return Path::New(input);
                })
           .Set(&CommandLineValues::server, true),
 
@@ -147,11 +146,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    L"Path to the pipe in which the daemon is listening")
           .Set(&CommandLineValues::client,
                [](LazyString input) -> ValueOrError<std::optional<Path>> {
-                 // TODO(2026-04-25, P3, trivial): This expression can probably
-                 // be simplified. The body of this whole lambda.
-                 ValueOrError<Path> output = Path::New(input);
-                 if (IsError(output)) return GetError(output);
-                 return Success(OptionalFrom(output));
+                 return Path::New(input);
                }),
 
       Handler<CommandLineValues>({FlagName{L"mute"}},

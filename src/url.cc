@@ -14,7 +14,6 @@ using afc::infrastructure::Path;
 using afc::language::Error;
 using afc::language::GetValueOrDefault;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ValueOrError;

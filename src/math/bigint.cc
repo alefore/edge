@@ -11,7 +11,6 @@
 
 using afc::language::EmptyValue;
 using afc::language::Error;
-using afc::language::IsError;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -106,8 +105,8 @@ const bool from_string_tests_registration =
         return tests::Test{
             .name = L"Error" + input, .callback = [input] {
               ValueOrError<BigInt> value = BigInt::FromString(input);
-              CHECK(IsError(value)) << "Expected error but received value: "
-                                    << ValueOrDie(std::move(value)).ToString();
+              CHECK(!value) << "Expected error but received value: "
+                            << ValueOrDie(std::move(value)).ToString();
               LOG(INFO) << "Received expected error: " << GetError(value);
             }};
       };
@@ -351,14 +350,11 @@ const bool subtraction_tests_registration =
                ValueOrDie(BigInt::FromString(L"1")), L"9999999999999999999"),
           {.name = L"UnderflowZero",
            .callback =
-               [] {
-                 CHECK(IsError(BigInt::FromNumber(0) - BigInt::FromNumber(1)));
-               }},
+               [] { CHECK(!(BigInt::FromNumber(0) - BigInt::FromNumber(1))); }},
           {.name = L"UnderflowNormal",
            .callback =
                [] {
-                 CHECK(IsError(BigInt::FromNumber(123) -
-                               BigInt::FromNumber(456)));
+                 CHECK(!(BigInt::FromNumber(123) - BigInt::FromNumber(456)));
                }},
       });
     }());
@@ -487,7 +483,7 @@ const bool division_tests_registration =
                 std::wstring output = ValueOrDie(std::move(result)).ToString();
                 CHECK(output == expected_outcome.value());
               } else {
-                CHECK(IsError(result));
+                CHECK(!result);
               }
             }};
       };
@@ -560,9 +556,7 @@ const bool big_int_divide_tests_registration =
           tests::Test{
               .name = L"ZeroDenominator",
               .callback =
-                  [] {
-                    CHECK(IsError(Divide(BigInt::FromNumber(5), BigInt())));
-                  }},
+                  [] { CHECK(!Divide(BigInt::FromNumber(5), BigInt())); }},
       };
     }());
 }  // namespace
@@ -650,12 +644,12 @@ const bool big_int_modulo_tests_registration =
       };
 
       return std::vector<tests::Test>{
-          tests::Test{.name = L"ZeroDenominator",
-                      .callback =
-                          [] {
-                            CHECK(IsError(BigInt::FromNumber(10) %
-                                          BigInt::FromNumber(0)));
-                          }},
+          tests::Test{
+              .name = L"ZeroDenominator",
+              .callback =
+                  [] {
+                    CHECK(!(BigInt::FromNumber(10) % BigInt::FromNumber(0)));
+                  }},
           test(L"StandardRemainder", BigInt::FromNumber(10),
                BigInt::FromNumber(3), BigInt::FromNumber(1)),
           test(L"NoRemainder", BigInt::FromNumber(12), BigInt::FromNumber(3),
@@ -729,7 +723,7 @@ const bool big_int_to_int32_tests_registration =
                      std::optional<int32_t> expected) {
         return tests::Test{.name = name, .callback = [input, expected] {
                              ValueOrError<int32_t> result = input.ToInt32();
-                             if (IsError(result))
+                             if (!result)
                                CHECK(expected == std::nullopt);
                              else
                                CHECK_EQ(ValueOrDie(std::move(result), L"tests"),
@@ -763,7 +757,7 @@ const bool big_int_to_int64_tests_registration =
         return tests::Test{
             .name = name, .callback = [input, positive, expected] {
               ValueOrError<int64_t> result = input.ToInt64(positive);
-              if (IsError(result))
+              if (!result)
                 CHECK(expected == std::nullopt);
               else
                 CHECK_EQ(ValueOrDie(std::move(result), L"tests"),
@@ -798,7 +792,7 @@ const bool big_int_to_size_t_tests_registration =
                      std::optional<size_t> expected) {
         return tests::Test{.name = name, .callback = [input, expected] {
                              ValueOrError<size_t> result = input.ToSizeT();
-                             if (IsError(result))
+                             if (!result)
                                CHECK(expected == std::nullopt);
                              else
                                CHECK_EQ(ValueOrDie(std::move(result), L"tests"),
@@ -834,7 +828,7 @@ const bool big_int_to_double_tests_registration =
                      std::optional<double> expected) {
         return tests::Test{.name = name, .callback = [input, expected] {
                              ValueOrError<double> result = input.ToDouble();
-                             if (IsError(result))
+                             if (!result)
                                CHECK(expected == std::nullopt);
                              else
                                CHECK_NEAR(
@@ -863,7 +857,7 @@ const bool non_zero_big_int_factory_tests_registration = tests::Register(
     L"numbers::NonZeroBigInt::New",
     std::vector<tests::Test>{
         {.name = L"Zero",
-         .callback = [] { CHECK(IsError(NonZeroBigInt::New(BigInt{}))); }},
+         .callback = [] { CHECK(!NonZeroBigInt::New(BigInt{})); }},
         {.name = L"Positive", .callback = [] {
            CHECK_EQ(
                ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(1)), L"tests")
@@ -951,7 +945,7 @@ NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
   NonZeroBigInt a = *this;
   ValueOrError<NonZeroBigInt> b = other;
 
-  while (!IsError(b)) {
+  while (!!b) {
     BigInt remainder = a.read() % ValueOrDie(b);
     a = ValueOrDie(std::move(b));
     b = NonZeroBigInt::New(remainder);

@@ -66,10 +66,10 @@ Predictor VariablesPredictor() {
 
 futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      SingleLine input_name) {
-  ValueOrError<vm::Identifier> name_or_error =
-      vm::Identifier::New(NonEmptySingleLine::New(Trim(input_name, {L' '})));
-  if (IsError(name_or_error)) return EmptyValue{};
-  vm::Identifier name = ValueOrDie(std::move(name_or_error));
+  DECLARE_OR_RETURN_OTHER(
+      vm::Identifier name,
+      vm::Identifier::New(NonEmptySingleLine::New(Trim(input_name, {L' '}))),
+      EmptyValue{});
   LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
 
   std::vector<gc::Root<OpenBuffer>> active_buffers =

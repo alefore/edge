@@ -51,13 +51,13 @@ ValueOrError<Spec> TryPosition(LazyString input, SuffixMode suffix_mode) {
   LineColumn position = {};
   for (size_t i = 0; i < std::min(tokens.size(), 2ul); ++i) {
     ValueOrError<int> value_or_error = AsInt(tokens[i]);
-    if (IsError(value_or_error)) {
+    if (!value_or_error) {
       if (i == 0 || suffix_mode == SuffixMode::Disallow)
-        return GetError(value_or_error);
+        return value_or_error.error();
       else
         break;  // Ignoring errors in the column spec.
     }
-    int value = ValueOrDie(std::move(value_or_error));
+    int value = std::move(value_or_error).value();
     if (value > 0) value--;
     if (i == 0) {
       position.line = LineNumber(value);

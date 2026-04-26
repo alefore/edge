@@ -34,8 +34,7 @@ const bool path_component_constructor_bad_inputs_tests_registration =
         L"PathComponentConstructorBadInputs",
         {
             {.name = L"Empty",
-             .callback =
-                 [] { CHECK(IsError(PathComponent::New(LazyString{}))); }},
+             .callback = [] { CHECK(!PathComponent::New(LazyString{})); }},
             {.name = L"EmptyCrash",
              .callback =
                  [] {
@@ -44,9 +43,7 @@ const bool path_component_constructor_bad_inputs_tests_registration =
                  }},
             {.name = L"TooLarge",
              .callback =
-                 [] {
-                   CHECK(IsError(PathComponent::New(LazyString{L"foo/bar"})));
-                 }},
+                 [] { CHECK(!PathComponent::New(LazyString{L"foo/bar"})); }},
             {.name = L"TooLargeCrash",
              .callback =
                  [] {
@@ -99,8 +96,7 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
      {.name = L"hidden",
       .callback =
           [] {
-            CHECK(IsError(
-                PathComponent::FromString(L".blah").remove_extension()));
+            CHECK(!PathComponent::FromString(L".blah").remove_extension());
           }},
      {.name = L"Empty",
       .callback =

@@ -17,7 +17,6 @@
 namespace container = afc::language::container;
 
 using afc::language::Error;
-using afc::language::GetValueOrDie;
 using afc::language::PossibleError;
 using afc::language::gc::ExpandMapPtrValues;
 using afc::language::lazy_string::ColumnNumber;

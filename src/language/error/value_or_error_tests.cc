@@ -6,8 +6,8 @@ namespace {
 bool tests_register = tests::Register(
     L"ValueOrError", {{.name = L"EmptyConstructor", .callback = [] {
                          ValueOrError<int> foo;
-                         CHECK(!IsError(foo));
-                         CHECK_EQ(ValueOrDie(foo), int());
+                         CHECK(foo.has_value());
+                         CHECK_EQ(foo.value(), int());
                        }}});
 }  // namespace
 }  // namespace afc::language

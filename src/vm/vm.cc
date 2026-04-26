@@ -510,7 +510,7 @@ void CompileLine(Compilation& compilation, void* parser,
           ++pos;
         ValueOrError<Identifier> symbol_or_error = Identifier::New(
             NonEmptySingleLine{SingleLine{str.Substring(start, pos - start)}});
-        if (IsError(symbol_or_error)) {
+        if (!symbol_or_error) {
           compilation.RegisterErrors<Identifier>(symbol_or_error);
           return;
         }

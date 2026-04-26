@@ -24,20 +24,8 @@
 #include <limits>
 #include <variant>
 
+#include "src/language/error/base.h"
 #include "src/language/wstring.h"
-
-// Declarations redundant with symbols from src/language/error/value_or_error.h.
-// We provide them here so that we don't have to depend on that header, allowing
-// that header to depend on this one.
-namespace afc::language {
-class Error;
-
-template <typename T>
-using ValueOrError = std::expected<T, Error>;
-
-template <typename T>
-bool IsError(const T&);
-}  // namespace afc::language
 
 namespace afc::language {
 namespace ghost_type_internal {
@@ -50,9 +38,7 @@ template <typename External>
 class Factory {
  public:
   static ValueOrError<External> New(typename External::InternalType value) {
-    if (auto possible_error = External::ValidatorType::Validate(value);
-        IsError(possible_error))
-      return MakeUnexpected(GetError(possible_error));
+    RETURN_IF_ERROR(External::ValidatorType::Validate(value));
     return External{value};
   };
 };
@@ -206,7 +192,7 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   explicit GhostType(Internal initial_value) : value(std::move(initial_value)) {
     if constexpr (!ghost_type_internal::IsAlwaysValid<Validator>) {
       auto result = External::ValidatorType::Validate(value);
-      CHECK(!IsError(result)) << GetError(result);
+      CHECK(result) << result.error();
     }
   }
   GhostType(const GhostType&) = default;
@@ -234,7 +220,7 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   static ValueOrError<External> New(ValueOrError<Internal> internal)
     requires(!ghost_type_internal::IsAlwaysValid<Validator>)
   {
-    if (IsError(internal)) return MakeUnexpected(GetError(internal));
+    RETURN_IF_ERROR(internal);
     return ghost_type_internal::Factory<External>::New(
         ValueOrDie(std::move(internal)));
   }
@@ -244,7 +230,7 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   static ValueOrError<External> New(ValueOrError<Internal> internal)
     requires(ghost_type_internal::IsAlwaysValid<Validator>)
   {
-    if (IsError(internal)) return MakeUnexpected(GetError(internal));
+    RETURN_IF_ERROR(internal);
     return ghost_type_internal::Factory<External>::New(
         ValueOrDie(std::move(internal)));
   }

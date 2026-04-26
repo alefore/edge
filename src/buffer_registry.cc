@@ -19,7 +19,6 @@ using afc::infrastructure::PathComponent;
 using afc::language::EraseIf;
 using afc::language::GetValueOrDefault;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::overload;

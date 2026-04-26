@@ -219,7 +219,7 @@ std::optional<afc::language::Error> ErrorChecker(const Tuple& tup) {
     using ElementType = std::tuple_element_t<Index, Tuple>;
     if constexpr (language::IsValueOrError<ElementType>::value) {
       const auto& element = std::get<Index>(tup);
-      if (language::IsError(element)) return language::GetError(element);
+      if (!element) return element.error();
     }
     return ErrorChecker<Tuple, Index + 1>(tup);
   } else {

@@ -18,7 +18,7 @@ const bool multiplication_tests_registration =
             .callback = [input1, input2, expectation, expect_error] mutable {
               auto result = CheckedMultiply<int32_t, int32_t>(input1, input2);
               if (expect_error) {
-                CHECK(IsError(result));
+                CHECK(!result);
               } else {
                 int32_t result_value = ValueOrDie(std::move(result));
                 CHECK_EQ(result_value, expectation)
@@ -34,7 +34,7 @@ const bool multiplication_tests_registration =
             .callback = [input1, input2, expectation, expect_error] mutable {
               auto result = CheckedMultiply<uint32_t, uint32_t>(input1, input2);
               if (expect_error) {
-                CHECK(IsError(result));
+                CHECK(!result);
               } else {
                 CHECK_EQ(ValueOrDie(std::move(result)), expectation);
               }

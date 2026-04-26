@@ -287,9 +287,9 @@ bool server_tests_registration = tests::Register(
                       if (iteration == 10) {
                         FileDescriptor client_fd =
                             ValueOrDie(SyncConnectToServer(server_address));
-                        CHECK(!IsError(SyncSendCommandsToServer(
+                        CHECK(SyncSendCommandsToServer(
                             client_fd,
-                            LazyString{L"editor.set_exit_value(567);"})));
+                            LazyString{L"editor.set_exit_value(567);"}));
                       }
                       iteration++;
                     }})

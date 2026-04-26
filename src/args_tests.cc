@@ -21,7 +21,6 @@ using afc::infrastructure::Path;
 using afc::infrastructure::Time;
 using afc::infrastructure::execution::ExecutionEnvironment;
 using afc::infrastructure::execution::ExecutionEnvironmentOptions;
-using afc::language::IsError;
 using afc::language::ValueOrDie;
 using afc::language::lazy_string::LazyString;
 
@@ -74,8 +73,8 @@ bool args_tests_registration = tests::Register(
                                   SyncConnectToServer(server_address));
                               LazyString commands = CommandsToRun(args());
                               LOG(INFO) << "Commands: " << commands;
-                              CHECK(!IsError(SyncSendCommandsToServer(
-                                  client_fd, commands)));
+                              CHECK(SyncSendCommandsToServer(client_fd,
+                                                             commands));
                             }
                             iteration++;
                             CHECK_LT(iteration, 1000ul);

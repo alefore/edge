@@ -385,9 +385,9 @@ ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
       [consumer = std::move(future.consumer),
        error_callback = std::move(error_callback)](
           language::ValueOrError<T> value_or_error) mutable {
-        if (language::IsError(value_or_error)) {
+        if (!value_or_error) {
           futures::ValueOrError<T> error_callback_result =
-              error_callback(GetError(std::move(value_or_error)));
+              error_callback(std::move(value_or_error).error());
           std::move(error_callback_result).SetConsumer(std::move(consumer));
         } else {
           std::invoke(std::move(consumer), std::move(value_or_error));

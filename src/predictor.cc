@@ -43,7 +43,6 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -240,11 +239,11 @@ Predictor PrecomputedPredictor(
             }),
         std::inserter(contents.value(), contents->end()));
   return [contents](PredictorInput input) {
-    ValueOrError<NonEmptySingleLine> input_value =
-        NonEmptySingleLine::New(input.input);
-    if (IsError(input_value)) return PredictorOutput{};
+    DECLARE_OR_RETURN_OTHER(NonEmptySingleLine input_value,
+                            NonEmptySingleLine::New(input.input),
+                            PredictorOutput{});
     MutableLineSequence output_contents;
-    for (auto it = contents->lower_bound(ValueOrDie(std::move(input_value)));
+    for (auto it = contents->lower_bound(std::move(input_value));
          it != contents->end(); ++it) {
       if (StartsWith((*it).first, input.input)) {
         output_contents.push_back(LineBuilder{it->second.read()}.Build());

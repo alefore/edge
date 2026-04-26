@@ -31,7 +31,6 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EraseIf;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;

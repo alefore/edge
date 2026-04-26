@@ -755,7 +755,7 @@ void OpenBuffer::UpdateTreeParser() {
   // document here.
   ValueOrError<Path> dictionary_path =
       Path::New(Read(buffer_variables::dictionary));
-  (IsError(dictionary_path)
+  (!dictionary_path
        ? futures::Value<SortedLineSequence>(SortedLineSequence(LineSequence()))
        : OpenFileIfFound(
              OpenFileOptions{
@@ -2050,8 +2050,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       return {};
     }
 
-    if (auto path = Path::New(line); !IsError(path))
-      initial_url = URL::FromPath(ValueOrDie(std::move(path)));
+    if (auto path = Path::New(line); path)
+      initial_url = URL::FromPath(std::move(path).value());
     else
       return {};
   }

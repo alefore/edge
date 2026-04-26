@@ -22,7 +22,6 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::overload;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
@@ -236,8 +235,8 @@ auto parse_history_line_tests_registration = tests::Register(
     {{.name = L"BadQuote",
       .callback =
           [] {
-            CHECK(IsError(ParseBufferLine(
-                LineBuilder{SingleLine{LazyString{L"value:\""}}}.Build())));
+            CHECK(!ParseBufferLine(
+                LineBuilder{SingleLine{LazyString{L"value:\""}}}.Build()));
           }},
      {.name = L"Empty", .callback = [] {
         auto result = ValueOrDie(ParseBufferLine(
@@ -331,13 +330,12 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     };
     if (line.empty()) return !input.abort_value.has_value();
     ValueOrError<std::multimap<Identifier, EscapedString>> line_keys_or_error =
-        ParseBufferLine(line);
-    if (IsError(line_keys_or_error)) {
-      output.errors.push_back(GetError(line_keys_or_error));
+        CaptureErrors(ParseBufferLine(line), output.errors);
+    if (!line_keys_or_error) {
       return !input.abort_value.has_value();
     }
     std::multimap<Identifier, EscapedString> line_keys =
-        ValueOrDie(std::move(line_keys_or_error));
+        std::move(line_keys_or_error).value();
     auto range = line_keys.equal_range(HistoryIdentifierValue());
     int value_count = std::distance(range.first, range.second);
     if (warn_if(value_count == 0,

@@ -36,18 +36,19 @@ int main(int, char** argv) {
       .operation_factory = std::make_shared<OperationFactory>(
           MakeNonNullShared<ThreadPool>(6))});
   gc::Root<afc::vm::Environment> environment = afc::vm::Environment::New(pool);
-  ValueOrError<gc::Root<Expression>> expr = afc::vm::CompileFile(
-      ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
-                                                     "stdin")})),
-      environment.ptr());
-  if (IsError(expr)) return 0;
+  DECLARE_OR_RETURN_OTHER(
+      gc::Root < Expression >> expr,
+      afc::vm::CompileFile(
+          ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
+                                                         "stdin")})),
+          environment.ptr()),
+      0);
 
   std::optional<OnceOnlyFunction<void()>> resume;
-  auto value =
-      afc::vm::Evaluate(VALUE_OR_DIE(std::move(expr)).ptr(), environment.ptr(),
-                        [&resume](OnceOnlyFunction<void()> callback) {
-                          resume = std::move(callback);
-                        });
+  auto value = afc::vm::Evaluate(std::move(expr).ptr(), environment.ptr(),
+                                 [&resume](OnceOnlyFunction<void()> callback) {
+                                   resume = std::move(callback);
+                                 });
 
   for (int i = 0; i < 5 && resume.has_value(); ++i) {
     auto copy = std::move(resume.value());

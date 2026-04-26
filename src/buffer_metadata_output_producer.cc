@@ -33,7 +33,6 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::CaptureAndHash;
 using afc::language::GhostType;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;

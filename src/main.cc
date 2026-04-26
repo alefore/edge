@@ -60,7 +60,6 @@ using afc::infrastructure::screen::Screen;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
@@ -192,14 +191,14 @@ void RedrawScreens(const CommandLineValues& args,
       if (last_screen_size->has_value() &&
           screen_size != last_screen_size->value()) {
         LOG(INFO) << "Sending screen size update to server.";
-        CHECK(!IsError(SyncSendCommandsToServer(
+        CHECK(SyncSendCommandsToServer(
             remote_server_fd.value(),
             LazyString{L"screen.set_size("} +
                 LazyString{std::to_wstring(screen_size.column.read())} +
                 LazyString{L","} +
                 LazyString{std::to_wstring(screen_size.line.read())} +
                 LazyString{L");"} +
-                LazyString{L"editor.set_screen_needs_hard_redraw(true);\n"})));
+                LazyString{L"editor.set_screen_needs_hard_redraw(true);\n"}));
         *last_screen_size = screen_size;
       }
     }
@@ -320,8 +319,8 @@ int main(int argc, const char** argv) {
 
     LOG(INFO) << "Sending commands.";
     if (remote_server_fd.has_value()) {
-      CHECK(!IsError(
-          SyncSendCommandsToServer(remote_server_fd.value(), commands_to_run)));
+      CHECK(
+          SyncSendCommandsToServer(remote_server_fd.value(), commands_to_run));
     } else {
       gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
           .editor = editor_state(), .name = InitialCommands{}});
@@ -406,12 +405,12 @@ int main(int argc, const char** argv) {
                               if (const wchar_t* regular_c =
                                       std::get_if<wchar_t>(&c);
                                   regular_c != nullptr)
-                                CHECK(!IsError(SyncSendCommandsToServer(
+                                CHECK(SyncSendCommandsToServer(
                                     remote_server_fd.value(),
                                     LazyString{L"ProcessInput("} +
                                         LazyString{
                                             std::to_wstring(*regular_c)} +
-                                        LazyString{L");\n"})));
+                                        LazyString{L");\n"}));
                             }
                           else
                             editor_state().ProcessInput(std::move(input));

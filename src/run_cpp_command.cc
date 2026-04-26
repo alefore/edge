@@ -122,10 +122,10 @@ ValueOrError<ParsedCommand> Parse(
   if (ValueOrError<gc::Root<vm::Expression>> parse =
           vm::natural::Compile(command, function_name_prefix, environment,
                                search_namespaces.namespaces, pool);
-      !IsError(parse)) {
+      parse) {
     LOG(INFO) << "Parse natural command: " << command;
     return ParsedCommand{.tokens = std::move(output_tokens),
-                         .expression = VALUE_OR_DIE(std::move(parse))};
+                         .expression = std::move(parse).value()};
   }
 
   if (output_tokens.empty()) {
@@ -303,11 +303,10 @@ bool tests_parse_registration = tests::Register(
         environment.ptr()->Define(
             IDENTIFIER_CONSTANT(L"foo"),
             vm::Value::NewString(pool, LazyString{L"bar"}));
-        ValueOrError<ParsedCommand> output = Parse(
-            pool, SingleLine{LazyString{L"foo"}}, environment.ptr().value(),
-            SingleLine{}, std::unordered_set<vm::Type>({vm::types::String{}}),
-            SearchNamespaces(buffer.ptr().value()));
-        CHECK(!IsError(output));
+        CHECK(Parse(pool, SingleLine{LazyString{L"foo"}},
+                    environment.ptr().value(), SingleLine{},
+                    std::unordered_set<vm::Type>({vm::types::String{}}),
+                    SearchNamespaces(buffer.ptr().value())));
       }}});
 }  // namespace
 

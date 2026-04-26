@@ -8,6 +8,7 @@
 #include <string>
 #include <variant>
 
+#include "src/language/error/base.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
@@ -45,9 +46,6 @@ ValueOrError<T> CaptureErrors(ValueOrError<T> input,
       [&output](const Error& error) { output.push_back(error); });
   return input;
 }
-
-template <typename T>
-using ValueOrError = std::expected<T, Error>;
 
 template <typename T>
 struct ValueOrErrorTraits;
@@ -100,16 +98,6 @@ template <typename T>
 inline constexpr bool IsValueOrError_v = IsValueOrError<T>::value;
 
 template <typename T>
-bool IsError(const T&) {
-  return false;
-}
-
-template <typename T>
-bool IsError(const ValueOrError<T>& value) {
-  return !HasValue(value);
-}
-
-template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
   Visit(
       p,
@@ -135,39 +123,10 @@ ValueOrError<T> Success(T t) {
 template <typename T>
 ValueOrError<T> AugmentError(language::lazy_string::LazyString prefix,
                              ValueOrError<T> input) {
-  Visit(
-      input, [](T&) {},
-      [&](Error& error) { error = AugmentError(prefix, error); });
-  return input;
+  return input.transform_error([&prefix](Error error) {
+    return AugmentError(std::move(prefix), std::move(error));
+  });
 }
-
-#define CONCAT_IMPL(x, y) x##y
-#define CONCAT(x, y) CONCAT_IMPL(x, y)
-
-#define RETURN_IF_ERROR(expr)                                      \
-  if (auto CONCAT(return_if_error_result, __LINE__) = expr;        \
-      language::IsError(CONCAT(return_if_error_result, __LINE__))) \
-  return language::MakeUnexpected(                                 \
-      GetError(CONCAT(return_if_error_result, __LINE__)))
-
-#define DECLARE_OR_RETURN(variable, expr)                                     \
-  decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;                        \
-  if (IsError(CONCAT(tmp_result_, __LINE__)))                                 \
-    return language::MakeUnexpected(GetError(CONCAT(tmp_result_, __LINE__))); \
-  variable = language::ValueOrDie(std::move(CONCAT(tmp_result_, __LINE__)));
-
-#define DECLARE_OR_RETURN_OTHER(variable, expr, other)      \
-  decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;      \
-  if (IsError(CONCAT(tmp_result_, __LINE__))) return other; \
-  variable = language::ValueOrDie(std::move(CONCAT(tmp_result_, __LINE__)));
-
-#define ASSIGN_OR_RETURN(variable, expression)                   \
-  variable = ({                                                  \
-    auto tmp = expression;                                       \
-    if (IsError(tmp))                                            \
-      return language::MakeUnexpected(GetError(std::move(tmp))); \
-    language::ValueOrDie(std::move(tmp));                        \
-  })
 
 struct IgnoreErrors {
   void operator()(Error);
@@ -189,7 +148,7 @@ auto VisitValue(V&& v, OnSuccess&& s) {
 
 template <typename V>
 auto ValueOrDie(V&& value, language::lazy_string::LazyString error_location) {
-  if (IsError(value)) {
+  if (!value) {
     LOG(FATAL) << error_location << ": " << value.error();
     throw std::runtime_error("Error in ValueOrDie.");
   }
@@ -234,9 +193,8 @@ ValueOrError<T> FromOptional(std::optional<T> value) {
 template <typename A>
 afc::language::ValueOrError<A> operator+(afc::language::ValueOrError<A> x,
                                          afc::language::ValueOrError<A> y) {
-  if (afc::language::IsError(x)) return std::get<afc::language::Error>(x);
-  if (afc::language::IsError(y)) return std::get<afc::language::Error>(y);
-  return afc::language::ValueOrDie(std::move(x)) +
-         afc::language::ValueOrDie(std::move(y));
+  RETURN_IF_ERROR(x);
+  RETURN_IF_ERROR(y);
+  return std::move(x).value() + std::move(y).value();
 }
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__

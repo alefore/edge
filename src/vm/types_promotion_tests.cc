@@ -5,7 +5,6 @@
 #include "src/vm/expression.h"
 
 namespace gc = afc::language::gc;
-using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
@@ -33,7 +32,7 @@ const bool tests_registration = tests::Register(
                ValueOrError<std::wstring> output_str =
                    output.ptr()->get_number().ToString(2);
                LOG(INFO) << "Output str: " << output_str;
-               CHECK(ValueOrDie(std::move(output_str)) == L"5");
+               CHECK(std::move(output_str) == L"5");
              }},
         {.name = L"FunctionNoPromotion",
          .callback =
@@ -71,10 +70,8 @@ const bool tests_registration = tests::Register(
                        {Value::NewString(pool, LazyString{L"alejo"}),
                         Value::NewBool(pool, true)},
                        trampoline.value());
-               CHECK(ValueOrDie(output.Get().value())
-                         .ptr()
-                         ->get_number()
-                         .ToString(2) == L"4");
+               CHECK(output.Get().value().value().ptr()->get_number().ToString(
+                         2) == L"4");
              }},
     });
 }  // namespace

@@ -64,7 +64,6 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
-using afc::language::IsError;
 using afc::language::LazyValue;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;

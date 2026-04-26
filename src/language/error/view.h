@@ -9,12 +9,12 @@ namespace afc::language::view {
 // View that removes errors from a range of `ValueOrError<T>` instances and
 // unwraps the values (into just `T`).
 inline constexpr auto SkipErrors =
-    std::views::filter([](const auto& v) { return !IsError(v); }) |
-    std::views::transform([](auto v) { return ValueOrDie(std::move(v)); });
+    std::views::filter([](const auto& v) { return v.has_value(); }) |
+    std::views::transform([](auto v) { return std::move(v).value(); });
 
 inline constexpr auto GetErrors =
-    std::views::filter([](const auto& v) { return IsError(v); }) |
-    std::views::transform([](auto& v) { return GetError(v); });
+    std::views::filter([](const auto& v) { return !v.has_value(); }) |
+    std::views::transform([](auto& v) { return v.error(); });
 
 template <typename T>
 ValueOrError<std::vector<T>> ExtractErrors(std::vector<ValueOrError<T>> input) {

@@ -8,10 +8,17 @@ cc_library(
 
 cc_library(
     name = "value_or_error",
+    hdrs = ["base.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "value_or_error",
     srcs = ["value_or_error.cc"],
     hdrs = ["value_or_error.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":base",
         "//src/language:ghost_type",
         "//src/language:ghost_type_class",
         "//src/language:overload",

@@ -222,8 +222,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                             args[2].ptr().value());
                     if constexpr (language::IsValueOrError<
                                       decltype(value)>::value) {
-                      if (language::IsError(value))
-                        return MakeUnexpected(GetError(value));
+                      if (!value) return value.error();
                       T::SetAtIndex(c, index,
                                     language::ValueOrDie(std::move(value)));
                     } else {

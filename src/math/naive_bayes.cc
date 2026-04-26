@@ -18,7 +18,6 @@ using afc::language::Error;
 using afc::language::GetValueOrDefault;
 using afc::language::GetValueOrDie;
 using afc::language::GhostType;
-using afc::language::IsError;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -54,14 +53,14 @@ const bool probability_constructor_bad_inputs_tests_registration =
         L"ProbabilityConstructorBadInputs",
         {
             {.name = L"Negative",
-             .callback = [] { CHECK(IsError(Probability::New(-1.0))); }},
+             .callback = [] { CHECK(!Probability::New(-1.0)); }},
             {.name = L"NegativeCrash",
              .callback =
                  [] {
                    tests::ForkAndWaitForFailure([] { Probability(-1.0); });
                  }},
             {.name = L"TooLarge",
-             .callback = [] { CHECK(IsError(Probability::New(1.01))); }},
+             .callback = [] { CHECK(!Probability::New(1.01)); }},
             {.name = L"TooLargeCrash",
              .callback =
                  [] {
