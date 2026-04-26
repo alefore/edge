@@ -148,10 +148,9 @@ Number TransformValue(Number input, Delta delta, Number clamp, bool is_end) {
     return input;
   }
 
-  return std::visit(
-      overload{[](Error) { return std::numeric_limits<Number>::max(); },
-               [](Number output) { return output; }},
-      CheckedAdd(input, delta));
+  return Visit(
+      CheckedAdd(input, delta), [](Number output) { return output; },
+      [](Error) { return std::numeric_limits<Number>::max(); });
 }
 
 struct CursorsTracker::Transformation {

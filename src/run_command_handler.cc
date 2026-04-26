@@ -97,35 +97,33 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
   std::optional<ColumnNumber> end =
       FindFirstOf(full_command.Substring(*start), whitespace);
   if (end == std::nullopt) return environment;
-  std::visit(
-      overload{IgnoreErrors{},
-               [&path, &environment](PathComponent command_component) {
-                 auto environment_local_path = Path::Join(
-                     PathComponent::FromString(L"commands"),
-                     Path::Join(command_component,
-                                PathComponent::FromString(L"environment")));
-                 for (auto dir : path) {
-                   Path full_path = Path::Join(dir, environment_local_path);
-                   std::ifstream infile(full_path.read().ToBytes());
-                   if (!infile.is_open()) {
+  VisitValue(PathComponent::New(full_command.Substring(*start, end->ToDelta())),
+             [&path, &environment](PathComponent command_component) {
+               auto environment_local_path = Path::Join(
+                   PathComponent::FromString(L"commands"),
+                   Path::Join(command_component,
+                              PathComponent::FromString(L"environment")));
+               for (auto dir : path) {
+                 Path full_path = Path::Join(dir, environment_local_path);
+                 std::ifstream infile(full_path.read().ToBytes());
+                 if (!infile.is_open()) {
+                   continue;
+                 }
+                 std::string line;
+                 while (std::getline(infile, line)) {
+                   if (line == "") {
                      continue;
                    }
-                   std::string line;
-                   while (std::getline(infile, line)) {
-                     if (line == "") {
-                       continue;
-                     }
-                     size_t equals = line.find('=');
-                     if (equals == line.npos) {
-                       continue;
-                     }
-                     environment.insert(make_pair(
-                         FromByteString(line.substr(0, equals)),
-                         LazyString{FromByteString(line.substr(equals + 1))}));
+                   size_t equals = line.find('=');
+                   if (equals == line.npos) {
+                     continue;
                    }
+                   environment.insert(make_pair(
+                       FromByteString(line.substr(0, equals)),
+                       LazyString{FromByteString(line.substr(equals + 1))}));
                  }
-               }},
-      PathComponent::New(full_command.Substring(*start, end->ToDelta())));
+               }
+             });
   return environment;
 }
 
@@ -479,13 +477,9 @@ class ForkEditorCommand : public Command {
                   std::get<gc::Root<vm::Value>>(std::move(callback)->value)});
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       LineBuilder prompt;
-      std::visit(
-          overload{IgnoreErrors{},
-                   [&prompt](Path path) {
-                     prompt.AppendString(
-                         LineSequence::BreakLines(path.read()).FoldLines());
-                   }},
-          children_path);
+      VisitValue(children_path, [&prompt](Path path) {
+        prompt.AppendString(LineSequence::BreakLines(path.read()).FoldLines());
+      });
       prompt.AppendString(SINGLE_LINE_CONSTANT(L"$ "),
                           LineModifierSet{LineModifier::kGreen});
       Prompt(PromptOptions{
@@ -516,21 +510,19 @@ class ForkEditorCommand : public Command {
       VisitPointer(
           buffer->ptr()->OptionalCurrentLine(),
           [&](const Line& current_line) {
-            std::visit(
-                overload{
-                    [&](EscapedString line) {
-                      std::optional<Path> children_path =
-                          OptionalFrom(GetChildrenPath(editor_state_));
-                      for (size_t i = 0;
-                           i < editor_state_.repetitions().value_or(1); ++i) {
-                        RunCommandHandler(
-                            editor_state_, i,
-                            editor_state_.repetitions().value_or(1),
-                            children_path, line.OriginalString());
-                      }
-                    },
-                    [&](Error error) { editor_state_.status().Set(error); }},
-                EscapedString::Parse(current_line.contents()));
+            VisitValue(
+                editor_state_.status().LogErrors(
+                    EscapedString::Parse(current_line.contents())),
+                [&](EscapedString line) {
+                  std::optional<Path> children_path =
+                      OptionalFrom(GetChildrenPath(editor_state_));
+                  for (size_t i = 0;
+                       i < editor_state_.repetitions().value_or(1); ++i) {
+                    RunCommandHandler(editor_state_, i,
+                                      editor_state_.repetitions().value_or(1),
+                                      children_path, line.OriginalString());
+                  }
+                });
           },
           [] {});
     } else {

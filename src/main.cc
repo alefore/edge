@@ -274,14 +274,14 @@ int main(int argc, const char** argv) {
           ? ValueOrDie(SyncConnectToServer(args.client.value()),
                        args.binary_name +
                            LazyString{L": Unable to connect to remote server"})
-          : std::visit(
-                overload{[](Error) { return std::optional<FileDescriptor>(); },
-                         [&](FileDescriptor fd) {
-                           args.server = true;
-                           connected_to_parent = true;
-                           return std::optional<FileDescriptor>(fd);
-                         }},
-                SyncConnectToParentServer());
+          : Visit(
+                SyncConnectToParentServer(),
+                [&](FileDescriptor fd) {
+                  args.server = true;
+                  connected_to_parent = true;
+                  return std::optional<FileDescriptor>(fd);
+                },
+                [](Error) { return std::optional<FileDescriptor>(); });
 
   std::shared_ptr<Screen> screen_curses;
   if (!args.server) {
@@ -325,13 +325,12 @@ int main(int argc, const char** argv) {
     } else {
       gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
           .editor = editor_state(), .name = InitialCommands{}});
-      std::visit(
-          overload{
-              [](gc::Root<ExecutionContext::CompilationResult> result) {
-                result->evaluate();
-              },
-              [](Error errors) { LOG(FATAL) << "Errors: " << errors.read(); }},
-          buffer_root->execution_context()->CompileString(commands_to_run));
+      Visit(
+          buffer_root->execution_context()->CompileString(commands_to_run),
+          [](gc::Root<ExecutionContext::CompilationResult> result) {
+            result->evaluate();
+          },
+          [](Error errors) { LOG(FATAL) << "Errors: " << errors.read(); });
       editor_state().buffer_registry().Add(buffer_root->name(),
                                            buffer_root.ptr().ToWeakPtr());
     }

@@ -111,14 +111,13 @@ class ParseState {
         PushValue(Value::NewNumber(pool_, math::numbers::Number::FromInt64(atoi(
                                               token.value.ToBytes().c_str()))),
                   extended_candidates);
-      std::visit(overload{[&](Identifier identifier) {
-                            for (gc::Root<Value> value : LookUp(identifier))
-                              PushValue(value, extended_candidates);
-                          },
-                          IgnoreErrors{}},
-                 first_token
+      VisitValue(first_token
                      ? Identifier::New(token.value + function_name_prefix_)
-                     : Identifier::New(token.value));
+                     : Identifier::New(token.value),
+                 [&](Identifier identifier) {
+                   for (gc::Root<Value> value : LookUp(identifier))
+                     PushValue(value, extended_candidates);
+                 });
       PushValue(Value::NewString(pool_, ToLazyString(token.value)),
                 extended_candidates);
       if (extended_candidates.empty())

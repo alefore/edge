@@ -72,10 +72,9 @@ struct Compilation {
 
   template <typename T>
   language::ValueOrError<T> RegisterErrors(language::ValueOrError<T> value) {
-    std::visit(
-        language::overload{[&](language::Error error) { AddError(error); },
-                           [](const T&) {}},
-        value);
+    Visit(
+        value, [](const T&) {},
+        [&](language::Error error) { AddError(error); });
     return value;
   }
 

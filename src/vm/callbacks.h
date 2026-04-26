@@ -271,7 +271,7 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
   if (std::optional<afc::language::Error> error =
           ExtractFirstError(processed_args_or_error_tuple);
       error.has_value())
-    return MakeUnexpected(error.value());
+    return error.value();
 
   auto processed_args_tuple = RemoveValueOrError(processed_args_or_error_tuple);
 
@@ -285,20 +285,9 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     if constexpr (language::IsValueOrError<typename ft::ReturnType>::value) {
       using SuccessType = std::decay<decltype(ValueOrDie(
           std::declval<typename ft::ReturnType>()))>::type;
-      return std::visit(
-          language::overload{
-              [&](language::Error error)
-                  -> futures::ValueOrError<language::gc::Root<vm::Value>> {
-                return MakeUnexpected(error);
-              },
-              [&](SuccessType value)
-                  -> futures::ValueOrError<language::gc::Root<vm::Value>> {
-                return VMTypeMapper<SuccessType>::New(pool, std::move(value));
-              }},
-          std::apply(callback, processed_args_tuple));
-      //      DECLARE_OR_RETURN(SuccessType value,
-      //                       std::apply(callback, processed_args_tuple));
-      // return VMTypeMapper<SuccessType>::New(pool, std::move(value));
+      DECLARE_OR_RETURN(SuccessType value,
+                        std::apply(callback, processed_args_tuple));
+      return VMTypeMapper<SuccessType>::New(pool, std::move(value));
     } else {
       return VMTypeMapper<typename ft::ReturnType>::New(
           pool, std::apply(callback, processed_args_tuple));

@@ -94,8 +94,7 @@ class Status {
   template <typename T>
   language::ValueOrError<T> LogErrors(language::ValueOrError<T> value) {
     language::Visit(
-        std::move(value), [](const T&) {},
-        [&](language::Error error) { Set(error); });
+        value, [](const T&) {}, [&](language::Error error) { Set(error); });
     return value;
   }
 

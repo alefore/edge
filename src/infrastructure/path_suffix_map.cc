@@ -11,17 +11,16 @@ namespace afc::infrastructure {
 namespace {
 // "a/b/c" => {{"c"}, {"b", "c"}, {"a", "b", "c"}}
 std::list<std::list<PathComponent>> GetSuffixes(const Path& path) {
-  return std::visit(
-      overload{[](std::list<PathComponent> components) {
-                 std::list<std::list<PathComponent>> output;
-                 while (!components.empty()) {
-                   output.push_front(components);
-                   components.pop_front();
-                 }
-                 return output;
-               },
-               [](Error) { return std::list<std::list<PathComponent>>{}; }},
-      path.DirectorySplit());
+  DECLARE_OR_RETURN_OTHER(std::list<PathComponent> components,
+                          path.DirectorySplit(),
+                          std::list<std::list<PathComponent>>{});
+
+  std::list<std::list<PathComponent>> output;
+  while (!components.empty()) {
+    output.push_front(components);
+    components.pop_front();
+  }
+  return output;
 }
 }  // namespace
 
@@ -40,13 +39,10 @@ void PathSuffixMap::Erase(const Path& path) {
 }
 
 std::set<Path> PathSuffixMap::FindPathWithSuffix(const Path& suffix) const {
-  return std::visit(
-      overload{[this](std::list<PathComponent> suffix_components) {
-                 return data_.lock([&suffix_components](const Data& data) {
-                   return data.paths.Find(suffix_components);
-                 });
-               },
-               [](Error) { return std::set<Path>{}; }},
-      suffix.DirectorySplit());
+  DECLARE_OR_RETURN_OTHER(std::list<PathComponent> suffix_components,
+                          suffix.DirectorySplit(), std::set<Path>{});
+  return data_.lock([&suffix_components](const Data& data) {
+    return data.paths.Find(suffix_components);
+  });
 }
 }  // namespace afc::infrastructure

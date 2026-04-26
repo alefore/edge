@@ -107,32 +107,29 @@ class FlashcardReviewLog {
                        -> ValueOrError<gc::Root<FlashcardReviewLog>> {
           DECLARE_OR_RETURN(
               gc::Root<FileTags> file_tags,
-              std::visit(
-                  overload{
-                      [](gc::Root<FileTags> file_tags)
-                          -> ValueOrError<gc::Root<FileTags>> {
-                        return file_tags;
-                      },
-                      [buffer, answer](
-                          Error error) -> ValueOrError<gc::Root<FileTags>> {
-                        if (buffer->contents().snapshot() == LineSequence{}) {
-                          buffer->InsertInPosition(
-                              DefaultReviewLogBufferContents(answer),
-                              LineColumn{}, std::nullopt);
-                          DECLARE_OR_RETURN(gc::Root<FileTags> output,
-                                            FileTags::New(buffer.ptr()));
-                          return output;
-                        } else {
-                          Error augmented_error = AugmentError(
-                              buffer->Read(buffer_variables::path) +
-                                  LazyString{L": Unable to parse "
-                                             L"non-empty file"},
-                              error);
-                          LOG(INFO) << augmented_error;
-                          return augmented_error;
-                        }
-                      }},
-                  FileTags::New(buffer.ptr())));
+              Visit(
+                  FileTags::New(buffer.ptr()),
+                  [](gc::Root<FileTags> file_tags)
+                      -> ValueOrError<gc::Root<FileTags>> { return file_tags; },
+                  [buffer,
+                   answer](Error error) -> ValueOrError<gc::Root<FileTags>> {
+                    if (buffer->contents().snapshot() == LineSequence{}) {
+                      buffer->InsertInPosition(
+                          DefaultReviewLogBufferContents(answer), LineColumn{},
+                          std::nullopt);
+                      DECLARE_OR_RETURN(gc::Root<FileTags> output,
+                                        FileTags::New(buffer.ptr()));
+                      return output;
+                    } else {
+                      Error augmented_error =
+                          AugmentError(buffer->Read(buffer_variables::path) +
+                                           LazyString{L": Unable to parse "
+                                                      L"non-empty file"},
+                                       error);
+                      LOG(INFO) << augmented_error;
+                      return augmented_error;
+                    }
+                  }));
           return buffer->editor().gc_pool().NewRoot(
               MakeNonNullUnique<FlashcardReviewLog>(buffer.ptr(),
                                                     file_tags.ptr()));
@@ -284,24 +281,17 @@ class Flashcard {
                         ValueOrError<gc::Root<FlashcardReviewLog>>
                             input_or_error)
                         -> ValueOrError<gc::Ptr<FlashcardReviewLog>> {
-                      return std::visit(
-                          overload{
-                              [](Error error) {
-                                return ValueOrError<
-                                    gc::Ptr<FlashcardReviewLog>>(error);
-                              },
-                              [&](gc::Root<FlashcardReviewLog> input) {
-                                protected_object_metadata->lock(
-                                    [&input](
-                                        std::vector<NonNull<std::shared_ptr<
-                                            gc::ObjectMetadata>>>&
-                                            object_metadata) {
-                                      object_metadata.push_back(
-                                          input.ptr().object_metadata());
-                                    });
-                                return Success(input.ptr());
-                              }},
-                          std::move(input_or_error));
+                      DECLARE_OR_RETURN(gc::Root<FlashcardReviewLog> input,
+                                        std::move(input_or_error));
+                      protected_object_metadata->lock(
+                          [&input](
+                              std::vector<
+                                  NonNull<std::shared_ptr<gc::ObjectMetadata>>>&
+                                  object_metadata) {
+                            object_metadata.push_back(
+                                input.ptr().object_metadata());
+                          });
+                      return Success(input.ptr());
                     })),
         card_front_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
                                            CardType::kFront)),
