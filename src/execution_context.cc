@@ -81,25 +81,23 @@ Error RegisterCompilationError(std::weak_ptr<Status> weak_status,
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateFile(
     infrastructure::Path path) {
-  return std::visit(
-      overload{[environment = environment_.ToRoot(), work_queue = work_queue_,
-                path](gc::Root<vm::Expression> expression) {
-                 LOG(INFO) << "Evaluating file: " << path;
-                 return Evaluate(
-                     expression.ptr(), environment.ptr(),
-                     [path, work_queue](OnceOnlyFunction<void()> resume) {
-                       LOG(INFO) << "Evaluation of file yields: " << path;
-                       work_queue->Schedule(
-                           WorkQueue::Callback{.callback = std::move(resume)});
-                     });
-               },
-               [weak_status = status_, path](
-                   Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
-                 return RegisterCompilationError(weak_status,
-                                                 ToLazyString(path), error,
-                                                 ErrorHandling::LogToStatus);
-               }},
-      vm::CompileFile(path, environment_));
+  return Visit(
+      vm::CompileFile(path, environment_),
+      [environment = environment_.ToRoot(), work_queue = work_queue_,
+       path](gc::Root<vm::Expression> expression) {
+        LOG(INFO) << "Evaluating file: " << path;
+        return Evaluate(expression.ptr(), environment.ptr(),
+                        [path, work_queue](OnceOnlyFunction<void()> resume) {
+                          LOG(INFO) << "Evaluation of file yields: " << path;
+                          work_queue->Schedule(WorkQueue::Callback{
+                              .callback = std::move(resume)});
+                        });
+      },
+      [weak_status = status_,
+       path](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
+        return RegisterCompilationError(weak_status, ToLazyString(path), error,
+                                        ErrorHandling::LogToStatus);
+      });
 }
 
 ExecutionContext::CompilationResult::CompilationResult(
@@ -143,16 +141,17 @@ ExecutionContext::CompilationResult::Expand() const {
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
     LazyString code, ErrorHandling on_compilation_error) {
   VLOG(9) << "Evaluate string: " << code;
-  return std::visit(
-      overload{[](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
-                 // No need to handle error; `CompileString` already does it.
-                 return error;
-               },
-               [&](gc::Root<ExecutionContext::CompilationResult> result) {
-                 LOG(INFO) << "Code compiled, evaluating.";
-                 return result->evaluate();
-               }},
-      CompileString(std::move(code), on_compilation_error));
+  return Visit(
+      CompileString(std::move(code), on_compilation_error),
+      [&](gc::Root<ExecutionContext::CompilationResult> result)
+          -> futures::ValueOrError<gc::Root<vm::Value>> {
+        LOG(INFO) << "Code compiled, evaluating.";
+        return result->evaluate();
+      },
+      // No need to handle error; `CompileString` already does it.
+      [](Error error) -> futures::ValueOrError<gc::Root<vm::Value>> {
+        return error;
+      });
 }
 
 ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
@@ -224,20 +223,19 @@ ExecutionContext::HandleCompilationResultOrError(
     gc::Root<vm::Environment> sub_environment,
     ValueOrError<gc::Root<vm::Expression>> expression,
     ErrorHandling error_handling) {
-  return std::visit(
-      overload{
-          [sub_environment,
-           work_queue = work_queue()](gc::Root<vm::Expression> expression_value)
-              -> ValueOrError<gc::Root<CompilationResult>> {
-            return CompilationResult::New(std::move(expression_value).ptr(),
-                                          sub_environment.ptr(), work_queue);
-          },
-          [weak_status = status_, error_handling](
-              Error error) -> ValueOrError<gc::Root<CompilationResult>> {
-            return RegisterCompilationError(weak_status,
-                                            LazyString{L"🐜Compilation error"},
-                                            error, error_handling);
-          }},
-      expression);
+  return Visit(
+      expression,
+      [sub_environment,
+       work_queue = work_queue()](gc::Root<vm::Expression> expression_value)
+          -> ValueOrError<gc::Root<CompilationResult>> {
+        return CompilationResult::New(std::move(expression_value).ptr(),
+                                      sub_environment.ptr(), work_queue);
+      },
+      [weak_status = status_, error_handling](
+          Error error) -> ValueOrError<gc::Root<CompilationResult>> {
+        return RegisterCompilationError(weak_status,
+                                        LazyString{L"🐜Compilation error"},
+                                        error, error_handling);
+      });
 }
 }  // namespace afc::editor

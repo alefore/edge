@@ -15,6 +15,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::Success;
+using afc::language::ValueOrDie;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::futures {
@@ -155,7 +156,7 @@ const bool futures_on_error_tests_registration = tests::Register(
                 .SetConsumer([&](language::ValueOrError<int> result) {
                   value = result;
                 });
-            CHECK_EQ(std::get<int>(value.value()), 27);
+            CHECK_EQ(ValueOrDie(value.value()), 27);
           }},
      {.name = L"SkippedOnSuccess", .callback = [] {
         OnError(futures::ValueOrError<int>{12},

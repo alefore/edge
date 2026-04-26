@@ -292,15 +292,14 @@ gc::Root<Environment> BuildEditorEnvironment(
                       });
                 })
                 .Transform([output, &pool](EmptyValue) {
-                  return std::visit(
-                      overload{
-                          [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
-                            return error;
-                          },
-                          [&pool](EmptyValue) {
-                            return Success(vm::Value::NewVoid(pool));
-                          }},
-                      output.value());
+                  return Visit(
+                      output.value(),
+                      [&pool](EmptyValue) -> ValueOrError<gc::Root<vm::Value>> {
+                        return vm::Value::NewVoid(pool);
+                      },
+                      [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
+                        return error;
+                      });
                 });
           })
           .ptr());

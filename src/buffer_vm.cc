@@ -319,28 +319,19 @@ void DefineSortLinesByKey(
                                return ICC::kStop;
                              });
                        })
-                .Transform([data, boundaries](EmptyValue) {
-                  return std::visit(
-                      overload{
-                          [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
-                            return error;
-                          },
-                          [data, boundaries](
-                              EmptyValue) -> ValueOrError<gc::Root<vm::Value>> {
-                            data->buffer->SortContents(
-                                boundaries.first, boundaries.second,
-                                [data](const Line& a, const Line& b) {
-                                  auto it_a =
-                                      data->keys.find(a.contents().read());
-                                  auto it_b =
-                                      data->keys.find(b.contents().read());
-                                  CHECK(it_a != data->keys.end());
-                                  CHECK(it_b != data->keys.end());
-                                  return it_a->second < it_b->second;
-                                });
-                            return vm::Value::NewVoid(data->trampoline.pool());
-                          }},
-                      data->possible_error);
+                .Transform([data, boundaries](EmptyValue)
+                               -> ValueOrError<gc::Root<vm::Value>> {
+                  RETURN_IF_ERROR(data->possible_error);
+                  data->buffer->SortContents(
+                      boundaries.first, boundaries.second,
+                      [data](const Line& a, const Line& b) {
+                        auto it_a = data->keys.find(a.contents().read());
+                        auto it_b = data->keys.find(b.contents().read());
+                        CHECK(it_a != data->keys.end());
+                        CHECK(it_b != data->keys.end());
+                        return it_a->second < it_b->second;
+                      });
+                  return vm::Value::NewVoid(data->trampoline.pool());
                 });
           })
           .ptr());

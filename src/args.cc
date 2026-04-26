@@ -51,10 +51,8 @@ static std::vector<Path> GetEdgeConfigPath(const Path& home) {
     std::istringstream text_stream(std::string(env) + ";");
     std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
-    while (std::getline(text_stream, dir, ';')) {
-      std::visit(overload{IgnoreErrors{}, push},
-                 Path::New(LazyString{FromByteString(dir)}));
-    }
+    while (std::getline(text_stream, dir, ';'))
+      VisitValue(Path::New(LazyString{FromByteString(dir)}), push);
   }
   return output;
 }
@@ -136,12 +134,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Accept(L"path", L"Path to the pipe in which to run the server")
           .Set(&CommandLineValues::server_path,
                [](LazyString input) -> ValueOrError<std::optional<Path>> {
-                 // TODO(2026-04-25, P3, trivial): This expression can probably
-                 // be simplified. The body of this whole lambda.
-                 if (input.empty()) return Success(std::optional<Path>());
-                 ValueOrError<Path> output = Path::New(input);
-                 if (IsError(output)) return GetError(output);
-                 return Success(OptionalFrom(output));
+                 if (input.empty()) return std::nullopt;
+                 DECLARE_OR_RETURN(Path output, Path::New(input));
+                 return std::make_optional(output);
                })
           .Set(&CommandLineValues::server, true),
 

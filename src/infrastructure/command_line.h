@@ -205,15 +205,14 @@ class Handler {
   Handler<ParsedValues>& Set(Type Class::* field, Callable callback) {
     return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value())
-        std::visit(
-            language::overload{
-                [data](language::Error error) {
-                  std::cerr << data->output.binary_name << ": "
-                            << data->current_flag << ": " << error << std::endl;
-                  exit(EX_USAGE);
-                },
-                [&](Type value) { (data->output.*field) = std::move(value); }},
-            callback(data->current_value.value()));
+        Visit(
+            callback(data->current_value.value()),
+            [&](Type value) { (data->output.*field) = std::move(value); },
+            [data](language::Error error) {
+              std::cerr << data->output.binary_name << ": "
+                        << data->current_flag << ": " << error << std::endl;
+              exit(EX_USAGE);
+            });
     });
   }
 

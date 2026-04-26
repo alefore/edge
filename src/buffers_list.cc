@@ -113,27 +113,25 @@ ValueOrError<LineBuilder> GetOutputComponents(
                         : path_full.read().Substring(
                               ColumnNumber{}, columns - separator_size)));
       if (output_items.empty())
-        std::visit(
-            overload{
-                [&](Error) {
-                  Add(LineSequence::BreakLines(path.read()).FoldLines(),
-                      modifiers);
-                },
-                [&](const PathComponent& path_without_extension) {
-                  if (std::optional<LazyString> extension = path.extension();
-                      extension.has_value()) {
-                    Add(LineSequence::BreakLines(path_without_extension.read())
-                            .FoldLines(),
-                        bold);
-                    Add(SingleLine::Char<L'.'>(), dim);
-                    Add(LineSequence::BreakLines(extension.value()).FoldLines(),
-                        bold);
-                  } else {
-                    Add(LineSequence::BreakLines(path.read()).FoldLines(),
-                        modifiers);
-                  }
-                }},
-            path.remove_extension());
+        Visit(
+            path.remove_extension(),
+            [&](const PathComponent& path_without_extension) {
+              if (std::optional<LazyString> extension = path.extension();
+                  extension.has_value()) {
+                Add(LineSequence::BreakLines(path_without_extension.read())
+                        .FoldLines(),
+                    bold);
+                Add(SingleLine::Char<L'.'>(), dim);
+                Add(LineSequence::BreakLines(extension.value()).FoldLines(),
+                    bold);
+              } else {
+                Add(LineSequence::BreakLines(path.read()).FoldLines(),
+                    modifiers);
+              }
+            },
+            [&](Error) {
+              Add(LineSequence::BreakLines(path.read()).FoldLines(), modifiers);
+            });
       else if (columns > ColumnNumberDelta(1)) {
         Add(LineSequence::BreakLines(path.read()).FoldLines(), modifiers);
         Add(path == path_full ? SingleLine::Char<L'/'>()
@@ -370,28 +368,26 @@ std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
 
 std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::vector<std::wstring> input) {
-  return container::MaterializeVector(
-      RemoveCommonPrefixes(container::MaterializeVector(
-          input | std::views::transform([](const std::wstring& c) {
-            return std::visit(
-                overload{[](Error) { return std::list<PathComponent>(); },
-                         [](Path path) {
-                           return ValueOrDie(path.DirectorySplit(),
-                                             L"RemoveCommonPrefixesForTesting");
-                         }},
-                Path::New(LazyString{c}));
-          }))) |
-      std::views::transform([](std::list<PathComponent> components) {
-        return components.empty()
-                   ? L""
-                   : container::Fold(
-                         [](PathComponent c, std::optional<Path> p) {
-                           return p.has_value() ? Path::Join(*p, c) : c;
-                         },
-                         std::optional<Path>(), components)
-                         ->read()
-                         .ToString();
-      }));
+  return RemoveCommonPrefixes(
+             input | std::views::transform([](const std::wstring& c) {
+               DECLARE_OR_RETURN_OTHER(Path path, Path::New(LazyString{c}),
+                                       std::list<PathComponent>{});
+               return ValueOrDie(path.DirectorySplit(),
+                                 L"RemoveCommonPrefixesForTesting");
+             }) |
+             std::ranges::to<std::vector>()) |
+         std::views::transform([](std::list<PathComponent> components) {
+           return components.empty()
+                      ? L""
+                      : container::Fold(
+                            [](PathComponent c, std::optional<Path> p) {
+                              return p.has_value() ? Path::Join(*p, c) : c;
+                            },
+                            std::optional<Path>(), components)
+                            ->read()
+                            .ToString();
+         }) |
+         std::ranges::to<std::vector>();
 }
 
 const bool remove_common_prefixes_tests_registration =
@@ -498,25 +494,25 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   }
 
   LineBuilder output;
-  std::visit(overload{[&](Error) {
-                        SingleLine output_name = buffer_name;
-                        if (output_name.size() > ColumnNumberDelta(2) &&
-                            output_name.get(ColumnNumber(0)) == L'$' &&
-                            output_name.get(ColumnNumber(1)) == L' ') {
-                          output_name = TrimLeft(
-                              std::move(output_name).Substring(ColumnNumber(1)),
-                              {L' '});
-                        }
-                        output.AppendString(std::move(output_name)
-                                                .SubstringWithRangeChecks(
-                                                    ColumnNumber(0), columns),
-                                            modifiers);
-                        CHECK_LE(output.size(), columns);
-                      },
-                      [&output](LineBuilder processed_components) {
-                        output.Append(std::move(processed_components));
-                      }},
-             GetOutputComponents(components, columns, modifiers, bold, dim));
+  Visit(
+      GetOutputComponents(components, columns, modifiers, bold, dim),
+      [&output](LineBuilder processed_components) {
+        output.Append(std::move(processed_components));
+      },
+      [&](Error) {
+        SingleLine output_name = buffer_name;
+        if (output_name.size() > ColumnNumberDelta(2) &&
+            output_name.get(ColumnNumber(0)) == L'$' &&
+            output_name.get(ColumnNumber(1)) == L' ') {
+          output_name = TrimLeft(
+              std::move(output_name).Substring(ColumnNumber(1)), {L' '});
+        }
+        output.AppendString(
+            std::move(output_name)
+                .SubstringWithRangeChecks(ColumnNumber(0), columns),
+            modifiers);
+        CHECK_LE(output.size(), columns);
+      });
 
   if (columns > output.EndColumn().ToDelta())
     output.Append(GetBufferContents(

@@ -21,6 +21,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::Visit;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::ToLazyString;
@@ -189,25 +190,22 @@ ValueOrError<gc::Root<Expression>> NewDefineExpression(
                 ToLazyString(symbol) + LazyString{L"`."}});
     }
   }
-  return std::visit(
-      overload{
-          [&](Type final_type) -> RootExpressionOrError {
-            if (!value->SupportsType(final_type))
-              return compilation.AddError(Error{
-                  LazyString{
-                      L"Unable to assign a value to a variable of type "} +
-                  ToQuotedSingleLine(final_type) +
-                  LazyString{L". Value types: "} +
-                  TypesToString(value->Types()) + LazyString{L"."}});
-            return AssignExpression::New(
-                AssignExpression::AssignmentType::kDefine, std::move(symbol),
-                PurityType{.writes_local_variables = true}, std::move(value));
-          },
-          [&](Error error) -> RootExpressionOrError {
-            return compilation.AddError(error);
-          }},
+  return Visit(
       DefineUninitializedVariable(compilation.environment.value(), type, symbol,
-                                  default_type));
+                                  default_type),
+      [&](Type final_type) -> RootExpressionOrError {
+        if (!value->SupportsType(final_type))
+          return compilation.AddError(Error{
+              LazyString{L"Unable to assign a value to a variable of type "} +
+              ToQuotedSingleLine(final_type) + LazyString{L". Value types: "} +
+              TypesToString(value->Types()) + LazyString{L"."}});
+        return AssignExpression::New(
+            AssignExpression::AssignmentType::kDefine, std::move(symbol),
+            PurityType{.writes_local_variables = true}, std::move(value));
+      },
+      [&](Error error) -> RootExpressionOrError {
+        return compilation.AddError(error);
+      });
 }
 
 ValueOrError<gc::Root<Expression>> NewAssignExpression(

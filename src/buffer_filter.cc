@@ -106,21 +106,15 @@ std::multimap<Identifier, EscapedString> GetSyntheticFeatures(
   VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == HistoryIdentifierName()) {
-      std::visit(
-          overload{
-              IgnoreErrors{},
-              [&](const Path& path) {
-                std::visit(overload{IgnoreErrors{},
-                                    [&](Path directory) {
-                                      if (directory != Path::LocalDirectory())
-                                        directories.insert(directory);
-                                    }},
-                           path.Dirname());
-                VisitOptional(
-                    [&](LazyString extension) { extensions.insert(extension); },
-                    [] {}, path.extension());
-              }},
-          Path::New(value.OriginalString()));
+      VisitValue(Path::New(value.OriginalString()), [&](const Path& path) {
+        VisitValue(path.Dirname(), [&](Path directory) {
+          if (directory != Path::LocalDirectory())
+            directories.insert(directory);
+        });
+        VisitOptional(
+            [&](LazyString extension) { extensions.insert(extension); }, [] {},
+            path.extension());
+      });
     }
   }
 
@@ -338,12 +332,13 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
     if (line.empty()) return !input.abort_value.has_value();
     ValueOrError<std::multimap<Identifier, EscapedString>> line_keys_or_error =
         ParseBufferLine(line);
-    auto* line_keys = std::get_if<0>(&line_keys_or_error);
-    if (line_keys == nullptr) {
+    if (IsError(line_keys_or_error)) {
       output.errors.push_back(GetError(line_keys_or_error));
       return !input.abort_value.has_value();
     }
-    auto range = line_keys->equal_range(HistoryIdentifierValue());
+    std::multimap<Identifier, EscapedString> line_keys =
+        ValueOrDie(std::move(line_keys_or_error));
+    auto range = line_keys.equal_range(HistoryIdentifierValue());
     int value_count = std::distance(range.first, range.second);
     if (warn_if(value_count == 0,
                 Error{LazyString{L"Line is missing `value` section"}}) ||
@@ -373,7 +368,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
       return !input.abort_value.has_value();
     }
     math::naive_bayes::FeaturesSet current_features;
-    for (auto& [key, value] : *line_keys)
+    for (auto& [key, value] : line_keys)
       if (key != HistoryIdentifierValue())
         current_features.insert(math::naive_bayes::Feature(
             ToLazyString(key) + LazyString{L":"} +

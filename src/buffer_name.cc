@@ -22,11 +22,11 @@ using ::operator<<;
 
 namespace {
 NonEmptySingleLine VisualizePath(const Path& path) {
-  return std::visit(
-      overload{[](NonEmptySingleLine output) { return output; },
-               [](Error) { return NON_EMPTY_SINGLE_LINE_CONSTANT(L"-"); }},
+  return Visit(
       NonEmptySingleLine::New(
-          EscapedString::FromString(path.read()).EscapedRepresentation()));
+          EscapedString::FromString(path.read()).EscapedRepresentation()),
+      [](NonEmptySingleLine output) { return output; },
+      [](Error) { return NON_EMPTY_SINGLE_LINE_CONSTANT(L"-"); });
 }
 }  // namespace
 

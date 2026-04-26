@@ -140,16 +140,11 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
           Path::New(ToLazyString(str.Substring(start, pos - start)))));
 
   if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
-      compilation.current_source_path().has_value()) {
-    std::visit(
-        overload{
-            IgnoreErrors{},
-            [&](Path source_directory) {
-              path = Path::Join(source_directory, path);
-            },
-        },
-        compilation.current_source_path()->Dirname());
-  }
+      compilation.current_source_path().has_value())
+    VisitValue(compilation.current_source_path()->Dirname(),
+               [&](Path source_directory) {
+                 path = Path::Join(source_directory, path);
+               });
 
   CompileFile(path, compilation, parser);
   *pos_output = pos.next();

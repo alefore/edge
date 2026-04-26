@@ -32,8 +32,10 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
+using afc::language::HasValue;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -196,10 +198,10 @@ std::set<Range> MergeSections(std::set<Range> input) {
   std::set<Range> output;
   for (auto& section : input) {
     if (!output.empty()) {
-      if (auto result = output.rbegin()->Union(section);
-          std::holds_alternative<Range>(result)) {
+      if (ValueOrError<Range> result = output.rbegin()->Union(section);
+          HasValue(result)) {
         output.erase(--output.end());
-        output.insert(std::get<Range>(result));
+        output.insert(ValueOrDie(std::move(result)));
         continue;
       }
     }

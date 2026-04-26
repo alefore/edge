@@ -58,33 +58,32 @@ struct BackgroundReadDirOutput {
 ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
                                               std::wregex noise_regex) {
   TRACK_OPERATION(GenerateDirectoryListing_ReadDir);
-  return std::visit(
-      overload{
-          [&](NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>> dir) {
-            BackgroundReadDirOutput output;
-            struct dirent* entry;
-            while ((entry = readdir(dir.get().get())) != nullptr) {
-              if (strcmp(entry->d_name, ".") == 0) {
-                continue;  // Showing the link to itself is rather pointless.
-              }
+  return Visit(
+      OpenDir(path),
+      [&](NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>> dir) {
+        BackgroundReadDirOutput output;
+        struct dirent* entry;
+        while ((entry = readdir(dir.get().get())) != nullptr) {
+          if (strcmp(entry->d_name, ".") == 0) {
+            continue;  // Showing the link to itself is rather pointless.
+          }
 
-              auto name = FromByteString(entry->d_name);
-              if (std::regex_match(name, noise_regex)) {
-                output.noise.push_back(*entry);
-                continue;
-              }
+          auto name = FromByteString(entry->d_name);
+          if (std::regex_match(name, noise_regex)) {
+            output.noise.push_back(*entry);
+            continue;
+          }
 
-              if (entry->d_type == DT_DIR) {
-                output.directories.push_back(*entry);
-                continue;
-              }
+          if (entry->d_type == DT_DIR) {
+            output.directories.push_back(*entry);
+            continue;
+          }
 
-              output.regular_files.push_back(*entry);
-            }
-            return output;
-          },
-          [](Error) { return BackgroundReadDirOutput{}; }},
-      OpenDir(path));
+          output.regular_files.push_back(*entry);
+        }
+        return output;
+      },
+      [](Error) { return BackgroundReadDirOutput{}; });
 }
 
 void StartDeleteFile(EditorState& editor_state, vm::EscapedString path) {

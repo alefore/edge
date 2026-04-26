@@ -98,20 +98,17 @@ Path::Path(PathComponent path_component) : Path(path_component.read()) {}
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
   // TODO: Also support ~user/foo.
   if (!StartsWith(ToLazyString(path), LazyString{L"~"})) return path;
-  return std::visit(
-      overload{[&](Error) { return path; },
-               [&](std::list<PathComponent> components) {
-                 if (components.empty() ||
-                     components.front() != PathComponent::FromString(L"~"))
-                   return path;
-                 components.pop_front();
-                 return container::Fold(
-                     [](PathComponent c, Path output) {
-                       return Path::Join(std::move(output), std::move(c));
-                     },
-                     home_directory, std::move(components));
-               }},
-      path.DirectorySplit());
+  DECLARE_OR_RETURN_OTHER(std::list<PathComponent> components,
+                          path.DirectorySplit(), path);
+  if (components.empty() ||
+      components.front() != PathComponent::FromString(L"~"))
+    return path;
+  components.pop_front();
+  return container::Fold(
+      [](PathComponent c, Path output) {
+        return Path::Join(std::move(output), std::move(c));
+      },
+      home_directory, std::move(components));
 }
 
 /* static */ Path Path::WithExtension(const Path& path,
@@ -139,12 +136,8 @@ ValueOrError<PathComponent> Path::Basename() const {
 }
 
 std::optional<LazyString> Path::extension() const {
-  return std::visit(
-      overload{[](Error) { return std::optional<LazyString>(); },
-               [](PathComponent component) {
-                 return std::optional<LazyString>(component.extension());
-               }},
-      Basename());
+  DECLARE_OR_RETURN_OTHER(PathComponent component, Basename(), std::nullopt);
+  return component.extension();
 }
 
 ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
@@ -235,24 +228,24 @@ ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> OpenDir(
 
 Path GetHomeDirectory() {
   if (char* env = getenv("HOME"); env != nullptr) {
-    return std::visit(overload{[&](Error error) {
-                                 LOG(FATAL) << "Invalid home directory (from "
-                                               "`HOME` environment variable): "
-                                            << error << ": " << env;
-                                 return Path::Root();
-                               },
-                               [](Path path) { return path; }},
-                      Path::New(LazyString{FromByteString(env)}));
+    return Visit(
+        Path::New(LazyString{FromByteString(env)}),
+        [](Path path) { return path; },
+        [&](Error error) {
+          LOG(FATAL) << "Invalid home directory (from "
+                        "`HOME` environment variable): "
+                     << error << ": " << env;
+          return Path::Root();
+        });
   }
   if (struct passwd* entry = getpwuid(getuid()); entry != nullptr) {
-    return std::visit(
-        overload{[&](Error error) {
-                   LOG(FATAL)
-                       << "Invalid home directory (from `getpwuid`): " << error;
-                   return Path::Root();
-                 },
-                 [](Path path) { return path; }},
-        Path::New(LazyString{FromByteString(entry->pw_dir)}));
+    return Visit(
+        Path::New(LazyString{FromByteString(entry->pw_dir)}),
+        [](Path path) { return path; },
+        [&](Error error) {
+          LOG(FATAL) << "Invalid home directory (from `getpwuid`): " << error;
+          return Path::Root();
+        });
   }
   return Path::Root();  // What else?
 }

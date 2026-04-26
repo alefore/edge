@@ -283,7 +283,7 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     return Value::NewVoid(pool);
   } else if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
     if constexpr (language::IsValueOrError<typename ft::ReturnType>::value) {
-      using SuccessType = std::decay<decltype(std::get<0>(
+      using SuccessType = std::decay<decltype(ValueOrDie(
           std::declval<typename ft::ReturnType>()))>::type;
       return std::visit(
           language::overload{

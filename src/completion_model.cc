@@ -99,27 +99,23 @@ std::optional<DictionaryValue> FindCompletionInModel(
   if (line_it == contents.lines().end()) return std::nullopt;
 
   VLOG(5) << "Check: " << compressed_text << " against: " << *line_it;
-  return std::visit(
-      overload{
-          [&](const ParsedLine& parsed_line) -> std::optional<DictionaryValue> {
-            if (compressed_text != parsed_line.key) {
-              VLOG(5) << "No match: [" << compressed_text << "] != ["
-                      << parsed_line.key << "]";
-              return std::nullopt;
-            }
+  DECLARE_OR_RETURN_OTHER(const ParsedLine& parsed_line, Parse(*line_it),
+                          std::nullopt);
+  if (compressed_text != parsed_line.key) {
+    VLOG(5) << "No match: [" << compressed_text << "] != [" << parsed_line.key
+            << "]";
+    return std::nullopt;
+  }
 
-            if (compressed_text.read().read() == parsed_line.value.read()) {
-              VLOG(4) << "Found a match, but the line has compressed text "
-                         "identical to parsed text, so we'll skip it.";
-              return std::nullopt;
-            }
+  if (compressed_text.read().read() == parsed_line.value.read()) {
+    VLOG(4) << "Found a match, but the line has compressed text "
+               "identical to parsed text, so we'll skip it.";
+    return std::nullopt;
+  }
 
-            VLOG(2) << "Found compression: " << parsed_line.key << " -> "
-                    << parsed_line.value;
-            return parsed_line.value;
-          },
-          [](Error) { return std::optional<DictionaryValue>(); }},
-      Parse(*line_it));
+  VLOG(2) << "Found compression: " << parsed_line.key << " -> "
+          << parsed_line.value;
+  return parsed_line.value;
 }
 
 const bool find_completion_tests_registration = tests::Register(
