@@ -135,6 +135,7 @@ ExecutionContext::CompilationResult::evaluate() const {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 ExecutionContext::CompilationResult::Expand() const {
+  LOG(INFO) << "ExecutionContext Expand";
   return {expression_.object_metadata(), environment_.object_metadata()};
 }
 

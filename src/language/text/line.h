@@ -13,7 +13,6 @@
 #include "src/futures/listenable_value.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/language/cached_supplier.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -125,8 +124,8 @@ class Line {
 
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
-    CachedSupplier<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
-        CachedSupplier<ValueOrError<vm::EscapedMap>>{[] {
+    LazyValue<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
+        LazyValue<ValueOrError<vm::EscapedMap>>{[] {
           return MakeUnexpected(
               Error{lazy_string::LazyString{L"No escaped map supplier."}});
         }};

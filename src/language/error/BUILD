@@ -7,7 +7,7 @@ cc_library(
 )
 
 cc_library(
-    name = "value_or_error",
+    name = "base",
     hdrs = ["base.h"],
     visibility = ["//visibility:public"],
 )

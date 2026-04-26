@@ -24,11 +24,7 @@ class LazyValue {
   explicit LazyValue(Factory factory)
       : data_(MakeNonNullShared<
               concurrent::Protected<std::variant<Value, Factory>>>(
-            std::move(factory))) {
-    data_->lock([](const std::variant<Value, Factory>& data) {
-      CHECK(std::get_if<Factory>(&data) != nullptr);
-    });
-  }
+            std::move(factory))) {}
   LazyValue(const LazyValue&) = default;
   LazyValue(LazyValue&&) = default;
   LazyValue& operator=(const LazyValue&) = default;
@@ -39,7 +35,9 @@ class LazyValue {
     // change (once it gets a value).
     return *data_->lock([](std::variant<Value, Factory>& data) -> const Value* {
       if (Factory* factory = std::get_if<Factory>(&data); factory != nullptr)
-        data = std::move(*factory)();
+        data = std::invoke(std::move(*factory));
+      // Why take the address if we'll just de-ref it? Because the compiler gets
+      // confused and warns us about returning a reference to a temporary value.
       return &std::get<Value>(data);
     });
   }

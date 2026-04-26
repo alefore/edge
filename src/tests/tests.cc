@@ -275,6 +275,10 @@ void Run(std::vector<std::wstring> tests_filter) {
 
       CHECK(!execution_results[info.group_name].contains(info.test_name));
       execution_results[info.group_name][info.test_name] = wait_status;
+
+      if (!WIFEXITED(wait_status) || WEXITSTATUS(wait_status) != 0)
+        std::cerr << "Fail: " << info.full_name() << std::endl;
+
       running_tests.erase(completed_pid);  // Clean up from tracking maps
     }
   }

@@ -159,7 +159,6 @@ src/insert_history_buffer.h \
 src/insert_mode.cc \
 src/key_commands_map.cc \
 src/key_commands_map.h \
-src/language/cached_supplier.h \
 src/language/container.h \
 src/language/const_tree_tests.cc \
 src/language/const_tree.h \

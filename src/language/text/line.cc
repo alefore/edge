@@ -122,7 +122,7 @@ std::optional<OutgoingLink> Line::outgoing_link() const {
 }
 
 const ValueOrError<vm::EscapedMap>& Line::escaped_map() const {
-  return data_->escaped_map_supplier();
+  return data_->escaped_map_supplier.get();
 }
 
 Line::Line(NonNull<std::shared_ptr<const Line::Data>> data)

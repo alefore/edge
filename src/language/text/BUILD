@@ -40,7 +40,6 @@ cc_library(
         "//src/futures:listenable_value",
         "//src/infrastructure:dirname",
         "//src/infrastructure/screen:line_modifier",
-        "//src/language:cached_supplier",
         "//src/language:lazy_value",
         "//src/language:observers",
         "//src/language:safe_types",

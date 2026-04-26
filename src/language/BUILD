@@ -88,16 +88,6 @@ cc_library(
 )
 
 cc_library(
-    name = "cached_supplier",
-    hdrs = ["cached_supplier.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":once_only_function",
-        "//src/concurrent:protected",
-    ],
-)
-
-cc_library(
     name = "gc_expanders",
     hdrs = ["gc_expanders.h"],
     visibility = ["//visibility:public"],
@@ -191,6 +181,9 @@ cc_library(
     name = "ghost_type_class",
     hdrs = ["ghost_type_class.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//src/language/error:base",
+    ],
 )
 
 cc_library(

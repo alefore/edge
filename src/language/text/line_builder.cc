@@ -165,8 +165,8 @@ LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 
 Line LineBuilder::Build() && {
-  data_.escaped_map_supplier = MakeCachedSupplier(
-      std::bind_front(vm::EscapedMap::Parse, data_.contents));
+  data_.escaped_map_supplier =
+      MakeLazyValue(std::bind_front(vm::EscapedMap::Parse, data_.contents));
   return Line(MakeNonNullShared<const Line::Data>(std::move(data_)));
 }
 
