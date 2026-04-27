@@ -136,8 +136,6 @@ ExecutionContext::CompilationResult::evaluate() const {
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 ExecutionContext::CompilationResult::Expand() const {
   LOG(INFO) << "ExecutionContext Expand";
-  // TODO(2026-04-27, P0): Make this thread safe (probably by making things
-  // const?).
   return {expression_.object_metadata(), environment_.object_metadata()};
 }
 

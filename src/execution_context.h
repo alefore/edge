@@ -32,9 +32,9 @@ class ExecutionContext {
   class CompilationResult {
     struct ConstructorAccessTag {};
 
-    language::gc::Ptr<vm::Expression> expression_;
-    language::gc::Ptr<vm::Environment> environment_;
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
+    const language::gc::Ptr<vm::Expression> expression_;
+    const language::gc::Ptr<vm::Environment> environment_;
+    const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
    public:
     CompilationResult(
