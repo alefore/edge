@@ -49,10 +49,16 @@ using afc::vm::Type;
 
 namespace afc::editor {
 namespace {
+struct FileEntry {
+  LazyString name;
+  SingleLine file_type_description;
+  LineModifierSet file_type_modifiers;
+};
+
 struct BackgroundReadDirOutput {
-  std::vector<dirent> directories;
-  std::vector<dirent> regular_files;
-  std::vector<dirent> noise;
+  std::vector<FileEntry> directories;
+  std::vector<FileEntry> regular_files;
+  std::vector<FileEntry> noise;
 };
 
 ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
@@ -68,18 +74,47 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
             continue;  // Showing the link to itself is rather pointless.
           }
 
-          auto name = FromByteString(entry->d_name);
+          struct FileType {
+            SingleLine description;
+            LineModifierSet modifiers;
+          };
+          static const std::unordered_map<int, FileType> types = {
+              {DT_BLK,
+               FileType{.description = SingleLine{LazyString{L" (block dev)"}},
+                        .modifiers = {LineModifier::kGreen}}},
+              {DT_CHR,
+               FileType{.description = SingleLine{LazyString{L" (char dev)"}},
+                        .modifiers = {LineModifier::kRed}}},
+              {DT_DIR, FileType{.description = SingleLine{LazyString{L"/"}},
+                                .modifiers = {LineModifier::kCyan}}},
+              {DT_FIFO,
+               FileType{.description = SingleLine{LazyString{L" (named pipe)"}},
+                        .modifiers = {LineModifier::kBlue}}},
+              {DT_LNK, FileType{.description = SingleLine{LazyString{L"@"}},
+                                .modifiers = {LineModifier::kItalic}}},
+              {DT_REG, FileType{.description = SingleLine{LazyString{L""}},
+                                .modifiers = {}}},
+              {DT_SOCK,
+               FileType{.description = SingleLine{LazyString{L" (unix sock)"}},
+                        .modifiers = {LineModifier::kMagenta}}}};
+          FileType file_type = GetValueOrDefault(types, entry->d_type,
+                                                 GetValueOrDie(types, DT_REG));
+
+          std::wstring name = FromByteString(entry->d_name);
+          FileEntry file_entry{.name = name,
+                               .file_type_description = file_type.description,
+                               .file_type_modifiers = file_type.modifiers};
           if (std::regex_match(name, noise_regex)) {
-            output.noise.push_back(*entry);
+            output.noise.push_back(file_entry);
             continue;
           }
 
           if (entry->d_type == DT_DIR) {
-            output.directories.push_back(*entry);
+            output.directories.push_back(file_entry);
             continue;
           }
 
-          output.regular_files.push_back(*entry);
+          output.regular_files.push_back(file_entry);
         }
         return output;
       },
@@ -138,40 +173,16 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
 }
 #endif
 
-Line ShowLine(EditorState& editor, const dirent& entry) {
+Line ShowLine(EditorState& editor, const FileEntry& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
-  struct FileType {
-    SingleLine description;
-    LineModifierSet modifiers;
-  };
-  static const std::unordered_map<int, FileType> types = {
-      {DT_BLK, FileType{.description = SingleLine{LazyString{L" (block dev)"}},
-                        .modifiers = {LineModifier::kGreen}}},
-      {DT_CHR, FileType{.description = SingleLine{LazyString{L" (char dev)"}},
-                        .modifiers = {LineModifier::kRed}}},
-      {DT_DIR, FileType{.description = SingleLine{LazyString{L"/"}},
-                        .modifiers = {LineModifier::kCyan}}},
-      {DT_FIFO,
-       FileType{.description = SingleLine{LazyString{L" (named pipe)"}},
-                .modifiers = {LineModifier::kBlue}}},
-      {DT_LNK, FileType{.description = SingleLine{LazyString{L"@"}},
-                        .modifiers = {LineModifier::kItalic}}},
-      {DT_REG,
-       FileType{.description = SingleLine{LazyString{L""}}, .modifiers = {}}},
-      {DT_SOCK, FileType{.description = SingleLine{LazyString{L" (unix sock)"}},
-                         .modifiers = {LineModifier::kMagenta}}}};
+  vm::EscapedString path = vm::EscapedString::FromString(entry.name);
 
-  vm::EscapedString path =
-      vm::EscapedString::FromString(LazyString{FromByteString(entry.d_name)});
+  LineBuilder line_options{path.EscapedRepresentation() +
+                           entry.file_type_description};
 
-  FileType type =
-      GetValueOrDefault(types, entry.d_type, GetValueOrDie(types, DT_REG));
-
-  LineBuilder line_options{path.EscapedRepresentation() + type.description};
-
-  if (!type.modifiers.empty())
-    line_options.set_modifiers(ColumnNumber(0), type.modifiers);
+  if (!entry.file_type_modifiers.empty())
+    line_options.set_modifiers(ColumnNumber(0), entry.file_type_modifiers);
 
   // See note about why GetMetadata is disabled (above).
   // line_options.SetMetadata(GetMetadata(target, path));
@@ -182,12 +193,11 @@ Line ShowLine(EditorState& editor, const dirent& entry) {
 }
 
 LineSequence ShowFiles(EditorState& editor, LazyString name,
-                       std::vector<dirent> entries) {
+                       std::vector<FileEntry> entries) {
   if (entries.empty()) return LineSequence();
-  std::sort(entries.begin(), entries.end(),
-            [](const dirent& a, const dirent& b) {
-              return strcmp(a.d_name, b.d_name) < 0;
-            });
+  std::sort(
+      entries.begin(), entries.end(),
+      [](const FileEntry& a, const FileEntry& b) { return a.name < b.name; });
 
   MutableLineSequence output = MutableLineSequence::WithLine(LineBuilder{
       SingleLine{LazyString{L"## "}} + SingleLine{name} +
