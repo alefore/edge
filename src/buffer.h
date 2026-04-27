@@ -230,7 +230,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   language::text::LineNumberDelta lines_size() const;
   language::text::LineNumber EndLine() const;
 
-  InputReceiver& mode() const;
+  language::gc::Root<InputReceiver> mode() const;
+  InputReceiver::CursorMode mode_cursor_mode() const;
   language::gc::Root<InputReceiver> ResetMode();
 
   language::gc::Ptr<MapModeCommands> default_commands();
@@ -580,6 +581,14 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   const language::NonNull<std::unique_ptr<transformation::Input::Adapter>>
       transformation_adapter_;
 
+  // Contains mutable data, used to protect access.
+  //
+  // TODO(2026-04-27, P1): Move all non-const fields in here.
+  struct MutableData {
+    language::gc::Ptr<InputReceiver> mode;
+  };
+  concurrent::Protected<MutableData> data_;
+
   language::NonNull<std::unique_ptr<Log>> log_ = NewNullLog();
 
   std::unique_ptr<FileDescriptorReader> fd_;
@@ -655,7 +664,6 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   size_t tree_depth_ = 0;
 
   const language::gc::Ptr<MapModeCommands> default_commands_;
-  language::gc::Ptr<InputReceiver> mode_;
 
   // The time when the buffer was last selected as active.
   struct timespec last_visit_ = {};

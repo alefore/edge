@@ -321,9 +321,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             screen_line, buffer.Read(buffer_variables::atomic_lines),
             buffer.Read(buffer_variables::multiple_cursors), buffer.position(),
             (editor_keyboard_redirect.has_value()
-                 ? editor_keyboard_redirect->ptr().value()
-                 : buffer.mode())
-                .cursor_mode(),
+                 ? editor_keyboard_redirect.value()->cursor_mode()
+                 : buffer.mode_cursor_mode()),
             buffer.Read(buffer_variables::flow_mode) &&
                     line != buffer.position().line
                 ? std::optional<LineModifier>(LineModifier::kDim)

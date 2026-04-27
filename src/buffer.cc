@@ -378,6 +378,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
+      data_(MutableData{.mode = std::move(mode)}),
       close_consumer_(std::move(close_future.consumer)),
       close_listenable_future_(std::move(close_future.value)),
       contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
@@ -385,7 +386,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
               {contents_observer_,
                cursors_tracker_.NewMutableLineSequenceObserver()}))),
       default_commands_(std::move(default_commands)),
-      mode_(std::move(mode)),
       status_(std::move(status)),
       file_adapter_(
           MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
@@ -1200,12 +1200,21 @@ LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
 
 LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
 
-InputReceiver& OpenBuffer::mode() const { return mode_.value(); }
+gc::Root<InputReceiver> OpenBuffer::mode() const {
+  return data_.lock([](const auto& data) { return data.mode.ToRoot(); });
+}
+
+InputReceiver::CursorMode OpenBuffer::mode_cursor_mode() const {
+  return data_.lock([](const auto& data) { return data.mode->cursor_mode(); });
+}
 
 gc::Root<InputReceiver> OpenBuffer::ResetMode() {
-  gc::Root<InputReceiver> copy = mode_.ToRoot();
-  mode_ = MapMode::New(editor().gc_pool(), default_commands_).ptr();
-  return copy;
+  return data_.lock([&](MutableData& data) {
+    return std::exchange(
+               data.mode,
+               MapMode::New(editor().gc_pool(), default_commands_).ptr())
+        .ToRoot();
+  });
 }
 
 gc::Ptr<MapModeCommands> OpenBuffer::default_commands() {
@@ -2596,12 +2605,15 @@ void OpenBuffer::set_filter(gc::Root<Value> filter) {
   filter_version_++;
 }
 
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-OpenBuffer::Expand() const {
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> OpenBuffer::Expand()
+    const {
   LOG(INFO) << "Buffer::Expand: " << name();
-  // TODO(2026-04-27, P0): Make this thread-safe. mode_ is non-const.
-  return {default_commands_.object_metadata(), mode_.object_metadata(),
-          execution_context_.object_metadata()};
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output = {
+      default_commands_.object_metadata(),
+      execution_context_.object_metadata()};
+  data_.lock(
+      [&output](auto& data) { output.push_back(data.mode.object_metadata()); });
+  return output;
 }
 
 const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&
