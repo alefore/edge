@@ -107,7 +107,7 @@ class StackFrameLookup : public Expression {
     TRACK_OPERATION(vm_StackFrameLookup_Evaluate);
     CHECK(type == type_);
     return EvaluationOutput::New(
-        trampoline.stack().current_frame().get(index_).ToRoot());
+        trampoline.stack().get_from_current_frame(index_));
   }
 
   std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()

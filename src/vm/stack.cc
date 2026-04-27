@@ -51,21 +51,31 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> StackFrame::Expand()
 
 Stack::Stack(ConstructorAccessTag) {}
 
-StackFrame& Stack::current_frame() {
-  CHECK(!stack_.empty());
-  return stack_.back().value();
+gc::Root<Value> Stack::get_from_current_frame(size_t index) const {
+  return stack_.lock([&](const auto& stack) {
+    CHECK(!stack.empty());
+    return stack.back()->get(index).ToRoot();
+  });
+}
+
+void Stack::set_in_current_frame(size_t index, gc::Ptr<Value> value) {
+  stack_.lock([index, value = std::move(value)](auto& stack) {
+    CHECK(!stack.empty());
+    stack.back()->get(index) = std::move(value);
+  });
 }
 
 void Stack::Push(gc::Ptr<StackFrame> frame) {
-  stack_.push_back(std::move(frame));
+  stack_.lock([&](auto& stack) { stack.push_back(std::move(frame)); });
 }
 
-void Stack::Pop() { stack_.pop_back(); }
+void Stack::Pop() {
+  stack_.lock([](auto& stack) { stack.pop_back(); });
+}
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Stack::Expand()
     const {
-  // TODO(P0, 2026-04-27): Ugh, make this thread-safe.
-  return gc::Expand(stack_);
+  return stack_.lock([](const auto& stack) { return gc::Expand(stack); });
 }
 
 }  // namespace afc::vm

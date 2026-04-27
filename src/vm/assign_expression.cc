@@ -137,8 +137,8 @@ class StackFrameAssign : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return Success(std::move(value_output));
             case EvaluationOutput::OutputType::kContinue:
-              trampoline.stack().current_frame().get(index) =
-                  value_output.value.ptr();
+              trampoline.stack().set_in_current_frame(index,
+                                                      value_output.value.ptr());
               return Success(
                   EvaluationOutput::New(std::move(value_output.value)));
           }

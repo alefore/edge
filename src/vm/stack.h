@@ -45,14 +45,16 @@ class StackFrame {
 class Stack {
   struct ConstructorAccessTag {};
 
-  std::vector<language::gc::Ptr<StackFrame>> stack_;
+  concurrent::Protected<std::vector<language::gc::Ptr<StackFrame>>> stack_;
 
  public:
   static language::gc::Root<Stack> New(language::gc::Pool& pool);
 
   Stack(ConstructorAccessTag);
 
-  StackFrame& current_frame();
+  language::gc::Root<Value> get_from_current_frame(size_t index) const;
+  void set_in_current_frame(size_t index, language::gc::Ptr<Value> value);
+
   void Push(language::gc::Ptr<StackFrame> frame);
   void Pop();
 
