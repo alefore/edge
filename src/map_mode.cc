@@ -43,7 +43,7 @@ namespace afc::editor {
 namespace {
 template <typename Callback>
 class CommandFromFunction : public Command {
-  gc::Ptr<Callback> callback_;
+  const gc::Ptr<Callback> callback_;
   const LazyString description_;
 
  public:
@@ -168,6 +168,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 MapModeCommands::Expand() const {
   LOG(INFO) << "MapModeCommands Expand";
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+  // TODO(2026-04-27, P0): Make this thread-safe.
+  // TODO(2026-04-27, P2, trivial): Use std::ranges::to<std::vector>();
   for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
     std::ranges::copy(frame->commands | gc::ExpandMapPtrValues,
                       std::back_inserter(output));

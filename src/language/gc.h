@@ -422,9 +422,10 @@ class Ptr {
     Protect();
   }
 
+  // TODO(P1, 2026-04-27): Enable std::move. This causes some tests to fail.
   Ptr(Ptr&& other)
-      : value_(std::move(other.value_)),
-        object_metadata_(std::move(other.object_metadata_)) {
+      : value_(/* std::move */ (other.value_)),
+        object_metadata_(/* std::move */ (other.object_metadata_)) {
     Protect();
   }
 
@@ -443,10 +444,11 @@ class Ptr {
     return *this;
   }
 
+  // TODO(P1, 2026-04-27): Enable std::move. This causes some tests to fail.
   template <typename U>
   Ptr<T>& operator=(Ptr<U>&& other) {
-    value_ = std::move(other.value_);
-    object_metadata_ = std::move(other.object_metadata_);
+    value_ = /* std::move */ (other.value_);
+    object_metadata_ = /* std::move */ (other.object_metadata_);
     Protect();
     return *this;
   }

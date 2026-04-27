@@ -41,6 +41,7 @@ gc::Ptr<Value>& StackFrame::get(size_t index) { return arguments_[index]; }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> StackFrame::Expand()
     const {
+  // TODO(P0, 2026-04-27): Ugh, make this thread-safe.
   return gc::Expand(arguments_);
 }
 
@@ -63,6 +64,7 @@ void Stack::Pop() { stack_.pop_back(); }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Stack::Expand()
     const {
+  // TODO(P0, 2026-04-27): Ugh, make this thread-safe.
   return gc::Expand(stack_);
 }
 

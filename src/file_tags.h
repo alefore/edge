@@ -17,7 +17,7 @@ namespace afc::editor {
 class FileTags {
   struct ConstructorAccessKey {};
 
-  language::gc::Ptr<OpenBuffer> buffer_;
+  const language::gc::Ptr<OpenBuffer> buffer_;
 
   language::text::LineNumber start_line_;
   language::text::LineNumber end_line_;

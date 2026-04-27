@@ -323,6 +323,8 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
     TRACK_OPERATION(gc_Pool_ConsumeEden_expansion_schedule);
     data.expansion_schedule.Add(std::move(eden.expansion_schedule.value()));
   }
+
+  VLOG(4) << "GC: Finished consuming eden.";
 }
 
 bool Pool::Eden::IsEmpty() const {
@@ -402,7 +404,9 @@ void Pool::Expand(const Operation& parallel_operation,
                       object_data.expand_state =
                           ObjectMetadata::ExpandState::kDone;
                       TRACK_OPERATION(gc_Pool_Expand_Step_call);
-                      return object_data.expand_callback();
+                      auto values = object_data.expand_callback();
+                      for (auto& v : values) CHECK(v.get_shared() != nullptr);
+                      return values;
                     }
                     case ObjectMetadata::ExpandState::kUnreached:
                       LOG(FATAL) << "Invalid state.";

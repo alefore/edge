@@ -48,6 +48,12 @@ class CommandArgumentMode : public EditorMode {
         apply = nullptr;
   };
 
+ private:
+  const Options options_;
+  const std::vector<language::gc::Ptr<OpenBuffer>> buffers_;
+  std::wstring argument_string_;
+
+ public:
   CommandArgumentMode(Options options)
       : options_(options),
         buffers_(afc::language::container::MaterializeVector(
@@ -121,10 +127,6 @@ class CommandArgumentMode : public EditorMode {
         options_.status_factory(argument));
     return options_.apply(apply_mode, std::move(argument));
   }
-
-  const Options options_;
-  const std::vector<language::gc::Ptr<OpenBuffer>> buffers_;
-  std::wstring argument_string_;
 };
 
 // Sets parameter `undo` and `apply`. All other parameters must already have

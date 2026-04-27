@@ -92,6 +92,7 @@ std::optional<infrastructure::Path> Compilation::current_source_path() const {
 
 std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 Compilation::Expand() const {
+  // TODO(2026-04-27, P0): Make this thread-safe?
   return {environment.object_metadata()};
 }
 

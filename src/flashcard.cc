@@ -160,6 +160,8 @@ class FlashcardReviewLog {
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    // TODO(2026-04-27, P0): Make this thread-safe, probably by marking the
+    // fields const.
     return {review_buffer_.object_metadata(), file_tags_.object_metadata()};
   }
 
@@ -216,7 +218,7 @@ class Flashcard {
   // object_metadata_ for that purpose. Otherwise, if Expand checked directly on
   // the LazyValue instances, there would be a race (the root is already
   // deleted, but the LazyValue doesn't yet return its Ptr).
-  NonNull<std::shared_ptr<
+  const NonNull<std::shared_ptr<
       Protected<std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>>>>
       object_metadata_;
 

@@ -71,6 +71,7 @@ class Environment {
     std::map<Identifier, language::gc::Ptr<Environment>> namespaces;
   };
 
+  // TODO(2026-04-27, P0): Move to `Data` to make this thread-safe?
   std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
 
   language::gc::Pool& pool_;

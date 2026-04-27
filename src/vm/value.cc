@@ -181,6 +181,7 @@ ValueOrError<double> Value::ToDouble() const {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 Value::Expand() const {
+  // TODO(P0, 2026-04-27): Ugh, make this thread-safe.
   return expand_callback_ == nullptr
              ? std::vector<language::NonNull<
                    std::shared_ptr<language::gc::ObjectMetadata>>>()

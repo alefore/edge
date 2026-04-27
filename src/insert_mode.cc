@@ -277,6 +277,8 @@ const bool new_line_transformation_tests_registration =
     }());
 
 class InsertEmptyLineTransformation : public CompositeTransformation {
+  Direction direction_;
+
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
@@ -290,12 +292,11 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
     output.Push(transformation::SetPosition(input.position));
     return output;
   }
-
- private:
-  Direction direction_;
 };
 
 class FindCompletionCommand : public Command {
+  EditorState& editor_state_;
+
  public:
   FindCompletionCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
@@ -318,9 +319,6 @@ class FindCompletionCommand : public Command {
   Expand() const override {
     return {};
   }
-
- private:
-  EditorState& editor_state_;
 };
 
 NonNull<std::unique_ptr<MutableLineSequence,

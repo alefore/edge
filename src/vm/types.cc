@@ -283,6 +283,7 @@ SingleLine ToQuotedSingleLine(const Type& type) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
+  // TODO(P0, 2026-04-27): Make thread safe?
   return fields_ | ExpandMapPtrValues | std::ranges::to<std::vector>();
 }
 

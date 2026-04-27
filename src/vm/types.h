@@ -161,7 +161,9 @@ class ObjectType {
   Expand() const;
 
  private:
+  // TODO(P0, 2026-04-27): Make const?
   Type type_;
+  // TODO(P0, 2026-04-27): Wrap with Protected?
   std::multimap<Identifier, language::gc::Ptr<Value>> fields_;
 };
 
