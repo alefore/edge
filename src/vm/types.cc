@@ -283,8 +283,9 @@ SingleLine ToQuotedSingleLine(const Type& type) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
-  // TODO(P0, 2026-04-27): Make thread safe?
-  return fields_ | ExpandMapPtrValues | std::ranges::to<std::vector>();
+  return fields_.lock([](const auto& fields) {
+    return fields | ExpandMapPtrValues | std::ranges::to<std::vector>();
+  });
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {
@@ -303,25 +304,48 @@ SingleLine ToQuotedSingleLine(const ObjectType& object) {
 ObjectType::ObjectType(const Type& type, ConstructorAccessKey) : type_(type) {}
 
 void ObjectType::AddField(const Identifier& name, gc::Ptr<Value> field) {
-  fields_.insert({name, std::move(field)});
+  fields_.lock([&](auto& fields) { fields.insert({name, std::move(field)}); });
 }
 
 std::vector<gc::Root<Value>> ObjectType::LookupField(
     const Identifier& name) const {
-  auto range = fields_.equal_range(name);
-  return container::MaterializeVector(
-      std::ranges::subrange(range.first, range.second) |
-      std::views::transform([](const auto& p) { return p.second.ToRoot(); }));
+  return fields_.lock([&](auto& fields) {
+    auto range = fields.equal_range(name);
+    return std::ranges::subrange(range.first, range.second) |
+           std::views::transform(
+               [](const auto& p) { return p.second.ToRoot(); }) |
+           std::ranges::to<std::vector>();
+  });
 }
 
 void ObjectType::ForEachField(
     std::function<void(const Identifier&, Value&)> callback) {
-  for (auto& it : fields_) callback(it.first, it.second.value());
+  std::ranges::for_each(
+      fields_.lock([](const auto& fields)
+                       -> std::vector<std::pair<Identifier, gc::Root<Value>>> {
+        return fields | std::views::transform([](auto& data) {
+                 return std::make_pair(data.first, data.second.ToRoot());
+               }) |
+               std::ranges::to<std::vector>();
+      }),
+      [&](std::pair<Identifier, gc::Root<Value>> data) {
+        callback(data.first, data.second.value());
+      });
 }
 
 void ObjectType::ForEachField(
     std::function<void(const Identifier&, const Value&)> callback) const {
-  for (const auto& it : fields_) callback(it.first, it.second.value());
+  std::ranges::for_each(
+      fields_.lock([](const auto& fields)
+                       -> std::vector<std::pair<Identifier, gc::Root<Value>>> {
+        return fields | std::views::transform([](auto& data) {
+                 return std::make_pair(data.first, data.second.ToRoot());
+               }) |
+               std::ranges::to<std::vector>();
+      }),
+      [&](std::pair<Identifier, gc::Root<Value>> data) {
+        callback(data.first, data.second.value());
+      });
 }
 
 }  // namespace afc::vm

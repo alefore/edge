@@ -136,7 +136,10 @@ std::ostream& operator<<(std::ostream& os, const Type& value);
 class Value;
 
 class ObjectType {
- private:
+  const Type type_;
+  concurrent::Protected<std::multimap<Identifier, language::gc::Ptr<Value>>>
+      fields_;
+
   struct ConstructorAccessKey {};
 
  public:
@@ -159,11 +162,6 @@ class ObjectType {
   std::vector<afc::language::NonNull<
       std::shared_ptr<afc::language::gc::ObjectMetadata>>>
   Expand() const;
-
- private:
-  const Type type_;
-  // TODO(P0, 2026-04-27): Wrap with Protected?
-  std::multimap<Identifier, language::gc::Ptr<Value>> fields_;
 };
 
 language::lazy_string::SingleLine ToSingleLine(const ObjectType&);
