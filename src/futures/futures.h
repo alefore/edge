@@ -145,7 +145,7 @@ class Value {
             typename = std::enable_if_t<std::is_constructible_v<Type, U> &&
                                         !is_future<std::decay_t<U>>::value>>
   Value(U&& early_value) {
-    data_->Feed(std::move(early_value));
+    data_->Feed(std::forward<U>(early_value));
   }
 
   using Consumer = language::OnceOnlyFunction<void(Type)>;
