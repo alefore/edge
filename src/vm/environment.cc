@@ -122,9 +122,13 @@ std::optional<gc::Ptr<Environment>> Environment::parent_environment() const {
 
 const ObjectType* Environment::LookupObjectType(
     const types::ObjectName& name) const {
-  if (auto it = object_types_.find(name); it != object_types_.end()) {
-    return &it->second.value();
-  }
+  if (std::optional<gc::Ptr<ObjectType>> output =
+          data_.lock([&name](const Data& data) {
+            return GetValueOrNullOpt(data.object_types, name);
+          });
+      output != std::nullopt)
+    return &output.value().value();
+
   if (parent_environment_.has_value()) {
     return (*parent_environment_)->LookupObjectType(name);
   }
@@ -217,7 +221,10 @@ Environment::Environment(ConstructorAccessTag,
 }
 
 void Environment::DefineType(gc::Ptr<ObjectType> value) {
-  object_types_.insert_or_assign(NameForType(value->type()), std::move(value));
+  data_.lock([&value](Data& data) {
+    data.object_types.insert_or_assign(NameForType(value->type()),
+                                       std::move(value));
+  });
 }
 
 std::optional<Environment::LookupResult> Environment::Lookup(
@@ -357,10 +364,17 @@ void Environment::ForEachType(
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEachType(callback);
   }
-  for (const std::pair<const types::ObjectName, gc::Ptr<ObjectType>>& entry :
-       object_types_) {
-    callback(entry.first, entry.second.value());
-  }
+  // We make a copy rather than run the callback with the lock held.
+  std::ranges::for_each(
+      data_.lock([](Data& data) {
+        return data.object_types | std::views::transform([](const auto& entry) {
+                 return std::make_pair(entry.first, entry.second.ToRoot());
+               }) |
+               std::ranges::to<std::vector>();
+      }),
+      [&callback](std::pair<types::ObjectName, gc::Root<ObjectType>> entry) {
+        callback(entry.first, entry.second.value());
+      });
 }
 
 void Environment::ForEach(
@@ -424,10 +438,10 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Environment::Expand()
                       std::back_inserter(output));
     std::ranges::copy(data.table | gc::ExpandMapPtrValues,
                       std::back_inserter(output));
+    std::ranges::copy(data.object_types | gc::ExpandMapPtrValues,
+                      std::back_inserter(output));
   });
 
-  std::ranges::copy(object_types_ | gc::ExpandMapPtrValues,
-                    std::back_inserter(output));
   return output;
 }
 
