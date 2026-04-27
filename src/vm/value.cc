@@ -23,7 +23,14 @@ size_t constexpr kDefaultPrecision = 5ul;
 namespace afc::vm {
 
 Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant)
-    : type_(type), value_(std::move(value_variant)) {}
+    : Value(ConstructorAccessTag{}, type, std::move(value_variant),
+            ExpandCallback{}) {}
+
+Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant,
+             ExpandCallback expand_callback)
+    : type_(type),
+      value_(std::move(value_variant)),
+      expand_callback_(std::move(expand_callback)) {}
 
 /* static */ gc::Root<Value> Value::NewVoid(gc::Pool& pool) {
   return pool.NewRoot(MakeNonNullUnique<Value>(ConstructorAccessTag(),
@@ -55,11 +62,9 @@ Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant)
 /* static */ gc::Root<Value> Value::NewObject(
     gc::Pool& pool, types::ObjectName name,
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
-  gc::Root<Value> output = pool.NewRoot(
-      MakeNonNullUnique<Value>(ConstructorAccessTag(), std::move(name),
-                               ObjectInstance{.value = std::move(value)}));
-  output.ptr()->expand_callback_ = std::move(expand_callback);
-  return output;
+  return pool.NewRoot(MakeNonNullUnique<Value>(
+      ConstructorAccessTag(), std::move(name),
+      ObjectInstance{.value = std::move(value)}, std::move(expand_callback)));
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
@@ -67,14 +72,12 @@ Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant)
     std::vector<Type> type_inputs, Value::Callback callback,
     ExpandCallback expand_callback) {
   CHECK(callback != nullptr);
-  gc::Root<Value> output = pool.NewRoot(
-      MakeNonNullUnique<Value>(ConstructorAccessTag(),
-                               types::Function{.output = std::move(type_output),
-                                               .inputs = std::move(type_inputs),
-                                               .function_purity = purity_type},
-                               std::move(callback)));
-  output.ptr()->expand_callback_ = std::move(expand_callback);
-  return output;
+  return pool.NewRoot(MakeNonNullUnique<Value>(
+      ConstructorAccessTag(),
+      types::Function{.output = std::move(type_output),
+                      .inputs = std::move(type_inputs),
+                      .function_purity = purity_type},
+      std::move(callback), std::move(expand_callback)));
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
@@ -181,7 +184,6 @@ ValueOrError<double> Value::ToDouble() const {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 Value::Expand() const {
-  // TODO(P0, 2026-04-27): Ugh, make this thread-safe.
   return expand_callback_ == nullptr
              ? std::vector<language::NonNull<
                    std::shared_ptr<language::gc::ObjectMetadata>>>()

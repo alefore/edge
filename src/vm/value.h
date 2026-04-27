@@ -42,11 +42,14 @@ class Value {
 
   ValueVariant value_;
 
-  ExpandCallback expand_callback_;
+  const ExpandCallback expand_callback_;
 
  public:
   explicit Value(ConstructorAccessTag, const Type& type,
                  ValueVariant value_variant);
+
+  explicit Value(ConstructorAccessTag, const Type& type,
+                 ValueVariant value_variant, ExpandCallback expand_callback);
 
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
