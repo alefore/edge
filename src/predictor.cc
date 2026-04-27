@@ -278,9 +278,10 @@ const bool precomputed_predictor_tests_registration =
             L'_');
         return output;
       };
-      auto predict = [&](std::wstring input) {
+      auto predict = [test_predictor](std::wstring input) {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
+        LOG(INFO) << "Generating output.";
         PredictorOutput output =
             test_predictor()(
                 PredictorInput{
@@ -293,6 +294,7 @@ const bool precomputed_predictor_tests_registration =
                             [](ProgressInformation) {})})
                 .Get()
                 .value();
+        LOG(INFO) << "Getting lines.";
         LineSequence lines = output.contents.read().lines();
         LOG(INFO) << "Contents: " << lines.ToString();
         return lines.ToString();
