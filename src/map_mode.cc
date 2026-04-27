@@ -167,13 +167,13 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 MapModeCommands::Expand() const {
   LOG(INFO) << "MapModeCommands Expand";
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   // TODO(2026-04-27, P0): Make this thread-safe.
-  // TODO(2026-04-27, P2, trivial): Use std::ranges::to<std::vector>();
-  for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
-    std::ranges::copy(frame->commands | gc::ExpandMapPtrValues,
-                      std::back_inserter(output));
-  return output;
+  return frames_ |
+         std::views::transform(
+             [](const NonNull<std::shared_ptr<Frame>>& frame) {
+               return frame->commands | gc::ExpandMapPtrValues;
+             }) |
+         std::views::join | std::ranges::to<std::vector>();
 }
 
 language::gc::Root<MapMode> MapMode::New(
