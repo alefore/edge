@@ -176,6 +176,12 @@ class TestsHelper {
 
   gc::Root<OpenBuffer> buffer_ = [this] {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
+    // We set `is_prompt` simply to not trigger `OpenBufferForCurrentPosition`
+    // calls. We want those calls not to trigger because we don't currently have
+    // a way to wait for those calls to finish, so this results in memory leaks
+    // warnings for the test.
+    buffer_root->Set(buffer_variables::is_prompt, true);
+
     buffer_root->AppendToLastLine(SINGLE_LINE_CONSTANT(L"foobarhey"));
     buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  foxbarnowl")});
     buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  aaaaa ")});
