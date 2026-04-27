@@ -34,3 +34,16 @@ build --copt=-Werror=unused-but-set-variable
 
 # Set preprocessor definition
 build --copt=-DDOCDIR='"$(docdir)"'
+
+# -- Address Sanitizer Setup ---
+build:asan --copt=-fsanitize=address
+build:asan --copt=-fno-omit-frame-pointer
+build:asan --linkopt=-fsanitize=address
+
+# -- Thread Sanitizer Setup ---
+build:tsan --copt=-fsanitize=thread
+build:tsan --linkopt=-fsanitize=thread
+
+# Ensure debug symbols are included in these configs
+build:asan --strip=never
+build:tsan --strip=never
