@@ -299,7 +299,8 @@ const bool precomputed_predictor_tests_registration =
         LOG(INFO) << "Contents: " << lines.ToString();
         return lines.ToString();
       };
-      auto test_predict = [&](std::wstring input,
+      auto test_predict = [test_predictor](
+                              std::wstring input,
                               std::function<void(PredictResults)> callback) {
         NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests(std::nullopt);
