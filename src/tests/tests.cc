@@ -234,6 +234,7 @@ void Run(std::vector<std::wstring> tests_filter) {
   size_t next_test_to_launch_index = 0;
 
   Time last_update = Now();
+  std::optional<std::wstring> last_name_shown;
 
   while (next_test_to_launch_index < tests_to_schedule.size() ||
          !running_tests.empty()) {
@@ -249,16 +250,15 @@ void Run(std::vector<std::wstring> tests_filter) {
     }
 
     if (!running_tests.empty()) {
-      // TODO(2026-04-23, P2, easy): Also produce an update if the example that
-      // was previously shown has completed. In other words, the example shown
-      // should always be accurate.
-      if (Time now = Now(); SecondsBetween(last_update, now) >= 1.0) {
-        TestInfoToSchedule info = running_tests.begin()->second;
+      TestInfoToSchedule info_first = running_tests.begin()->second;
+      if (Time now = Now(); last_name_shown != info_first.full_name() ||
+                            SecondsBetween(last_update, now) >= 1.0) {
         std::cerr << "[" << next_test_to_launch_index - running_tests.size()
                   << " / " << tests_to_schedule.size()
                   << "] Running: " << running_tests.size() << " ("
-                  << info.full_name() << ")" << std::endl;
+                  << info_first.full_name() << ")" << std::endl;
         last_update = now;
+        last_name_shown = info_first.full_name();
       }
       LOG(INFO) << "Waiting for a test to complete.";
 
