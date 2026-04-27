@@ -253,12 +253,12 @@ void Run(std::vector<std::wstring> tests_filter) {
       TestInfoToSchedule info_first = running_tests.begin()->second;
       if (Time now = Now(); last_name_shown != info_first.full_name() ||
                             SecondsBetween(last_update, now) >= 1.0) {
+        last_name_shown = info_first.full_name();
         std::cerr << "[" << next_test_to_launch_index - running_tests.size()
                   << " / " << tests_to_schedule.size()
                   << "] Running: " << running_tests.size() << " ("
-                  << info_first.full_name() << ")" << std::endl;
+                  << last_name_shown.value() << ")" << std::endl;
         last_update = now;
-        last_name_shown = info_first.full_name();
       }
       LOG(INFO) << "Waiting for a test to complete.";
 
