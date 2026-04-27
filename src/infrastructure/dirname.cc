@@ -169,10 +169,10 @@ Path::RootType Path::GetRootType() const {
 }
 
 ValueOrError<AbsolutePath> Path::Resolve() const {
-  char* result = realpath(ToBytes().c_str(), nullptr);
-  return result == nullptr
-             ? Error{LazyString{FromByteString(strerror(errno))}}
-             : AbsolutePath::FromString(LazyString{FromByteString(result)});
+  char* raw_result = realpath(ToBytes().c_str(), nullptr);
+  if (raw_result == nullptr) return Error{FromByteString(strerror(errno))};
+  std::unique_ptr<char, void (*)(void*)> result(raw_result, std::free);
+  return AbsolutePath::FromString(FromByteString(result.get()));
 }
 
 PossibleError PathValidator::Validate(const LazyString& path) {
