@@ -75,9 +75,10 @@ class Bag {
 
   template <class Predicate>
   void remove_if(const Operation& operation, Predicate predicate) {
-    ForEachShard(operation, [&predicate](std::list<T>& s) {
-      language::EraseIf(s, predicate);
-    });
+    ForEachShard(operation,
+                 [predicate = std::move(predicate)](std::list<T>& s) {
+                   language::EraseIf(s, predicate);
+                 });
   }
 
   template <typename Callable>
