@@ -16,17 +16,17 @@ void LineProcessorMap::Add(LineProcessorKey key, Callback callback) {
       });
 }
 
-std::map<LineProcessorKey, LineProcessorOutputFuture> LineProcessorMap::Process(
-    LineProcessorInput input) const {
+std::map<LineProcessorKey, LineProcessorOutputFutureVariant>
+LineProcessorMap::Process(LineProcessorInput input) const {
   TRACK_OPERATION(LineProcessorMap_Process);
   return callbacks_.lock([&input](
                              const std::map<LineProcessorKey, Callback>& data) {
     return data |
            std::views::transform(
                [&input](const std::pair<const LineProcessorKey, Callback>& p)
-                   -> ValueOrError<
-                       std::pair<LineProcessorKey, LineProcessorOutputFuture>> {
-                 DECLARE_OR_RETURN(LineProcessorOutputFuture value,
+                   -> ValueOrError<std::pair<
+                       LineProcessorKey, LineProcessorOutputFutureVariant>> {
+                 DECLARE_OR_RETURN(LineProcessorOutputFutureVariant value,
                                    p.second(input));
                  return std::make_pair(p.first, value);
                }) |

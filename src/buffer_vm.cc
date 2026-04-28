@@ -62,8 +62,8 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
 using afc::language::text::LineProcessorKey;
-using afc::language::text::LineProcessorOutput;
 using afc::language::text::LineProcessorOutputFuture;
+using afc::language::text::LineProcessorOutputFutureVariant;
 using afc::language::text::LineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
@@ -780,9 +780,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             buffer->AddLineProcessor(key, [buffer,
                                            callback = std::move(args[2])](
                                               LineProcessorInput input) {
-              return LineProcessorOutputFuture{
-                  .initial_value =
-                      LineProcessorOutput{SINGLE_LINE_CONSTANT(L"…")},
+              return LineProcessorOutputFuture<SingleLine>{
+                  .initial_value = SINGLE_LINE_CONSTANT(L"…"),
                   .value =
                       buffer
                           ->EvaluateExpression(
@@ -799,14 +798,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                           .Transform([](gc::Root<vm::Value> value) {
                             std::ostringstream oss;
                             oss << value.ptr().value();
-                            return LineProcessorOutput::New(SingleLine::New(
-                                LazyString{FromByteString(oss.str())}));
+                            return SingleLine::New(
+                                LazyString{FromByteString(oss.str())});
                           })
                           .ConsumeErrors([](Error error) {
-                            return LineProcessorOutput{
-                                SINGLE_LINE_CONSTANT(L"E: ") +
-                                LineSequence::BreakLines(error.read())
-                                    .FoldLines()};
+                            return SINGLE_LINE_CONSTANT(L"E: ") +
+                                   LineSequence::BreakLines(error.read())
+                                       .FoldLines();
                           })};
             });
             return vm::Value::NewVoid(pool);

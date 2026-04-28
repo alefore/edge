@@ -19,25 +19,41 @@ class LineProcessorKey
                                  language::lazy_string::SingleLine> {
   using GhostType::GhostType;
 };
+
 class LineProcessorInput
     : public language::GhostType<LineProcessorInput,
                                  language::lazy_string::LazyString> {
   using GhostType::GhostType;
 };
-class LineProcessorOutput
-    : public language::GhostType<LineProcessorOutput,
-                                 language::lazy_string::SingleLine> {
-  using GhostType::GhostType;
+
+struct LogLine {
+  class EntryName
+      : public language::GhostType<EntryName,
+                                   language::lazy_string::NonEmptySingleLine> {
+   public:
+    using GhostType::GhostType;
+  };
+
+  struct EntryValue {
+    std::variant<language::lazy_string::LazyString> value;
+  };
+
+  std::unordered_map<EntryName, EntryValue> values;
 };
 
+template <typename T>
 struct LineProcessorOutputFuture {
-  LineProcessorOutput initial_value;
-  futures::ListenableValue<LineProcessorOutput> value;
+  T initial_value;
+  futures::ListenableValue<T> value;
 };
+
+using LineProcessorOutputFutureVariant =
+    std::variant<LineProcessorOutputFuture<language::lazy_string::SingleLine>,
+                 LineProcessorOutputFuture<LogLine>>;
 
 class LineProcessorMap {
  public:
-  using Callback = std::function<ValueOrError<LineProcessorOutputFuture>(
+  using Callback = std::function<ValueOrError<LineProcessorOutputFutureVariant>(
       LineProcessorInput)>;
 
  private:
@@ -46,7 +62,7 @@ class LineProcessorMap {
  public:
   void Add(LineProcessorKey key, Callback callback);
 
-  std::map<LineProcessorKey, LineProcessorOutputFuture> Process(
+  std::map<LineProcessorKey, LineProcessorOutputFutureVariant> Process(
       LineProcessorInput input) const;
 };
 }  // namespace afc::language::text

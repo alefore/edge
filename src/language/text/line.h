@@ -28,6 +28,8 @@ struct LineMetadataKey
   using GhostType::GhostType;
 };
 
+// TODO(2026-04-28, P1): Move to futures and merge with similar struct in
+// line_processor_map.h.
 struct LineMetadataValue {
   // Prefer reading through `get_value` than directly.
   lazy_string::SingleLine initial_value;

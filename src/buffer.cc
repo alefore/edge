@@ -147,8 +147,8 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
 using afc::language::text::LineProcessorKey;
 using afc::language::text::LineProcessorMap;
-using afc::language::text::LineProcessorOutput;
 using afc::language::text::LineProcessorOutputFuture;
+using afc::language::text::LineProcessorOutputFutureVariant;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
@@ -173,49 +173,47 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
     if (!line.empty() &&
         (!line.metadata().has_value() || line.metadata().get().empty())) {
       LineBuilder line_builder(std::move(line));
-      line_builder.SetMetadata(LazyValue<LineMetadataMap>(
-          [&line_processor_map, contents = line_builder.contents()] {
-            TRACK_OPERATION(OpenBuffer_UpdateLineMetadata_Run);
-            std::map<LineProcessorKey, LineProcessorOutputFuture> output =
-                line_processor_map.Process(LineProcessorInput(contents.read()));
-            LineMetadataMap line_metadata_map;
-            for (const auto& p : output)
-              InsertOrDie(
-                  line_metadata_map,
-                  {LineMetadataKey{p.first.read()},
-                   LineMetadataValue{
-                       .initial_value = p.second.initial_value.read(),
-                       .value =
-                           std::move(p.second.value)
-                               .ToFuture()
-                               .Transform([](LineProcessorOutput output_value) {
-                                 return output_value.read();
-                               })}});
-            return line_metadata_map;
-          }));
+      line_builder.SetMetadata(LazyValue<
+                               LineMetadataMap>([&line_processor_map,
+                                                 contents =
+                                                     line_builder.contents()] {
+        TRACK_OPERATION(OpenBuffer_UpdateLineMetadata_Run);
+        std::map<LineProcessorKey, LineProcessorOutputFutureVariant> output =
+            line_processor_map.Process(LineProcessorInput(contents.read()));
+        LineMetadataMap line_metadata_map;
+        for (const auto& p : output)
+          if (auto* processor_output =
+                  std::get_if<LineProcessorOutputFuture<SingleLine>>(&p.second);
+              processor_output != nullptr)
+            InsertOrDie(
+                line_metadata_map,
+                {LineMetadataKey{p.first.read()},
+                 LineMetadataValue{
+                     .initial_value = processor_output->initial_value.read(),
+                     .value = std::move(processor_output->value).ToFuture()}});
+        return line_metadata_map;
+      }));
       line = std::move(line_builder).Build();
     }
   return lines;
 }
 
-ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
+ValueOrError<LineProcessorOutputFuture<SingleLine>> LineMetadataCompilation(
     OpenBuffer& buffer, const LineProcessorInput& input) {
   TRACK_OPERATION(OpenBuffer_LineMetadataCompilation);
-  static const LineProcessorOutputFuture kEmptyOutput{
-      .initial_value = LineProcessorOutput(SingleLine{}),
-      .value = LineProcessorOutput{SingleLine{}}};
+  static const LineProcessorOutputFuture<SingleLine> kEmptyOutput{
+      .initial_value = SingleLine{}, .value = SingleLine{}};
   DECLARE_OR_RETURN(
       gc::Root<ExecutionContext::CompilationResult> compilation_result,
       buffer.execution_context()->CompileString(
           input.read(), ExecutionContext::ErrorHandling::Ignore));
-  LineProcessorOutputFuture output{
-      .initial_value = LineProcessorOutput(
+  LineProcessorOutputFuture<SingleLine> output{
+      .initial_value =
           SINGLE_LINE_CONSTANT(L"C++: ") +
-          vm::TypesToString(compilation_result->expression()->Types())),
-      .value = futures::Future<LineProcessorOutput>().value};
+          vm::TypesToString(compilation_result->expression()->Types()),
+      .value = futures::Future<SingleLine>().value};
   if (!compilation_result->expression()->purity().writes_external_outputs) {
-    output.initial_value = LineProcessorOutput(output.initial_value.read() +
-                                               SINGLE_LINE_CONSTANT(L" ..."));
+    output.initial_value = output.initial_value + SINGLE_LINE_CONSTANT(L" ...");
     if (compilation_result->expression()->Types() ==
         std::vector<vm::Type>({vm::types::Void{}}))
       return kEmptyOutput;
@@ -223,17 +221,16 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
         [compilation_result =
              std::move(compilation_result)](EmptyValue) mutable {
           return compilation_result->evaluate()
-              .Transform([](gc::Root<vm::Value> value)
-                             -> ValueOrError<LineProcessorOutput> {
-                std::ostringstream oss;
-                oss << value.ptr().value();
-                return LineProcessorOutput::New(
-                    SingleLine::New(LazyString{FromByteString(oss.str())}));
-              })
+              .Transform(
+                  [](gc::Root<vm::Value> value) -> ValueOrError<SingleLine> {
+                    std::ostringstream oss;
+                    oss << value.ptr().value();
+                    return SingleLine::New(
+                        LazyString{FromByteString(oss.str())});
+                  })
               .ConsumeErrors([](Error error) {
-                return LineProcessorOutput(
-                    SINGLE_LINE_CONSTANT(L"E: ") +
-                    LineSequence::BreakLines(error.read()).FoldLines());
+                return SINGLE_LINE_CONSTANT(L"E: ") +
+                       LineSequence::BreakLines(error.read()).FoldLines();
               });
         });
   }
@@ -1312,9 +1309,9 @@ OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
 
 void OpenBuffer::AddLineProcessor(
     language::text::LineProcessorKey key,
-    std::function<
-        language::ValueOrError<language::text::LineProcessorOutputFuture>(
-            language::text::LineProcessorInput)>
+    std::function<language::ValueOrError<
+        language::text::LineProcessorOutputFutureVariant>(
+        language::text::LineProcessorInput)>
         callback) {
   line_processor_map_.Add(key, callback);
 }
