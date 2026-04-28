@@ -265,6 +265,7 @@ cc_binary(
         # "-lao",
     ],
     deps = [
+        ":log_model",
         "//src/concurrent:tests",
         "//src/concurrent:version_property_receiver",
         "//src/futures:serializer",
@@ -310,6 +311,35 @@ cc_binary(
         "//src/vm:file_system",
         "//src/vm:natural",
         "//src/vm:tests",
+    ],
+)
+
+cc_library(
+    name = "log_model",
+    srcs = ["log_model.cc"],
+    hdrs = ["log_model.h"],
+    deps = [
+        "//src/language:ghost_type_class",
+        "//src/language/error:value_or_error",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:single_line",
+    ],
+)
+
+cc_library(
+    name = "log_config_loader",
+    srcs = ["log_config_loader.cc"],
+    hdrs = ["log_config_loader.h"],
+    deps = [
+        ":log_model",
+        "//src/language/error:value_or_error",
+        "//src/language/error:view",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:convert",
+        "//src/language/lazy_string:single_line",
+        "//src/language/lazy_string:trim",
+        "//src/language/text:line",
+        "//src/language/text:line_sequence",
     ],
 )
 

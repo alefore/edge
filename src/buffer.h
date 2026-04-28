@@ -34,6 +34,7 @@
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/line_marks.h"
 #include "src/log.h"
+#include "src/log_model.h"
 #include "src/parse_tree.h"
 #include "src/status.h"
 #include "src/transformation.h"
@@ -586,6 +587,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   // TODO(2026-04-27, P1): Move all non-const fields in here.
   struct MutableData {
     language::gc::Ptr<InputReceiver> mode;
+    LogModel log_model;
   };
   concurrent::Protected<MutableData> data_;
 

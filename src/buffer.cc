@@ -378,7 +378,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
-      data_(MutableData{.mode = std::move(mode)}),
+      data_(MutableData{.mode = std::move(mode),
+                        .log_model = LogModel{.log_types = {}}}),
       close_consumer_(std::move(close_future.consumer)),
       close_listenable_future_(std::move(close_future.value)),
       contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(

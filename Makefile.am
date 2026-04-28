@@ -249,6 +249,10 @@ src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \
 src/log.cc \
 src/log.h \
+src/log_model.cc \
+src/log_model.h \
+src/log_config_loader.cc \
+src/log_config_loader.h \
 src/lru_cache.cc \
 src/lru_cache.h \
 src/map_mode.cc \
