@@ -6,7 +6,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
-#include "src/futures/listenable_value.h"
+#include "src/futures/progressive.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -41,15 +41,9 @@ struct LogLine {
   std::unordered_map<EntryName, EntryValue> values;
 };
 
-template <typename T>
-struct LineProcessorOutputFuture {
-  T initial_value;
-  futures::ListenableValue<T> value;
-};
-
 using LineProcessorOutputFutureVariant =
-    std::variant<LineProcessorOutputFuture<language::lazy_string::SingleLine>,
-                 LineProcessorOutputFuture<LogLine>>;
+    std::variant<futures::Progressive<language::lazy_string::SingleLine>,
+                 futures::Progressive<LogLine>>;
 
 class LineProcessorMap {
  public:

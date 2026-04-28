@@ -61,7 +61,6 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
 using afc::language::text::LineProcessorKey;
-using afc::language::text::LineProcessorOutputFuture;
 using afc::language::text::LineProcessorOutputFutureVariant;
 using afc::language::text::LineSequence;
 using afc::language::text::OutgoingLink;
@@ -779,32 +778,30 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             buffer->AddLineProcessor(key, [buffer,
                                            callback = std::move(args[2])](
                                               LineProcessorInput input) {
-              return LineProcessorOutputFuture<SingleLine>{
-                  .initial_value = SINGLE_LINE_CONSTANT(L"…"),
-                  .value =
-                      buffer
-                          ->EvaluateExpression(
-                              NewFunctionCall(
-                                  NewConstantExpression(callback.ptr()).ptr(),
-                                  {NewConstantExpression(
-                                       vm::Value::NewString(
-                                           buffer->editor().gc_pool(),
-                                           input.read())
-                                           .ptr())
-                                       .ptr()})
-                                  .ptr(),
-                              buffer->environment())
-                          .Transform([](gc::Root<vm::Value> value) {
-                            std::ostringstream oss;
-                            oss << value.ptr().value();
-                            return SingleLine::New(
-                                LazyString{FromByteString(oss.str())});
-                          })
-                          .ConsumeErrors([](Error error) {
-                            return SINGLE_LINE_CONSTANT(L"E: ") +
-                                   LineSequence::BreakLines(error.read())
-                                       .FoldLines();
-                          })};
+              return futures::Progressive(
+                  SINGLE_LINE_CONSTANT(L"…"),
+                  buffer
+                      ->EvaluateExpression(
+                          NewFunctionCall(
+                              NewConstantExpression(callback.ptr()).ptr(),
+                              {NewConstantExpression(
+                                   vm::Value::NewString(
+                                       buffer->editor().gc_pool(), input.read())
+                                       .ptr())
+                                   .ptr()})
+                              .ptr(),
+                          buffer->environment())
+                      .Transform([](gc::Root<vm::Value> value) {
+                        std::ostringstream oss;
+                        oss << value.ptr().value();
+                        return SingleLine::New(
+                            LazyString{FromByteString(oss.str())});
+                      })
+                      .ConsumeErrors([](Error error) {
+                        return SINGLE_LINE_CONSTANT(L"E: ") +
+                               LineSequence::BreakLines(error.read())
+                                   .FoldLines();
+                      }));
             });
             return vm::Value::NewVoid(pool);
           })

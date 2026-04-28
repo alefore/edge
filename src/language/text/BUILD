@@ -136,7 +136,7 @@ cc_library(
     deps = [
         "//src/concurrent:protected",
         "//src/futures",
-        "//src/futures:listenable_value",
+        "//src/futures:progressive",
         "//src/language/error:view",
         "//src/language/lazy_string:single_line",
     ],

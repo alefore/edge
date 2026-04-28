@@ -146,7 +146,6 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
 using afc::language::text::LineProcessorKey;
 using afc::language::text::LineProcessorMap;
-using afc::language::text::LineProcessorOutputFuture;
 using afc::language::text::LineProcessorOutputFutureVariant;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
@@ -181,15 +180,10 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
             LineMetadataMap line_metadata_map;
             for (const auto& p : output)
               if (auto* processor_output =
-                      std::get_if<LineProcessorOutputFuture<SingleLine>>(
-                          &p.second);
+                      std::get_if<futures::Progressive<SingleLine>>(&p.second);
                   processor_output != nullptr)
-                InsertOrDie(
-                    line_metadata_map,
-                    {LineMetadataKey{p.first.read()},
-                     futures::Progressive<SingleLine>(
-                         processor_output->initial_value.read(),
-                         std::move(processor_output->value).ToFuture())});
+                InsertOrDie(line_metadata_map, {LineMetadataKey{p.first.read()},
+                                                std::move(*processor_output)});
             return line_metadata_map;
           }));
       line = std::move(line_builder).Build();
@@ -197,43 +191,42 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
   return lines;
 }
 
-ValueOrError<LineProcessorOutputFuture<SingleLine>> LineMetadataCompilation(
+ValueOrError<futures::Progressive<SingleLine>> LineMetadataCompilation(
     OpenBuffer& buffer, const LineProcessorInput& input) {
   TRACK_OPERATION(OpenBuffer_LineMetadataCompilation);
-  static const LineProcessorOutputFuture<SingleLine> kEmptyOutput{
-      .initial_value = SingleLine{}, .value = SingleLine{}};
+  static const futures::Progressive<SingleLine> kEmptyOutput(SingleLine{});
   DECLARE_OR_RETURN(
       gc::Root<ExecutionContext::CompilationResult> compilation_result,
       buffer.execution_context()->CompileString(
           input.read(), ExecutionContext::ErrorHandling::Ignore));
-  LineProcessorOutputFuture<SingleLine> output{
-      .initial_value =
-          SINGLE_LINE_CONSTANT(L"C++: ") +
-          vm::TypesToString(compilation_result->expression()->Types()),
-      .value = futures::Future<SingleLine>().value};
-  if (!compilation_result->expression()->purity().writes_external_outputs) {
-    output.initial_value = output.initial_value + SINGLE_LINE_CONSTANT(L" ...");
-    if (compilation_result->expression()->Types() ==
-        std::vector<vm::Type>({vm::types::Void{}}))
-      return kEmptyOutput;
-    output.value = buffer.work_queue()->Wait(Now()).Transform(
-        [compilation_result =
-             std::move(compilation_result)](EmptyValue) mutable {
-          return compilation_result->evaluate()
-              .Transform(
-                  [](gc::Root<vm::Value> value) -> ValueOrError<SingleLine> {
-                    std::ostringstream oss;
-                    oss << value.ptr().value();
-                    return SingleLine::New(
-                        LazyString{FromByteString(oss.str())});
-                  })
-              .ConsumeErrors([](Error error) {
-                return SINGLE_LINE_CONSTANT(L"E: ") +
-                       LineSequence::BreakLines(error.read()).FoldLines();
-              });
-        });
-  }
-  return output;
+  SingleLine initial_value =
+      SINGLE_LINE_CONSTANT(L"C++: ") +
+      vm::TypesToString(compilation_result->expression()->Types());
+  if (compilation_result->expression()->purity().writes_external_outputs)
+    return futures::Progressive(initial_value);
+
+  initial_value = initial_value + SINGLE_LINE_CONSTANT(L" ...");
+  if (compilation_result->expression()->Types() ==
+      std::vector<vm::Type>({vm::types::Void{}}))
+    return kEmptyOutput;
+  return futures::Progressive(
+      initial_value,
+      buffer.work_queue()->Wait(Now()).Transform(
+          [compilation_result =
+               std::move(compilation_result)](EmptyValue) mutable {
+            return compilation_result->evaluate()
+                .Transform(
+                    [](gc::Root<vm::Value> value) -> ValueOrError<SingleLine> {
+                      std::ostringstream oss;
+                      oss << value.ptr().value();
+                      return SingleLine::New(
+                          LazyString{FromByteString(oss.str())});
+                    })
+                .ConsumeErrors([](Error error) {
+                  return SINGLE_LINE_CONSTANT(L"E: ") +
+                         LineSequence::BreakLines(error.read()).FoldLines();
+                });
+          }));
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
