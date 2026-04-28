@@ -157,8 +157,7 @@ namespace {
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
     gc::Pool& pool, EdgeStruct* edge_struct, gc::Root<ObjectType>& object_type,
-    const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
-        const,
+    FieldValue (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*) const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
   vm::Type buffer_type = object_type.ptr()->type();
 

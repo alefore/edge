@@ -109,8 +109,7 @@ template <typename EdgeStruct, typename FieldValue,
           typename FieldVmValue = FieldValue>
 void RegisterVariableFields(
     gc::Pool& pool, EdgeStruct* edge_struct, afc::vm::ObjectType& editor_type,
-    const FieldValue& (EditorState::*reader)(const EdgeVariable<FieldValue>*)
-        const,
+    FieldValue (EditorState::*reader)(const EdgeVariable<FieldValue>*) const,
     void (EditorState::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
   for (const vm::Identifier& name : edge_struct->VariableNames()) {
     auto variable = edge_struct->find_variable(name);

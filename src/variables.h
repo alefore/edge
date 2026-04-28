@@ -93,7 +93,7 @@ template <typename T>
 class EdgeStructInstance {
  public:
   void CopyFrom(const EdgeStructInstance<T>& src);
-  const T& Get(const EdgeVariable<T>* variable) const;
+  T Get(const EdgeVariable<T>* variable) const;
   void Set(const EdgeVariable<T>* variable, T value);
   language::Observable& ObserveValue(const EdgeVariable<T>* variable);
 
@@ -263,7 +263,7 @@ void EdgeStructInstance<T>::CopyFrom(const EdgeStructInstance<T>& src) {
 }
 
 template <typename T>
-const T& EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {
+T EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {
   CHECK_LE(variable->position(), values_.size());
   return values_.at(variable->position()).Get().value();
 }

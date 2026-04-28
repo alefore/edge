@@ -343,7 +343,7 @@ EditorState::~EditorState() {
 
 const CommandLineValues& EditorState::args() { return args_; }
 
-const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {
+bool EditorState::Read(const EdgeVariable<bool>* variable) const {
   return bool_variables_.Get(variable);
 }
 
@@ -357,8 +357,7 @@ void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
-const LazyString& EditorState::Read(
-    const EdgeVariable<LazyString>* variable) const {
+LazyString EditorState::Read(const EdgeVariable<LazyString>* variable) const {
   return string_variables_.Get(variable);
 }
 
@@ -370,7 +369,7 @@ void EditorState::Set(const EdgeVariable<LazyString>* variable,
   }
 }
 
-const int& EditorState::Read(const EdgeVariable<int>* variable) const {
+int EditorState::Read(const EdgeVariable<int>* variable) const {
   return int_variables_.Get(variable);
 }
 
@@ -382,7 +381,7 @@ void EditorState::Set(const EdgeVariable<int>* variable, int value) {
   }
 }
 
-const double& EditorState::Read(const EdgeVariable<double>* variable) const {
+double EditorState::Read(const EdgeVariable<double>* variable) const {
   return double_variables_.Get(variable);
 }
 

@@ -2343,7 +2343,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
       Intersperse(SingleLine::Padding(ColumnNumberDelta{2})));
 }
 
-const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
+bool OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
   return variables_.bool_variables.Get(variable);
 }
 
@@ -2357,8 +2357,7 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
-const LazyString& OpenBuffer::Read(
-    const EdgeVariable<LazyString>* variable) const {
+LazyString OpenBuffer::Read(const EdgeVariable<LazyString>* variable) const {
   return variables_.string_variables.Get(variable);
 }
 
@@ -2367,7 +2366,7 @@ void OpenBuffer::Set(const EdgeVariable<LazyString>* variable,
   variables_.string_variables.Set(variable, value);
 }
 
-const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
+int OpenBuffer::Read(const EdgeVariable<int>* variable) const {
   return variables_.int_variables.Get(variable);
 }
 
@@ -2375,7 +2374,7 @@ void OpenBuffer::Set(const EdgeVariable<int>* variable, int value) {
   variables_.int_variables.Set(variable, value);
 }
 
-const double& OpenBuffer::Read(const EdgeVariable<double>* variable) const {
+double OpenBuffer::Read(const EdgeVariable<double>* variable) const {
   return variables_.double_variables.Get(variable);
 }
 
@@ -2383,8 +2382,7 @@ void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
   variables_.double_variables.Set(variable, value);
 }
 
-const LineColumn& OpenBuffer::Read(
-    const EdgeVariable<LineColumn>* variable) const {
+LineColumn OpenBuffer::Read(const EdgeVariable<LineColumn>* variable) const {
   return variables_.line_column_variables.Get(variable);
 }
 

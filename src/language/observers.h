@@ -85,36 +85,65 @@ class Observers : public Observable {
 template <typename Value>
 class ObservableValue : public Observable {
  public:
-  ObservableValue() : ObservableValue(std::nullopt) {}
-  explicit ObservableValue(std::optional<Value> value)
-      : value_(std::move(value)) {}
-  ObservableValue(const Observable&) = delete;
-
-  void Set(Value value) {
-    if (value_ == value) return;  // Optimization.
-    value_ = std::move(value);
-    observers_.Notify();
+  static ObservableValue FromFuture(std::optional<Value> initial_value,
+                                    futures::Value<Value> future_value) {
+    ObservableValue output(std::move(initial_value));
+    future_value.SetConsumer([data = output.data_](Value final_value) {
+      data->Set(std::move(final_value));
+    });
+    return output;
   }
 
-  const std::optional<Value>& Get() const { return value_; }
+  ObservableValue() : ObservableValue(std::nullopt) {}
+
+  explicit ObservableValue(std::optional<Value> value)
+      : data_(language::MakeNonNullShared<Data>(
+            Data{.value = concurrent::Protected<std::optional<Value>>(
+                     std::move(value))})) {}
+
+  ObservableValue(const Observable&) = delete;
+
+  void Set(Value value) { data_->Set(std::move(value)); }
+
+  std::optional<Value> Get() const {
+    return data_->value.lock(
+        [](const std::optional<Value>& value) { return value; });
+  }
+
+  bool has_value() const {
+    return data_->value.lock(
+        [](const std::optional<Value>& value) { return value.has_value(); });
+  }
 
   // Adds a callback that will be updated whenever the value changes.
   //
   // We will only notify the observers after `Get` returns a value.
   void Add(Observers::Observer observer) const override {
-    if (value_.has_value()) observer();
-    observers_.Add(std::move(observer));
+    if (!has_value() || observer() == State::kAlive)
+      data_->observers.Add(std::move(observer));
   }
 
   // The future returned ignores previous calls to Set (i.e., only gets notified
   // on the next call).
   futures::Value<EmptyValue> NewFuture() const {
-    return observers_.NewFuture();
+    return data_->observers.NewFuture();
   }
 
  private:
-  std::optional<Value> value_;
-  Observers observers_;
+  struct Data {
+    Observers observers = Observers();
+    concurrent::Protected<std::optional<Value>> value =
+        concurrent::Protected<std::optional<Value>>{std::nullopt};
+
+    void Set(std::optional<Value> next_value) {
+      value.lock([&](std::optional<Value>& storage) {
+        if (storage == next_value) return;  // Optimization.
+        storage = std::move(next_value);
+        observers.Notify();
+      });
+    }
+  };
+  NonNull<std::shared_ptr<Data>> data_;
 };
 
 }  // namespace afc::language

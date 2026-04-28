@@ -91,16 +91,16 @@ class EditorState {
 
   const CommandLineValues& args();
 
-  const bool& Read(const EdgeVariable<bool>* variable) const;
+  bool Read(const EdgeVariable<bool>* variable) const;
   void Set(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
-  const language::lazy_string::LazyString& Read(
+  language::lazy_string::LazyString Read(
       const EdgeVariable<language::lazy_string::LazyString>* variable) const;
   void Set(const EdgeVariable<language::lazy_string::LazyString>* variable,
            language::lazy_string::LazyString value);
-  const int& Read(const EdgeVariable<int>* variable) const;
+  int Read(const EdgeVariable<int>* variable) const;
   void Set(const EdgeVariable<int>* variable, int value);
-  const double& Read(const EdgeVariable<double>* variable) const;
+  double Read(const EdgeVariable<double>* variable) const;
   void Set(const EdgeVariable<double>* variable, double value);
 
   void CheckPosition();
