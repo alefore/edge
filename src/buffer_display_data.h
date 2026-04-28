@@ -8,9 +8,11 @@ namespace afc::editor {
 // Holds state related to a viewer (terminal) of a buffer.
 class BufferDisplayData {
  public:
-  language::ObservableValue<language::text::LineColumnDelta>& view_size();
-  const language::ObservableValue<language::text::LineColumnDelta>& view_size()
-      const;
+  language::ObservableValue<std::optional<language::text::LineColumnDelta>>&
+  view_size();
+  const language::ObservableValue<
+      std::optional<language::text::LineColumnDelta>>&
+  view_size() const;
 
   // See max_display_width_.
   void AddDisplayWidth(language::lazy_string::ColumnNumberDelta display_width);
@@ -35,7 +37,8 @@ class BufferDisplayData {
   language::text::LineNumberDelta content_lines_ =
       language::text::LineNumberDelta();
 
-  language::ObservableValue<language::text::LineColumnDelta> view_size_;
+  language::ObservableValue<std::optional<language::text::LineColumnDelta>>
+      view_size_;
 
   // The maximum width that has been found for a screen line corresponding to
   // this buffer, since the OpenBuffer instance was created. Includes all the

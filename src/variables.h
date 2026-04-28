@@ -103,7 +103,9 @@ class EdgeStructInstance {
 
   // We use deque to workaround the fact that std::vector<bool> doesn't return
   // references.
-  std::deque<language::ObservableValue<T>> values_;
+  //
+  // TODO(2026-04-28, P2): Can probably drop the optional.
+  std::deque<language::ObservableValue<std::optional<T>>> values_;
 
   friend class EdgeStruct<T>;
 };
@@ -122,7 +124,9 @@ class EdgeStructInstance<std::unique_ptr<T>> {
   // Instantiate it through EdgeStruct::NewInstance.
   EdgeStructInstance() {}
 
-  std::deque<language::ObservableValue<std::unique_ptr<T>>> values_;
+  // TODO(2026-04-28, P2): Can probably drop the optional.
+  std::deque<language::ObservableValue<std::optional<std::unique_ptr<T>>>>
+      values_;
 
   friend class EdgeStruct<std::unique_ptr<T>>;
 };

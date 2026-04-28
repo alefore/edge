@@ -57,7 +57,8 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
     // displayed it. TerminalAdapter uses this to be notified when it
     // changes and propagate that information to the underlying file descriptor
     // (e.g., so that $LINES shell variable is updated).
-    virtual language::ObservableValue<language::text::LineColumnDelta>&
+    virtual language::ObservableValue<
+        std::optional<language::text::LineColumnDelta>>&
     view_size() = 0;
 
     virtual void Bell() = 0;

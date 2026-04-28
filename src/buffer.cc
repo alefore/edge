@@ -1745,7 +1745,8 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
       return std::nullopt;
     }
 
-    language::ObservableValue<LineColumnDelta>& view_size() override {
+    language::ObservableValue<std::optional<LineColumnDelta>>& view_size()
+        override {
       return buffer_.display_data().view_size();
     }
 

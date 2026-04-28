@@ -8,11 +8,13 @@ using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumnDelta;
 using language::text::LineNumberDelta;
 
-ObservableValue<LineColumnDelta>& BufferDisplayData::view_size() {
+ObservableValue<std::optional<LineColumnDelta>>&
+BufferDisplayData::view_size() {
   return view_size_;
 }
 
-const ObservableValue<LineColumnDelta>& BufferDisplayData::view_size() const {
+const ObservableValue<std::optional<LineColumnDelta>>&
+BufferDisplayData::view_size() const {
   return view_size_;
 }
 

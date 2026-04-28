@@ -85,7 +85,7 @@ class Observers : public Observable {
 template <typename Value>
 class ObservableValue : public Observable {
  public:
-  static ObservableValue FromFuture(std::optional<Value> initial_value,
+  static ObservableValue FromFuture(Value initial_value,
                                     futures::Value<Value> future_value) {
     ObservableValue output(std::move(initial_value));
     future_value.SetConsumer([data = output.data_](Value final_value) {
@@ -96,23 +96,21 @@ class ObservableValue : public Observable {
 
   ObservableValue() : ObservableValue(std::nullopt) {}
 
-  explicit ObservableValue(std::optional<Value> value)
+  explicit ObservableValue(Value value)
       : data_(language::MakeNonNullShared<Data>(
-            Data{.value = concurrent::Protected<std::optional<Value>>(
-                     std::move(value))})) {}
+            Data{.value = concurrent::Protected<Value>(std::move(value))})) {}
 
   ObservableValue(const Observable&) = delete;
 
   void Set(Value value) { data_->Set(std::move(value)); }
 
-  std::optional<Value> Get() const {
-    return data_->value.lock(
-        [](const std::optional<Value>& value) { return value; });
+  Value Get() const {
+    return data_->value.lock([](const Value& value) { return value; });
   }
 
   bool has_value() const {
     return data_->value.lock(
-        [](const std::optional<Value>& value) { return value.has_value(); });
+        [](const Value& value) { return value.has_value(); });
   }
 
   // Adds a callback that will be updated whenever the value changes.
@@ -132,15 +130,15 @@ class ObservableValue : public Observable {
  private:
   struct Data {
     Observers observers = Observers();
-    concurrent::Protected<std::optional<Value>> value =
-        concurrent::Protected<std::optional<Value>>{std::nullopt};
+    concurrent::Protected<Value> value =
+        concurrent::Protected<Value>{std::nullopt};
 
-    void Set(std::optional<Value> next_value) {
-      value.lock([&](std::optional<Value>& storage) {
+    void Set(Value next_value) {
+      value.lock([&](Value& storage) {
         if (storage == next_value) return;  // Optimization.
         storage = std::move(next_value);
-        observers.Notify();
       });
+      observers.Notify();
     }
   };
   NonNull<std::shared_ptr<Data>> data_;
