@@ -25,7 +25,6 @@ using afc::language::lazy_string::SplitAt;
 using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
 using afc::language::text::LineMetadataMap;
-using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::view::SkipErrors;
 
@@ -168,13 +167,13 @@ LineMetadataMap GetLineMetadata(Spec spec) {
           [](Search search) {
             return LineMetadataMap{
                 {{kSearchKey,
-                  LineMetadataValue::FromSingleLine(search.read().read())}}};
+                  futures::Progressive<SingleLine>(search.read().read())}}};
           },
           [](LineColumn position) {
             // TODO(P3, trivial, 2026-04-12): Also handle column.
             return LineMetadataMap{
                 {{kLineKey,
-                  LineMetadataValue::FromSingleLine(
+                  futures::Progressive<SingleLine>(
                       NonEmptySingleLine(position.line.read()).read())}}};
           },
       },
@@ -184,13 +183,12 @@ LineMetadataMap GetLineMetadata(Spec spec) {
 ValueOrError<Spec> SpecFromLineMetadataInternal(
     const language::text::LineMetadataMap& values) {
   if (auto it = values.find(kLineKey); it != values.end()) {
-    DECLARE_OR_RETURN(int line_int,
-                      AsInt(ToLazyString(it->second.get_value())));
+    DECLARE_OR_RETURN(int line_int, AsInt(ToLazyString(it->second.current())));
     return LineColumn{LineNumber{static_cast<size_t>(line_int)}};
   }
   if (auto it = values.find(kSearchKey); it != values.end()) {
     DECLARE_OR_RETURN(NonEmptySingleLine pattern,
-                      NonEmptySingleLine::New(it->second.get_value()));
+                      NonEmptySingleLine::New(it->second.current()));
     return Search{pattern};
   }
   return Default{};

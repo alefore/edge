@@ -11,6 +11,7 @@
 
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
+#include "src/futures/progressive.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
@@ -28,21 +29,11 @@ struct LineMetadataKey
   using GhostType::GhostType;
 };
 
-// TODO(2026-04-28, P1): Move to futures and merge with similar struct in
-// line_processor_map.h.
-struct LineMetadataValue {
-  // Prefer reading through `get_value` than directly.
-  lazy_string::SingleLine initial_value;
-  futures::ListenableValue<lazy_string::SingleLine> value;
-
-  static LineMetadataValue FromSingleLine(lazy_string::SingleLine);
-
-  lazy_string::SingleLine get_value() const;
-};
-
 struct LineMetadataMap
-    : public GhostType<LineMetadataMap,
-                       std::map<LineMetadataKey, LineMetadataValue>> {
+    : public GhostType<
+          LineMetadataMap,
+          std::map<LineMetadataKey,
+                   futures::Progressive<lazy_string::SingleLine>>> {
   using GhostType::GhostType;
 };
 
@@ -152,11 +143,6 @@ struct hash<afc::language::text::Line> {
   std::size_t operator()(const afc::language::text::Line& line) const {
     return line.hash().get();
   }
-};
-
-template <>
-struct hash<afc::language::text::LineMetadataValue> {
-  std::size_t operator()(const afc::language::text::LineMetadataValue& m) const;
 };
 }  // namespace std
 #endif  // __AFC_LANGUAGE_TEXT_LINE_H__

@@ -37,7 +37,6 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
 using afc::language::text::LineMetadataMap;
-using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
@@ -71,8 +70,8 @@ LazyString GetMetadata(std::wstring line) {
           line_in_buffer->metadata().get().find(LineMetadataKey{});
       metadata_it != line_in_buffer->metadata().get().end()) {
     LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
-              << metadata_it->second.get_value() << L"]";
-    return ToLazyString(metadata_it->second.get_value());
+              << metadata_it->second.current() << L"]";
+    return ToLazyString(metadata_it->second.current());
   }
   return LazyString{};
 }
@@ -179,11 +178,9 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
                LineBuilder options{SingleLine{LazyString{L"foo"}}};
                options.SetMetadata(WrapAsLazyValue(LineMetadataMap{
-                   {{LineMetadataKey{},
-                     LineMetadataValue{
-                         .initial_value = SINGLE_LINE_CONSTANT(L"bar"),
-                         .value = futures::Value<SingleLine>(
-                             SINGLE_LINE_CONSTANT(L"quux"))}}}}));
+                   {{LineMetadataKey{}, futures::Progressive<SingleLine>(
+                                            SINGLE_LINE_CONSTANT(L"bar"),
+                                            SINGLE_LINE_CONSTANT(L"quux"))}}}));
                Line line = std::move(options).Build();
                // This is important: otherwise OpenBuffer will assume that it is
                // safe to override them (recompute them).
@@ -196,7 +193,7 @@ const bool buffer_tests_registration = tests::Register(
                          .metadata()
                          .get()
                          .at(LineMetadataKey{})
-                         .value.get_copy() == SINGLE_LINE_CONSTANT(L"quux"));
+                         .current() == SINGLE_LINE_CONSTANT(L"quux"));
              }},
         {.name = L"PassingParametersPreservesThem",
          .callback =

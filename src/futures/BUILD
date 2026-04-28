@@ -32,6 +32,17 @@ cc_library(
 )
 
 cc_library(
+    name = "progressive",
+    hdrs = ["progressive.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":listenable_value",
+        "//src/concurrent:protected",
+        "//src/language:safe_types",
+    ],
+)
+
+cc_library(
     name = "serializer",
     srcs = ["serializer.cc"],
     hdrs = ["serializer.h"],

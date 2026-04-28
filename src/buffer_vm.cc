@@ -57,7 +57,6 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
 using afc::language::text::LineMetadataMap;
-using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
@@ -755,7 +754,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                 buffer->contents().at(LineNumber(line_number)).metadata().get();
             if (const auto metadata_it = metadata_map.find(LineMetadataKey{});
                 metadata_it != metadata_map.end())
-              return metadata_it->second.value.ToFuture().Transform(
+              return metadata_it->second.final().Transform(
                   [](SingleLine a) { return a.read(); });
             return Error{L"Line has no value."};
           })

@@ -31,11 +31,6 @@ namespace afc::language::text {
 
 using ::operator<<;
 
-LineMetadataValue LineMetadataValue::FromSingleLine(SingleLine known_value) {
-  return LineMetadataValue{.initial_value = known_value,
-                           .value = futures::Value<SingleLine>(known_value)};
-}
-
 Line::Line() : Line(MakeNonNullShared<const Data>(Line::Data{})) {}
 
 Line::Line(SingleLine contents)
@@ -59,9 +54,8 @@ size_t Line::ComputeHash(const Line::Data& data) {
       MakeHashableIteratorRange(data.end_of_line_modifiers),
       MakeHashableIteratorRange(
           data.metadata.get().begin(), data.metadata.get().end(),
-          [](const std::pair<LineMetadataKey, LineMetadataValue>& value) {
-            return compute_hash(value.first, value.second);
-          }));
+          [](const std::pair<LineMetadataKey, futures::Progressive<SingleLine>>&
+                 value) { return compute_hash(value.first, value.second); }));
 }
 
 SingleLine Line::contents() const { return data_->contents; }
@@ -87,10 +81,6 @@ SingleLine Line::Substring(ColumnNumber column) const {
 
 const LazyValue<LineMetadataMap>& Line::metadata() const {
   return data_->metadata;
-}
-
-SingleLine LineMetadataValue::get_value() const {
-  return value.get_copy().value_or(initial_value);
 }
 
 const std::map<ColumnNumber, afc::infrastructure::screen::LineModifierSet>&
@@ -162,9 +152,3 @@ std::ostream& operator<<(std::ostream& os, const Line& line) {
 }
 
 }  // namespace afc::language::text
-namespace std {
-std::size_t hash<afc::language::text::LineMetadataValue>::operator()(
-    const afc::language::text::LineMetadataValue& m) const {
-  return std::hash<SingleLine>{}(m.value.get_copy().value_or(m.initial_value));
-}
-}  // namespace std

@@ -141,7 +141,6 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineMetadataKey;
 using afc::language::text::LineMetadataMap;
-using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineProcessorInput;
@@ -173,26 +172,26 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
     if (!line.empty() &&
         (!line.metadata().has_value() || line.metadata().get().empty())) {
       LineBuilder line_builder(std::move(line));
-      line_builder.SetMetadata(LazyValue<
-                               LineMetadataMap>([&line_processor_map,
-                                                 contents =
-                                                     line_builder.contents()] {
-        TRACK_OPERATION(OpenBuffer_UpdateLineMetadata_Run);
-        std::map<LineProcessorKey, LineProcessorOutputFutureVariant> output =
-            line_processor_map.Process(LineProcessorInput(contents.read()));
-        LineMetadataMap line_metadata_map;
-        for (const auto& p : output)
-          if (auto* processor_output =
-                  std::get_if<LineProcessorOutputFuture<SingleLine>>(&p.second);
-              processor_output != nullptr)
-            InsertOrDie(
-                line_metadata_map,
-                {LineMetadataKey{p.first.read()},
-                 LineMetadataValue{
-                     .initial_value = processor_output->initial_value.read(),
-                     .value = std::move(processor_output->value).ToFuture()}});
-        return line_metadata_map;
-      }));
+      line_builder.SetMetadata(LazyValue<LineMetadataMap>(
+          [&line_processor_map, contents = line_builder.contents()] {
+            TRACK_OPERATION(OpenBuffer_UpdateLineMetadata_Run);
+            std::map<LineProcessorKey, LineProcessorOutputFutureVariant>
+                output = line_processor_map.Process(
+                    LineProcessorInput(contents.read()));
+            LineMetadataMap line_metadata_map;
+            for (const auto& p : output)
+              if (auto* processor_output =
+                      std::get_if<LineProcessorOutputFuture<SingleLine>>(
+                          &p.second);
+                  processor_output != nullptr)
+                InsertOrDie(
+                    line_metadata_map,
+                    {LineMetadataKey{p.first.read()},
+                     futures::Progressive<SingleLine>(
+                         processor_output->initial_value.read(),
+                         std::move(processor_output->value).ToFuture())});
+            return line_metadata_map;
+          }));
       line = std::move(line_builder).Build();
     }
   return lines;

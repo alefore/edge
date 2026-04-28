@@ -38,6 +38,7 @@ cc_library(
         "//src/concurrent:protected",
         "//src/futures",
         "//src/futures:listenable_value",
+        "//src/futures:progressive",
         "//src/infrastructure:dirname",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:lazy_value",

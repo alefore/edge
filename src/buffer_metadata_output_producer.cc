@@ -48,7 +48,6 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
-using afc::language::text::LineMetadataValue;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineRange;
@@ -439,13 +438,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (SingleLine metadata = Concatenate(
           std::views::transform(
               contents.metadata().get(),
-              [](const std::pair<LineMetadataKey, LineMetadataValue>& item) {
+              [](const std::pair<LineMetadataKey,
+                                 futures::Progressive<SingleLine>>& item) {
                 TRACK_OPERATION(
                     BufferMetadataOutput_Prepare_VisitContentsMetadata);
                 return item.first.read() +
                        (item.first.empty() ? SingleLine{}
                                            : SingleLine::Char<L':'>()) +
-                       item.second.get_value();
+                       item.second.current();
               }) |
           std::views::filter(std::not_fn(&SingleLine::empty)));
       !metadata.empty())

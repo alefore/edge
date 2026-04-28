@@ -87,14 +87,14 @@ const bool line_tests_registration = tests::Register(
         futures::Future<SingleLine> future;
         LineBuilder builder;
         const LineMetadataKey key;
-        builder.SetMetadata(WrapAsLazyValue(LineMetadataMap{
-            {{key,
-              LineMetadataValue{.initial_value = SINGLE_LINE_CONSTANT(L"Foo"),
-                                .value = std::move(future.value)}}}}));
+        builder.SetMetadata(WrapAsLazyValue(
+            LineMetadataMap{{{key, futures::Progressive<SingleLine>(
+                                       SINGLE_LINE_CONSTANT(L"Foo"),
+                                       std::move(future.value))}}}));
         Line line = std::move(builder).Build();
-        CHECK(line.metadata().get().at(key).get_value() == LazyString{L"Foo"});
+        CHECK(line.metadata().get().at(key).current() == LazyString{L"Foo"});
         std::move(future.consumer)(SINGLE_LINE_CONSTANT(L"Bar"));
-        CHECK(line.metadata().get().at(key).get_value() == LazyString{L"Bar"});
+        CHECK(line.metadata().get().at(key).current() == LazyString{L"Bar"});
       }}});
 
 const bool line_modifiers_at_position_tests_registration = tests::Register(
