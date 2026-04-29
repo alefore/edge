@@ -262,7 +262,7 @@ src/math/checked_operation.cc \
 src/math/checked_operation.h \
 src/math/decaying_counter.cc \
 src/math/decaying_counter.h \
-src/math/graph_non_deterministic.cc \
+src/math/graph_deterministic.h \
 src/math/graph_non_deterministic.h \
 src/math/naive_bayes.cc \
 src/math/naive_bayes.h \
@@ -297,6 +297,8 @@ src/parsers/csv.cc \
 src/parsers/csv.h \
 src/parsers/diff.cc \
 src/parsers/diff.h \
+src/parsers/log.cc \
+src/parsers/log.h \
 src/parsers/markdown.cc \
 src/parsers/markdown.h \
 src/parsers/py.cc \

@@ -665,6 +665,26 @@ EdgeVariable<LazyString>* const external_completion_command =
          .DefaultValue(LazyString{L"external_completion_command"})
          .Build();
 
+EdgeVariable<LazyString>* const log_model_paths =
+    &StringStruct()
+         ->Add()
+         .Name(L"log_model_paths")
+         .Description(
+             L"Paths to completion model files. "
+             L"See doc/logs.md for details.")
+         .DefaultValue(LazyString{L"log_model.config"})
+         .Build();
+
+EdgeVariable<LazyString>* const log_type_name =
+    &StringStruct()
+         ->Add()
+         .Name(L"log_type_name")
+         .Description(
+             L"Name of the log type (from `log_model_paths`). "
+             L"See doc/logs.md for details.")
+         .DefaultValue(LazyString{L""})
+         .Build();
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;

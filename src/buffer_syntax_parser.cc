@@ -6,6 +6,7 @@
 #include "src/parsers/css.h"
 #include "src/parsers/csv.h"
 #include "src/parsers/diff.h"
+#include "src/parsers/log.h"
 #include "src/parsers/markdown.h"
 #include "src/parsers/py.h"
 
@@ -24,6 +25,7 @@ using afc::language::text::Range;
 namespace afc::editor {
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
+    data.tree_parser = NewNullTreeParser();
     if (options.parser_name == ParserId::Text()) {
       data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
           options.symbol_characters, options.typos_set, NewNullTreeParser()));
@@ -46,8 +48,18 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
       data.tree_parser =
           parsers::NewPyTreeParser(options.language_keywords, options.typos_set,
                                    options.identifier_behavior);
-    } else {
-      data.tree_parser = NewNullTreeParser();
+    } else if (options.parser_name == ParserId::Log()) {
+      LOG(INFO) << "XXXX: Log parser!";
+      if (options.log_model.has_value() && options.log_type_name.has_value()) {
+        const auto& log_types = options.log_model->log_types;
+        LOG(INFO) << "XXXX: Log parser: Has log model and type: "
+                  << options.log_type_name.value();
+        if (auto it = log_types.find(options.log_type_name.value());
+            it != log_types.end()) {
+          LOG(INFO) << "XXXX: Log parser: Creating";
+          data.tree_parser = parsers::NewLogTreeParser(it->second);
+        }
+      }
     }
   });
 }

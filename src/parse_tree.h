@@ -37,6 +37,7 @@ class ParserId
   static const ParserId& Css();
   static const ParserId& Csv();
   static const ParserId& Py();
+  static const ParserId& Log();
 };
 
 class ParseTreeProperty

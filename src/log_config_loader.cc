@@ -120,5 +120,12 @@ std::expected<LogModel, language::Error> ParseLogConfig(
   if (!errors.empty()) return MergeErrors(errors, L", ");
   return model;
 }
+
+futures::ValueOrError<LogModel> LoadModelFromPaths(
+    EditorState&, language::lazy_string::LazyString) {
+  // TODO(P2, log): Implement.
+  return LogModel{};
+}
+
 }  // namespace afc::editor
 // namespace afc::editor

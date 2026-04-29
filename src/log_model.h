@@ -30,6 +30,8 @@ struct LogEntryConfiguration {
 
 struct LogEntryValue {
   std::variant<language::lazy_string::LazyString> value;
+  language::lazy_string::ColumnNumber position;
+  language::lazy_string::ColumnNumberDelta size;
 };
 
 struct LogLine {
@@ -56,8 +58,10 @@ class LogType {
   LogTypeName name() const;
 
   std::expected<LogLine, language::Error> Parse(
-      language::lazy_string::SingleLine line);
+      language::lazy_string::SingleLine line) const;
 };
+
+std::ostream& operator<<(std::ostream& os, const LogType& value);
 
 struct LogModel {
   std::unordered_map<LogTypeName, LogType> log_types;

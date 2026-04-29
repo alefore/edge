@@ -51,6 +51,7 @@ extern "C" {
 #include "src/language/text/sorted_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
+#include "src/log_config_loader.h"
 #include "src/map_mode.h"
 #include "src/open_files.h"
 #include "src/run_command_handler.h"
@@ -367,8 +368,9 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
-      data_(MutableData{.mode = std::move(mode),
-                        .log_model = LogModel{.log_types = {}}}),
+      data_(MutableData{
+          .mode = std::move(mode),
+      }),
       close_consumer_(std::move(close_future.consumer)),
       close_listenable_future_(std::move(close_future.value)),
       contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
@@ -741,31 +743,39 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   // TODO(P1, 2026-04-21): Investigate why it's OK to attempt to load the
-  // dictionary on every single call to UpdateTreeParser. Either fix it or
-  // document here.
+  // dictionary and log model on every single call to UpdateTreeParser. Either
+  // fix it or document here.
   ValueOrError<Path> dictionary_path =
       Path::New(Read(buffer_variables::dictionary));
-  (!dictionary_path
-       ? futures::Value<SortedLineSequence>(SortedLineSequence(LineSequence()))
-       : OpenFileIfFound(
-             OpenFileOptions{
-                 .editor_state = editor(),
-                 .path = ValueOrDie(std::move(dictionary_path)),
-                 .insertion_type = BuffersList::AddBufferType::kIgnore})
-             .Transform([](gc::Root<OpenBuffer> dictionary_root)
-                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-               return dictionary_root->WaitForEndOfFile();
-             })
-             .Transform([](gc::Root<OpenBuffer> dictionary_root)
-                            -> futures::ValueOrError<SortedLineSequence> {
-               return dictionary_root->editor().thread_pool().Run(
-                   [contents = dictionary_root->contents().snapshot()] {
-                     return SortedLineSequence(contents);
-                   });
-             })
-             .ConsumeErrors(
-                 [](Error) { return SortedLineSequence(LineSequence{}); }))
-      .Transform([root_this = RootFromThis()](SortedLineSequence dictionary) {
+  futures::Value<SortedLineSequence> dictionary_future =
+      !dictionary_path
+          ? futures::Value<SortedLineSequence>(
+                SortedLineSequence(LineSequence()))
+          : OpenFileIfFound(
+                OpenFileOptions{
+                    .editor_state = editor(),
+                    .path = ValueOrDie(std::move(dictionary_path)),
+                    .insertion_type = BuffersList::AddBufferType::kIgnore})
+                .Transform([](gc::Root<OpenBuffer> dictionary_root)
+                               -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+                  return dictionary_root->WaitForEndOfFile();
+                })
+                .Transform([](gc::Root<OpenBuffer> dictionary_root)
+                               -> futures::ValueOrError<SortedLineSequence> {
+                  return dictionary_root->editor().thread_pool().Run(
+                      [contents = dictionary_root->contents().snapshot()] {
+                        return SortedLineSequence(contents);
+                      });
+                })
+                .ConsumeErrors(
+                    [](Error) { return SortedLineSequence(LineSequence{}); });
+
+  futures::JoinValues(
+      LoadModelFromPaths(editor(), Read(buffer_variables::log_model_paths)),
+      std::move(dictionary_future))
+      .Transform([root_this = RootFromThis()](
+                     std::tuple<ValueOrError<LogModel>, SortedLineSequence>
+                         log_and_dictionary) {
         root_this->buffer_syntax_parser_.UpdateParser(
             BufferSyntaxParser::ParserOptions{
                 .parser_name = OptionalFrom(
@@ -791,7 +801,16 @@ void OpenBuffer::UpdateTreeParser() {
                             LazyString{L"color-by-hash"}
                         ? IdentifierBehavior::kColorByHash
                         : IdentifierBehavior::kNone,
-                .dictionary = std::move(dictionary)});
+                .dictionary = std::move(std::get<1>(log_and_dictionary)),
+                .log_model =
+                    OptionalFrom(std::move(std::get<0>(log_and_dictionary))),
+                .log_type_name =
+                    OptionalFrom(
+                        NonEmptySingleLine::New(SingleLine::New(
+                            root_this->Read(buffer_variables::log_type_name))))
+                        .transform([](NonEmptySingleLine input) {
+                          return LogTypeName{input};
+                        })});
         root_this->MaybeStartUpdatingSyntaxTrees();
         return EmptyValue();
       });
@@ -821,7 +840,8 @@ void OpenBuffer::Initialize() {
   for (auto* v :
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
         buffer_variables::language_keywords, buffer_variables::typos,
-        buffer_variables::identifier_behavior, buffer_variables::dictionary})
+        buffer_variables::identifier_behavior, buffer_variables::dictionary,
+        buffer_variables::log_model_paths, buffer_variables::log_type_name})
     variables_.string_variables.ObserveValue(v).Add([this] {
       UpdateTreeParser();
       return Observers::State::kAlive;

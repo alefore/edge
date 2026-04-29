@@ -109,6 +109,12 @@ namespace afc::editor {
   return *output;
 }
 
+/* static */ const ParserId& ParserId::Log() {
+  static const ParserId* output =
+      new ParserId{NON_EMPTY_SINGLE_LINE_CONSTANT(L"log")};
+  return *output;
+}
+
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
   static const auto* output =
       new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link")};

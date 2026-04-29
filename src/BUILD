@@ -113,6 +113,8 @@ cc_binary(
         "line_with_cursor.h",
         "log.cc",
         "log.h",
+        "log_config_loader.cc",
+        "log_config_loader.h",
         "lru_cache.cc",
         "lru_cache.h",
         "main.cc",
@@ -149,6 +151,8 @@ cc_binary(
         "parsers/csv.h",
         "parsers/diff.cc",
         "parsers/diff.h",
+        "parsers/log.cc",
+        "parsers/log.h",
         "parsers/markdown.cc",
         "parsers/markdown.h",
         "parsers/py.cc",
@@ -321,25 +325,9 @@ cc_library(
     deps = [
         "//src/language:ghost_type_class",
         "//src/language/error:value_or_error",
-        "//src/language/lazy_string",
-        "//src/language/lazy_string:single_line",
-    ],
-)
-
-cc_library(
-    name = "log_config_loader",
-    srcs = ["log_config_loader.cc"],
-    hdrs = ["log_config_loader.h"],
-    deps = [
-        ":log_model",
-        "//src/language/error:value_or_error",
         "//src/language/error:view",
         "//src/language/lazy_string",
-        "//src/language/lazy_string:convert",
         "//src/language/lazy_string:single_line",
-        "//src/language/lazy_string:trim",
-        "//src/language/text:line",
-        "//src/language/text:line_sequence",
     ],
 )
 

@@ -11,6 +11,7 @@
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/sorted_line_sequence.h"
+#include "src/log_model.h"
 #include "src/parse_tree.h"
 
 namespace afc::editor {
@@ -25,6 +26,8 @@ class BufferSyntaxParser {
     language::lazy_string::LazyString symbol_characters;
     IdentifierBehavior identifier_behavior;
     language::text::SortedLineSequence dictionary;
+    std::optional<LogModel> log_model;
+    std::optional<LogTypeName> log_type_name;
   };
   void UpdateParser(ParserOptions options);
 
