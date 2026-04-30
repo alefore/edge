@@ -6,6 +6,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/vm/callbacks.h"
+#include "src/vm/container.h"
 #include "src/vm/environment.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
@@ -24,8 +25,13 @@ namespace vm {
 template <>
 const types::ObjectName
     VMTypeMapper<infrastructure::screen::LineModifier>::object_type_name =
-        types::ObjectName{
-            Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"LineModifier")}};
+        types::ObjectName{IDENTIFIER_CONSTANT(L"LineModifier")};
+
+template <>
+const types::ObjectName VMTypeMapper<
+    language::NonNull<std::shared_ptr<concurrent::Protected<std::set<
+        afc::infrastructure::screen::LineModifier>>>>>::object_type_name =
+    types::ObjectName{IDENTIFIER_CONSTANT(L"SetLineModifier")};
 
 /* static */ std::expected<infrastructure::screen::LineModifier, Error>
 VMTypeMapper<infrastructure::screen::LineModifier>::get(Value& value) {
@@ -43,7 +49,7 @@ VMTypeMapper<infrastructure::screen::LineModifier>::New(
 }  // namespace vm
 namespace infrastructure::screen {
 void RegisterLineModifier(gc::Pool& pool, Environment& environment) {
-  // TODO(P2, 2026-04-30): Implement Setinfrastructure::screen::LineModifier.
+  vm::container::Export<std::set<LineModifier>>(pool, environment);
 }
 }  // namespace infrastructure::screen
 }  // namespace afc

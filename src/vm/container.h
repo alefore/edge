@@ -40,6 +40,7 @@ struct TraitsBase {
   static constexpr bool has_erase_by_element = false;
   static constexpr bool has_insert = false;
   static constexpr bool has_push_back = false;
+  static constexpr bool has_union = false;
 };
 
 template <typename T>
@@ -99,6 +100,8 @@ struct Traits<std::set<ValueType>> : public TraitsBase {
   }
 
   static constexpr bool has_set_at_index = false;
+
+  static constexpr bool has_union = true;
 };
 
 template <typename NestedType>
@@ -231,6 +234,20 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                     return Value::NewVoid(trampoline.pool());
                   });
             })
+            .ptr());
+
+  if constexpr (T::has_union)
+    object_type.ptr()->AddField(
+        IDENTIFIER_CONSTANT(L"union"),
+        vm::NewCallback(pool, kPurityTypePure,
+                        [](ContainerPtr a, ContainerPtr b) {
+                          Container output;
+                          a->lock([&output](Container& c) { output = c; });
+                          b->lock([&output](Container& c) { output.merge(c); });
+                          return language::MakeNonNullShared<
+                              concurrent::Protected<Container>>(
+                              std::move(output));
+                        })
             .ptr());
 
   object_type.ptr()->AddField(

@@ -1,6 +1,8 @@
 #include "src/parsers/log.h"
 
+#include "src/concurrent/protected.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/infrastructure/screen/line_modifier_vm.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/log_model.h"
@@ -11,12 +13,15 @@
 #include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
+using afc::concurrent::Protected;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifiers;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::ModifierFromString;
 using afc::language::Error;
+using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
 using afc::language::VisitValue;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
@@ -93,7 +98,11 @@ class LogTreeParser : public TreeParser {
                               .Get()
                               .value_or(Error{
                                   L"Evaluation future doesn't have a value."});
-                      if (result && !result.value()->IsString())
+                      using Mapper =
+                          vm::VMTypeMapper<language::NonNull<std::shared_ptr<
+                              concurrent::Protected<std::set<LineModifier>>>>>;
+                      if (result && !result.value()->IsObjectType(
+                                        Mapper::object_type_name))
                         result =
                             Error{LazyString{L"Result has wrong type: "} +
                                   ToQuotedSingleLine(result->ptr()->type())};
@@ -101,14 +110,10 @@ class LogTreeParser : public TreeParser {
                         LOG(INFO) << "Error: " << result.error();
                         continue;
                       }
-                      VisitValue(
-                          NonEmptySingleLine::New(
-                              SingleLine::New(result.value()->get_string()))
-                              .and_then([](NonEmptySingleLine value) {
-                                return ModifierFromString(value);
-                              }),
-                          [&modifiers](LineModifier modifier) {
-                            modifiers.insert(modifier);
+
+                      Mapper::get(result.value().value())
+                          ->lock([&modifiers](std::set<LineModifier> elements) {
+                            for (LineModifier x : elements) modifiers.insert(x);
                           });
                     }
                     child.set_modifiers(std::move(modifiers));
@@ -124,19 +129,28 @@ class LogTreeParser : public TreeParser {
   void PrepareEnvironment(gc::Ptr<Environment>& environment) {
     TRACK_OPERATION(LogTreeParser_PrepareEnvironment);
     // TODO(2026-04-30, P2, easy): Expose the LineModifierSet to vm.
+    using Mapper = vm::VMTypeMapper<
+        NonNull<std::shared_ptr<Protected<std::set<LineModifier>>>>>;
     std::ranges::for_each(
         LineModifiers(),
         [&environment](std::pair<NonEmptySingleLine, LineModifier> data) {
-          VisitValue(Identifier::New(LowerCase(data.first)),
-                     [&](Identifier id) {
-                       VLOG(5) << "Define: " << id << ": " << data.first;
-                       environment->Define(
-                           id, vm::Value::NewString(environment.pool(),
-                                                    ToLazyString(data.first)));
-                     });
+          VisitValue(
+              Identifier::New(LowerCase(data.first)), [&](Identifier id) {
+                VLOG(5) << "Define: " << id << ": " << data.first;
+                environment->Define(
+                    id,
+                    Mapper::New(
+                        environment.pool(),
+                        MakeNonNullShared<Protected<std::set<LineModifier>>>(
+                            std::set<LineModifier>{data.second})));
+              });
         });
-    environment->Define(IDENTIFIER_CONSTANT(L"default"),
-                        vm::Value::NewString(environment.pool(), L""));
+    infrastructure::screen::RegisterLineModifier(environment.pool(),
+                                                 environment.value());
+    environment->Define(
+        IDENTIFIER_CONSTANT(L"default"),
+        Mapper::New(environment.pool(),
+                    MakeNonNullShared<Protected<std::set<LineModifier>>>()));
     VLOG(2) << "Defining entries for all LogEntryName instances.";
     std::ranges::for_each(
         log_type_.entry_names(), [&environment](const LogEntryName& name) {

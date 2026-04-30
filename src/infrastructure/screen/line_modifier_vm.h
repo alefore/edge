@@ -34,8 +34,8 @@ const types::ObjectName VMTypeMapper<
 
 }  // namespace afc::vm
 namespace afc::infrastructure::screen {
-void RegisterLineModifer(language::gc::Pool& pool,
-                         vm::Environment& environment);
+void RegisterLineModifier(language::gc::Pool& pool,
+                          vm::Environment& environment);
 }  // namespace afc::infrastructure::screen
 
 #endif  // __AFC_EDITOR_SRC_INFRASTRUCTURE_SCREEN_LINE_MODIFIER_VM_H__
