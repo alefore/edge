@@ -43,12 +43,12 @@ using ::operator<<;
 template <>
 const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<Protected<std::vector<int>>>>>::object_type_name =
-    types::ObjectName{Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"VectorInt")}};
+    types::ObjectName{IDENTIFIER_CONSTANT(L"VectorInt")};
 
 template <>
 const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<Protected<std::set<int>>>>>::object_type_name =
-    types::ObjectName{Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SetInt")}};
+    types::ObjectName{IDENTIFIER_CONSTANT(L"SetInt")};
 
 EnvironmentIdentifierTable::EnvironmentIdentifierTable(ConstructorAccessTag) {}
 
