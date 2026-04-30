@@ -4,6 +4,7 @@
 
 #include <ranges>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
@@ -14,6 +15,8 @@
 
 namespace container = afc::language::container;
 
+using afc::infrastructure::screen::HashToModifiers;
+using afc::infrastructure::screen::HashToModifiersBold;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::Error;
@@ -199,7 +202,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
-                                  HashToModifiersBold::kNever);
+                                  HashToModifiersBold::Never);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -287,7 +290,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
 
       if (result->state() == expected_state) {
         LineModifierSet modifiers = HashToModifiers(
-            result->AddAndGetNesting(), HashToModifiersBold::kSometimes);
+            result->AddAndGetNesting(), HashToModifiersBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
@@ -301,22 +304,6 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       parsers::ParseNumber(result, {LineModifier::kYellow}, {});
       return;
     }
-  }
-
-  enum class HashToModifiersBold { kSometimes, kNever };
-  LineModifierSet HashToModifiers(int nesting,
-                                  HashToModifiersBold bold_behavior) {
-    LineModifierSet output;
-    static std::vector<LineModifier> modifiers = {
-        LineModifier::kCyan, LineModifier::kYellow, LineModifier::kRed,
-        LineModifier::kBlue, LineModifier::kGreen,  LineModifier::kMagenta,
-        LineModifier::kWhite};
-    output.insert(modifiers[nesting % modifiers.size()]);
-    if (bold_behavior == HashToModifiersBold::kSometimes &&
-        ((nesting / modifiers.size()) % 2) == 0) {
-      output.insert(LineModifier::kBold);
-    }
-    return output;
   }
 };
 

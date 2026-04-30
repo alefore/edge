@@ -44,6 +44,10 @@ std::expected<LineModifier, language::Error> ModifierFromString(
 
 void ToggleModifier(LineModifier m, LineModifierSet& output);
 
+enum class HashToModifiersBold { Sometimes, Never };
+
+LineModifierSet HashToModifiers(int hash_value,
+                                HashToModifiersBold bold_behavior);
 std::ostream& operator<<(std::ostream& os, const LineModifierSet& s);
 
 }  // namespace afc::infrastructure::screen

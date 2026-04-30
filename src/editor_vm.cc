@@ -8,6 +8,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/extended_char_vm.h"
+#include "src/infrastructure/screen/line_modifier_vm.h"
 #include "src/infrastructure/tracker.h"
 #include "src/insert_history_buffer.h"
 #include "src/language/container.h"
@@ -603,6 +604,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   InitShapes(pool, value);
   RegisterTransformations(pool, value);
   Modifiers::Register(pool, value);
+  infrastructure::screen::RegisterLineModifier(pool, value);
   ForkCommandOptions::Register(pool, value);
   RegisterParseTreeFunctions(pool, value);
   RegisterSearchOptionsVm(pool, value);

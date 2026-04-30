@@ -239,15 +239,17 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   if constexpr (T::has_union)
     object_type.ptr()->AddField(
         IDENTIFIER_CONSTANT(L"union"),
-        vm::NewCallback(pool, kPurityTypePure,
-                        [](ContainerPtr a, ContainerPtr b) {
-                          Container output;
-                          a->lock([&output](Container& c) { output = c; });
-                          b->lock([&output](Container& c) { output.merge(c); });
-                          return language::MakeNonNullShared<
-                              concurrent::Protected<Container>>(
-                              std::move(output));
-                        })
+        vm::NewCallback(
+            pool, kPurityTypePure,
+            [](ContainerPtr a, ContainerPtr b) {
+              Container output;
+              a->lock([&output](const Container& c) { output = c; });
+              b->lock([&output](const Container& c) {
+                for (const auto& element : c) output.insert(element);
+              });
+              return language::MakeNonNullShared<
+                  concurrent::Protected<Container>>(std::move(output));
+            })
             .ptr());
 
   object_type.ptr()->AddField(

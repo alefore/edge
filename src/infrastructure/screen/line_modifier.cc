@@ -68,4 +68,16 @@ std::ostream& operator<<(std::ostream& os, const LineModifierSet& s) {
   return os;
 }
 
+LineModifierSet HashToModifiers(int hash_value,
+                                HashToModifiersBold bold_behavior) {
+  LineModifierSet output;
+  static std::vector<LineModifier> modifiers = {
+      LineModifier::kCyan, LineModifier::kYellow, LineModifier::kRed,
+      LineModifier::kBlue, LineModifier::kGreen,  LineModifier::kMagenta};
+  output.insert(modifiers[hash_value % modifiers.size()]);
+  if (bold_behavior == HashToModifiersBold::Sometimes &&
+      ((hash_value / modifiers.size()) % 2) == 0)
+    output.insert(LineModifier::kBold);
+  return output;
+}
 }  // namespace afc::infrastructure::screen

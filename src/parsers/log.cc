@@ -14,6 +14,8 @@
 
 namespace gc = afc::language::gc;
 using afc::concurrent::Protected;
+using afc::infrastructure::screen::HashToModifiers;
+using afc::infrastructure::screen::HashToModifiersBold;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifiers;
 using afc::infrastructure::screen::LineModifierSet;
@@ -157,6 +159,15 @@ class LogTreeParser : public TreeParser {
           // TODO(2026-04-30, P1): Don't assume string type.
           environment->DefineUninitialized(name.read(), vm::types::String{});
         });
+    environment->Define(
+        IDENTIFIER_CONSTANT(L"hash"),
+        vm::NewCallback(
+            environment.pool(), vm::kPurityTypePure, [](LazyString input) {
+              return MakeNonNullShared<Protected<std::set<LineModifier>>>(
+                  HashToModifiers(std::hash<LazyString>{}(input),
+                                  HashToModifiersBold::Never) |
+                  std::ranges::to<std::set>());
+            }));
   }
 };
 
