@@ -15,8 +15,10 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::ModifierFromString;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
+using afc::language::VisitValue;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineRange;
@@ -110,10 +112,15 @@ class LogTreeParser : public TreeParser {
                         LOG(INFO) << "Error: " << result.error();
                         continue;
                       }
-                      if (LazyString result_str = result.value()->get_string();
-                          !result_str.empty())
-                        modifiers.insert(
-                            ModifierFromString(result_str.ToBytes()));
+                      VisitValue(
+                          NonEmptySingleLine::New(
+                              SingleLine::New(result.value()->get_string()))
+                              .and_then([](NonEmptySingleLine value) {
+                                return ModifierFromString(value);
+                              }),
+                          [&modifiers](LineModifier modifier) {
+                            modifiers.insert(modifier);
+                          });
                     }
                     child.set_modifiers(std::move(modifiers));
                     output.PushChild(std::move(child));

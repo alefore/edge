@@ -5,10 +5,13 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/language/error/value_or_error.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 
 namespace afc::infrastructure::screen {
+// TODO(trivial, 2026-04-30, enum class): Drop the `k` prefix.
 enum class LineModifier {
   kReset,
   kBold,
@@ -30,8 +33,14 @@ enum class LineModifier {
 using LineModifierSet =
     std::unordered_set<LineModifier, language::EnumClassHash>;
 
-language::lazy_string::LazyString ModifierToString(LineModifier modifier);
-LineModifier ModifierFromString(std::string modifier);
+const std::unordered_map<language::lazy_string::NonEmptySingleLine,
+                         LineModifier>&
+ModifierNames();
+
+language::lazy_string::NonEmptySingleLine ModifierToString(
+    LineModifier modifier);
+std::expected<LineModifier, language::Error> ModifierFromString(
+    language::lazy_string::NonEmptySingleLine modifier);
 
 void ToggleModifier(LineModifier m, LineModifierSet& output);
 

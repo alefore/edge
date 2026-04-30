@@ -7,51 +7,49 @@
 #include "src/language/container.h"
 #include "src/language/wstring.h"
 
+using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::InsertOrDie;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 
 namespace afc::infrastructure::screen {
-const std::unordered_map<std::string, LineModifier>& ModifierNames() {
-  static const std::unordered_map<std::string, LineModifier> values = {
-      {"RESET", LineModifier::kReset},
-      {"BOLD", LineModifier::kBold},
-      {"ITALIC", LineModifier::kItalic},
-      {"DIM", LineModifier::kDim},
-      {"UNDERLINE", LineModifier::kUnderline},
-      {"REVERSE", LineModifier::kReverse},
-      {"BLACK", LineModifier::kBlack},
-      {"RED", LineModifier::kRed},
-      {"GREEN", LineModifier::kGreen},
-      {"BLUE", LineModifier::kBlue},
-      {"CYAN", LineModifier::kCyan},
-      {"YELLOW", LineModifier::kYellow},
-      {"MAGENTA", LineModifier::kMagenta},
-      {"BG_RED", LineModifier::kBgRed}};
+const std::unordered_map<NonEmptySingleLine, LineModifier>& ModifierNames() {
+  static const std::unordered_map<NonEmptySingleLine, LineModifier> values = {
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RESET"), LineModifier::kReset},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BOLD"), LineModifier::kBold},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"ITALIC"), LineModifier::kItalic},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"DIM"), LineModifier::kDim},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"UNDERLINE"), LineModifier::kUnderline},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"REVERSE"), LineModifier::kReverse},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), LineModifier::kBlack},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), LineModifier::kRed},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), LineModifier::kGreen},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), LineModifier::kBlue},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), LineModifier::kCyan},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), LineModifier::kYellow},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), LineModifier::kMagenta},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BG_RED"), LineModifier::kBgRed}};
   return values;
 }
 
-LazyString ModifierToString(LineModifier modifier) {
-  static const std::unordered_map<LineModifier, LazyString> values =
-      std::invoke([] {
-        std::unordered_map<LineModifier, LazyString> output;
-        for (const std::pair<const std::string, LineModifier>& entry :
-             ModifierNames())
-          // TODO(easy, 2024-08-30): Get rid of FromByteString/LazyString here.
-          InsertOrDie(output,
-                      {entry.second, LazyString{FromByteString(entry.first)}});
-        return output;
-      });
-
-  if (auto it = values.find(modifier); it != values.end()) return it->second;
-  return LazyString{L"UNKNOWN"};
+NonEmptySingleLine ModifierToString(LineModifier modifier) {
+  static const std::unordered_map<LineModifier, NonEmptySingleLine> values =
+      ModifierNames() |
+      std::views::transform(
+          [](const std::pair<NonEmptySingleLine, LineModifier> data) {
+            return std::make_pair(data.second, data.first);
+          }) |
+      std::ranges::to<std::unordered_map>();
+  return GetValueOrDie(values, modifier);
 }
 
-LineModifier ModifierFromString(std::string modifier) {
-  const std::unordered_map<std::string, LineModifier>& values = ModifierNames();
+std::expected<LineModifier, Error> ModifierFromString(
+    NonEmptySingleLine modifier) {
+  const std::unordered_map<NonEmptySingleLine, LineModifier>& values =
+      ModifierNames();
   if (auto it = values.find(modifier); it != values.end()) return it->second;
-  // TODO(2026-04-30, trivial, log): Return std::expected.
-  return LineModifier::kReset;  // Ugh.
+  return Error{LazyString{L"Unknown modifier: "} + modifier};
 }
 
 void ToggleModifier(LineModifier m, LineModifierSet& output) {

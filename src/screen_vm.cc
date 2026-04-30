@@ -221,8 +221,9 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"SetModifier"}}}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
-          [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
-            screen->SetModifier(ModifierFromString(ToByteString(str)));
+          [](NonNull<std::shared_ptr<Screen>> screen, LazyString str) {
+            if (auto value = ModifierFromString(str); value)
+              screen->SetModifier(value.value());
           })
           .ptr());
 
