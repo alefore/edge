@@ -35,6 +35,7 @@ struct LogEntryValue {
 };
 
 struct LogLine {
+  // Values must be sorted by `position`.
   std::unordered_map<LogEntryName, std::vector<LogEntryValue>> values;
 };
 

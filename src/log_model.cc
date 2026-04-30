@@ -70,6 +70,11 @@ std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
       [&values](std::pair<LogEntryName, LogEntryValue> data) {
         values[data.first].push_back(std::move(data.second));
       });
+  std::ranges::for_each(
+      values,
+      [](std::pair<const LogEntryName, std::vector<LogEntryValue>>& pair) {
+        std::ranges::sort(pair.second, {}, &LogEntryValue::position);
+      });
   return LogLine{.values = std::move(values)};
 }
 
