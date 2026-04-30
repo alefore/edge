@@ -46,7 +46,7 @@ class LogTreeParser : public TreeParser {
     gc::Pool pool({});
     gc::Root<Environment> environment =
         Environment::New(vm::NewDefaultEnvironment(pool).ptr());
-    PrepareEnvironment(environment);
+    PrepareEnvironment(environment.ptr());
     ParseTree output = ParseTree(range);
     // TODO(P1, 2026-04-30, trivial): Don't hard-code the view here. Receive it
     // at construction.
@@ -59,6 +59,18 @@ class LogTreeParser : public TreeParser {
     range.ForEachLine([&](LineNumber i) {
       VisitValue(
           log_type_.Parse(contents.at(i).contents().read()), [&](LogLine line) {
+            std::ranges::for_each(
+                line.values, [&](std::pair<LogEntryName, LogEntryValue> entry) {
+                  // TODO(P0, log, 2026-04-30): Remove the call to
+                  // Identifier::New from here.
+                  // TODO(P1, log, 2026-04-30): Avoid the call to std::get. Use
+                  // visit instead?
+                  environment->Assign(
+                      Identifier::New(entry.first.read()).value(),
+                      vm::Value::NewString(
+                          environment.pool(),
+                          std::get<LazyString>(entry.second.value)));
+                });
             std::ranges::for_each(
                 line.values, [&](std::pair<LogEntryName, LogEntryValue> entry) {
                   if (auto it = view->second.expressions.find(entry.first);
@@ -126,7 +138,7 @@ class LogTreeParser : public TreeParser {
                      });
         });
     environment->Define(IDENTIFIER_CONSTANT(L"default"),
-                        vm::Value::NewString(pool, L""));
+                        vm::Value::NewString(environment.pool(), L""));
     VLOG(2) << "Defining entries for all LogEntryName instances.";
     std::ranges::for_each(log_type_.entry_names(),
                           [&environment](const LogEntryName& name) {
