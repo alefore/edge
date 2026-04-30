@@ -45,6 +45,22 @@ class LogTypeName
   using GhostType::GhostType;
 };
 
+class LogViewName
+    : public language::GhostType<LogViewName,
+                                 language::lazy_string::NonEmptySingleLine> {
+ public:
+  using GhostType::GhostType;
+};
+
+struct LogView {
+  LogViewName name;
+  // TODO(2026-04-30, P1, log): For now, we hold the uncompiled string. In the
+  // future, this should change to the compiled string.
+  std::unordered_map<LogEntryName,
+                     std::vector<language::lazy_string::NonEmptySingleLine>>
+      expressions;
+};
+
 class LogType {
   LogTypeName name_;
   std::wregex regex_;
@@ -65,6 +81,7 @@ std::ostream& operator<<(std::ostream& os, const LogType& value);
 
 struct LogModel {
   std::unordered_map<LogTypeName, LogType> log_types;
+  std::unordered_map<LogViewName, LogView> views;
 };
 }  // namespace afc::editor
 

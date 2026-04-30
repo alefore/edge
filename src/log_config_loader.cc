@@ -17,6 +17,7 @@
 #include "src/language/lazy_string/trim.h"
 #include "src/language/text/line.h"
 #include "src/open_files.h"
+#include "src/tests/tests.h"
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
@@ -45,12 +46,16 @@ using afc::language::view::GetErrors;
 using afc::language::view::SkipErrors;
 
 namespace afc::editor {
+namespace {
+static const std::unordered_set<wchar_t> Space = {L' '};
+}
+
 auto GetBlockIndices(LineSequence lines) {
   return lines | std::views::enumerate |
          std::views::filter([](std::tuple<size_t, const Line&> input) {
-           const Line& line = std::get<1>(input);
-           return StartsWith(line.contents(), LazyString{L"[type"}) &&
-                  EndsWith(line.contents(), LazyString{L"]"});
+           SingleLine line = Trim(std::get<1>(input).contents(), Space);
+           return StartsWith(line, LazyString{L"["}) &&
+                  EndsWith(line, LazyString{L"]"});
          }) |
          std::views::transform([](std::tuple<size_t, const Line&> input) {
            return LineColumn{LineNumber{std::get<0>(input)}};
@@ -75,100 +80,276 @@ std::vector<LineSequence> PartitionIntoBlocks(LineSequence lines) {
          std::ranges::to<std::vector>();
 }
 
-namespace {}
+struct SectionHeader {
+  NonEmptySingleLine header_type;
+  NonEmptySingleLine value;
+};
+
+std::ostream& operator<<(std::ostream& os, const SectionHeader& value) {
+  os << "[" << value.header_type << " " << value.value << "]";
+  return os;
+}
+
+bool operator==(const SectionHeader& a, const SectionHeader& b) {
+  return a.header_type == b.header_type && a.value == b.value;
+}
+
+std::expected<SectionHeader, Error> ParseSectionHeader(SingleLine header) {
+  header = Trim(header, Space);
+  if (!StartsWith(header, SINGLE_LINE_CONSTANT(L"[")))
+    return Error{L"Section header must start with ["};
+  std::optional<ColumnNumber> header_type_start =
+      FindFirstNotOf(header, Space, ColumnNumber{1});
+  std::optional<ColumnNumber> header_type_end = header_type_start.and_then(
+      [&](ColumnNumber pos) { return FindFirstOf(header, Space, pos); });
+  std::optional<ColumnNumber> value_start = header_type_end.and_then(
+      [&](ColumnNumber pos) { return FindFirstNotOf(header, Space, pos); });
+  std::optional<ColumnNumber> value_end = value_start.and_then(
+      [&](ColumnNumber pos) { return FindFirstOf(header, {L' ', L']'}, pos); });
+  if (!value_end)
+    return Error{LazyString{L"Invalid section header: "} + header};
+  if (Trim(header.Substring(value_end.value()), Space) != L"]")
+    return Error{LazyString{L"Invalid section header (end): "} + header};
+  VLOG(9) << "ParseSectionHeader: " << header_type_start.value() << " "
+          << header_type_end.value() << " " << value_start.value() << " "
+          << value_end.value();
+  auto header_type = NonEmptySingleLine::New(
+      header.Substring(header_type_start.value(),
+                       header_type_end.value() - header_type_start.value()));
+  auto value = NonEmptySingleLine::New(header.Substring(
+      value_start.value(), value_end.value() - value_start.value()));
+  if (!header_type || !value)
+    return Error{LazyString{L"Invalid section header (extract): "} + header};
+  return SectionHeader{.header_type = header_type.value(),
+                       .value = value.value()};
+}
+
+namespace {
+const bool parse_section_header_tests_registration = tests::Register(
+    L"LogModelParseSectionHeader", std::invoke([] -> std::vector<tests::Test> {
+      auto err = [](std::wstring name, std::wstring input) {
+        return tests::Test{.name = name, .callback = [input] {
+                             CHECK(!ParseSectionHeader(SingleLine(input)));
+                           }};
+      };
+      auto ok = [](std::wstring name, std::wstring input,
+                   std::wstring header_type = L"foo",
+                   std::wstring value = L"bar") {
+        return tests::Test{
+            .name = name, .callback = [input, header_type, value] {
+              auto output = ParseSectionHeader(SingleLine(input));
+              CHECK(output) << "Unexpected error: " << output.error();
+              CHECK_EQ(output->header_type, NonEmptySingleLine(header_type));
+              CHECK_EQ(output->value, NonEmptySingleLine(value));
+            }};
+      };
+      return {err(L"BadStart", L"foo bar"),
+              err(L"MissingEnd", L"[foo bar"),
+              err(L"TrailingGarbage", L"[foo bar]    heh   ]"),
+              err(L"SingleToken", L"[foo]"),
+              err(L"SingleTokenWithSpaces", L"  [  foo  ]  "),
+              ok(L"Simple", L"[foo bar]"),
+              ok(L"WithPrefixSpaces", L"   [foo bar]"),
+              ok(L"WithSuffixSpaces", L"[foo bar]   "),
+              ok(L"WithSpacesEverywhere", L"  [    foo  bar   ]   "),
+              ok(L"WithStrangeTokens", L"[asdf:123 var/blah:12:32!]",
+                 L"asdf:123", L"var/blah:12:32!")};
+    }));
+}  // namespace
+
+struct KeyValue {
+  NonEmptySingleLine key;
+  NonEmptySingleLine value;
+};
+std::expected<KeyValue, Error> ParseKeyValue(NonEmptySingleLine input) {
+  input = Trim(input, Space);
+  std::optional<ColumnNumber> colon =
+      FindFirstOf(input, {L':'}, ColumnNumber{1});
+  if (!colon)
+    return Error{ToLazyString(input) +
+                 LazyString{L": Unable to parse: Expected `:`"}};
+  auto key = NonEmptySingleLine::New(
+      Trim(input.Substring(ColumnNumber{}, colon->ToDelta()), Space));
+  auto value = NonEmptySingleLine::New(
+      Trim(input.Substring(colon.value() + ColumnNumberDelta{1}), Space));
+  if (!key) return Error{LazyString{L"Invalid line (no key): "} + input};
+  if (!value)
+    return Error{LazyString{L"Invalid line (value missing): "} + input};
+  return KeyValue{.key = std::move(key).value(),
+                  .value = std::move(value).value()};
+}
+
+const bool parse_key_value_tests_registration = tests::Register(
+    L"LogModelParseKeyValue", std::invoke([] -> std::vector<tests::Test> {
+      auto err = [](std::wstring name, std::wstring input) {
+        return tests::Test{.name = name, .callback = [input] {
+                             CHECK(!ParseKeyValue(SingleLine(input)));
+                           }};
+      };
+      auto ok = [](std::wstring name, std::wstring input,
+                   std::wstring key = L"foo", std::wstring value = L"bar") {
+        return tests::Test{
+            .name = name, .callback = [input, key, value] {
+              auto output =
+                  ParseKeyValue(NonEmptySingleLine(SingleLine(input)));
+              CHECK(output) << "Unexpected error: " << output.error();
+              CHECK_EQ(output->key, NonEmptySingleLine(key));
+              CHECK_EQ(output->value, NonEmptySingleLine(value));
+            }};
+      };
+      return {
+          err(L"MissingColon", L"foo bar"),
+          ok(L"Simple", L"foo:bar"),
+          ok(L"WithSpacePrefix", L"   foo:bar"),
+          ok(L"WithSpaceBeforeColon", L"foo   :bar"),
+          ok(L"WithSpaceAfterColon", L"foo:   bar"),
+          ok(L"WithSpacesEverywhere", L"    foo  :   bar  "),
+          ok(L"WithMultipleColons", L"foo:   bar:quux:yeah", L"foo",
+             L"bar:quux:yeah"),
+      };
+    }));
+
+PossibleError DispatchLine(
+    std::unordered_map<NonEmptySingleLine,
+                       std::function<PossibleError(NonEmptySingleLine)>>
+        handlers,
+    SingleLine input) {
+  input = Trim(input, {L' '});
+  if (input.empty()) return EmptyValue{};
+  DECLARE_OR_RETURN(KeyValue key_value,
+                    ParseKeyValue(NonEmptySingleLine(input)));
+  if (auto handler = handlers.find(key_value.key); handler != handlers.end())
+    return handler->second(key_value.value);
+  return Error{LazyString{L"Invalid directive: "} + key_value.key};
+}
+
+std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
+  if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
+  DECLARE_OR_RETURN(SectionHeader header,
+                    ParseSectionHeader(block.at(LineNumber{}).contents()));
+  CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"view"));
+  LogViewName log_view_name{header.value};
+  std::unordered_map<LogEntryName,
+                     std::vector<language::lazy_string::NonEmptySingleLine>>
+      expressions;
+  std::vector<Error> errors =
+      block | std::views::drop(1) |
+      std::views::transform([&](Line line) -> PossibleError {
+        return DispatchLine(
+            {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"variable"),
+              [&expressions](NonEmptySingleLine value) -> PossibleError {
+                std::optional<ColumnNumber> name_end =
+                    FindFirstOf(value, Space);
+                DECLARE_OR_RETURN(NonEmptySingleLine name_non_empty,
+                                  NonEmptySingleLine::New(value.Substring(
+                                      ColumnNumber{}, name_end->ToDelta())));
+                std::optional<SingleLine> expr_str =
+                    name_end.transform([&](ColumnNumber pos) {
+                      return Trim(value.Substring(pos), Space);
+                    });
+                if (!expr_str) return Error{L"Expected: expression."};
+                expressions[LogEntryName{name_non_empty}].push_back(
+                    expr_str.value());
+                return EmptyValue{};
+              }}},
+            line.contents());
+      }) |
+      GetErrors | std::ranges::to<std::vector>();
+  if (!errors.empty()) return MergeErrors(errors, L", ");
+  LOG(INFO) << "Created view " << log_view_name
+            << " with expressions: " << expressions.size();
+  return LogView{.name = log_view_name, .expressions = std::move(expressions)};
+}
 
 std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
   if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
 
   // Each block starts with the [type Name] line
   // TODO(P2, 2026-04-28): Remove comments.
-  SingleLine header = Trim(block.at(LineNumber{}).contents(), {L' '});
+  DECLARE_OR_RETURN(SectionHeader header,
+                    ParseSectionHeader(block.at(LineNumber{}).contents()));
+  CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"type"));
+  LogTypeName log_type_name{header.value};
 
-  // Extract "Name" from "[type Name]"
-  // Expected length check and validation should happen here
-  static const ColumnNumberDelta kPrefixLength = LazyString{L"[type "}.size();
-  DECLARE_OR_RETURN(NonEmptySingleLine log_type_name_str,
-                    NonEmptySingleLine::New(
-                        Trim(header.Substring(ColumnNumber{} + kPrefixLength,
-                                              header.size() - kPrefixLength -
-                                                  ColumnNumberDelta{1}),
-                             {L' '})));
-  LogTypeName log_type_name{log_type_name_str};
-
-  std::optional<NonEmptySingleLine> pattern;
+  std::vector<NonEmptySingleLine> patterns;
   std::unordered_map<LogEntryName, LogEntryConfiguration> entries;
-  static const std::unordered_set<wchar_t> Space = {L' '};
   std::vector<Error> errors =
       block | std::views::drop(1) |
       std::views::transform([&](Line line) -> PossibleError {
-        SingleLine line_str = TrimLeft(line.contents(), Space);
-        if (line_str.empty() || StartsWith(line_str, LazyString{L"#"}))
-          return EmptyValue{};
-        std::optional<ColumnNumber> first_colon = FindFirstOf(line_str, {L':'});
-        if (!first_colon.has_value())
-          return Error{LazyString{L"Invalid line detected (missing colon): "} +
-                       line_str};
-        SingleLine directive =
-            LowerCase(line_str.Substring(first_colon.value()));
-        SingleLine value =
-            Trim(line_str.Substring(first_colon.value() + ColumnNumberDelta{1}),
-                 Space);
-        if (value.empty()) return Error{L"Value missing."};
-        if (directive == NON_EMPTY_SINGLE_LINE_CONSTANT(L"pattern")) {
-          if (pattern.has_value())
-            return Error{L"Pattern specified multiple times."};
-          DECLARE_OR_RETURN(NonEmptySingleLine pattern_value,
-                            AugmentError(L"Producing pattern",
-                                         NonEmptySingleLine::New(value)));
-          pattern = pattern_value;
-          return EmptyValue{};
-        }
-        if (directive == NON_EMPTY_SINGLE_LINE_CONSTANT(L"group")) {
-          std::optional<ColumnNumber> group_id_end = FindFirstOf(value, Space);
-          std::optional<SingleLine> entry_name_str =
-              group_id_end.transform([&](ColumnNumber pos) {
-                return Trim(value.Substring(pos), Space);
-              });
-          if (!entry_name_str) return Error{L"Expected: entry name."};
-          DECLARE_OR_RETURN(NonEmptySingleLine entry_name_non_empty,
-                            NonEmptySingleLine::New(entry_name_str.value()));
-          return Visit(
-              AsInt(ToLazyString(
-                  value.Substring(ColumnNumber{}, group_id_end->ToDelta()))),
-              [&](int group_id) -> PossibleError {
-                entries[LogEntryName{entry_name_non_empty}] =
-                    LogEntryConfiguration{LogCapturingGroup{group_id}};
+        return DispatchLine(
+            {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"group"),
+              [&entries](NonEmptySingleLine value) -> PossibleError {
+                std::optional<ColumnNumber> group_id_end =
+                    FindFirstOf(value, Space);
+                std::optional<SingleLine> entry_name_str =
+                    group_id_end.transform([&](ColumnNumber pos) {
+                      return Trim(value.Substring(pos), Space);
+                    });
+                if (!entry_name_str) return Error{L"Expected: entry name."};
+                DECLARE_OR_RETURN(
+                    NonEmptySingleLine entry_name_non_empty,
+                    NonEmptySingleLine::New(entry_name_str.value()));
+                return Visit(
+                    AsInt(ToLazyString(value.Substring(
+                        ColumnNumber{}, group_id_end->ToDelta()))),
+                    [&](int group_id) -> PossibleError {
+                      entries[LogEntryName{entry_name_non_empty}] =
+                          LogEntryConfiguration{LogCapturingGroup{group_id}};
+                      return EmptyValue{};
+                    },
+                    [](Error error) -> PossibleError {
+                      return AugmentError(L"Invalid group ID", error);
+                    });
+              }},
+             {NON_EMPTY_SINGLE_LINE_CONSTANT(L"pattern"),
+              [&patterns](NonEmptySingleLine value) {
+                patterns.push_back(value);
                 return EmptyValue{};
-              },
-              [&errors](Error error) -> PossibleError {
-                return AugmentError(L"Invalid group ID", error);
-              });
-        }
-        return Error{LazyString{L"Invalid directive: "} + directive};
+              }}},
+            line.contents());
       }) |
       GetErrors | std::ranges::to<std::vector>();
-  if (!pattern) errors.push_back(Error{L"No pattern specified."});
+  if (patterns.empty()) errors.push_back(Error{L"No pattern specified."});
+  if (patterns.size() != 1) {
+    // TODO(2026-04-30, P2, trivial): Show all patterns, maybe.
+    errors.push_back(Error{L"Multiple patterns specified."});
+  }
   if (!errors.empty()) return MergeErrors(errors, L", ");
-  return LogType(log_type_name, pattern.value(), std::move(entries));
+  return LogType(log_type_name, patterns[0], std::move(entries));
 }
 
 std::expected<LogModel, language::Error> ParseLogConfig(
     const LineSequence& lines) {
-  std::vector<Error> errors;
-  LogModel model{
-      .log_types =
-          PartitionIntoBlocks(lines) |
-          std::views::transform(
-              [&errors](LineSequence block)
-                  -> std::expected<std::pair<LogTypeName, LogType>, Error> {
-                DECLARE_OR_RETURN(LogType log_type,
-                                  CaptureErrors(ParseLogType(block), errors));
-                return std::make_pair(log_type.name(), log_type);
-              }) |
-          SkipErrors | std::ranges::to<std::unordered_map>()};
-  LOG(INFO) << "Returning model!";
-  if (!errors.empty()) return MergeErrors(errors, L", ");
-  return model;
+  std::unordered_map<LogTypeName, LogType> log_types;
+  std::unordered_map<LogViewName, LogView> views;
+
+  std::vector<Error> errors =
+      PartitionIntoBlocks(lines) |
+      std::views::transform([&log_types,
+                             &views](LineSequence block) -> PossibleError {
+        DECLARE_OR_RETURN(
+            SectionHeader header,
+            ParseSectionHeader(block.at(LineNumber{}).contents()));
+        if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")) {
+          DECLARE_OR_RETURN(LogType log_type, ParseLogType(block));
+          log_types.insert({log_type.name(), log_type});
+          return EmptyValue{};
+        }
+        if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"view")) {
+          DECLARE_OR_RETURN(LogView log_view, ParseLogView(block));
+          views.insert({log_view.name, log_view});
+          return EmptyValue{};
+        }
+        return Error{LazyString{L"Invalid directive: "} + header.header_type};
+      }) |
+      GetErrors | std::ranges::to<std::vector>();
+  if (!errors.empty()) {
+    Error error = MergeErrors(errors, L", ");
+    LOG(INFO) << "Errors: " << error;
+    return error;
+  }
+  LOG(INFO) << "Returning model";
+  return LogModel{.log_types = std::move(log_types), .views = std::move(views)};
 }
 
 futures::ValueOrError<LogModel> LoadModelFromPaths(
@@ -222,6 +403,4 @@ futures::ValueOrError<LogModel> LoadModelFromPaths(
         return model[0];
       });
 }
-
 }  // namespace afc::editor
-// namespace afc::editor
