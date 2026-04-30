@@ -23,8 +23,8 @@ struct Delete {
 
   // When mode is kPreview, what colors should the deleted text be previewed in?
   infrastructure::screen::LineModifierSet preview_modifiers = {
-      infrastructure::screen::LineModifier::kRed,
-      infrastructure::screen::LineModifier::kUnderline};
+      infrastructure::screen::LineModifier::Red,
+      infrastructure::screen::LineModifier::Underline};
 
   // If set, overrides the mode passed when the transformation is executed. This
   // is used by CompositeTransformations that want to effectively erase text

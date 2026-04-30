@@ -118,23 +118,23 @@ ParseTree StringParentContinuationTree(std::vector<ParseTree> children) {
 
 ParseTree OpeningQuote() {
   return NewTree(ColumnNumber{0}, SINGLE_LINE_CONSTANT(L"\""),
-                 LineModifierSet{LineModifier::kDim}, {}, {});
+                 LineModifierSet{LineModifier::Dim}, {}, {});
 }
 
 ParseTree ClosingQuote(ColumnNumber position) {
   return NewTree(position, SINGLE_LINE_CONSTANT(L"\""),
-                 LineModifierSet{LineModifier::kDim}, {}, {});
+                 LineModifierSet{LineModifier::Dim}, {}, {});
 }
 
 static const NonEmptySingleLine kNestedSyntaxPrefix =
     NON_EMPTY_SINGLE_LINE_CONSTANT(L"{");
 static const NonEmptySingleLine kNestedSyntaxSuffix =
     NON_EMPTY_SINGLE_LINE_CONSTANT(L"}");
-static const LineModifierSet kContentModifiers = {LineModifier::kBold};
+static const LineModifierSet kContentModifiers = {LineModifier::Bold};
 static const std::unordered_set<ParseTreeProperty> kContentProperties = {
     ParseTreeProperty::StringValue()};
-LineModifierSet kNestedPrefixSuffixModifiers = {LineModifier::kDim};
-LineModifierSet kNestedContentModifiers = {LineModifier::kGreen};
+LineModifierSet kNestedPrefixSuffixModifiers = {LineModifier::Dim};
+LineModifierSet kNestedContentModifiers = {LineModifier::Green};
 
 bool parse_quoted_string_tests = afc::tests::Register(
     L"ParseQuotedString",

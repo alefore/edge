@@ -119,14 +119,14 @@ ColorizePromptOptions SearchResultsModifiers(
           case 0:
             return {};
           case 1:
-            return {LineModifier::kCyan};
+            return {LineModifier::Cyan};
           case 2:
-            return {LineModifier::kYellow};
+            return {LineModifier::Yellow};
           default:
-            return {LineModifier::kGreen};
+            return {LineModifier::Green};
         }
       },
-      [&](Error) { return LineModifierSet{LineModifier::kRed}; });
+      [&](Error) { return LineModifierSet{LineModifier::Red}; });
 
   return Visit(
       NonEmptySingleLine::New(line),

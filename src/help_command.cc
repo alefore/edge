@@ -142,10 +142,10 @@ LineBuilder DescribeSequenceWithQuotes(
     const std::vector<infrastructure::ExtendedChar>& input) {
   LineBuilder output;
   output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
-                      LineModifierSet{LineModifier::kDim});
+                      LineModifierSet{LineModifier::Dim});
   output.Append(DescribeSequence(input));
   output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
-                      LineModifierSet{LineModifier::kDim});
+                      LineModifierSet{LineModifier::Dim});
   return output;
 }
 

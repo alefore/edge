@@ -191,31 +191,31 @@ Line BuildStatus(const Data& data) {
         break;
       case Operation::Type::kFilter:
         output.AppendString(SingleLine::Char<L'w'>(),
-                            LineModifierSet{LineModifier::kCyan});
+                            LineModifierSet{LineModifier::Cyan});
         output.AppendString(SingleLine::Char<L':'>(),
-                            LineModifierSet{LineModifier::kDim});
+                            LineModifierSet{LineModifier::Dim});
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
           output.AppendString(SingleLine::Char<L'…'>(),
-                              LineModifierSet{LineModifier::kYellow});
+                              LineModifierSet{LineModifier::Yellow});
         }
         break;
       case Operation::Type::kWarningFilter:
         output.AppendString(SINGLE_LINE_CONSTANT(L" !"),
-                            LineModifierSet{LineModifier::kRed});
+                            LineModifierSet{LineModifier::Red});
         break;
       case Operation::Type::kSearch:
         output.AppendString(SingleLine::Char<L'/'>(),
-                            LineModifierSet{LineModifier::kGreen});
+                            LineModifierSet{LineModifier::Green});
         output.AppendString(SingleLine::Char<L':'>(),
-                            LineModifierSet{LineModifier::kDim});
+                            LineModifierSet{LineModifier::Dim});
 
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
           output.AppendString(SingleLine::Char<L'…'>(),
-                              LineModifierSet{LineModifier::kYellow});
+                              LineModifierSet{LineModifier::Yellow});
         }
         break;
     }

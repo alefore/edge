@@ -16,20 +16,20 @@ using afc::language::lazy_string::NonEmptySingleLine;
 namespace afc::infrastructure::screen {
 const std::unordered_map<NonEmptySingleLine, LineModifier>& LineModifiers() {
   static const std::unordered_map<NonEmptySingleLine, LineModifier> values = {
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RESET"), LineModifier::kReset},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BOLD"), LineModifier::kBold},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"ITALIC"), LineModifier::kItalic},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"DIM"), LineModifier::kDim},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"UNDERLINE"), LineModifier::kUnderline},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"REVERSE"), LineModifier::kReverse},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), LineModifier::kBlack},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), LineModifier::kRed},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), LineModifier::kGreen},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), LineModifier::kBlue},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), LineModifier::kCyan},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), LineModifier::kYellow},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), LineModifier::kMagenta},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BG_RED"), LineModifier::kBgRed}};
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RESET"), LineModifier::Reset},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BOLD"), LineModifier::Bold},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"ITALIC"), LineModifier::Italic},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"DIM"), LineModifier::Dim},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"UNDERLINE"), LineModifier::Underline},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"REVERSE"), LineModifier::Reverse},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), LineModifier::Black},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), LineModifier::Red},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), LineModifier::Green},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), LineModifier::Blue},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), LineModifier::Cyan},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), LineModifier::Yellow},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), LineModifier::Magenta},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BG_RED"), LineModifier::BgRed}};
   return values;
 }
 
@@ -72,12 +72,12 @@ LineModifierSet HashToModifiers(int hash_value,
                                 HashToModifiersBold bold_behavior) {
   LineModifierSet output;
   static std::vector<LineModifier> modifiers = {
-      LineModifier::kCyan, LineModifier::kYellow, LineModifier::kRed,
-      LineModifier::kBlue, LineModifier::kGreen,  LineModifier::kMagenta};
+      LineModifier::Cyan, LineModifier::Yellow, LineModifier::Red,
+      LineModifier::Blue, LineModifier::Green,  LineModifier::Magenta};
   output.insert(modifiers[hash_value % modifiers.size()]);
   if (bold_behavior == HashToModifiersBold::Sometimes &&
       ((hash_value / modifiers.size()) % 2) == 0)
-    output.insert(LineModifier::kBold);
+    output.insert(LineModifier::Bold);
   return output;
 }
 }  // namespace afc::infrastructure::screen

@@ -67,19 +67,19 @@ using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
                    LineBuilder& output) {
-  output.AppendString(name.read(), LineModifierSet{LineModifier::kCyan});
+  output.AppendString(name.read(), LineModifierSet{LineModifier::Cyan});
   output.AppendString(SingleLine::Char<L'('>(),
-                      LineModifierSet{LineModifier::kDim});
+                      LineModifierSet{LineModifier::Dim});
   SingleLine separator;
   std::ranges::for_each(
       arguments | std::views::filter(std::not_fn(&SingleLine::empty)),
       [&](const SingleLine& a) {
-        output.AppendString(separator, LineModifierSet{LineModifier::kDim});
+        output.AppendString(separator, LineModifierSet{LineModifier::Dim});
         output.AppendString(a, std::nullopt);
         separator = SINGLE_LINE_CONSTANT(L", ");
       });
   output.AppendString(SingleLine::Char<L')'>(),
-                      LineModifierSet{LineModifier::kDim});
+                      LineModifierSet{LineModifier::Dim});
 }
 
 NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
@@ -929,7 +929,7 @@ class OperationMode : public EditorMode {
     LineBuilder output;
     AppendStatus(state_.top_command(), output);
     output.AppendString(SingleLine::Char<L':'>(),
-                        LineModifierSet{LineModifier::kDim});
+                        LineModifierSet{LineModifier::Dim});
     state_.AppendStatusString(output);
     AppendStatusForCommandsAvailable(output);
     editor_state_.status().SetInformationText(std::move(output).Build());
@@ -1254,38 +1254,38 @@ class OperationMode : public EditorMode {
       case transformation::Stack::PostTransformationBehavior::kNone:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🦋 Move"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kCyan});
+            LineModifierSet{LineModifier::Bold, LineModifier::Cyan});
         return;
       case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"✂️  Delete"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kBgRed});
+            LineModifierSet{LineModifier::Bold, LineModifier::BgRed});
         return;
       case transformation::Stack::PostTransformationBehavior::kCopyRegion:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"📋 Copy"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kYellow});
+            LineModifierSet{LineModifier::Bold, LineModifier::Yellow});
         return;
       case transformation::Stack::PostTransformationBehavior::kCommandSystem:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🐚 System"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kGreen});
+            LineModifierSet{LineModifier::Bold, LineModifier::Green});
         return;
       case transformation::Stack::PostTransformationBehavior::kCommandCpp:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kGreen,
-                            LineModifier::kUnderline});
+            LineModifierSet{LineModifier::Bold, LineModifier::Green,
+                            LineModifier::Underline});
         return;
       case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🔠 Aa"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kMagenta});
+            LineModifierSet{LineModifier::Bold, LineModifier::Magenta});
         return;
       case transformation::Stack::PostTransformationBehavior::kCursorOnEachLine:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
-            LineModifierSet{LineModifier::kBold, LineModifier::kMagenta});
+            LineModifierSet{LineModifier::Bold, LineModifier::Magenta});
         return;
     }
     LOG(FATAL) << "Invalid post transformation "

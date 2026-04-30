@@ -105,23 +105,23 @@ ColorizePromptOptions DrawPath(
     switch (c) {
       case L'/':
       case L'.':
-        modifiers.insert(LineModifier::kDim);
+        modifiers.insert(LineModifier::Dim);
         break;
       default:
         if (column.ToDelta() >=
             results.predictor_output.longest_directory_match) {
           if (results.predictor_output.found_exact_match) {
-            modifiers.insert(LineModifier::kBold);
+            modifiers.insert(LineModifier::Bold);
           }
           if (results.matches == 0 &&
               column.ToDelta() >= results.predictor_output.longest_prefix) {
-            modifiers.insert(LineModifier::kRed);
+            modifiers.insert(LineModifier::Red);
           } else if (results.matches == 1) {
-            modifiers.insert(LineModifier::kGreen);
+            modifiers.insert(LineModifier::Green);
           } else if (results.common_prefix.has_value() &&
                      line.size() < ColumnNumberDelta(
                                        results.common_prefix.value().size())) {
-            modifiers.insert(LineModifier::kYellow);
+            modifiers.insert(LineModifier::Yellow);
           }
         }
     }

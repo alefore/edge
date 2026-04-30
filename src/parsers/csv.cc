@@ -45,8 +45,8 @@ class CsvParser : public LineOrientedTreeParser {
 
   void ParseRow(ParseData* result, size_t csv_column) {
     static const std::vector<LineModifier> csv_column_colors = {
-        LineModifier::kCyan, LineModifier::kYellow, LineModifier::kGreen,
-        LineModifier::kBlue, LineModifier::kMagenta};
+        LineModifier::Cyan, LineModifier::Yellow, LineModifier::Green,
+        LineModifier::Blue, LineModifier::Magenta};
     result->Push(CSV_CELL, ColumnNumberDelta(), {}, {});
     LineModifierSet modifiers = {
         csv_column_colors[csv_column % csv_column_colors.size()]};
@@ -77,7 +77,7 @@ class CsvParser : public LineOrientedTreeParser {
       seek.Once();
       SkipSpaces(result);
       result->PushAndPop(ColumnNumberDelta(1),
-                         LineModifierSet{LineModifier::kDim});
+                         LineModifierSet{LineModifier::Dim});
     }
     result->PopBack();  // CSV_CELL.
   }

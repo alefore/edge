@@ -85,13 +85,12 @@ futures::Value<PossibleError> PreviewCppExpression(
                    })
                    .ConsumeErrors([&buffer](Error error) {
                      LineBuilder builder;
-                     builder.AppendString(
-                         SINGLE_LINE_CONSTANT(L"💣 E:"),
-                         LineModifierSet{LineModifier::kBgRed});
+                     builder.AppendString(SINGLE_LINE_CONSTANT(L"💣 E:"),
+                                          LineModifierSet{LineModifier::BgRed});
                      builder.AppendString(SINGLE_LINE_CONSTANT(L" "));
                      builder.AppendString(
                          LineSequence::BreakLines(error.read()).FoldLines(),
-                         LineModifierSet{LineModifier::kRed});
+                         LineModifierSet{LineModifier::Red});
                      buffer.status().SetInformationText(
                          std::move(builder).Build());
                      return EmptyValue{};
@@ -105,12 +104,12 @@ futures::Value<Result> HandleCommandCpp(Input input,
   if (input.mode == Input::Mode::kPreview) {
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
-    delete_transformation->preview_modifiers = {LineModifier::kGreen,
-                                                LineModifier::kUnderline};
+    delete_transformation->preview_modifiers = {LineModifier::Green,
+                                                LineModifier::Underline};
     return PreviewCppExpression(input.buffer, contents)
         .ConsumeErrors([input, delete_transformation](Error error) {
-          delete_transformation->preview_modifiers = {LineModifier::kRed,
-                                                      LineModifier::kUnderline};
+          delete_transformation->preview_modifiers = {LineModifier::Red,
+                                                      LineModifier::Underline};
           input.adapter.AddError(error);
           return EmptyValue{};
         })
@@ -382,7 +381,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           case Stack::PostTransformationBehavior::kCommandSystem: {
             if (input.mode == Input::Mode::kPreview) {
               delete_transformation.preview_modifiers = {
-                  LineModifier::kGreen, LineModifier::kUnderline};
+                  LineModifier::Green, LineModifier::Underline};
               return Apply(delete_transformation,
                            input.NewChild(range.begin()));
             }

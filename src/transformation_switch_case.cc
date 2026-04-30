@@ -68,7 +68,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
                             : transformation::Insert::FinalPosition::kEnd,
       .modifiers_set =
           input.mode == transformation::Input::Mode::kPreview
-              ? LineModifierSet({LineModifier::kUnderline, LineModifier::kBlue})
+              ? LineModifierSet({LineModifier::Underline, LineModifier::Blue})
               : std::optional<LineModifierSet>()});
 
   return output;

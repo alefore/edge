@@ -250,15 +250,14 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
       VisualOverlayMap overlays;
       if (range.value().begin() != center)
         overlays[kPriority][kKey].insert(
-            {range.value().begin(),
-             afc::infrastructure::screen::VisualOverlay{
-                 .content = SingleLine{LazyString{L"⟦"}},
-                 .modifiers = {LineModifier::kReverse}}});
+            {range.value().begin(), afc::infrastructure::screen::VisualOverlay{
+                                        .content = SingleLine{LazyString{L"⟦"}},
+                                        .modifiers = {LineModifier::Reverse}}});
       if (range.value().end() != center)
         overlays[kPriority][kKey].insert(
             {range.value().end(), afc::infrastructure::screen::VisualOverlay{
                                       .content = SingleLine{LazyString{L"⟧"}},
-                                      .modifiers = {LineModifier::kReverse}}});
+                                      .modifiers = {LineModifier::Reverse}}});
       output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});
       break;
   }

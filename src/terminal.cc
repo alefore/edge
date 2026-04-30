@@ -120,7 +120,7 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
 }
 
 void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
-  screen.SetModifier(LineModifier::kReset);
+  screen.SetModifier(LineModifier::Reset);
   for (const auto& m : modifiers) {
     screen.SetModifier(m);
   }
@@ -173,7 +173,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   ColumnNumber output_column;
 
   functions.push_back(
-      [](Screen& screen) { screen.SetModifier(LineModifier::kReset); });
+      [](Screen& screen) { screen.SetModifier(LineModifier::Reset); });
 
   std::map<ColumnNumber, LineModifierSet> modifiers =
       line_with_cursor.line.modifiers();

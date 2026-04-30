@@ -406,7 +406,7 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
                             std::views::transform([](const Token& token) {
                               VLOG(6) << "Add token BOLD: " << token;
                               return TokenAndModifiers{
-                                  token, LineModifierSet{LineModifier::kCyan}};
+                                  token, LineModifierSet{LineModifier::Cyan}};
                             }))),
                     .data = LineSequence::BreakLines(data.OriginalString())};
               }) |
@@ -486,7 +486,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview{SingleLine{LazyString{L"foo\\"}}};
                expected_preview.AppendString(
                    SingleLine{LazyString{L"nbar"}},
-                   LineModifierSet{LineModifier::kCyan});
+                   LineModifierSet{LineModifier::Cyan});
                expected_preview.AppendString(SingleLine{LazyString{L"do"}});
 
                CHECK_EQ(
@@ -558,7 +558,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview;
                expected_preview.AppendString(
                    SingleLine{LazyString{L"ls"}},
-                   LineModifierSet{LineModifier::kCyan});
+                   LineModifierSet{LineModifier::Cyan});
                expected_preview.AppendString(SingleLine{LazyString{L"\\n"}});
 
                CHECK_EQ(output.matches[0],

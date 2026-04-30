@@ -185,7 +185,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
           match.second,
           infrastructure::screen::VisualOverlay{
               .content = line.Substring(match.second.column, kQueryLength),
-              .modifiers = {LineModifier::kUnderline},
+              .modifiers = {LineModifier::Underline},
               .behavior =
                   infrastructure::screen::VisualOverlay::Behavior::kToggle}));
       overlays[kPriority][kKey].insert(std::make_pair(
@@ -194,7 +194,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
               .content =
                   SingleLine{LazyString{ColumnNumberDelta{1}, match.first}},
               .modifiers =
-                  LineModifierSet{LineModifier::kReverse, LineModifier::kWhite},
+                  LineModifierSet{LineModifier::Reverse, LineModifier::White},
               .behavior =
                   infrastructure::screen::VisualOverlay::Behavior::kToggle}));
     }

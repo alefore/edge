@@ -206,29 +206,29 @@ const std::set<State> PropertiesValueStates() {
 }
 
 static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
+    LineModifierSet({LineModifier::BgRed, LineModifier::Bold});
 
 static const LineModifierSet RECOGNIZED_RULE_MODIFIERS =
-    LineModifierSet({LineModifier::kMagenta, LineModifier::kBold});
+    LineModifierSet({LineModifier::Magenta, LineModifier::Bold});
 
 static const LineModifierSet VALID_BORDER_STYLE_VALUE_MODIFIERS =
-    LineModifierSet({LineModifier::kGreen});
+    LineModifierSet({LineModifier::Green});
 
 static const LineModifierSet VALID_DISPLAY_VALUE_MODIFIERS =
-    LineModifierSet({LineModifier::kGreen});
+    LineModifierSet({LineModifier::Green});
 
 enum class HashToModifiersBold { kSometimes, kNever };
 LineModifierSet HashToModifiers(int nesting,
                                 HashToModifiersBold bold_behavior) {
   LineModifierSet output;
   static std::vector<LineModifier> modifiers = {
-      LineModifier::kCyan, LineModifier::kYellow, LineModifier::kRed,
-      LineModifier::kBlue, LineModifier::kGreen,  LineModifier::kMagenta,
-      LineModifier::kWhite};
+      LineModifier::Cyan, LineModifier::Yellow, LineModifier::Red,
+      LineModifier::Blue, LineModifier::Green,  LineModifier::Magenta,
+      LineModifier::White};
   output.insert(modifiers[nesting % modifiers.size()]);
   if (bold_behavior == HashToModifiersBold::kSometimes &&
       ((nesting / modifiers.size()) % 2) == 0)
-    output.insert(LineModifier::kBold);
+    output.insert(LineModifier::Bold);
   return output;
 }
 
@@ -294,7 +294,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
-    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim});
+    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim});
     if (auto it = PropertiesByPostNameState().find(State(result->state()));
         it != PropertiesByPostNameState().end()) {
       result->SetState(it->second.value_state);
@@ -339,15 +339,15 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       if (seek.read() == L'*') {
         seek.Once();
         result->Push(IN_MULTI_LINE_COMMENT, ColumnNumberDelta(2),
-                     {LineModifier::kBlue}, {});
+                     {LineModifier::Blue}, {});
       } else
         result->PushAndPop(ColumnNumberDelta(1), {});
       return;
     }
 
     if (c == L'\'' || c == L'"') {
-      if (ParseQuotedString(result, c, {LineModifier::kYellow}, {},
-                            std::nullopt, MultipleLinesSupport::kAccept,
+      if (ParseQuotedString(result, c, {LineModifier::Yellow}, {}, std::nullopt,
+                            MultipleLinesSupport::kAccept,
                             parsers::CurrentState::kStart) !=
           ParseQuotedStringState::kDone) {
         result->SetState(c == L'\'' ? IN_MULTIPLE_LINE_STRING_SINGLE_QUOTE
@@ -400,7 +400,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                                   L"#"
                                   L"*"});
         if (css_selector_chars.contains(c)) {
-          ParseWordLikeToken(result, css_selector_chars, {LineModifier::kCyan});
+          ParseWordLikeToken(result, css_selector_chars, {LineModifier::Cyan});
           return;
         }
         break;
@@ -413,7 +413,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {LineModifier::kYellow}, {});
+      parsers::ParseNumber(result, {LineModifier::Yellow}, {});
       return;
     }
   }
@@ -426,7 +426,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (c == L';') {
-      result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim});
+      result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim});
       // After a semicolon, we expect a new property.
       result->SetState(IN_DECLARATION_BLOCK_EXPECT_PROPERTY);
       return;
@@ -456,7 +456,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->PushAndPop(length, RECOGNIZED_RULE_MODIFIERS);
         result->SetState(it->second.post_name_state);
       } else {
-        result->PushAndPop(length, {LineModifier::kWhite});
+        result->PushAndPop(length, {LineModifier::White});
         result->SetState(IN_DECLARATION_BLOCK_EXPECT_COLON);
       }
       return;
@@ -479,7 +479,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     if (result->state() == INVALID_PROPERTY_VALUE) {
       result->PushAndPop(length, BAD_PARSE_MODIFIERS);
     } else {  // IN_DECLARATION_BLOCK_EXPECT_VALUE
-      result->PushAndPop(length, {LineModifier::kWhite});
+      result->PushAndPop(length, {LineModifier::White});
     }
   }
   void ParseMultiLineComment(ParseData* result) {
@@ -494,12 +494,12 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->PopBack();
         result->PushAndPop(
             result->position().column - start_column_for_highlight,
-            {LineModifier::kBlue});
+            {LineModifier::Blue});
         return;
       }
     }
     result->PushAndPop(result->position().column - start_column_for_highlight,
-                       {LineModifier::kBlue});
+                       {LineModifier::Blue});
   }
 
   void ParseMultipleLineString(ParseData* result) {
@@ -512,7 +512,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                           original_state == IN_MULTIPLE_LINE_STRING_SINGLE_QUOTE
                               ? L'\''
                               : L'"',
-                          {LineModifier::kYellow}, {}, std::nullopt,
+                          {LineModifier::Yellow}, {}, std::nullopt,
                           MultipleLinesSupport::kAccept,
                           CurrentState::kContinuationInDefault) ==
         ParseQuotedStringState::kDone)

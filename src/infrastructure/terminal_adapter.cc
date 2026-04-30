@@ -192,35 +192,35 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
         static const std::unordered_map<std::string, LineModifierSet> on{
             {"", {}},
             {"0", {}},
-            {"0;30", {LineModifier::kBlack}},
-            {"0;31", {LineModifier::kRed}},
-            {"0;32", {LineModifier::kGreen}},
-            {"0;33", {LineModifier::kYellow}},
-            {"0;34", {LineModifier::kBlue}},
-            {"0;35", {LineModifier::kMagenta}},
-            {"0;36", {LineModifier::kCyan}},
-            {"1", {LineModifier::kBold}},
-            {"1;30", {LineModifier::kBold, LineModifier::kBlack}},
-            {"1;31", {LineModifier::kBold, LineModifier::kRed}},
-            {"1;32", {LineModifier::kBold, LineModifier::kGreen}},
-            {"1;33", {LineModifier::kBold, LineModifier::kYellow}},
-            {"1;34", {LineModifier::kBold, LineModifier::kBlue}},
-            {"1;35", {LineModifier::kBold, LineModifier::kMagenta}},
-            {"1;36", {LineModifier::kBold, LineModifier::kCyan}},
+            {"0;30", {LineModifier::Black}},
+            {"0;31", {LineModifier::Red}},
+            {"0;32", {LineModifier::Green}},
+            {"0;33", {LineModifier::Yellow}},
+            {"0;34", {LineModifier::Blue}},
+            {"0;35", {LineModifier::Magenta}},
+            {"0;36", {LineModifier::Cyan}},
+            {"1", {LineModifier::Bold}},
+            {"1;30", {LineModifier::Bold, LineModifier::Black}},
+            {"1;31", {LineModifier::Bold, LineModifier::Red}},
+            {"1;32", {LineModifier::Bold, LineModifier::Green}},
+            {"1;33", {LineModifier::Bold, LineModifier::Yellow}},
+            {"1;34", {LineModifier::Bold, LineModifier::Blue}},
+            {"1;35", {LineModifier::Bold, LineModifier::Magenta}},
+            {"1;36", {LineModifier::Bold, LineModifier::Cyan}},
             // TODO(alejo): Support italic (3) on. "23" is Fraktur off, italic
             // off.
             {"3", {}},
-            {"4", {LineModifier::kUnderline}},
-            {"30", {LineModifier::kBlack}},
-            {"31", {LineModifier::kRed}},
-            {"32", {LineModifier::kGreen}},
-            {"33", {LineModifier::kYellow}},
-            {"34", {LineModifier::kBlue}},
-            {"35", {LineModifier::kMagenta}},
-            {"36", {LineModifier::kCyan}},
+            {"4", {LineModifier::Underline}},
+            {"30", {LineModifier::Black}},
+            {"31", {LineModifier::Red}},
+            {"32", {LineModifier::Green}},
+            {"33", {LineModifier::Yellow}},
+            {"34", {LineModifier::Blue}},
+            {"35", {LineModifier::Magenta}},
+            {"36", {LineModifier::Cyan}},
         };
         static const std::unordered_map<std::string, LineModifierSet> off{
-            {"24", {LineModifier::kUnderline}}};
+            {"24", {LineModifier::Underline}}};
         if (auto it_on = on.find(sequence); it_on != on.end()) {
           *modifiers = it_on->second;
         } else if (auto it_off = off.find(sequence); it_off != off.end()) {
@@ -229,7 +229,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
           }
         } else if (sequence == "0;36") {
           modifiers->clear();
-          modifiers->insert(LineModifier::kCyan);
+          modifiers->insert(LineModifier::Cyan);
         } else {
           LOG(INFO) << "Unhandled character sequence: (" << sequence;
         }

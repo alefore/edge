@@ -73,7 +73,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
             new_modifiers;
         new_modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers()) {
-          auto it = m.second.insert(LineModifier::kReverse);
+          auto it = m.second.insert(LineModifier::Reverse);
           if (!it.second) {
             m.second.erase(it.first);
           }
@@ -95,7 +95,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
             modifiers = line_options.modifiers();
         modifiers.erase(modifiers.lower_bound(begin),
                         modifiers.lower_bound(end));
-        modifiers[begin] = {LineModifier::kBlue};
+        modifiers[begin] = {LineModifier::Blue};
         line_options.set_modifiers(std::move(modifiers));
         output.line = std::move(line_options).Build();
         return output;
@@ -137,15 +137,15 @@ void GetSyntaxModifiersForLine(
 }
 
 std::optional<LineModifier> GetColor(const LineModifierSet& input) {
-  if (input.find(LineModifier::kWhite) != input.end())
-    return LineModifier::kWhite;
+  if (input.find(LineModifier::White) != input.end())
+    return LineModifier::White;
   return std::nullopt;
 }
 
 void ChangeColor(LineModifierSet& modifiers, LineModifier color) {
   EraseOrDie(modifiers, color);
-  modifiers.insert(color == LineModifier::kWhite ? LineModifier::kCyan
-                                                 : LineModifier::kWhite);
+  modifiers.insert(color == LineModifier::White ? LineModifier::Cyan
+                                                : LineModifier::White);
 }
 
 LineModifierSet MergeSets(const LineModifierSet& parent,
@@ -284,32 +284,32 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     switch (cursor_mode) {
                       case EditorMode::CursorMode::kDefault:
                         options.modifiers_main_cursor = {
-                            multiple_cursors ? LineModifier::kGreen
-                                             : LineModifier::kWhite};
+                            multiple_cursors ? LineModifier::Green
+                                             : LineModifier::White};
                         break;
                       case EditorMode::CursorMode::kInserting:
-                        options.modifiers_main_cursor = {LineModifier::kYellow};
+                        options.modifiers_main_cursor = {LineModifier::Yellow};
                         break;
                       case EditorMode::CursorMode::kOverwriting:
                         options.modifiers_main_cursor = {
-                            LineModifier::kRed, LineModifier::kUnderline};
+                            LineModifier::Red, LineModifier::Underline};
                         break;
                     }
                     options.modifiers_inactive_cursors =
                         multiple_cursors
                             ? options.modifiers_main_cursor
-                            : LineModifierSet({LineModifier::kBlue});
+                            : LineModifierSet({LineModifier::Blue});
                     // The inactive cursors need the REVERSE modifier to ensure
                     // they get highlighted. The active one doesn't need it,
                     // since the terminal handler actually places the real
                     // cursor in the corresponding position.
                     options.modifiers_inactive_cursors.insert(
-                        LineModifier::kReverse);
+                        LineModifier::Reverse);
                     break;
                   case Widget::OutputProducerOptions::MainCursorDisplay::
                       kInactive:
-                    options.modifiers_main_cursor = {LineModifier::kBlue};
-                    options.modifiers_inactive_cursors = {LineModifier::kBlue};
+                    options.modifiers_main_cursor = {LineModifier::Blue};
+                    options.modifiers_inactive_cursors = {LineModifier::Blue};
                     break;
                 }
               }
@@ -325,7 +325,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                  : buffer.mode_cursor_mode()),
             buffer.Read(buffer_variables::flow_mode) &&
                     line != buffer.position().line
-                ? std::optional<LineModifier>(LineModifier::kDim)
+                ? std::optional<LineModifier>(LineModifier::Dim)
                 : std::nullopt));
 
     if (&current_tree != root.get().get() &&

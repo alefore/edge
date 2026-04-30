@@ -197,7 +197,7 @@ LineSequence PrepareCardContents(LineSequence original, SingleLine answer,
       if (StartsWith(input.Substring(index), answer)) {
         output.AppendString(
             answer_cover,
-            LineModifierSet{LineModifier::kCyan, LineModifier::kReverse});
+            LineModifierSet{LineModifier::Cyan, LineModifier::Reverse});
         index += answer.size();
       } else
         output.AppendCharacter(input.get(index), {});

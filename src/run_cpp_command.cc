@@ -351,7 +351,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             [&](gc::Root<ExecutionContext::CompilationResult>
                     compilation_result)
                 -> futures::Value<ColorizePromptOptions> {
-              modifiers.insert(LineModifier::kCyan);
+              modifiers.insert(LineModifier::Cyan);
               progress_channel->Push(ProgressInformation{
                   .values = {
                       {VersionPropertyKey{
@@ -425,7 +425,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   VisitValue(Parse(editor.gc_pool(), line, environment, search_namespaces),
              [&](ParsedCommand) {
                MaybePushTokenAndModifiers(
-                   line, LineModifierSet{LineModifier::kCyan}, output->tokens);
+                   line, LineModifierSet{LineModifier::Cyan}, output->tokens);
              });
 
   using BufferMapper = vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>;

@@ -228,11 +228,11 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   LineModifierSet modifiers;
   if (count == kStopCount) {
     output_str = SingleLine::Char<L'+'>();
-    modifiers.insert(LineModifier::kBold);
+    modifiers.insert(LineModifier::Bold);
   }
   if (range.Contains(*cursors.active())) {
-    modifiers.insert(LineModifier::kBold);
-    modifiers.insert(LineModifier::kCyan);
+    modifiers.insert(LineModifier::Bold);
+    modifiers.insert(LineModifier::Cyan);
   }
   LineBuilder line_options;
   line_options.AppendString(output_str, modifiers);
@@ -318,8 +318,8 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                   LineColumn(LineNumber(initial_line(options) + lines_shown))),
             line, options.buffer.lines_size())
                 .Contains(options.buffer.position())
-            ? LineModifierSet({LineModifier::kYellow})
-            : LineModifierSet({LineModifier::kCyan});
+            ? LineModifierSet({LineModifier::Yellow})
+            : LineModifierSet({LineModifier::Cyan});
 
   if (!marks.empty() || !expired_marks.empty()) {
     double buffer_lines_per_row =
@@ -343,7 +343,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
         base_char |= (1 << (row * 2 + 1));
       }
     }
-    if (active_marks) modifiers = {LineModifier::kRed};
+    if (active_marks) modifiers = {LineModifier::Red};
   }
 
   CHECK_LT(base_char, chars.size());
@@ -419,7 +419,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       },
       [] {});
   auto info_char = L'•';
-  auto info_char_modifier = LineModifier::kDim;
+  auto info_char_modifier = LineModifier::Dim;
 
   if (target_buffer.get() != &options.buffer) {
     output.push_back(MetadataLine{
@@ -428,11 +428,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         MetadataLine::Type::kFlags});
 #if 0
   } else if (contents.modified()) {
-    info_char_modifier = LineModifier::kGreen;
+    info_char_modifier = LineModifier::Green;
     info_char = L'•';
 #endif
   } else {
-    info_char_modifier = LineModifier::kDim;
+    info_char_modifier = LineModifier::Dim;
   }
 
   if (SingleLine metadata = Concatenate(
@@ -449,7 +449,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
               }) |
           std::views::filter(std::not_fn(&SingleLine::empty)));
       !metadata.empty())
-    output.push_back(MetadataLine{L'>', LineModifier::kGreen,
+    output.push_back(MetadataLine{L'>', LineModifier::Green,
                                   LineBuilder{metadata}.Build(),
                                   MetadataLine::Type::kLineContents});
 
@@ -468,7 +468,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         options.buffer.editor().buffer_registry().Find(mark.source_buffer);
     output.push_back(MetadataLine{
         output.empty() ? L'!' : L' ',
-        output.empty() ? LineModifier::kRed : LineModifier::kDim,
+        output.empty() ? LineModifier::Red : LineModifier::Dim,
         (source.has_value() &&
          mark.source_line < LineNumber(0) + source->ptr()->contents().size())
             ? source->ptr()->contents().at(mark.source_line)
@@ -498,7 +498,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         !marks_strings.contains(mark_contents.contents())) {
       LineBuilder wrapper{SingleLine{LazyString{L"👻 "}}};
       wrapper.Append(LineBuilder(mark_contents));
-      output.push_back(MetadataLine{'!', LineModifier::kRed,
+      output.push_back(MetadataLine{'!', LineModifier::Red,
                                     std::move(wrapper).Build(),
                                     MetadataLine::Type::kMark});
     }
@@ -595,10 +595,10 @@ std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
         LineNumber() + sum_sizes,
         std::min(box.reference, LineNumber() + screen_size - box.size));
     static const std::vector<LineModifierSet> modifiers = {
-        LineModifierSet{LineModifier::kYellow},
-        LineModifierSet{LineModifier::kCyan},
-        LineModifierSet{LineModifier::kGreen},
-        LineModifierSet{LineModifier::kBlue},
+        LineModifierSet{LineModifier::Yellow},
+        LineModifierSet{LineModifier::Cyan},
+        LineModifierSet{LineModifier::Green},
+        LineModifierSet{LineModifier::Blue},
     };
     output.push_front(
         BoxWithPosition{.box = box,
@@ -896,7 +896,7 @@ ColumnsVector::Column BufferMetadataOutput(
         NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(
         lines_referenced.contains(i)
-            ? ColumnsVector::Padding{.modifiers = {LineModifier::kYellow},
+            ? ColumnsVector::Padding{.modifiers = {LineModifier::Yellow},
                                      .head = SINGLE_LINE_CONSTANT(L"  ←"),
                                      .body = SingleLine::Char<L'-'>()}
             : std::optional<ColumnsVector::Padding>{});

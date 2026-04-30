@@ -36,23 +36,23 @@ class DiffParser : public LineOrientedTreeParser {
       case L'+':
         if (result->state() == HEADERS || result->state() == DEFAULT) {
           if (!HandlePath(result))
-            AdvanceLine(result, {LineModifier::kBold, LineModifier::kGreen});
+            AdvanceLine(result, {LineModifier::Bold, LineModifier::Green});
           return;
         }
         // Fall through.
       case L'>':
-        InContents(result, {LineModifier::kGreen});
+        InContents(result, {LineModifier::Green});
         return;
 
       case L'-':
         if (result->state() == HEADERS || result->state() == DEFAULT) {
           if (!HandlePath(result))
-            AdvanceLine(result, {LineModifier::kBold, LineModifier::kRed});
+            AdvanceLine(result, {LineModifier::Bold, LineModifier::Red});
           return;
         }
         // Fall through.
       case L'<':
-        InContents(result, {LineModifier::kRed});
+        InContents(result, {LineModifier::Red});
         return;
 
       case L'@':
@@ -63,7 +63,7 @@ class DiffParser : public LineOrientedTreeParser {
           result->PopBack();
         }
         result->Push(SECTION, ColumnNumberDelta(), {}, {});
-        AdvanceLine(result, {LineModifier::kCyan});
+        AdvanceLine(result, {LineModifier::Cyan});
         return;
 
       default:
@@ -79,7 +79,7 @@ class DiffParser : public LineOrientedTreeParser {
           }
           result->Push(HEADERS, ColumnNumberDelta(), {}, {});
         }
-        AdvanceLine(result, {LineModifier::kBold});
+        AdvanceLine(result, {LineModifier::Bold});
         return;
     }
   }
@@ -107,12 +107,12 @@ class DiffParser : public LineOrientedTreeParser {
     ColumnNumber path_start = result->position().column;
     VLOG(7) << "Found link starting at: " << path_start;
     result->Push(FILE_LINE, path_start.ToDelta(),
-                 {LineModifier::kBold,
-                  c == '+' ? LineModifier::kGreen : LineModifier::kRed},
+                 {LineModifier::Bold,
+                  c == '+' ? LineModifier::Green : LineModifier::Red},
                  {ParseTreeProperty::Link()});
     seek.ToEndOfLine();
     result->PushAndPop(result->position().column - path_start,
-                       {LineModifier::kUnderline},
+                       {LineModifier::Underline},
                        {ParseTreeProperty::LinkTarget()});
     result->PopBack();
     return true;

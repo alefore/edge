@@ -1959,7 +1959,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
   futures::Value<EmptyValue> end_of_file_future =
       JoinValues(new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
                  new_reader(input_error_fd, LazyString{L"stderr"},
-                            {LineModifier::kBold}, fd_error_))
+                            {LineModifier::Bold}, fd_error_))
           .Transform([weak_this = WeakPtrFromThis()](
                          std::tuple<EmptyValue, EmptyValue>) {
             return VisitOptional(
@@ -2712,7 +2712,7 @@ void OpenBuffer::OnCursorMove() {
                 {range.begin(),
                  VisualOverlay{.content = ColumnNumberDelta(
                                    range.end().column - range.begin().column),
-                               .modifiers = {LineModifier::kUnderline},
+                               .modifiers = {LineModifier::Underline},
                                .behavior = VisualOverlay::Behavior::kOn}});
           }
         },

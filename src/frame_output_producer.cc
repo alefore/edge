@@ -24,12 +24,12 @@ namespace afc::editor {
 Line FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kInactive
-          ? LineModifierSet({LineModifier::kDim})
-          : LineModifierSet({LineModifier::kBold, LineModifier::kCyan});
+          ? LineModifierSet({LineModifier::Dim})
+          : LineModifierSet({LineModifier::Bold, LineModifier::Cyan});
   LineModifierSet title_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kActive
-          ? LineModifierSet({LineModifier::kBold, LineModifier::kCyan,
-                             LineModifier::kReverse})
+          ? LineModifierSet(
+                {LineModifier::Bold, LineModifier::Cyan, LineModifier::Reverse})
           : LineModifierSet();
   LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
@@ -47,7 +47,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
     output.AppendString(
         SingleLine{LazyString{
             std::to_wstring(1 + options.position_in_parent.value())}},
-        LineModifierSet{LineModifier::kBold, LineModifier::kCyan});
+        LineModifierSet{LineModifier::Bold, LineModifier::Cyan});
     output.AppendString(SingleLine::Char<L')'>(), line_modifiers);
   }
 

@@ -141,7 +141,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
           LineWithCursor output = original_generator();
           LineBuilder line_options;
           line_options.AppendString(output.line.contents(),
-                                    LineModifierSet{LineModifier::kDim});
+                                    LineModifierSet{LineModifier::Dim});
           output.line = std::move(line_options).Build();
           return output;
         }};
@@ -508,8 +508,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
             output.lines = AddLeftFrame(
                 std::move(output.lines),
                 options_.is_active
-                    ? LineModifierSet{LineModifier::kBold, LineModifier::kCyan}
-                    : LineModifierSet{LineModifier::kDim});
+                    ? LineModifierSet{LineModifier::Bold, LineModifier::Cyan}
+                    : LineModifierSet{LineModifier::Dim});
           }
           frame_lines.Append(std::move(output.lines));
           output.lines = std::move(frame_lines);

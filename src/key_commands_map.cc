@@ -75,7 +75,7 @@ LineBuilder KeyCommandsMapSequence::SummaryLine() const {
           SingleLine{LazyString{ColumnNumberDelta{1}, *regular_c}};
   return LineBuilder{Concatenate(entries_by_category | std::views::values |
                                  Intersperse(SingleLine::Char<L' '>())),
-                     LineModifierSet{LineModifier::kDim}};
+                     LineModifierSet{LineModifier::Dim}};
 }
 
 LineSequence KeyCommandsMapSequence::Help() const {
@@ -101,7 +101,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
         SingleLine{LazyString{longest_category - category_name.size(), L' '}});
     // TODO(easy, 2024-09-19): Avoid having to wrap category_name.
     category_line.AppendString(SingleLine{category_name},
-                               LineModifierSet{LineModifier::kBold});
+                               LineModifierSet{LineModifier::Bold});
     category_line.AppendString(SingleLine{LazyString{L":"}});
     // We use an inverted map to group commands with identical descriptions.
     std::map<Description, std::set<ExtendedChar>> inverted_map;
@@ -112,9 +112,9 @@ LineSequence KeyCommandsMapSequence::Help() const {
          inverted_map) {
       category_line.AppendString(SingleLine::Char<L' '>());
       category_line.AppendString(entry.first.read().read(),
-                                 LineModifierSet{LineModifier::kCyan});
+                                 LineModifierSet{LineModifier::Cyan});
       category_line.AppendString(SingleLine::Char<L':'>(),
-                                 LineModifierSet{LineModifier::kDim});
+                                 LineModifierSet{LineModifier::Dim});
       for (ExtendedChar c : entry.second)
         category_line.Append(LineBuilder(DescribeSequence({c})));
     }

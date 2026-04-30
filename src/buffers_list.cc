@@ -303,39 +303,39 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
                                    FilterResult filter_result) {
   LineModifierSet output;
   if (buffer.status().GetType() == Status::Type::kWarning) {
-    output.insert(LineModifier::kRed);
+    output.insert(LineModifier::Red);
     const double kSecondsWarningHighlight = 5;
     if (GetElapsedSecondsSince(buffer.status().last_change_time()) <
         kSecondsWarningHighlight) {
-      output.insert(LineModifier::kReverse);
+      output.insert(LineModifier::Reverse);
     }
   } else if (filter_result == FilterResult::kExcluded) {
-    output.insert(LineModifier::kDim);
+    output.insert(LineModifier::Dim);
   } else if (buffer.child_pid().has_value()) {
-    output.insert(LineModifier::kYellow);
+    output.insert(LineModifier::Yellow);
   } else if (buffer.child_exit_status().has_value()) {
     auto status = buffer.child_exit_status().value();
     if (!WIFEXITED(status)) {
-      output.insert(LineModifier::kRed);
-      output.insert(LineModifier::kBold);
+      output.insert(LineModifier::Red);
+      output.insert(LineModifier::Bold);
     } else if (WEXITSTATUS(status) == 0) {
-      output.insert(LineModifier::kGreen);
+      output.insert(LineModifier::Green);
     } else {
-      output.insert(LineModifier::kRed);
+      output.insert(LineModifier::Red);
     }
     if (GetElapsedSecondsSince(buffer.time_last_exit()) < 5.0) {
-      output.insert({LineModifier::kReverse});
+      output.insert({LineModifier::Reverse});
     }
   } else {
     if (buffer.dirty()) {
-      output.insert(LineModifier::kItalic);
+      output.insert(LineModifier::Italic);
     }
-    output.insert(LineModifier::kCyan);
+    output.insert(LineModifier::Cyan);
   }
   if (options.active_buffer.has_value() &&
       &buffer == &options.active_buffer.value().ptr().value()) {
-    output.insert(LineModifier::kBold);
-    output.insert(LineModifier::kReverse);
+    output.insert(LineModifier::Bold);
+    output.insert(LineModifier::Reverse);
   }
   return output;
 }
@@ -458,7 +458,7 @@ LineBuilder GetBufferContents(const LineSequence& contents,
   line_without_suffix.DeleteSuffix(ColumnNumber() + columns);
   output.Append(std::move(line_without_suffix));
   output.ClearModifiers();
-  output.InsertModifier(ColumnNumber{}, LineModifier::kDim);
+  output.InsertModifier(ColumnNumber{}, LineModifier::Dim);
   return output;
 }
 
@@ -472,23 +472,23 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   std::optional<LineModifierSet> modifiers_override;
 
   LineModifierSet dim = modifiers;
-  dim.insert(LineModifier::kDim);
+  dim.insert(LineModifier::Dim);
 
   LineModifierSet bold = modifiers;
 
   switch (selection_state) {
     case SelectionState::kExcludedByFilter:
-      modifiers.insert(LineModifier::kDim);
-      bold.insert(LineModifier::kDim);
+      modifiers.insert(LineModifier::Dim);
+      bold.insert(LineModifier::Dim);
       break;
     case SelectionState::kReceivingInput:
-      modifiers.insert(LineModifier::kReverse);
-      modifiers.insert(LineModifier::kCyan);
+      modifiers.insert(LineModifier::Reverse);
+      modifiers.insert(LineModifier::Cyan);
       bold = dim = modifiers;
-      bold.insert(LineModifier::kBold);
+      bold.insert(LineModifier::Bold);
       break;
     case SelectionState::kIdle:
-      bold.insert(LineModifier::kBold);
+      bold.insert(LineModifier::Bold);
       break;
   }
 
@@ -697,7 +697,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             LineModifierSet progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
               progress = SingleLine::Char<L'!'>();
-              progress_modifier.insert(LineModifier::kRed);
+              progress_modifier.insert(LineModifier::Red);
             } else if (!buffer.GetExpiredLineMarks().empty()) {
               progress = SingleLine::Char<L'!'>();
             } else if (buffer.ShouldDisplayProgress()) {
@@ -708,7 +708,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
               progress = ProgressStringFillUp(buffer.lines_size().read(),
                                               OverflowBehavior::kModulo)
                              .read();
-              progress_modifier.insert(LineModifier::kDim);
+              progress_modifier.insert(LineModifier::Dim);
             }
             // If we ever make ProgressString return more than a single
             // character, we'll have to adjust this.
@@ -717,7 +717,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
                   progress, filter_result == FilterResult::kExcluded
-                                ? LineModifierSet{LineModifier::kDim}
+                                ? LineModifierSet{LineModifier::Dim}
                                 : progress_modifier);
 
             CHECK_EQ(line_options_output.contents().size(),
@@ -746,7 +746,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                       buffer_variables::buffers_list_preview_follows_cursor)
                       ? buffer.position()
                       : LineColumn{},
-                  buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
+                  buffer.dirty() ? LineModifierSet{LineModifier::Italic}
                                  : LineModifierSet{},
                   selection_state, path_components[index + j]);
               CHECK_LE(visible_string.size(), columns_width[j]);

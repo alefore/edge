@@ -127,7 +127,7 @@ class MarkdownParser : public LineOrientedTreeParser {
                                dictionary_.lines().range().empty() ||
                                        dictionary_.contains(LowerCase(str))
                                    ? LineModifierSet{}
-                                   : LineModifierSet{LineModifier::kRed});
+                                   : LineModifierSet{LineModifier::Red});
           } else {
             seek.Once();
           }
@@ -143,7 +143,7 @@ class MarkdownParser : public LineOrientedTreeParser {
     TRACK_OPERATION(MarkdownParser_HandleOpenLink);
     result->Push(LINK, ColumnNumberDelta(), {}, {ParseTreeProperty::Link()});
     result->seek().Once();
-    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::kCyan}, {});
+    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::Cyan}, {});
   }
 
   void HandleCloseLink(ParseData* result) {
@@ -158,7 +158,7 @@ class MarkdownParser : public LineOrientedTreeParser {
     while (seek.read() == L' ') seek.Once();
     if (seek.read() == L'(') {
       seek.Once();
-      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::kUnderline},
+      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::Underline},
                    {ParseTreeProperty::LinkTarget()});
     } else {
       while (result->state() == LINK_TEXT || result->state() == LINK)
@@ -194,22 +194,22 @@ class MarkdownParser : public LineOrientedTreeParser {
     LineModifierSet modifiers;
     switch (spaces_prefix / 2) {
       case 0:
-        modifiers = {LineModifier::kBold, LineModifier::kCyan};
+        modifiers = {LineModifier::Bold, LineModifier::Cyan};
         break;
       case 1:
-        modifiers = {LineModifier::kBold, LineModifier::kYellow};
+        modifiers = {LineModifier::Bold, LineModifier::Yellow};
         break;
       case 2:
-        modifiers = {LineModifier::kBold, LineModifier::kGreen};
+        modifiers = {LineModifier::Bold, LineModifier::Green};
         break;
       case 3:
-        modifiers = {LineModifier::kCyan};
+        modifiers = {LineModifier::Cyan};
         break;
       case 4:
-        modifiers = {LineModifier::kYellow};
+        modifiers = {LineModifier::Yellow};
         break;
       case 5:
-        modifiers = {LineModifier::kGreen};
+        modifiers = {LineModifier::Green};
         break;
     }
     result->PushAndPop(ColumnNumberDelta(1), modifiers);
@@ -223,7 +223,7 @@ class MarkdownParser : public LineOrientedTreeParser {
     if (result->state() == CODE) {
       result->PopBack();
     } else {
-      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::kCyan}, {});
+      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::Cyan}, {});
     }
   }
 
@@ -236,12 +236,12 @@ class MarkdownParser : public LineOrientedTreeParser {
       if (result->state() == STRONG) {
         result->PopBack();
       } else if (seek.read() != L' ' && seek.read() != L'\n') {
-        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::kBold}, {});
+        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::Bold}, {});
       }
     } else if (result->state() == EM) {
       result->PopBack();
     } else if (seek.read() != L' ' && seek.read() != L'\n') {
-      result->Push(EM, ColumnNumberDelta(1), {LineModifier::kItalic}, {});
+      result->Push(EM, ColumnNumberDelta(1), {LineModifier::Italic}, {});
     }
   }
 
@@ -266,12 +266,10 @@ class MarkdownParser : public LineOrientedTreeParser {
     }
 
     static const auto modifiers_by_depth = new std::vector<LineModifierSet>(
-        {{LineModifier::kReverse, LineModifier::kUnderline,
-          LineModifier::kWhite},
-         {LineModifier::kCyan, LineModifier::kReverse,
-          LineModifier::kUnderline},
-         {LineModifier::kBold, LineModifier::kUnderline},
-         {LineModifier::kBold}});
+        {{LineModifier::Reverse, LineModifier::Underline, LineModifier::White},
+         {LineModifier::Cyan, LineModifier::Reverse, LineModifier::Underline},
+         {LineModifier::Bold, LineModifier::Underline},
+         {LineModifier::Bold}});
 
     if (depth <= 5) {
       result->Push(DepthToState(depth), ColumnNumberDelta(0), {}, {});

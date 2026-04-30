@@ -164,7 +164,7 @@ const VersionPropertyReceiver* Status::prompt_extra_information() const {
 }
 
 Line Status::prompt_extra_information_line() const {
-  static const auto dim = LineModifierSet{LineModifier::kDim};
+  static const auto dim = LineModifierSet{LineModifier::Dim};
   static const auto empty = LineModifierSet{};
 
   const VersionPropertyReceiver* const receiver = prompt_extra_information();
@@ -261,9 +261,8 @@ void Status::Set(Error error) {
       return;
     }
     LineBuilder text;
-    text.AppendString(
-        LineSequence::BreakLines(error.read()).FoldLines(),
-        LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
+    text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
+                      LineModifierSet({LineModifier::Red, LineModifier::Bold}));
     data = MakeNonNullShared<Data>(Data{
         .type = Type::kWarning,
         .text = MakeNonNullShared<Protected<Line>>(std::move(text).Build())});
@@ -313,11 +312,11 @@ void Status::Bell() {
       }
 
       static const std::vector<LineModifier> colors = {
-          LineModifier::kRed,  LineModifier::kGreen,  LineModifier::kBlue,
-          LineModifier::kCyan, LineModifier::kYellow, LineModifier::kMagenta,
-          LineModifier::kWhite};
+          LineModifier::Red,  LineModifier::Green,  LineModifier::Blue,
+          LineModifier::Cyan, LineModifier::Yellow, LineModifier::Magenta,
+          LineModifier::White};
       static const std::vector<LineModifier> effects = {
-          LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
+          LineModifier::Bold, LineModifier::Italic, LineModifier::Reverse};
       output.AppendString(
           SingleLine::Char<L' '>() + notes.at(rand() % notes.size()),
           LineModifierSet{colors.at(rand() % colors.size()),

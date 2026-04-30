@@ -13,21 +13,21 @@
 namespace afc::infrastructure::screen {
 // TODO(trivial, 2026-04-30, enum class): Drop the `k` prefix.
 enum class LineModifier {
-  kReset,
-  kBold,
-  kItalic,
-  kDim,
-  kUnderline,
-  kReverse,
-  kBlack,
-  kRed,
-  kGreen,
-  kBlue,
-  kCyan,
-  kYellow,
-  kMagenta,
-  kWhite,
-  kBgRed,
+  Reset,
+  Bold,
+  Italic,
+  Dim,
+  Underline,
+  Reverse,
+  Black,
+  Red,
+  Green,
+  Blue,
+  Cyan,
+  Yellow,
+  Magenta,
+  White,
+  BgRed,
 };
 
 using LineModifierSet =

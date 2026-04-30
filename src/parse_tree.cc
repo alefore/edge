@@ -388,7 +388,7 @@ class WordsTreeParser : public TreeParser {
             contents.contents().Substring(begin, column - begin);
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
-        if (Contains(typos_, keyword)) child.InsertModifier(LineModifier::kRed);
+        if (Contains(typos_, keyword)) child.InsertModifier(LineModifier::Red);
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));
       }

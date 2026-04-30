@@ -22,7 +22,7 @@ namespace afc::editor::parsers {
 
 // TODO(easy, 2023-09-16): Reuse these symbosl in cpp_parse_tree.
 static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
+    LineModifierSet({LineModifier::BgRed, LineModifier::Bold});
 
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view(L"1234567890."));
@@ -99,7 +99,7 @@ ParseQuotedStringState ParseQuotedString(
   result->set_position(original_position);
   if (current_state == CurrentState::kStart) {
     // Open quote.
-    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim}, {});
 
     // Parent tree: a parent tree containing everything.
     static const size_t kIgnoredState = 0;
@@ -158,7 +158,7 @@ ParseQuotedStringState ParseQuotedString(
 
   // Close quote.
   result->set_position(final_position + ColumnNumberDelta{1});
-  result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+  result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim}, {});
 
   // TODO: words_parser_->FindChildren(result->contents(), tree);
   return ParseQuotedStringState::kDone;

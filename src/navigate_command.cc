@@ -248,7 +248,7 @@ class NavigateTransformation : public CompositeTransformation {
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::kDoNothing},
         .line_end_behavior = transformation::Delete::LineEndBehavior::kStop,
-        .preview_modifiers = {LineModifier::kDim},
+        .preview_modifiers = {LineModifier::Dim},
         .mode = transformation::Input::Mode::kPreview,
         .initiator = transformation::Delete::Initiator::kInternal});
   }

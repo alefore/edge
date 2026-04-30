@@ -48,12 +48,12 @@ namespace editor {
 LineModifierSet LineModifiers(const BufferContentsViewLayout::Line& line,
                               const OpenBuffer& buffer) {
   if (line.current_cursors.empty()) {
-    return {LineModifier::kDim};
+    return {LineModifier::Dim};
   } else if (line.has_active_cursor ||
              buffer.Read(buffer_variables::multiple_cursors)) {
-    return {LineModifier::kCyan, LineModifier::kBold};
+    return {LineModifier::Cyan, LineModifier::Bold};
   } else {
-    return {LineModifier::kBlue};
+    return {LineModifier::Blue};
   }
 }
 

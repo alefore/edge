@@ -120,7 +120,7 @@ Line::Line(NonNull<std::shared_ptr<const Line::Data>> data)
       hash_(LazyValue<size_t>{[this] { return ComputeHash(data_.value()); }}) {
   for (auto& m : data_->modifiers) {
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
-    CHECK(!m.second.contains(LineModifier::kReset));
+    CHECK(!m.second.contains(LineModifier::Reset));
   }
 #if 0
   TRACK_OPERATION(Line_ValidateInvariants);

@@ -33,26 +33,26 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder options;
-            options.insert_end_of_line_modifiers({LineModifier::kRed});
+            options.insert_end_of_line_modifiers({LineModifier::Red});
             CHECK(std::move(options).Build().end_of_line_modifiers().contains(
-                LineModifier::kRed));
+                LineModifier::Red));
           }},
      {.name = L"CopyOfEmptyPreservesEndOfLine",
       .callback =
           [] {
             LineBuilder options;
-            options.insert_end_of_line_modifiers({LineModifier::kRed});
+            options.insert_end_of_line_modifiers({LineModifier::Red});
             Line initial_line = std::move(options).Build();
             Line final_line(std::move(initial_line));
-            CHECK(final_line.end_of_line_modifiers().contains(
-                LineModifier::kRed));
+            CHECK(
+                final_line.end_of_line_modifiers().contains(LineModifier::Red));
           }},
      {.name = L"EndOfLineModifiersChangesHash",
       .callback =
           [] {
             LineBuilder options;
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
-            options.insert_end_of_line_modifiers({LineModifier::kRed});
+            options.insert_end_of_line_modifiers({LineModifier::Red});
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
@@ -69,7 +69,7 @@ const bool line_tests_registration = tests::Register(
           [] {
             LineBuilder options{SINGLE_LINE_CONSTANT(L"alejo")};
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
-            options.InsertModifier(ColumnNumber(2), LineModifier::kRed);
+            options.InsertModifier(ColumnNumber(2), LineModifier::Red);
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
@@ -111,19 +111,19 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-            builder.InsertModifier(ColumnNumber(2), LineModifier::kRed);
-            builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+            builder.InsertModifier(ColumnNumber(2), LineModifier::Red);
+            builder.InsertModifier(ColumnNumber(5), LineModifier::Blue);
             Line line = std::move(builder).Build();
             CHECK(line.modifiers_at_position(ColumnNumber{2}) ==
-                  LineModifierSet{LineModifier::kRed});
+                  LineModifierSet{LineModifier::Red});
             CHECK(line.modifiers_at_position(ColumnNumber{5}) ==
-                  LineModifierSet{LineModifier::kBlue});
+                  LineModifierSet{LineModifier::Blue});
           }},
      {.name = L"PositionBeforeModifiers",
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-            builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+            builder.InsertModifier(ColumnNumber(5), LineModifier::Blue);
             CHECK(std::move(builder)
                       .Build()
                       .modifiers_at_position(ColumnNumber{2})
@@ -133,16 +133,16 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-            builder.InsertModifier(ColumnNumber(2), LineModifier::kGreen);
-            builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
-            CHECK(std::move(builder).Build().modifiers_at_position(ColumnNumber{
-                      4}) == LineModifierSet{LineModifier::kGreen});
+            builder.InsertModifier(ColumnNumber(2), LineModifier::Green);
+            builder.InsertModifier(ColumnNumber(5), LineModifier::Blue);
+            CHECK(std::move(builder).Build().modifiers_at_position(
+                      ColumnNumber{4}) == LineModifierSet{LineModifier::Green});
           }},
      {.name = L"InexactMatchAfterLast", .callback = [] {
         LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-        builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+        builder.InsertModifier(ColumnNumber(5), LineModifier::Blue);
         CHECK(std::move(builder).Build().modifiers_at_position(
-                  ColumnNumber{8}) == LineModifierSet{LineModifier::kBlue});
+                  ColumnNumber{8}) == LineModifierSet{LineModifier::Blue});
       }}});
 }  // namespace
 
@@ -240,76 +240,76 @@ const bool line_set_character_tests_registration = tests::Register(
         CHECK(options.modifiers().empty());
 
         options.SetCharacter(ColumnNumber(1), L'l',
-                             LineModifierSet{LineModifier::kBold});
+                             LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlEJANDRO"));
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 LineModifierSet{LineModifier::kBold});
+                 LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.modifiers().find(ColumnNumber(2))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(2), L'e',
-                             LineModifierSet{LineModifier::kBold});
+                             LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AleJANDRO"));
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 LineModifierSet{LineModifier::kBold});
+                 LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(3), L'j',
-                             LineModifierSet{LineModifier::kUnderline});
+                             LineModifierSet{LineModifier::Underline});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejANDRO"));
         CHECK_EQ(options.modifiers().size(), 3ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 LineModifierSet{LineModifier::kBold});
+                 LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 LineModifierSet{LineModifier::kUnderline});
+                 LineModifierSet{LineModifier::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(5), L'n',
-                             LineModifierSet{LineModifier::kBlue});
+                             LineModifierSet{LineModifier::Blue});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejAnDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 LineModifierSet{LineModifier::kBold});
+                 LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 LineModifierSet{LineModifier::kUnderline});
+                 LineModifierSet{LineModifier::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
                  LineModifierSet{});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 LineModifierSet{LineModifier::kBlue});
+                 LineModifierSet{LineModifier::Blue});
         CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(4), L'a',
-                             LineModifierSet{LineModifier::kRed});
+                             LineModifierSet{LineModifier::Red});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 LineModifierSet{LineModifier::kBold});
+                 LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 LineModifierSet{LineModifier::kUnderline});
+                 LineModifierSet{LineModifier::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
-                 LineModifierSet{LineModifier::kRed});
+                 LineModifierSet{LineModifier::Red});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 LineModifierSet{LineModifier::kBlue});
+                 LineModifierSet{LineModifier::Blue});
         CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(0), L'a',
-                             LineModifierSet{LineModifier::kBold});
+                             LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"alejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(0))->second,
-                 LineModifierSet{LineModifier::kBold});
+                 LineModifierSet{LineModifier::Bold});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 LineModifierSet{LineModifier::kUnderline});
+                 LineModifierSet{LineModifier::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
-                 LineModifierSet{LineModifier::kRed});
+                 LineModifierSet{LineModifier::Red});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 LineModifierSet{LineModifier::kBlue});
+                 LineModifierSet{LineModifier::Blue});
         CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second,
                  LineModifierSet{});
       }}});
@@ -333,7 +333,7 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
 
 void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
-  CHECK(!modifier.contains(LineModifier::kReset));
+  CHECK(!modifier.contains(LineModifier::Reset));
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
   data_.contents = std::move(data_.contents) +
                    SingleLine{LazyString{ColumnNumberDelta{1}, c}};

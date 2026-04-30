@@ -80,13 +80,13 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       output.AppendString(SingleLine{LazyString{to_wstring(
           options.buffer->current_position_line() + LineNumberDelta(1))}});
     }
-    output.AppendString(SINGLE_LINE_CONSTANT(L" of "), {{LineModifier::kDim}});
+    output.AppendString(SINGLE_LINE_CONSTANT(L" of "), {{LineModifier::Dim}});
     output.AppendString(SingleLine{LazyString{to_wstring(
         options.buffer->contents().EndLine() + LineNumberDelta(1))}});
-    output.AppendString(SINGLE_LINE_CONSTANT(L", "), {{LineModifier::kDim}});
+    output.AppendString(SINGLE_LINE_CONSTANT(L", "), {{LineModifier::Dim}});
     output.AppendString(SingleLine{LazyString{to_wstring(
         options.buffer->current_position_col() + ColumnNumberDelta(1))}});
-    output.AppendString(SINGLE_LINE_CONSTANT(L" 🧭 "), {{LineModifier::kDim}});
+    output.AppendString(SINGLE_LINE_CONSTANT(L" 🧭 "), {{LineModifier::Dim}});
 
     if (SingleLine marks_text = options.buffer->GetLineMarksText();
         !marks_text.empty()) {
@@ -103,12 +103,12 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                    : SingleLine::Char<L'👥'>()),
           std::nullopt);
       output.AppendString(SingleLine::Char<L':'>(),
-                          LineModifierSet{LineModifier::kDim});
+                          LineModifierSet{LineModifier::Dim});
       output.AppendString(SingleLine{LazyString{std::to_wstring(
                               active_cursors.current_index() + 1)}},
                           std::nullopt);
       output.AppendString(SingleLine::Char<L'/'>(),
-                          LineModifierSet{LineModifier::kDim});
+                          LineModifierSet{LineModifier::Dim});
       output.AppendString(
           SingleLine{LazyString{std::to_wstring(active_cursors.size())}} +
               SingleLine::Char<L' '>(),

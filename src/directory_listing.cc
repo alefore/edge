@@ -81,22 +81,22 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
           static const std::unordered_map<int, FileType> types = {
               {DT_BLK,
                FileType{.description = SingleLine{LazyString{L" (block dev)"}},
-                        .modifiers = {LineModifier::kGreen}}},
+                        .modifiers = {LineModifier::Green}}},
               {DT_CHR,
                FileType{.description = SingleLine{LazyString{L" (char dev)"}},
-                        .modifiers = {LineModifier::kRed}}},
+                        .modifiers = {LineModifier::Red}}},
               {DT_DIR, FileType{.description = SingleLine{LazyString{L"/"}},
-                                .modifiers = {LineModifier::kCyan}}},
+                                .modifiers = {LineModifier::Cyan}}},
               {DT_FIFO,
                FileType{.description = SingleLine{LazyString{L" (named pipe)"}},
-                        .modifiers = {LineModifier::kBlue}}},
+                        .modifiers = {LineModifier::Blue}}},
               {DT_LNK, FileType{.description = SingleLine{LazyString{L"@"}},
-                                .modifiers = {LineModifier::kItalic}}},
+                                .modifiers = {LineModifier::Italic}}},
               {DT_REG, FileType{.description = SingleLine{LazyString{L""}},
                                 .modifiers = {}}},
               {DT_SOCK,
                FileType{.description = SingleLine{LazyString{L" (unix sock)"}},
-                        .modifiers = {LineModifier::kMagenta}}}};
+                        .modifiers = {LineModifier::Magenta}}}};
           FileType file_type = GetValueOrDefault(types, entry->d_type,
                                                  GetValueOrDie(types, DT_REG));
 

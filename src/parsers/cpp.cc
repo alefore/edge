@@ -68,7 +68,7 @@ static const std::unordered_set<wchar_t> identifier_chars =
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view{L"1234567890"});
 static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
+    LineModifierSet({LineModifier::BgRed, LineModifier::Bold});
 
 class CppTreeParser : public parsers::LineOrientedTreeParser {
   const ParserId parser_id_;
@@ -186,7 +186,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
         CommentToEndOfLine(result);
         break;
       case '*':
-        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::kBlue}, {});
+        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::Blue}, {});
         seek.Once();
         break;
       default:
@@ -200,7 +200,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
                            original_position.column,
-                       {LineModifier::kBlue});
+                       {LineModifier::Blue});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
@@ -229,7 +229,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     if (seek.read() == '\'') {
       seek.Once();
       ++rewind_column;
-      result->PushAndPop(rewind_column, {LineModifier::kYellow});
+      result->PushAndPop(rewind_column, {LineModifier::Yellow});
     } else {
       result->set_position(original_position);
       result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
@@ -237,7 +237,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
   }
 
   void LiteralString(ParseData* result) {
-    ParseQuotedString(result, L'\"', {LineModifier::kYellow}, {});
+    ParseQuotedString(result, L'\"', {LineModifier::Yellow}, {});
   }
 
   void PreprocessorDirective(ParseData* result) {
@@ -248,7 +248,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     result->seek().ToEndOfLine();
     CHECK_GT(result->position().column, original_position.column);
     result->PushAndPop(result->position().column - original_position.column,
-                       {LineModifier::kYellow});
+                       {LineModifier::Yellow});
   }
 
   void Identifier(ParseData* result) {
@@ -271,9 +271,9 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                          .Substring(original_position.column, length);
     LineModifierSet modifiers;
     if (Contains(keywords_, str)) {
-      modifiers.insert(LineModifier::kCyan);
+      modifiers.insert(LineModifier::Cyan);
     } else if (Contains(typos_, str)) {
-      modifiers.insert(LineModifier::kRed);
+      modifiers.insert(LineModifier::Red);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
                                   HashToModifiersBold::Never);
@@ -284,11 +284,11 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
   void ParseJavaScriptString(ParseData* result, CurrentState state) {
     CHECK_EQ(parser_id_, ParserId::JavaScript());
     switch (ParseQuotedString(
-        result, L'`', {LineModifier::kYellow}, {},
+        result, L'`', {LineModifier::Yellow}, {},
         NestedExpressionSyntax{.prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"${"),
                                .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
-                               .prefix_suffix_modifiers = {LineModifier::kDim},
-                               .modifiers = {LineModifier::kGreen}},
+                               .prefix_suffix_modifiers = {LineModifier::Dim},
+                               .modifiers = {LineModifier::Green}},
         MultipleLinesSupport::kAccept, state)) {
       case ParseQuotedStringState::kDone:
         return;
@@ -334,7 +334,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       ColumnNumberDelta length =
           result->position().column - annotation_name_start_position.column;
 
-      result->PushAndPop(length + ColumnNumberDelta(1), {LineModifier::kGreen});
+      result->PushAndPop(length + ColumnNumberDelta(1), {LineModifier::Green});
       return;
     }
 
@@ -366,7 +366,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 
     if (c == L'\'') {
       if (parser_id_ == ParserId::JavaScript()) {
-        ParseQuotedString(result, L'\'', {LineModifier::kYellow}, {});
+        ParseQuotedString(result, L'\'', {LineModifier::Yellow}, {});
       } else {
         LiteralCharacter(result);
       }
@@ -402,7 +402,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {LineModifier::kYellow}, {});
+      parsers::ParseNumber(result, {LineModifier::Yellow}, {});
       return;
     }
   }

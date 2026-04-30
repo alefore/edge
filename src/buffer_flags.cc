@@ -30,14 +30,14 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
   static const InputKey path{NON_EMPTY_SINGLE_LINE_CONSTANT(L"path")};
 
   static const std::map<Color, LineModifier> modifiers = {
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"red")}, LineModifier::kRed},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"green")}, LineModifier::kGreen},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"blue")}, LineModifier::kBlue},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cyan")}, LineModifier::kCyan},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"yellow")}, LineModifier::kYellow},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"red")}, LineModifier::Red},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"green")}, LineModifier::Green},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"blue")}, LineModifier::Blue},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cyan")}, LineModifier::Cyan},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"yellow")}, LineModifier::Yellow},
       {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"magenta")},
-       LineModifier::kMagenta},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"white")}, LineModifier::kWhite}};
+       LineModifier::Magenta},
+      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"white")}, LineModifier::White}};
   static const std::vector<Color> color_values = container::MaterializeVector(
       modifiers | std::views::transform([](auto p) { return p.first; }));
   std::vector<InputKey> spec = {path, path, path};

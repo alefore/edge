@@ -481,7 +481,7 @@ class ForkEditorCommand : public Command {
         prompt.AppendString(LineSequence::BreakLines(path.read()).FoldLines());
       });
       prompt.AppendString(SINGLE_LINE_CONSTANT(L"$ "),
-                          LineModifierSet{LineModifier::kGreen});
+                          LineModifierSet{LineModifier::Green});
       Prompt(PromptOptions{
           .editor_state = editor_state_,
           .prompt = std::move(prompt).Build(),
