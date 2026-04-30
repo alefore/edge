@@ -274,7 +274,7 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
   LogTypeName log_type_name{header.value};
 
   std::vector<NonEmptySingleLine> patterns;
-  std::unordered_map<LogEntryName, LogEntryConfiguration> entries;
+  std::unordered_map<LogEntryName, std::vector<LogEntryConfiguration>> entries;
   std::vector<Error> errors =
       block | std::views::drop(1) |
       std::views::transform([&](Line line) -> PossibleError {
@@ -295,8 +295,8 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
                     AsInt(ToLazyString(value.Substring(
                         ColumnNumber{}, group_id_end->ToDelta()))),
                     [&](int group_id) -> PossibleError {
-                      entries[LogEntryName{entry_name_identifier}] =
-                          LogEntryConfiguration{LogCapturingGroup{group_id}};
+                      entries[LogEntryName{entry_name_identifier}].push_back(
+                          LogEntryConfiguration{LogCapturingGroup{group_id}});
                       return EmptyValue{};
                     },
                     [](Error error) -> PossibleError {

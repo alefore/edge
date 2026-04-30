@@ -35,7 +35,7 @@ struct LogEntryValue {
 };
 
 struct LogLine {
-  std::unordered_map<LogEntryName, LogEntryValue> values;
+  std::unordered_map<LogEntryName, std::vector<LogEntryValue>> values;
 };
 
 class LogTypeName
@@ -64,12 +64,13 @@ struct LogView {
 class LogType {
   LogTypeName name_;
   std::wregex regex_;
-  std::unordered_map<LogEntryName, LogEntryConfiguration> entries_;
+  std::unordered_map<LogEntryName, std::vector<LogEntryConfiguration>> entries_;
   std::unordered_map<LogCapturingGroup, LogEntryName> capturing_groups_;
 
  public:
   LogType(LogTypeName name, language::lazy_string::NonEmptySingleLine pattern,
-          std::unordered_map<LogEntryName, LogEntryConfiguration> entries);
+          std::unordered_map<LogEntryName, std::vector<LogEntryConfiguration>>
+              entries);
 
   LogTypeName name() const;
 
