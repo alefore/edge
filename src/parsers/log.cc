@@ -1,7 +1,10 @@
 #include "src/parsers/log.h"
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/log_model.h"
 
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullUnique;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
@@ -30,6 +33,7 @@ class LogTreeParser : public TreeParser {
                         LineRange(LineColumn{i, entry.second.position},
                                   entry.second.size)
                             .read());
+                    child.set_modifiers(LineModifierSet{LineModifier::kBold});
                     output.PushChild(std::move(child));
                   }
                 });
