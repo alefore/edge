@@ -161,12 +161,6 @@ auto ValueOrDie(V&& value) {
                     language::lazy_string::LazyString{});
 }
 
-template <typename T>
-T ValueOrDie(ValueOrError<T>&& value, std::wstring error_location) {
-  return ValueOrDie(std::forward<ValueOrError<T>>(value),
-                    language::lazy_string::LazyString{error_location});
-}
-
 template <typename Overload>
 auto VisitCallback(Overload overload) {
   return

@@ -33,6 +33,7 @@ class LazyString {
  public:
   LazyString();
 
+  LazyString(const wchar_t* input);
   LazyString(std::wstring input);
   explicit LazyString(ColumnNumberDelta repetitions, wchar_t c);
 

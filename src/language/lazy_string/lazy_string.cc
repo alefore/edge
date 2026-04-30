@@ -114,6 +114,9 @@ class AppendImpl : public LazyStringImpl {
 
 LazyString::LazyString() : data_(NonNull<std::shared_ptr<EmptyStringImpl>>()) {}
 
+LazyString::LazyString(const wchar_t* input)
+    : LazyString(std::wstring{input}) {}
+
 LazyString::LazyString(std::wstring input)
     : data_(MakeNonNullShared<StringFromContainer<std::wstring>>(
           std::move(input))) {}
