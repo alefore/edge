@@ -32,6 +32,12 @@ LogType::LogType(
 
 LogTypeName LogType::name() const { return name_; }
 
+std::set<LogEntryName> LogType::entry_names() const {
+  return entries_ |
+         std::views::transform([](const auto& data) { return data.first; }) |
+         std::ranges::to<std::set>();
+}
+
 std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
   std::wstring line_str = ToLazyString(line).ToString();
   std::wsmatch matches;

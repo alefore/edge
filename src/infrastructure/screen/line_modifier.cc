@@ -50,6 +50,7 @@ LazyString ModifierToString(LineModifier modifier) {
 LineModifier ModifierFromString(std::string modifier) {
   const std::unordered_map<std::string, LineModifier>& values = ModifierNames();
   if (auto it = values.find(modifier); it != values.end()) return it->second;
+  // TODO(2026-04-30, trivial, log): Return std::expected.
   return LineModifier::kReset;  // Ugh.
 }
 

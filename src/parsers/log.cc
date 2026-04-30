@@ -1,14 +1,29 @@
 #include "src/parsers/log.h"
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/gc.h"
 #include "src/log_model.h"
+#include "src/vm/default_environment.h"
+#include "src/vm/environment.h"
+#include "src/vm/types.h"
+#include "src/vm/value.h"
+#include "src/vm/vm.h"
 
+namespace gc = afc::language::gc;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::ModifierFromString;
+using afc::language::Error;
 using afc::language::MakeNonNullUnique;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineRange;
+using afc::vm::Environment;
+using afc::vm::Expression;
+using afc::vm::Identifier;
+using afc::vm::ToQuotedSingleLine;
 
 namespace afc::editor::parsers {
 class LogTreeParser : public TreeParser {
@@ -21,13 +36,41 @@ class LogTreeParser : public TreeParser {
 
   ParseTree FindChildren(const language::text::LineSequence& contents,
                          language::text::Range range) {
+    // TODO(2026-04-30, P2): Consider moving pool and the default environment to
+    // be a class value?
+    gc::Pool pool({});
+    gc::Root<Environment> environment =
+        Environment::New(vm::NewDefaultEnvironment(pool).ptr());
+    // TODO(2026-04-30, P2, easy): Expose the LineModifierSet to vm. Allow
+    // composition.
+    environment->Define(IDENTIFIER_CONSTANT(L"bold"),
+                        vm::Value::NewString(pool, L"BOLD"));
+    environment->Define(IDENTIFIER_CONSTANT(L"red"),
+                        vm::Value::NewString(pool, L"RED"));
+    environment->Define(IDENTIFIER_CONSTANT(L"bg_red"),
+                        vm::Value::NewString(pool, L"BG_RED"));
+    environment->Define(IDENTIFIER_CONSTANT(L"default"),
+                        vm::Value::NewString(pool, L""));
+    VLOG(2) << "Defining entries for all LogEntryName instances.";
+    std::ranges::for_each(log_type_.entry_names(),
+                          [&environment](const LogEntryName& name) {
+                            std::expected<Identifier, Error> identifier =
+                                Identifier::New(name.read());
+                            // TODO(2026-04-30, P1, trivial): Consider changing
+                            // the LogEntryName to be identifier, so that we
+                            // don't convert here.
+                            CHECK(identifier);
+                            // TODO(2026-04-30, P1): Don't assume string type.
+                            environment->DefineUninitialized(
+                                identifier.value(), vm::types::String{});
+                          });
     ParseTree output = ParseTree(range);
     // TODO(P1, 2026-04-30, trivial): Don't hard-code the view here. Receive it
     // at construction.
-    auto view = log_model_.views.find(
-        LogViewName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"main")});
+    LogViewName view_name{NON_EMPTY_SINGLE_LINE_CONSTANT(L"main")};
+    auto view = log_model_.views.find(view_name);
     if (view == log_model_.views.end()) {
-      LOG(INFO) << "Unable to find view: " << view;
+      LOG(INFO) << "Unable to find view: " << view_name;
       return output;
     }
     range.ForEachLine([&](LineNumber i) {
@@ -43,7 +86,36 @@ class LogTreeParser : public TreeParser {
                             .read());
                     // TODO(P1, 2026-04-30): Evaluate the expressions instead of
                     // hard-coding bold.
-                    child.set_modifiers(LineModifierSet{LineModifier::kBold});
+                    gc::Root<vm::Environment> sub_environment =
+                        Environment::New(environment.ptr());
+                    LineModifierSet modifiers;
+                    for (NonEmptySingleLine code : it->second) {
+                      std::expected<gc::Root<Expression>, Error> expr =
+                          vm::CompileString(ToLazyString(code),
+                                            sub_environment.ptr());
+                      if (!expr) {
+                        LOG(INFO) << "Compilation error: " << expr.error();
+                        continue;
+                      }
+                      std::expected<gc::Root<vm::Value>, Error> result =
+                          Evaluate(expr->ptr(), sub_environment.ptr(), nullptr)
+                              .Get()
+                              .value_or(Error{
+                                  L"Evaluation future doesn't have a value."});
+                      if (result && !result.value()->IsString())
+                        result =
+                            Error{LazyString{L"Result has wrong type: "} +
+                                  ToQuotedSingleLine(result->ptr()->type())};
+                      if (!result) {
+                        LOG(INFO) << "Error: " << result.error();
+                        continue;
+                      }
+                      if (LazyString result_str = result.value()->get_string();
+                          !result_str.empty())
+                        modifiers.insert(
+                            ModifierFromString(result_str.ToBytes()));
+                    }
+                    child.set_modifiers(std::move(modifiers));
                     output.PushChild(std::move(child));
                   }
                 });

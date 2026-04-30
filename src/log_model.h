@@ -4,6 +4,7 @@
 #include <expected>
 #include <optional>
 #include <regex>
+#include <set>
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type_class.h"
@@ -72,6 +73,8 @@ class LogType {
           std::unordered_map<LogEntryName, LogEntryConfiguration> entries);
 
   LogTypeName name() const;
+
+  std::set<LogEntryName> entry_names() const;
 
   std::expected<LogLine, language::Error> Parse(
       language::lazy_string::SingleLine line) const;
