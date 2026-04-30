@@ -49,16 +49,18 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
           parsers::NewPyTreeParser(options.language_keywords, options.typos_set,
                                    options.identifier_behavior);
     } else if (options.parser_name == ParserId::Log()) {
-      LOG(INFO) << "XXXX: Log parser!";
       if (options.log_model.has_value() && options.log_type_name.has_value()) {
         const auto& log_types = options.log_model->log_types;
-        LOG(INFO) << "XXXX: Log parser: Has log model and type: "
-                  << options.log_type_name.value();
         if (auto it = log_types.find(options.log_type_name.value());
             it != log_types.end()) {
-          LOG(INFO) << "XXXX: Log parser: Creating";
-          data.tree_parser = parsers::NewLogTreeParser(it->second);
+          data.tree_parser =
+              parsers::NewLogTreeParser(options.log_model.value(), it->second);
+        } else {
+          LOG(INFO) << "Unable to find log type: "
+                    << options.log_type_name.value();
         }
+      } else {
+        LOG(INFO) << "Log model or log type name are missing.";
       }
     }
   });
