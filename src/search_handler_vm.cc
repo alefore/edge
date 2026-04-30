@@ -42,7 +42,6 @@ const types::ObjectName VMTypeMapper<ValueType>::object_type_name =
 namespace afc::editor {
 void RegisterSearchOptionsVm(gc::Pool& pool, Environment& environment) {
   using vm::ObjectType;
-  using vm::Trampoline;
   using vm::VMTypeMapper;
   using vm::types::ObjectName;
 
