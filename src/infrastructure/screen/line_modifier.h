@@ -35,7 +35,7 @@ using LineModifierSet =
 
 const std::unordered_map<language::lazy_string::NonEmptySingleLine,
                          LineModifier>&
-ModifierNames();
+LineModifiers();
 
 language::lazy_string::NonEmptySingleLine ModifierToString(
     LineModifier modifier);

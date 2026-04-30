@@ -14,7 +14,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 
 namespace afc::infrastructure::screen {
-const std::unordered_map<NonEmptySingleLine, LineModifier>& ModifierNames() {
+const std::unordered_map<NonEmptySingleLine, LineModifier>& LineModifiers() {
   static const std::unordered_map<NonEmptySingleLine, LineModifier> values = {
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RESET"), LineModifier::kReset},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BOLD"), LineModifier::kBold},
@@ -35,7 +35,7 @@ const std::unordered_map<NonEmptySingleLine, LineModifier>& ModifierNames() {
 
 NonEmptySingleLine ModifierToString(LineModifier modifier) {
   static const std::unordered_map<LineModifier, NonEmptySingleLine> values =
-      ModifierNames() |
+      LineModifiers() |
       std::views::transform(
           [](const std::pair<NonEmptySingleLine, LineModifier> data) {
             return std::make_pair(data.second, data.first);
@@ -47,7 +47,7 @@ NonEmptySingleLine ModifierToString(LineModifier modifier) {
 std::expected<LineModifier, Error> ModifierFromString(
     NonEmptySingleLine modifier) {
   const std::unordered_map<NonEmptySingleLine, LineModifier>& values =
-      ModifierNames();
+      LineModifiers();
   if (auto it = values.find(modifier); it != values.end()) return it->second;
   return Error{LazyString{L"Unknown modifier: "} + modifier};
 }

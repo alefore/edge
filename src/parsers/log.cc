@@ -2,6 +2,7 @@
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/log_model.h"
 #include "src/vm/default_environment.h"
 #include "src/vm/environment.h"
@@ -11,12 +12,14 @@
 
 namespace gc = afc::language::gc;
 using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifiers;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::ModifierFromString;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::VisitValue;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
@@ -43,29 +46,7 @@ class LogTreeParser : public TreeParser {
     gc::Pool pool({});
     gc::Root<Environment> environment =
         Environment::New(vm::NewDefaultEnvironment(pool).ptr());
-    // TODO(2026-04-30, P2, easy): Expose the LineModifierSet to vm. Allow
-    // composition.
-    environment->Define(IDENTIFIER_CONSTANT(L"bold"),
-                        vm::Value::NewString(pool, L"BOLD"));
-    environment->Define(IDENTIFIER_CONSTANT(L"red"),
-                        vm::Value::NewString(pool, L"RED"));
-    environment->Define(IDENTIFIER_CONSTANT(L"bg_red"),
-                        vm::Value::NewString(pool, L"BG_RED"));
-    environment->Define(IDENTIFIER_CONSTANT(L"default"),
-                        vm::Value::NewString(pool, L""));
-    VLOG(2) << "Defining entries for all LogEntryName instances.";
-    std::ranges::for_each(log_type_.entry_names(),
-                          [&environment](const LogEntryName& name) {
-                            std::expected<Identifier, Error> identifier =
-                                Identifier::New(name.read());
-                            // TODO(2026-04-30, P1, trivial): Consider changing
-                            // the LogEntryName to be identifier, so that we
-                            // don't convert here.
-                            CHECK(identifier);
-                            // TODO(2026-04-30, P1): Don't assume string type.
-                            environment->DefineUninitialized(
-                                identifier.value(), vm::types::String{});
-                          });
+    PrepareEnvironment(environment);
     ParseTree output = ParseTree(range);
     // TODO(P1, 2026-04-30, trivial): Don't hard-code the view here. Receive it
     // at construction.
@@ -86,8 +67,6 @@ class LogTreeParser : public TreeParser {
                         LineRange(LineColumn{i, entry.second.position},
                                   entry.second.size)
                             .read());
-                    // TODO(P1, 2026-04-30): Evaluate the expressions instead of
-                    // hard-coding bold.
                     gc::Root<vm::Environment> sub_environment =
                         Environment::New(environment.ptr());
                     LineModifierSet modifiers;
@@ -129,6 +108,38 @@ class LogTreeParser : public TreeParser {
           });
     });
     return output;
+  }
+
+ private:
+  void PrepareEnvironment(gc::Ptr<Environment>& environment) {
+    TRACK_OPERATION(LogTreeParser_PrepareEnvironment);
+    // TODO(2026-04-30, P2, easy): Expose the LineModifierSet to vm.
+    std::ranges::for_each(
+        LineModifiers(),
+        [&environment](std::pair<NonEmptySingleLine, LineModifier> data) {
+          VisitValue(Identifier::New(LowerCase(data.first)),
+                     [&](Identifier id) {
+                       VLOG(5) << "Define: " << id << ": " << data.first;
+                       environment->Define(
+                           id, vm::Value::NewString(environment.pool(),
+                                                    ToLazyString(data.first)));
+                     });
+        });
+    environment->Define(IDENTIFIER_CONSTANT(L"default"),
+                        vm::Value::NewString(pool, L""));
+    VLOG(2) << "Defining entries for all LogEntryName instances.";
+    std::ranges::for_each(log_type_.entry_names(),
+                          [&environment](const LogEntryName& name) {
+                            std::expected<Identifier, Error> identifier =
+                                Identifier::New(name.read());
+                            // TODO(2026-04-30, P1, trivial): Consider changing
+                            // the LogEntryName to be identifier, so that we
+                            // don't convert here.
+                            CHECK(identifier);
+                            // TODO(2026-04-30, P1): Don't assume string type.
+                            environment->DefineUninitialized(
+                                identifier.value(), vm::types::String{});
+                          });
   }
 };
 
