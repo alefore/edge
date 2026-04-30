@@ -44,6 +44,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::Range;
 using afc::language::view::GetErrors;
 using afc::language::view::SkipErrors;
+using afc::vm::Identifier;
 
 namespace afc::editor {
 namespace {
@@ -240,15 +241,16 @@ std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
               [&expressions](NonEmptySingleLine value) -> PossibleError {
                 std::optional<ColumnNumber> name_end =
                     FindFirstOf(value, Space);
-                DECLARE_OR_RETURN(NonEmptySingleLine name_non_empty,
-                                  NonEmptySingleLine::New(value.Substring(
-                                      ColumnNumber{}, name_end->ToDelta())));
+                DECLARE_OR_RETURN(
+                    Identifier name_identifier,
+                    Identifier::New(NonEmptySingleLine::New(
+                        value.Substring(ColumnNumber{}, name_end->ToDelta()))));
                 std::optional<SingleLine> expr_str =
                     name_end.transform([&](ColumnNumber pos) {
                       return Trim(value.Substring(pos), Space);
                     });
                 if (!expr_str) return Error{L"Expected: expression."};
-                expressions[LogEntryName{name_non_empty}].push_back(
+                expressions[LogEntryName{name_identifier}].push_back(
                     expr_str.value());
                 return EmptyValue{};
               }}},
@@ -286,14 +288,14 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
                       return Trim(value.Substring(pos), Space);
                     });
                 if (!entry_name_str) return Error{L"Expected: entry name."};
-                DECLARE_OR_RETURN(
-                    NonEmptySingleLine entry_name_non_empty,
-                    NonEmptySingleLine::New(entry_name_str.value()));
+                DECLARE_OR_RETURN(Identifier entry_name_identifier,
+                                  Identifier::New(NonEmptySingleLine::New(
+                                      entry_name_str.value())));
                 return Visit(
                     AsInt(ToLazyString(value.Substring(
                         ColumnNumber{}, group_id_end->ToDelta()))),
                     [&](int group_id) -> PossibleError {
-                      entries[LogEntryName{entry_name_non_empty}] =
+                      entries[LogEntryName{entry_name_identifier}] =
                           LogEntryConfiguration{LogCapturingGroup{group_id}};
                       return EmptyValue{};
                     },

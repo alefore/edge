@@ -328,6 +328,7 @@ cc_library(
         "//src/language/error:view",
         "//src/language/lazy_string",
         "//src/language/lazy_string:single_line",
+        "//src/vm:types",
     ],
 )
 

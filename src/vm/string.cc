@@ -129,6 +129,11 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
+      IDENTIFIER_CONSTANT(L"hash"), pool,
+      [](LazyString input) { return std::hash<LazyString>{}(input); },
+      string_type);
+
+  AddMethod(
       Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"find_last_not_of"}}}},
       pool,

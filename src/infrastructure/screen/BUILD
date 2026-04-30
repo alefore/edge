@@ -21,6 +21,21 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:hash",
+        "//src/language/error:value_or_error",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:single_line",
+    ],
+)
+
+cc_library(
+    name = "line_modifier_vm",
+    srcs = ["line_modifier_vm.cc"],
+    hdrs = ["line_modifier_vm.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":line_modifier",
+        "//src/language:gc",
+        "//src/language/error:value_or_error",
         "//src/language/lazy_string",
     ],
 )

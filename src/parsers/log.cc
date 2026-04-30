@@ -61,12 +61,10 @@ class LogTreeParser : public TreeParser {
           log_type_.Parse(contents.at(i).contents().read()), [&](LogLine line) {
             std::ranges::for_each(
                 line.values, [&](std::pair<LogEntryName, LogEntryValue> entry) {
-                  // TODO(P0, log, 2026-04-30): Remove the call to
-                  // Identifier::New from here.
                   // TODO(P1, log, 2026-04-30): Avoid the call to std::get. Use
                   // visit instead?
                   environment->Assign(
-                      Identifier::New(entry.first.read()).value(),
+                      entry.first.read(),
                       vm::Value::NewString(
                           environment.pool(),
                           std::get<LazyString>(entry.second.value)));
@@ -140,18 +138,11 @@ class LogTreeParser : public TreeParser {
     environment->Define(IDENTIFIER_CONSTANT(L"default"),
                         vm::Value::NewString(environment.pool(), L""));
     VLOG(2) << "Defining entries for all LogEntryName instances.";
-    std::ranges::for_each(log_type_.entry_names(),
-                          [&environment](const LogEntryName& name) {
-                            std::expected<Identifier, Error> identifier =
-                                Identifier::New(name.read());
-                            // TODO(2026-04-30, P1, trivial): Consider changing
-                            // the LogEntryName to be identifier, so that we
-                            // don't convert here.
-                            CHECK(identifier);
-                            // TODO(2026-04-30, P1): Don't assume string type.
-                            environment->DefineUninitialized(
-                                identifier.value(), vm::types::String{});
-                          });
+    std::ranges::for_each(
+        log_type_.entry_names(), [&environment](const LogEntryName& name) {
+          // TODO(2026-04-30, P1): Don't assume string type.
+          environment->DefineUninitialized(name.read(), vm::types::String{});
+        });
   }
 };
 

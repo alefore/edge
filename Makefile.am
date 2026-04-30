@@ -147,6 +147,8 @@ src/infrastructure/screen/cursors.cc \
 src/infrastructure/screen/cursors.h \
 src/infrastructure/screen/line_modifier.cc \
 src/infrastructure/screen/line_modifier.h \
+src/infrastructure/screen/line_modifier_vm.cc \
+src/infrastructure/screen/line_modifier_vm.h \
 src/infrastructure/screen/screen.h \
 src/infrastructure/screen/visual_overlay.cc \
 src/infrastructure/screen/visual_overlay.h \

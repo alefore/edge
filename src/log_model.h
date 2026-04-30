@@ -10,11 +10,10 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/vm/types.h"
 
 namespace afc::editor {
-class LogEntryName
-    : public language::GhostType<LogEntryName,
-                                 language::lazy_string::NonEmptySingleLine> {
+class LogEntryName : public language::GhostType<LogEntryName, vm::Identifier> {
  public:
   using GhostType::GhostType;
 };
