@@ -95,14 +95,6 @@ editor.AddBinding("M", "Center the screen around the current line.",
 // Frames / widget manipulation
 ////////////////////////////////////////////////////////////////////////////////
 
-editor.AddBinding("ah", "Frames: Move to the previous buffer", []() -> void {
-  editor.AdvanceActiveBuffer(-editor.pop_repetitions());
-});
-editor.AddBinding("al", "Frames: Move to the next buffer", []() -> void {
-  editor.AdvanceActiveBuffer(editor.pop_repetitions());
-});
-editor.AddBinding("ag", "Frames: Set the active buffer",
-                  []() -> void { editor.EnterSetBufferMode(); });
 editor.AddBinding("aO", "Frames: Toggle the buffer sort order", []() -> void {
   if (editor.buffer_sort_order() == "last_visit")
     editor.set_buffer_sort_order("name");
@@ -158,6 +150,14 @@ editor.AddBinding("ss", "Run a shell in the directory of the current buffer.",
 
 editor.AddBinding("sh", "Buffers: Navigate to the header / implementation.",
                   []() -> void { editor.ForEachActiveBuffer(ShowHeader); });
+
+editor.AddBinding("alg", "Buffers: Mark the current buffer as a GLOG log.",
+                  []() -> void {
+                    editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+                      buffer.set_tree_parser("log");
+                      buffer.set_log_type_name("glog");
+                    });
+                  });
 
 ////////////////////////////////////////////////////////////////////////////////
 // Editing commands
