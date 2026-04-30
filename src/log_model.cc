@@ -26,7 +26,9 @@ LogType::LogType(
                 return std::make_pair(entry.second.capturing_group.value(),
                                       entry.first);
               }) |
-          std::ranges::to<std::unordered_map>()) {}
+          std::ranges::to<std::unordered_map>()) {
+  LOG(INFO) << "Created LogType with regex: [" << pattern << "]";
+}
 
 LogTypeName LogType::name() const { return name_; }
 
@@ -41,7 +43,7 @@ std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
               [&](const std::pair<LogCapturingGroup, LogEntryName>& group)
                   -> ValueOrError<std::pair<LogEntryName, LogEntryValue>> {
                 size_t index = 1 + group.first.read();
-                if (index < matches.size() || !matches[index].matched)
+                if (index >= matches.size() || !matches[index].matched)
                   return Error{L"No match"};
                 return std::make_pair(
                     group.second,
