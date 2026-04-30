@@ -51,10 +51,17 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
     } else if (options.parser_name == ParserId::Log()) {
       if (options.log_model.has_value() && options.log_type_name.has_value()) {
         const auto& log_types = options.log_model->log_types;
-        if (auto it = log_types.find(options.log_type_name.value());
-            it != log_types.end()) {
-          data.tree_parser =
-              parsers::NewLogTreeParser(options.log_model.value(), it->second);
+        if (auto it_type = log_types.find(options.log_type_name.value());
+            it_type != log_types.end()) {
+          const auto& views = options.log_model->views;
+          if (auto it_view = views.find(options.log_view_name.value());
+              it_view != views.end()) {
+            data.tree_parser =
+                parsers::NewLogTreeParser(it_type->second, it_view->second);
+          } else {
+            LOG(INFO) << "Unable to find log view: "
+                      << options.log_view_name.value();
+          }
         } else {
           LOG(INFO) << "Unable to find log type: "
                     << options.log_type_name.value();

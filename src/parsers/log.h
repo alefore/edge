@@ -9,7 +9,7 @@
 
 namespace afc::editor::parsers {
 language::NonNull<std::unique_ptr<TreeParser>> NewLogTreeParser(
-    LogModel log_model, LogType log_type);
+    LogType log_type, LogView log_view);
 }
 
 #endif  // __AFC_EDITOR_SRC_PARSERS_LOG_H__

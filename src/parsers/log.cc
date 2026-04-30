@@ -42,12 +42,12 @@ using afc::vm::ToQuotedSingleLine;
 
 namespace afc::editor::parsers {
 class LogTreeParser : public TreeParser {
-  const LogModel log_model_;
   const LogType log_type_;
+  const LogView log_view_;
 
  public:
-  LogTreeParser(LogModel log_model, LogType log_type)
-      : log_model_(std::move(log_model)), log_type_(std::move(log_type)) {}
+  LogTreeParser(LogType log_type, LogView log_view)
+      : log_type_(std::move(log_type)), log_view_(std::move(log_view)) {}
 
   ParseTree FindChildren(const language::text::LineSequence& contents,
                          language::text::Range range) {
@@ -58,14 +58,6 @@ class LogTreeParser : public TreeParser {
         Environment::New(vm::NewDefaultEnvironment(pool).ptr());
     PrepareEnvironment(environment.ptr());
     ParseTree output = ParseTree(range);
-    // TODO(P1, 2026-04-30, trivial): Don't hard-code the view here. Receive it
-    // at construction.
-    LogViewName view_name{NON_EMPTY_SINGLE_LINE_CONSTANT(L"main")};
-    auto view = log_model_.views.find(view_name);
-    if (view == log_model_.views.end()) {
-      LOG(INFO) << "Unable to find view: " << view_name;
-      return output;
-    }
     range.ForEachLine([&](LineNumber i) {
       VisitValue(
           log_type_.Parse(contents.at(i).contents().read()), [&](LogLine line) {
@@ -97,9 +89,8 @@ class LogTreeParser : public TreeParser {
                                 std::pair<LogEntryValue, LineModifierSet>>> {
                           if (entry.second.empty()) return {};
                           LineModifierSet modifiers;
-                          if (auto it =
-                                  view->second.expressions.find(entry.first);
-                              it != view->second.expressions.end()) {
+                          if (auto it = log_view_.expressions.find(entry.first);
+                              it != log_view_.expressions.end()) {
                             gc::Root<vm::Environment> sub_environment =
                                 Environment::New(environment.ptr());
                             for (NonEmptySingleLine code : it->second) {
@@ -206,9 +197,9 @@ class LogTreeParser : public TreeParser {
 };
 
 language::NonNull<std::unique_ptr<TreeParser>> NewLogTreeParser(
-    LogModel log_model, LogType log_type) {
+    LogType log_type, LogView log_view) {
   LOG(INFO) << "Building LogTreeParser." << log_type;
-  return MakeNonNullUnique<LogTreeParser>(std::move(log_model),
-                                          std::move(log_type));
+  return MakeNonNullUnique<LogTreeParser>(std::move(log_type),
+                                          std::move(log_view));
 }
 }  // namespace afc::editor::parsers

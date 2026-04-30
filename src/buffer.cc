@@ -773,7 +773,7 @@ void OpenBuffer::UpdateTreeParser() {
                     [](Error) { return SortedLineSequence(LineSequence{}); });
 
   futures::JoinValues(
-      (Read(buffer_variables::log_type_name).empty() ||
+      (Read(buffer_variables::log_type).empty() ||
        Read(buffer_variables::tree_parser) != SINGLE_LINE_CONSTANT(L"log"))
           ? Error{LazyString{L"Not loaded."}}
           : LoadModelFromPaths(editor(),
@@ -813,9 +813,16 @@ void OpenBuffer::UpdateTreeParser() {
                 .log_type_name =
                     OptionalFrom(
                         NonEmptySingleLine::New(SingleLine::New(
-                            root_this->Read(buffer_variables::log_type_name))))
+                            root_this->Read(buffer_variables::log_type))))
                         .transform([](NonEmptySingleLine input) {
                           return LogTypeName{input};
+                        }),
+                .log_view_name =
+                    OptionalFrom(
+                        NonEmptySingleLine::New(SingleLine::New(
+                            root_this->Read(buffer_variables::log_view))))
+                        .transform([](NonEmptySingleLine input) {
+                          return LogViewName{input};
                         })});
         root_this->MaybeStartUpdatingSyntaxTrees();
         return EmptyValue();
@@ -847,7 +854,8 @@ void OpenBuffer::Initialize() {
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
         buffer_variables::language_keywords, buffer_variables::typos,
         buffer_variables::identifier_behavior, buffer_variables::dictionary,
-        buffer_variables::log_model_paths, buffer_variables::log_type_name})
+        buffer_variables::log_model_paths, buffer_variables::log_type,
+        buffer_variables::log_view})
     variables_.string_variables.ObserveValue(v).Add([this] {
       UpdateTreeParser();
       return Observers::State::kAlive;

@@ -28,6 +28,7 @@ class BufferSyntaxParser {
     language::text::SortedLineSequence dictionary;
     std::optional<LogModel> log_model;
     std::optional<LogTypeName> log_type_name;
+    std::optional<LogViewName> log_view_name;
   };
   void UpdateParser(ParserOptions options);
 

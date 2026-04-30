@@ -155,7 +155,7 @@ editor.AddBinding("alg", "Buffers: Mark the current buffer as a GLOG log.",
                   []() -> void {
                     editor.ForEachActiveBuffer([](Buffer buffer) -> void {
                       buffer.set_tree_parser("log");
-                      buffer.set_log_type_name("glog");
+                      buffer.set_log_type("glog");
                     });
                   });
 

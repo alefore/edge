@@ -81,7 +81,8 @@ extern EdgeVariable<language::lazy_string::LazyString>* const
 extern EdgeVariable<language::lazy_string::LazyString>* const
     external_completion_command;
 extern EdgeVariable<language::lazy_string::LazyString>* const log_model_paths;
-extern EdgeVariable<language::lazy_string::LazyString>* const log_type_name;
+extern EdgeVariable<language::lazy_string::LazyString>* const log_type;
+extern EdgeVariable<language::lazy_string::LazyString>* const log_view;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;

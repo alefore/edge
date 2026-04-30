@@ -34,7 +34,7 @@ void AddContextExtension(string ext) {
 void HandleFileTypes(Buffer buffer, string basename, string extension) {
   if (buffer.path() == "/etc/passwd") {
     buffer.set_tree_parser("log");
-    buffer.set_log_type_name("etc_passwd");
+    buffer.set_log_type("etc_passwd");
     return;
   }
 

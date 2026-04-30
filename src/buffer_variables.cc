@@ -675,14 +675,24 @@ EdgeVariable<LazyString>* const log_model_paths =
          .DefaultValue(LazyString{L"log_model.config"})
          .Build();
 
-EdgeVariable<LazyString>* const log_type_name =
+EdgeVariable<LazyString>* const log_type =
     &StringStruct()
          ->Add()
-         .Name(L"log_type_name")
+         .Name(L"log_type")
          .Description(
              L"Name of the log type (from `log_model_paths`). "
              L"See doc/logs.md for details.")
-         .DefaultValue(LazyString{L""})
+         .DefaultValue(LazyString{L"glog"})
+         .Build();
+
+EdgeVariable<LazyString>* const log_view =
+    &StringStruct()
+         ->Add()
+         .Name(L"log_view")
+         .Description(
+             L"Name of the log view (from `log_model_paths`). "
+             L"See doc/logs.md for details.")
+         .DefaultValue(LazyString{L"main"})
          .Build();
 
 EdgeStruct<int>* IntStruct() {
