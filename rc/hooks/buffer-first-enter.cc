@@ -32,6 +32,12 @@ void AddContextExtension(string ext) {
 }
 
 void HandleFileTypes(Buffer buffer, string basename, string extension) {
+  if (buffer.path() == "/etc/passwd") {
+    buffer.set_tree_parser("log");
+    buffer.set_log_type_name("etc_passwd");
+    return;
+  }
+
   if (extension == "cc" || extension == "h" || extension == "c" ||
       extension == "cpp") {
     CppMode(buffer);
@@ -179,7 +185,6 @@ if (path == "") {
   string extension =
       dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
-
   buffer.set_typos("overriden optoins");
 
   HandleFileTypes(buffer, basename, extension);
