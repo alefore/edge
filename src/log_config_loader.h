@@ -4,6 +4,7 @@
 #include <expected>
 
 #include "src/editor.h"
+#include "src/futures/futures.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/text/line_sequence.h"
 #include "src/log_model.h"
