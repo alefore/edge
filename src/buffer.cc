@@ -745,6 +745,8 @@ void OpenBuffer::UpdateTreeParser() {
   // TODO(P1, 2026-04-21): Investigate why it's OK to attempt to load the
   // dictionary and log model on every single call to UpdateTreeParser. Either
   // fix it or document here.
+  // TODO(P0, 2026-04-29): I think loading the dictionary is broken: it should
+  // apply editor.edge_path!
   ValueOrError<Path> dictionary_path =
       Path::New(Read(buffer_variables::dictionary));
   futures::Value<SortedLineSequence> dictionary_future =
@@ -771,7 +773,11 @@ void OpenBuffer::UpdateTreeParser() {
                     [](Error) { return SortedLineSequence(LineSequence{}); });
 
   futures::JoinValues(
-      LoadModelFromPaths(editor(), Read(buffer_variables::log_model_paths)),
+      (Read(buffer_variables::log_type_name).empty() ||
+       Read(buffer_variables::tree_parser) != SINGLE_LINE_CONSTANT(L"log"))
+          ? Error{LazyString{L"Not loaded."}}
+          : LoadModelFromPaths(editor(),
+                               Read(buffer_variables::log_model_paths)),
       std::move(dictionary_future))
       .Transform([root_this = RootFromThis()](
                      std::tuple<ValueOrError<LogModel>, SortedLineSequence>
