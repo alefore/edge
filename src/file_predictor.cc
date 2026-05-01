@@ -237,6 +237,7 @@ std::generator<ComponentData> ViewComponents(
 DescendDirectoryTreeOutput DescendDirectoryTree(
     Path search_path, LazyString path,
     const DeleteNotification::Value& abort_value) {
+  TRACK_OPERATION(FilePredictor_DescendDirectoryTree);
   VLOG(6) << "Starting search at: " << search_path;
   DescendDirectoryTreeOutput output{
       .matches = {PathContext{.path = search_path,
@@ -496,6 +497,7 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                          const DeleteNotification::Value& abort_value,
                          MutableLineSequence& predictions,
                          PredictorOutput& predictor_output) {
+  TRACK_OPERATION(FilePredictor_PredictInSearchPath);
   VLOG(4) << "Considering search path: " << search_path;
   DescendDirectoryTreeOutput descend_results =
       DescendDirectoryTree(search_path, path_input, abort_value);
