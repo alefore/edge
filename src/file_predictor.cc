@@ -562,15 +562,12 @@ const bool predict_in_search_path_tests_registration =
       struct Expectations {
         std::optional<std::vector<std::wstring>> predictions = std::nullopt;
         std::optional<ColumnNumberDelta> longest_prefix = std::nullopt;
-        std::optional<bool> found_exact_match = std::nullopt;
+        std::optional<bool> exact_match = std::nullopt;
         static Expectations Predictions(std::vector<std::wstring> value) {
           CHECK(!value.empty());
           return Expectations{.predictions = value};
         }
         static Expectations NoPrediction() { return Predictions({L""}); }
-        static Expectations ExactMatch(bool value) {
-          return {.found_exact_match = value};
-        }
       };
       auto test = [&](std::wstring name, std::wstring prediction,
                       Expectations expectations,
@@ -629,9 +626,9 @@ const bool predict_in_search_path_tests_registration =
                 if (expectations.longest_prefix.has_value())
                   CHECK_EQ(predictor_output.longest_prefix,
                            expectations.longest_prefix.value());
-                if (expectations.found_exact_match.has_value())
+                if (expectations.exact_match.has_value())
                   CHECK_EQ(predictor_output.found_exact_match,
-                           expectations.found_exact_match.value());
+                           expectations.exact_match.value());
               }};
         };
         return {
@@ -700,6 +697,10 @@ const bool predict_in_search_path_tests_registration =
                               open_file_position::SuffixMode::Allow}),
                  test(L"WithGarbageDisallow", L"*/dog.txt:5: nothing",
                       Expectations::NoPrediction()),
+                 test(L"WithDotSlash", L"./animals/dog.txt",
+                      Expectations::Predictions({L"./animals/dog.txt"})),
+                 test(L"WithDotSlashIsExact", L"./animals/dog.txt",
+                      Expectations{.exact_match = true}),
                  test(L"PrefixPartial", L"*/dXX",
                       {.longest_prefix = ColumnNumberDelta{3}}),
                  test(L"PrefixFull", L"*/dog.*",
@@ -709,20 +710,20 @@ const bool predict_in_search_path_tests_registration =
                  test(L"PrefixDirWithSlash", L"plants/",
                       {.longest_prefix = ColumnNumberDelta{7}}),
                  test(L"FindExactMatchLiteral", L"plants/rose.txt",
-                      Expectations::ExactMatch(true),
+                      Expectations{.exact_match = true},
                       FilePredictorOptions{
                           .open_file_position_suffix_mode =
                               open_file_position::SuffixMode::Allow}),
                  test(L"FindExactMatchWildcard", L"plants/r*.txt",
-                      Expectations::ExactMatch(true)),
+                      Expectations{.exact_match = true}),
                  test(L"FindExactMatchDirectory", L"plants",
-                      Expectations::ExactMatch(true)),
+                      Expectations{.exact_match = true}),
                  test(L"FindExactMatchDirectorySlash", L"plants/",
-                      Expectations::ExactMatch(true)),
+                      Expectations{.exact_match = true}),
                  test(L"FindPartialMatch", L"plants/r",
-                      Expectations::ExactMatch(false)),
+                      Expectations{.exact_match = false}),
                  test(L"FindExactMatchLiteralWithPosition",
-                      L"plants/rose.txt:12", Expectations::ExactMatch(true)),
+                      L"plants/rose.txt:12", Expectations{.exact_match = true}),
              }) |
              std::views::join | std::ranges::to<std::vector>();
     }());
