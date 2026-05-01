@@ -29,21 +29,27 @@ class BufferSyntaxParser {
     std::optional<LogModel> log_model;
     std::optional<LogTypeName> log_type_name;
     std::optional<LogViewName> log_view_name;
-
-    struct View {
-      // First line that is visible.
-      language::text::LineNumber first_line;
-      // Total number of lines visible.
-      language::text::LineNumberDelta view_size;
-    };
-    // May be empty if we don't know yet the views.
-    std::vector<View> views;
   };
   void UpdateParser(ParserOptions options);
 
-  void Parse(language::text::LineSequence contents);
+  // Part of the buffer that is visible. This can be used by parsers that have
+  // BoundaryScope::Line to avoid parsing the entire file.
+  struct View {
+    // First line that is visible.
+    language::text::LineNumber start;
+    // Total number of lines visible.
+    language::text::LineNumberDelta size;
+  };
+  // May be empty if we don't know yet the views.
+  using Views = std::vector<View>;
 
-  language::NonNull<std::shared_ptr<const ParseTree>> tree() const;
+  struct ParseInput {
+    language::text::LineSequence contents;
+    Views views;
+  };
+  void Parse(ParseInput input) const;
+
+  language::NonNull<std::shared_ptr<const ParseTree>> tree(ParseInput) const;
   language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree() const;
 
   language::NonNull<std::shared_ptr<const ParseTree>>
@@ -61,12 +67,12 @@ class BufferSyntaxParser {
       language::text::Range relevant_range);
 
  private:
-  void ParseInternal(language::text::LineSequence contents);
+  void ParseInternal(ParseInput input);
 
   mutable concurrent::ThreadPool thread_pool_ = concurrent::ThreadPool(
       language::lazy_string::LazyString{L"BufferSyntaxParser"}, 1);
-  concurrent::ChannelLast<language::text::LineSequence> parse_channel_ =
-      concurrent::ChannelLast<language::text::LineSequence>(
+  mutable concurrent::ChannelLast<ParseInput> parse_channel_ =
+      concurrent::ChannelLast<ParseInput>(
           std::bind_front(
               &concurrent::ThreadPool::RunIgnoringResult<std::function<void()>>,
               &thread_pool_),
@@ -75,6 +81,8 @@ class BufferSyntaxParser {
   struct Data {
     language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
         NewNullTreeParser();
+
+    ParseInput last_parse_input_scheduled;
 
     language::NonNull<std::shared_ptr<const ParseTree>> tree =
         language::MakeNonNullShared<const ParseTree>(language::text::Range());
@@ -107,5 +115,13 @@ class BufferSyntaxParser {
   const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_;
   const language::NonNull<std::shared_ptr<language::Observers>> observers_;
 };
+
+std::ostream& operator<<(std::ostream& os, const BufferSyntaxParser::View&);
+std::ostream& operator<<(std::ostream& os,
+                         const BufferSyntaxParser::ParseInput&);
+bool operator==(const BufferSyntaxParser::View&,
+                const BufferSyntaxParser::View&);
+bool operator==(const BufferSyntaxParser::ParseInput&,
+                const BufferSyntaxParser::ParseInput&);
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_SYNTAX_PARSER__

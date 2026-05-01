@@ -142,25 +142,52 @@ void PrepareTokenPartition(
 }
 }  // namespace
 
-void BufferSyntaxParser::Parse(const LineSequence contents) {
-  parse_channel_.Push(contents);
+void BufferSyntaxParser::Parse(ParseInput input) const {
+  parse_channel_.Push(std::move(input));
 }
 
-void BufferSyntaxParser::ParseInternal(const LineSequence contents) {
+void BufferSyntaxParser::ParseInternal(ParseInput input) {
   language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
       data_->lock([](const Data& data) { return data.tree_parser; });
   if (TreeParser::IsNull(tree_parser.get().get())) return;
 
-  TRACK_OPERATION(BufferSyntaxParser_ParseInternal_produce);
-  VLOG(3) << "Executing parse tree update.";
+  if (tree_parser->state_boundary() == TreeParser::StateBoundary::Line &&
+      input.views.empty()) {
+    VLOG(4) << "TreeParser has StateBoundary::Line but view is not yet known. "
+               "Skipping update as an optimization "
+               "(will update once view becomes known).";
+    return;
+  }
 
+  TRACK_OPERATION(BufferSyntaxParser_ParseInternal_produce);
+  VLOG(3) << "Executing parse tree update: " << input;
+
+  Range range = std::invoke([&] {
+    switch (tree_parser->state_boundary()) {
+      using enum TreeParser::StateBoundary;
+      case Line: {
+        const View& view = input.views[0];
+        // TODO(P1, trivial, 2026-05-01, log): Make the `3` a buffer_variable?
+        const LineNumberDelta margin = view.size * 3;
+        return input.contents.range().Intersection(Range(
+            LineColumn(view.start - std::min(view.start.ToDelta(), margin)),
+            LineColumn(std::min(view.start + view.size + margin,
+                                input.contents.EndLine()))));
+      }
+
+      case AllContents:
+        return input.contents.range();
+    }
+    LOG(FATAL) << "Invalid state boundary.";
+    std::unreachable();
+  });
   NonNull<std::shared_ptr<const ParseTree>> tree =
       MakeNonNullShared<const ParseTree>(
-          tree_parser->FindChildren(contents, contents.range()));
+          tree_parser->FindChildren(input.contents, range));
 
   std::unordered_map<language::text::Range, size_t> token_id;
   std::vector<std::set<language::text::Range>> token_partition;
-  PrepareTokenPartition(tree.get(), contents, token_id, token_partition);
+  PrepareTokenPartition(tree.get(), input.contents, token_id, token_partition);
   DVLOG(5) << "Generated partitions: [entries: " << token_id.size()
            << "][sets: " << token_partition.size() << "]";
   auto simplified_tree = MakeNonNullShared<const ParseTree>(std::invoke([&] {
@@ -173,7 +200,7 @@ void BufferSyntaxParser::ParseInternal(const LineSequence contents) {
     LOG(FATAL) << "Invalid tree parser state boundary.";
     std::unreachable();
   }));
-  data_->lock([tree, token_id = std::move(token_id),
+  data_->lock([input = std::move(input), tree, token_id = std::move(token_id),
                token_partition = std::move(token_partition),
                simplified_tree =
                    std::move(simplified_tree)](Data& data_nested) mutable {
@@ -185,8 +212,17 @@ void BufferSyntaxParser::ParseInternal(const LineSequence contents) {
   observers_->Notify();
 }
 
-NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree() const {
-  return data_->lock()->tree;
+NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree(
+    ParseInput input) const {
+  NonNull<std::shared_ptr<const ParseTree>> output;
+  bool trigger_update = data_->lock([&](Data& data) {
+    output = data.tree;
+    if (data.last_parse_input_scheduled == input) return false;
+    data.last_parse_input_scheduled = input;
+    return true;
+  });
+  if (trigger_update) Parse(input);
+  return output;
 }
 
 NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::simplified_tree()
@@ -238,5 +274,28 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
 
 language::Observable& BufferSyntaxParser::ObserveTrees() {
   return observers_.value();
+}
+
+std::ostream& operator<<(std::ostream& os, const BufferSyntaxParser::View& v) {
+  os << "[view: " << v.start << " " << v.size << "]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const BufferSyntaxParser::ParseInput& i) {
+  os << "[input size:" << i.contents.size();
+  for (const auto& v : i.views) os << " " << v;
+  os << "]";
+  return os;
+}
+
+bool operator==(const BufferSyntaxParser::View& a,
+                const BufferSyntaxParser::View& b) {
+  return a.start == b.start && a.size == b.size;
+}
+
+bool operator==(const BufferSyntaxParser::ParseInput& a,
+                const BufferSyntaxParser::ParseInput& b) {
+  return a.contents == b.contents && a.views == b.views;
 }
 }  // namespace afc::editor
