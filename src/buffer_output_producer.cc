@@ -238,6 +238,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       .lines = {}, .width = output_producer_options.size.column};
 
   for (BufferContentsViewLayout::Line screen_line : lines) {
+    TRACK_OPERATION(ProduceBufferView_MainLoop);
     auto line = screen_line.range.line();
 
     if (line > buffer.EndLine()) {
@@ -249,6 +250,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     std::optional<gc::Root<InputReceiver>> editor_keyboard_redirect =
         buffer.editor().keyboard_redirect();
 
+    auto generator_track_operation =
+        INLINE_TRACKER(ProduceBufferView_GeneratorCreation);
     LineWithCursor::Generator generator =
         LineWithCursor::Generator::New(language::CaptureAndHash(
             [](ColumnNumberDelta size_columns,
@@ -259,6 +262,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                bool atomic_lines, bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode,
                std::optional<LineModifier> line_modifier_to_apply) {
+              TRACK_OPERATION(ProduceBufferView_GeneratorBody);
               LineWithCursor::ViewOptions options{
                   .line = line_modifier_to_apply.has_value()
                               ? LineBuilder{line_contents_with_hash.value
@@ -317,7 +321,11 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             },
             output_producer_options.size.column,
             output_producer_options.main_cursor_display,
-            MakeWithHash(line_contents, compute_hash(*line_contents)),
+            MakeWithHash(line_contents, std::invoke([&line_contents] {
+                           TRACK_OPERATION(
+                               ProduceBufferView_ComputeHashLineContents);
+                           return compute_hash(*line_contents);
+                         })),
             screen_line, buffer.Read(buffer_variables::atomic_lines),
             buffer.Read(buffer_variables::multiple_cursors), buffer.position(),
             (editor_keyboard_redirect.has_value()
@@ -327,6 +335,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     line != buffer.position().line
                 ? std::optional<LineModifier>(LineModifier::Dim)
                 : std::nullopt));
+    generator_track_operation = nullptr;
 
     if (&current_tree != root.get().get() &&
         screen_line.range.line() >= current_tree.range().begin().line &&
@@ -347,20 +356,25 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                                              std::move(generator));
     }
 
-    if (buffer.Read(buffer_variables::atomic_lines) &&
-        buffer.active_cursors().cursors_in_line(line)) {
+    {
       TRACK_OPERATION(ProduceBufferView_LineHighlighter);
-      generator = LineHighlighter(std::move(generator));
+      if (buffer.Read(buffer_variables::atomic_lines) &&
+          buffer.active_cursors().cursors_in_line(line)) {
+        generator = LineHighlighter(std::move(generator));
+      }
     }
 
-    if (VisualOverlayMap overlays =
-            FilterOverlays(buffer.visual_overlay_map(), screen_line.range);
-        !overlays.empty()) {
-      TRACK_OPERATION(ProduceBufferView_ApplyVisualOverlay);
-      generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
+    {
+      TRACK_OPERATION(ProduceBufferView_OverlayFiltering);
+      if (VisualOverlayMap overlays =
+              FilterOverlays(buffer.visual_overlay_map(), screen_line.range);
+          !overlays.empty()) {
+        generator =
+            ApplyVisualOverlay(std::move(overlays), std::move(generator));
+      }
     }
 
-    output.lines.push_back(generator);
+    output.lines.push_back(std::move(generator));
   }
 
   return output;
