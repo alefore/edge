@@ -573,7 +573,10 @@ futures::Value<EmptyValue> OpenBuffer::NewCloseFuture() {
   return close_listenable_future_.ToFuture();
 }
 
-void OpenBuffer::HandleDisplay() const { CHECK(load_visual_state_.get()); }
+void OpenBuffer::HandleDisplay() const {
+  TRACK_OPERATION(OpenBuffer_HandleDisplay);
+  CHECK(load_visual_state_.get());
+}
 
 void OpenBuffer::Visit() {
   if (Read(buffer_variables::reload_on_enter)) {
@@ -782,60 +785,72 @@ void OpenBuffer::UpdateTreeParser() {
       .Transform([root_this = RootFromThis()](
                      std::tuple<ValueOrError<LogModel>, SortedLineSequence>
                          log_and_dictionary) {
-        using BSPOptions = BufferSyntaxParser::ParserOptions;
-        root_this->buffer_syntax_parser_.UpdateParser(BSPOptions{
-            .parser_name = OptionalFrom(
-                ParserId::New(NonEmptySingleLine::New(SingleLine::New(
-                    root_this->Read(buffer_variables::tree_parser))))),
-            .typos_set = MaterializeUnorderedSet(
-                TokenizeBySpaces(LineSequence::BreakLines(
-                                     root_this->Read(buffer_variables::typos))
-                                     .FoldLines()) |
-                std::views::transform(&Token::value)),
-            .language_keywords = MaterializeUnorderedSet(
-                TokenizeBySpaces(
-                    LineSequence::BreakLines(
-                        root_this->Read(buffer_variables::language_keywords))
-                        .FoldLines()) |
-                std::views::transform(&Token::value)),
-            .symbol_characters =
-                root_this->Read(buffer_variables::symbol_characters),
-            .identifier_behavior =
-                root_this->Read(buffer_variables::identifier_behavior) ==
-                        LazyString{L"color-by-hash"}
-                    ? IdentifierBehavior::kColorByHash
-                    : IdentifierBehavior::kNone,
-            .dictionary = std::move(std::get<1>(log_and_dictionary)),
-            .log_model =
-                OptionalFrom(std::move(std::get<0>(log_and_dictionary))),
-            .log_type_name =
-                OptionalFrom(NonEmptySingleLine::New(SingleLine::New(
-                                 root_this->Read(buffer_variables::log_type))))
-                    .transform([](NonEmptySingleLine input) {
-                      return LogTypeName{input};
-                    }),
-            .log_view_name =
-                OptionalFrom(NonEmptySingleLine::New(SingleLine::New(
-                                 root_this->Read(buffer_variables::log_view))))
-                    .transform([](NonEmptySingleLine input) {
-                      return LogViewName{input};
-                    }),
-            .views = std::invoke([&] -> std::vector<BSPOptions::View> {
-              std::optional<LineColumnDelta> view_size =
-                  root_this->display_data().view_size().Get();
-              if (!view_size.has_value()) return {};
-              return {BSPOptions::View{
-                  .first_line =
-                      root_this->Read(buffer_variables::view_start).line,
-                  .view_size = view_size.value().line}};
-            })});
+        root_this->buffer_syntax_parser_.UpdateParser(
+            BufferSyntaxParser::ParserOptions{
+                .parser_name = OptionalFrom(
+                    ParserId::New(NonEmptySingleLine::New(SingleLine::New(
+                        root_this->Read(buffer_variables::tree_parser))))),
+                .typos_set = MaterializeUnorderedSet(
+                    TokenizeBySpaces(
+                        LineSequence::BreakLines(
+                            root_this->Read(buffer_variables::typos))
+                            .FoldLines()) |
+                    std::views::transform(&Token::value)),
+                .language_keywords = MaterializeUnorderedSet(
+                    TokenizeBySpaces(
+                        LineSequence::BreakLines(
+                            root_this->Read(
+                                buffer_variables::language_keywords))
+                            .FoldLines()) |
+                    std::views::transform(&Token::value)),
+                .symbol_characters =
+                    root_this->Read(buffer_variables::symbol_characters),
+                .identifier_behavior =
+                    root_this->Read(buffer_variables::identifier_behavior) ==
+                            LazyString{L"color-by-hash"}
+                        ? IdentifierBehavior::kColorByHash
+                        : IdentifierBehavior::kNone,
+                .dictionary = std::move(std::get<1>(log_and_dictionary)),
+                .log_model =
+                    OptionalFrom(std::move(std::get<0>(log_and_dictionary))),
+                .log_type_name =
+                    OptionalFrom(
+                        NonEmptySingleLine::New(SingleLine::New(
+                            root_this->Read(buffer_variables::log_type))))
+                        .transform([](NonEmptySingleLine input) {
+                          return LogTypeName{input};
+                        }),
+                .log_view_name =
+                    OptionalFrom(
+                        NonEmptySingleLine::New(SingleLine::New(
+                            root_this->Read(buffer_variables::log_view))))
+                        .transform([](NonEmptySingleLine input) {
+                          return LogViewName{input};
+                        }),
+            });
         root_this->MaybeStartUpdatingSyntaxTrees();
         return EmptyValue();
       });
 }
 
+namespace {
+BufferSyntaxParser::ParseInput GetBufferSyntaxParserInput(
+    const OpenBuffer& buffer) {
+  return BufferSyntaxParser::ParseInput{
+      .contents = buffer.contents().snapshot(),
+      .views = std::invoke([&] -> BufferSyntaxParser::Views {
+        std::optional<LineColumnDelta> view_size =
+            buffer.display_data().view_size().Get();
+        if (!view_size.has_value()) return {};
+        return {BufferSyntaxParser::View{
+            .start = buffer.Read(buffer_variables::view_start).line,
+            .size = view_size.value().line}};
+      })};
+}  // namespace
+}  // namespace
+
 NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::parse_tree() const {
-  return buffer_syntax_parser_.tree();
+  return buffer_syntax_parser_.tree(GetBufferSyntaxParserInput(*this));
 }
 
 NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::simplified_parse_tree()
@@ -904,7 +919,7 @@ void OpenBuffer::Initialize() {
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
-  buffer_syntax_parser_.Parse(contents_.snapshot());
+  buffer_syntax_parser_.Parse(GetBufferSyntaxParserInput(*this));
 }
 
 void OpenBuffer::StartNewLine(Line line) {
