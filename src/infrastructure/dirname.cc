@@ -1,5 +1,6 @@
 #include "src/infrastructure/dirname.h"
 
+#include <algorithm>
 #include <cstring>
 
 extern "C" {
@@ -13,14 +14,11 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "src/language/container.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
-
-namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -104,11 +102,10 @@ Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
       components.front() != PathComponent::FromString(L"~"))
     return path;
   components.pop_front();
-  return container::Fold(
-      [](PathComponent c, Path output) {
+  return std::ranges::fold_left(
+      std::move(components), home_directory, [](Path output, PathComponent c) {
         return Path::Join(std::move(output), std::move(c));
-      },
-      home_directory, std::move(components));
+      });
 }
 
 /* static */ Path Path::WithExtension(const Path& path,
