@@ -67,13 +67,13 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
   if (results.predictor_output.found_exact_match) {
     DECLARE_OR_RETURN_OTHER(Path path, Path::New(ToLazyString(line)),
                             std::nullopt);
-    output = OpenFileIfFound(
-                 OpenFileOptions{
-                     .editor_state = editor,
-                     .path = path,
-                     .insertion_type = BuffersList::AddBufferType::kIgnore})
-                 .template Transform<futures::ErrorHandling::Disable>(
-                     &OptionalFrom<gc::Root<OpenBuffer>>);
+    output =
+        OpenFileIfFound(OpenFileOptions{.editor_state = editor,
+                                        .path = path,
+                                        .insertion_type =
+                                            BuffersList::AddBufferType::Ignore})
+            .template Transform<futures::ErrorHandling::Disable>(
+                &OptionalFrom<gc::Root<OpenBuffer>>);
   }
   return std::move(output).Transform(
       [results](std::optional<gc::Root<OpenBuffer>> buffer)

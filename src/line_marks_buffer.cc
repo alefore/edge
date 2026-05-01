@@ -142,7 +142,7 @@ class Impl : public Command {
           return output;
         });
     LOG(INFO) << "Installing Marks Buffer.";
-    editor_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
+    editor_.AddBuffer(buffer_root, BuffersList::AddBufferType::Visit);
     editor_.set_current_buffer(buffer_root,
                                CommandArgumentModeApplyMode::kFinal);
     editor_.status().Reset();

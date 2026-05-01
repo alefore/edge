@@ -430,7 +430,7 @@ futures::Value<LineSequence> GetSearchPathsBuffer(EditorState& editor_state,
                                   edge_path, ValueOrDie(Path::New(
                                                  LazyString{L"search_paths"}))),
                               .insertion_type =
-                                  BuffersList::AddBufferType::kIgnore})
+                                  BuffersList::AddBufferType::Ignore})
                    .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
                      buffer->Set(buffer_variables::save_on_close, true);
                      buffer->Set(

@@ -469,8 +469,8 @@ gc::Root<Environment> BuildEditorEnvironment(
             return OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor_arg,
                 .path = OptionalFrom(Path::New(path_str)),
-                .insertion_type = visit ? BuffersList::AddBufferType::kVisit
-                                        : BuffersList::AddBufferType::kIgnore});
+                .insertion_type = visit ? BuffersList::AddBufferType::Visit
+                                        : BuffersList::AddBufferType::Ignore});
           })
           .ptr());
 
@@ -496,9 +496,8 @@ gc::Root<Environment> BuildEditorEnvironment(
                                .editor_state = editor_arg,
                                .path = OptionalFrom(Path::New(path_str)),
                                .insertion_type =
-                                   visit
-                                       ? BuffersList::AddBufferType::kVisit
-                                       : BuffersList::AddBufferType::kIgnore});
+                                   visit ? BuffersList::AddBufferType::Visit
+                                         : BuffersList::AddBufferType::Ignore});
                          }) |
                          std::ranges::to<std::vector>())
                   .Transform(

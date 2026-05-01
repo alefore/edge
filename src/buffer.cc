@@ -757,7 +757,7 @@ void OpenBuffer::UpdateTreeParser() {
                 OpenFileOptions{
                     .editor_state = editor(),
                     .path = ValueOrDie(std::move(dictionary_path)),
-                    .insertion_type = BuffersList::AddBufferType::kIgnore})
+                    .insertion_type = BuffersList::AddBufferType::Ignore})
                 .Transform([](gc::Root<OpenBuffer> dictionary_root)
                                -> futures::ValueOrError<gc::Root<OpenBuffer>> {
                   return dictionary_root->WaitForEndOfFile();
@@ -2173,7 +2173,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                        vm::EscapedString(ToLazyString(url))
                                            .ShellEscapedRepresentation(),
                                    .insertion_type =
-                                       BuffersList::AddBufferType::kIgnore,
+                                       BuffersList::AddBufferType::Ignore,
                                });
                        }
                        return ICC::kStop;
@@ -2202,7 +2202,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                     .open_file_position_suffix_mode =
                                         open_file_position::SuffixMode::Allow,
                                     .insertion_type =
-                                        BuffersList::AddBufferType::kIgnore,
+                                        BuffersList::AddBufferType::Ignore,
                                     .special_file_filter =
                                         FilePredictorOptions::Filter::Exclude})
                          .Transform(
@@ -2737,7 +2737,7 @@ gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
       .editor = editor,
       .name = editor.buffer_registry().NewAnonymousBufferName()});
   editor.buffer_registry().Add(output->name(), output.ptr().ToWeakPtr());
-  editor.AddBuffer(output, BuffersList::AddBufferType::kVisit);
+  editor.AddBuffer(output, BuffersList::AddBufferType::Visit);
   return output;
 }
 

@@ -352,7 +352,7 @@ class ActivateLink : public Command {
                             AddLineToHistory(editor_state, HistoryFileFiles(),
                                              path);
                           editor_state.AddBuffer(
-                              target, BuffersList::AddBufferType::kVisit);
+                              target, BuffersList::AddBufferType::Visit);
                           return Success();
                         },
                         [] { return Success(); });

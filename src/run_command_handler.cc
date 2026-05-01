@@ -386,8 +386,8 @@ void RunCommand(const CommandBufferName& name,
                       buffer.has_value() &&
                               buffer->ptr()->Read(
                                   buffer_variables::commands_background_mode)
-                          ? BuffersList::AddBufferType::kIgnore
-                          : BuffersList::AddBufferType::kVisit,
+                          ? BuffersList::AddBufferType::Ignore
+                          : BuffersList::AddBufferType::Visit,
                   .children_path = children_path,
               });
 }
@@ -579,7 +579,7 @@ class ForkEditorCommand : public Command {
           ForkCommandOptions options;
           options.command = base_command;
           options.name = BufferName{LazyString{L"- preview: "} + base_command};
-          options.insertion_type = BuffersList::AddBufferType::kIgnore;
+          options.insertion_type = BuffersList::AddBufferType::Ignore;
           gc::Root<OpenBuffer> help_buffer_root = ForkCommand(editor, options);
           OpenBuffer& help_buffer = help_buffer_root.ptr().value();
           help_buffer.Set(buffer_variables::follow_end_of_file, false);
@@ -647,11 +647,11 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
              std::wstring value) {
             if (value == L"visit") {
-              options->insertion_type = BuffersList::AddBufferType::kVisit;
+              options->insertion_type = BuffersList::AddBufferType::Visit;
             } else if (value == L"only_list") {
-              options->insertion_type = BuffersList::AddBufferType::kOnlyList;
+              options->insertion_type = BuffersList::AddBufferType::OnlyList;
             } else if (value == L"ignore") {
-              options->insertion_type = BuffersList::AddBufferType::kIgnore;
+              options->insertion_type = BuffersList::AddBufferType::Ignore;
             }
           })
           .ptr());

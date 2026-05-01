@@ -148,7 +148,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
                   editor_state.edge_path().front(),
                   ValueOrDie(PathComponent::New(ToLazyString(name) +
                                                 LazyString{L"_history"}))),
-              .insertion_type = BuffersList::AddBufferType::kIgnore})
+              .insertion_type = BuffersList::AddBufferType::Ignore})
       .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::save_on_close, true);
         buffer->Set(buffer_variables::trigger_reload_on_buffer_write, false);

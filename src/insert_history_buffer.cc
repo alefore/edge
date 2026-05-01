@@ -48,7 +48,7 @@ void ShowInsertHistoryBuffer(EditorState& editor) {
 
   buffer.Reload();
 
-  editor.AddBuffer(std::move(buffer_root), BuffersList::AddBufferType::kVisit);
+  editor.AddBuffer(std::move(buffer_root), BuffersList::AddBufferType::Visit);
   editor.ResetRepetitions();
 }
 }  // namespace afc::editor

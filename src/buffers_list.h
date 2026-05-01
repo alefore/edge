@@ -30,8 +30,7 @@ class BuffersList {
 
   BuffersList(BufferRegistry& buffer_registry,
               language::NonNull<std::unique_ptr<CustomerAdapter>> customer);
-  // TODO(2026-04-29, P2, trivial): Remove the `k` prefix.
-  enum class AddBufferType { kVisit, kOnlyList, kIgnore };
+  enum class AddBufferType { Visit, OnlyList, Ignore };
   void AddBuffer(language::gc::Root<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
 

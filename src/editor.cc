@@ -499,7 +499,7 @@ std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
 void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
                             BuffersList::AddBufferType insertion_type) {
   std::vector<gc::Root<OpenBuffer>> initial_active_buffers = active_buffers();
-  if (insertion_type != BuffersList::AddBufferType::kIgnore) {
+  if (insertion_type != BuffersList::AddBufferType::Ignore) {
     buffer->Visit();
     buffer_registry().AddListedBuffer(buffer);
   }

@@ -34,8 +34,7 @@ struct ForkCommandOptions {
   // Additional environment variables (e.g. getenv) to give to the command.
   std::map<std::wstring, language::lazy_string::LazyString> environment = {};
 
-  BuffersList::AddBufferType insertion_type =
-      BuffersList::AddBufferType::kVisit;
+  BuffersList::AddBufferType insertion_type = BuffersList::AddBufferType::Visit;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
   std::optional<infrastructure::Path> children_path = std::nullopt;

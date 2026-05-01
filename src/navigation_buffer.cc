@@ -198,7 +198,7 @@ class NavigationBufferCommand : public Command {
           buffer.Set(buffer_variables::reload_on_enter, true);
           editor_state_.StartHandlingInterrupts();
           editor_state_.AddBuffer(buffer_root,
-                                  BuffersList::AddBufferType::kVisit);
+                                  BuffersList::AddBufferType::Visit);
           buffer.ResetMode();
           return output;
         });

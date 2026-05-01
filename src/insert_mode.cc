@@ -349,7 +349,7 @@ futures::Value<LineSequence> OpenBufferForDictionaryManager(EditorState& editor,
              OpenFileOptions{
                  .editor_state = editor,
                  .path = Path::Join(editor.edge_path().front(), path),
-                 .insertion_type = BuffersList::AddBufferType::kIgnore})
+                 .insertion_type = BuffersList::AddBufferType::Ignore})
       .Transform([](gc::Root<OpenBuffer> buffer) {
         buffer->Set(buffer_variables::allow_dirty_delete, true);
         return buffer->WaitForEndOfFile();

@@ -497,7 +497,7 @@ futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
              OpenFileOptions{
                  .editor_state = editor_state,
                  .path = std::nullopt,
-                 .insertion_type = BuffersList::AddBufferType::kIgnore})
+                 .insertion_type = BuffersList::AddBufferType::Ignore})
       .Transform([](gc::Root<OpenBuffer> buffer) {
         // Wait until we've fully evaluated buffer-reload.cc on the buffer.
         return buffer->WaitForEndOfFile();

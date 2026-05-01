@@ -780,17 +780,17 @@ BuffersList::BuffersList(BufferRegistry& buffer_registry,
 void BuffersList::AddBuffer(gc::Root<OpenBuffer> buffer,
                             AddBufferType add_buffer_type) {
   switch (add_buffer_type) {
-    case AddBufferType::kVisit:
+    case AddBufferType::Visit:
       active_buffer_widget_->SetBuffer(buffer.ptr().ToWeakPtr());
       buffer.ptr()->Visit();
       Update();
       break;
 
-    case AddBufferType::kOnlyList:
+    case AddBufferType::OnlyList:
       Update();
       break;
 
-    case AddBufferType::kIgnore:
+    case AddBufferType::Ignore:
       break;
   }
 }

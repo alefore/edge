@@ -228,7 +228,7 @@ class ExternalCompletion : public CompositeTransformation {
                                   ToLazyString(NonEmptySingleLine(
                                       buffer_root->position().column.read()))},
                              },
-                         .insertion_type = BuffersList::AddBufferType::kIgnore,
+                         .insertion_type = BuffersList::AddBufferType::Ignore,
                          .existing_buffer_behavior = ForkCommandOptions::
                              ExistingBufferBehavior::kIgnore})
               ->WaitForEndOfFile();
@@ -322,7 +322,7 @@ class ReadAndInsert : public CompositeTransformation {
                OpenFileOptions{
                    .editor_state = input.buffer.editor(),
                    .path = full_path,
-                   .insertion_type = BuffersList::AddBufferType::kIgnore})
+                   .insertion_type = BuffersList::AddBufferType::Ignore})
         .Transform([](gc::Root<OpenBuffer> buffer_to_insert)
                        -> futures::ValueOrError<gc::Root<OpenBuffer>> {
           return buffer_to_insert->WaitForEndOfFile();
@@ -450,7 +450,7 @@ class ExpandTransformation : public CompositeTransformation {
                     OpenFileOptions{
                         .editor_state = input.buffer.editor(),
                         .path = std::move(dictionary_path).value(),
-                        .insertion_type = BuffersList::AddBufferType::kIgnore})
+                        .insertion_type = BuffersList::AddBufferType::Ignore})
                     .Transform([](gc::Root<OpenBuffer> dictionary)
                                    -> futures::ValueOrError<Predictor> {
                       return ComposePredictors(

@@ -35,8 +35,7 @@ struct OpenFileOptions {
 
   open_file_position::Spec position = open_file_position::Default{};
 
-  BuffersList::AddBufferType insertion_type =
-      BuffersList::AddBufferType::kVisit;
+  BuffersList::AddBufferType insertion_type = BuffersList::AddBufferType::Visit;
 
   // You can use this if you want to ignore specific files.
   std::function<language::PossibleError(struct stat)> stat_validator =

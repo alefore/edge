@@ -45,7 +45,7 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
                     .name = FragmentsBuffer{},
                     .path = Path::Join(editor.edge_path().front(),
                                        PathComponent::FromString(L"fragments")),
-                    .insertion_type = BuffersList::AddBufferType::kIgnore})
+                    .insertion_type = BuffersList::AddBufferType::Ignore})
             .Transform([&editor](gc::Root<OpenBuffer> buffer) {
               VLOG(6) << "Preparing fragments buffer (will wait for EOF).";
               buffer->Set(buffer_variables::save_on_close, true);

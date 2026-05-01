@@ -179,7 +179,7 @@ class HelpCommand : public Command {
                       GenerateContents, std::ref(commands_), original_buffer)});
           buffer_root.ptr()->Reload();
           editor_state_.AddBuffer(std::move(buffer_root),
-                                  BuffersList::AddBufferType::kVisit);
+                                  BuffersList::AddBufferType::Visit);
           editor_state_.ResetRepetitions();
         },
         [] {}, editor_state_.current_buffer());

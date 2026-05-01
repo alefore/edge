@@ -375,7 +375,7 @@ futures::ValueOrError<LogModel> LoadModelFromPaths(
                                   OpenFilesOptions::NotFoundHandler::Ignore,
                               .path_pattern = path_pattern,
                               .insertion_type =
-                                  BuffersList::AddBufferType::kIgnore,
+                                  BuffersList::AddBufferType::Ignore,
                               .directory_filter =
                                   FilePredictorOptions::Filter::Exclude,
                               .special_file_filter =

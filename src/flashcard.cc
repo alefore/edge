@@ -97,7 +97,7 @@ class FlashcardReviewLog {
                OpenFileOptions{
                    .editor_state = editor,
                    .path = review_log_path,
-                   .insertion_type = BuffersList::AddBufferType::kIgnore})
+                   .insertion_type = BuffersList::AddBufferType::Ignore})
         .Transform([](gc::Root<OpenBuffer> buffer) {
           buffer->Set(buffer_variables::save_on_close, true);
           return buffer->WaitForEndOfFile();
@@ -374,7 +374,7 @@ class Flashcard {
                         output_buffer.ptr().object_metadata());
                   });
               output_buffer->editor().AddBuffer(
-                  output_buffer, BuffersList::AddBufferType::kVisit);
+                  output_buffer, BuffersList::AddBufferType::Visit);
               return output_buffer.ptr();
             }));
   }
