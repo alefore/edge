@@ -10,9 +10,9 @@ class BufferDisplayData {
   // We remember the size that this buffer had when we last drew it.
   //
   // If the buffer changes size, we'll aim to full all screen space; otherwise,
-  // we'll aim to avoid flickering. That means that scrolling in the buffer
-  // (without changing it) will always aim to avoid flickering; modifying the
-  // buffer will only trigger flickering if the size changes.
+  // we'll aim to avoid jittering. That means that scrolling in the buffer
+  // (without changing it) will always aim to avoid jittering; modifying the
+  // buffer will only trigger jittering if the size changes.
   language::text::LineNumberDelta content_lines_ =
       language::text::LineNumberDelta();
 

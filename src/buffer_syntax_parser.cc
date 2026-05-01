@@ -163,10 +163,20 @@ void BufferSyntaxParser::ParseInternal(const LineSequence contents) {
   PrepareTokenPartition(tree.get(), contents, token_id, token_partition);
   DVLOG(5) << "Generated partitions: [entries: " << token_id.size()
            << "][sets: " << token_partition.size() << "]";
+  auto simplified_tree = MakeNonNullShared<const ParseTree>(std::invoke([&] {
+    switch (tree_parser->state_boundary()) {
+      case TreeParser::StateBoundary::AllContents:
+        return SimplifyTree(tree.value());
+      case TreeParser::StateBoundary::Line:
+        return ParseTree(tree->range());
+    }
+    LOG(FATAL) << "Invalid tree parser state boundary.";
+    std::unreachable();
+  }));
   data_->lock([tree, token_id = std::move(token_id),
                token_partition = std::move(token_partition),
-               simplified_tree = MakeNonNullShared<const ParseTree>(
-                   SimplifyTree(tree.value()))](Data& data_nested) mutable {
+               simplified_tree =
+                   std::move(simplified_tree)](Data& data_nested) mutable {
     data_nested.tree = std::move(tree);
     data_nested.token_id = std::move(token_id);
     data_nested.token_partition = std::move(token_partition);

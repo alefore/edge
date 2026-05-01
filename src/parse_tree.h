@@ -142,6 +142,15 @@ class TreeParser {
 
   static bool IsNull(TreeParser*);
 
+  enum class StateBoundary {
+    // The state is always the same at the start of every line. This allows each
+    // line to be parsed independently.
+    Line,
+    // State transitions carry across line breaks.
+    AllContents
+  };
+  virtual StateBoundary state_boundary() const = 0;
+
   virtual ParseTree FindChildren(const language::text::LineSequence& lines,
                                  language::text::Range range) = 0;
 };

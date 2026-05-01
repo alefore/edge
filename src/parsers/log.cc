@@ -51,6 +51,8 @@ class LogTreeParser : public TreeParser {
   LogTreeParser(LogType log_type, LogView log_view)
       : log_type_(std::move(log_type)), log_view_(std::move(log_view)) {}
 
+  StateBoundary state_boundary() const override { return StateBoundary::Line; }
+
   ParseTree FindChildren(const language::text::LineSequence& contents,
                          language::text::Range range) {
     TRACK_OPERATION(LogTreeParser_FindChildren);

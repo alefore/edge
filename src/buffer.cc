@@ -782,48 +782,53 @@ void OpenBuffer::UpdateTreeParser() {
       .Transform([root_this = RootFromThis()](
                      std::tuple<ValueOrError<LogModel>, SortedLineSequence>
                          log_and_dictionary) {
-        root_this->buffer_syntax_parser_.UpdateParser(
-            BufferSyntaxParser::ParserOptions{
-                .parser_name = OptionalFrom(
-                    ParserId::New(NonEmptySingleLine::New(SingleLine::New(
-                        root_this->Read(buffer_variables::tree_parser))))),
-                .typos_set = MaterializeUnorderedSet(
-                    TokenizeBySpaces(
-                        LineSequence::BreakLines(
-                            root_this->Read(buffer_variables::typos))
-                            .FoldLines()) |
-                    std::views::transform(&Token::value)),
-                .language_keywords = MaterializeUnorderedSet(
-                    TokenizeBySpaces(
-                        LineSequence::BreakLines(
-                            root_this->Read(
-                                buffer_variables::language_keywords))
-                            .FoldLines()) |
-                    std::views::transform(&Token::value)),
-                .symbol_characters =
-                    root_this->Read(buffer_variables::symbol_characters),
-                .identifier_behavior =
-                    root_this->Read(buffer_variables::identifier_behavior) ==
-                            LazyString{L"color-by-hash"}
-                        ? IdentifierBehavior::kColorByHash
-                        : IdentifierBehavior::kNone,
-                .dictionary = std::move(std::get<1>(log_and_dictionary)),
-                .log_model =
-                    OptionalFrom(std::move(std::get<0>(log_and_dictionary))),
-                .log_type_name =
-                    OptionalFrom(
-                        NonEmptySingleLine::New(SingleLine::New(
-                            root_this->Read(buffer_variables::log_type))))
-                        .transform([](NonEmptySingleLine input) {
-                          return LogTypeName{input};
-                        }),
-                .log_view_name =
-                    OptionalFrom(
-                        NonEmptySingleLine::New(SingleLine::New(
-                            root_this->Read(buffer_variables::log_view))))
-                        .transform([](NonEmptySingleLine input) {
-                          return LogViewName{input};
-                        })});
+        using BSPOptions = BufferSyntaxParser::ParserOptions;
+        root_this->buffer_syntax_parser_.UpdateParser(BSPOptions{
+            .parser_name = OptionalFrom(
+                ParserId::New(NonEmptySingleLine::New(SingleLine::New(
+                    root_this->Read(buffer_variables::tree_parser))))),
+            .typos_set = MaterializeUnorderedSet(
+                TokenizeBySpaces(LineSequence::BreakLines(
+                                     root_this->Read(buffer_variables::typos))
+                                     .FoldLines()) |
+                std::views::transform(&Token::value)),
+            .language_keywords = MaterializeUnorderedSet(
+                TokenizeBySpaces(
+                    LineSequence::BreakLines(
+                        root_this->Read(buffer_variables::language_keywords))
+                        .FoldLines()) |
+                std::views::transform(&Token::value)),
+            .symbol_characters =
+                root_this->Read(buffer_variables::symbol_characters),
+            .identifier_behavior =
+                root_this->Read(buffer_variables::identifier_behavior) ==
+                        LazyString{L"color-by-hash"}
+                    ? IdentifierBehavior::kColorByHash
+                    : IdentifierBehavior::kNone,
+            .dictionary = std::move(std::get<1>(log_and_dictionary)),
+            .log_model =
+                OptionalFrom(std::move(std::get<0>(log_and_dictionary))),
+            .log_type_name =
+                OptionalFrom(NonEmptySingleLine::New(SingleLine::New(
+                                 root_this->Read(buffer_variables::log_type))))
+                    .transform([](NonEmptySingleLine input) {
+                      return LogTypeName{input};
+                    }),
+            .log_view_name =
+                OptionalFrom(NonEmptySingleLine::New(SingleLine::New(
+                                 root_this->Read(buffer_variables::log_view))))
+                    .transform([](NonEmptySingleLine input) {
+                      return LogViewName{input};
+                    }),
+            .views = std::invoke([&] -> std::vector<BSPOptions::View> {
+              std::optional<LineColumnDelta> view_size =
+                  root_this->display_data().view_size().Get();
+              if (view_size.has_value()) return {};
+              return {BSPOptions::View{
+                  .first_line =
+                      root_this->Read(buffer_variables::view_start).line,
+                  .view_size = view_size.value().line}};
+            })});
         root_this->MaybeStartUpdatingSyntaxTrees();
         return EmptyValue();
       });

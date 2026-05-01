@@ -346,6 +346,8 @@ bool Contains(const std::unordered_set<NonEmptySingleLine>& values,
 namespace {
 class NullTreeParser : public TreeParser {
  public:
+  StateBoundary state_boundary() const override { return StateBoundary::Line; }
+
   ParseTree FindChildren(const LineSequence&, Range range) override {
     return ParseTree(range);
   }
@@ -364,6 +366,10 @@ class WordsTreeParser : public TreeParser {
             container::MaterializeUnorderedSet(symbol_characters)),
         typos_(typos),
         delegate_(std::move(delegate)) {}
+
+  StateBoundary state_boundary() const override {
+    return delegate_->state_boundary();
+  }
 
   ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);
@@ -406,6 +412,10 @@ class LineTreeParser : public TreeParser {
  public:
   LineTreeParser(NonNull<std::unique_ptr<TreeParser>> delegate)
       : delegate_(std::move(delegate)) {}
+
+  StateBoundary state_boundary() const override {
+    return delegate_->state_boundary();
+  }
 
   ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);

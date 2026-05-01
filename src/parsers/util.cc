@@ -178,6 +178,10 @@ void ParseNumber(ParseData* result, LineModifierSet number_modifiers,
                      number_modifiers, properties);
 }
 
+TreeParser::StateBoundary LineOrientedTreeParser::state_boundary() const {
+  return StateBoundary::AllContents;
+}
+
 ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
                                                Range range) {
   TRACK_OPERATION(LineOrientedTreeParser_FindChildren);

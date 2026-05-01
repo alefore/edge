@@ -29,6 +29,15 @@ class BufferSyntaxParser {
     std::optional<LogModel> log_model;
     std::optional<LogTypeName> log_type_name;
     std::optional<LogViewName> log_view_name;
+
+    struct View {
+      // First line that is visible.
+      language::text::LineNumber first_line;
+      // Total number of lines visible.
+      language::text::LineNumberDelta view_size;
+    };
+    // May be empty if we don't know yet the views.
+    std::vector<View> views;
   };
   void UpdateParser(ParserOptions options);
 

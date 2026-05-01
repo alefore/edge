@@ -82,6 +82,8 @@ void ParseNumber(ParseData* result,
 
 class LineOrientedTreeParser : public TreeParser {
  public:
+  StateBoundary state_boundary() const override;
+
   ParseTree FindChildren(const language::text::LineSequence& buffer,
                          language::text::Range range);
 
