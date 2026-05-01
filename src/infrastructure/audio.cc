@@ -7,8 +7,6 @@
 #include "src/language/container.h"
 #include "src/language/safe_types.h"
 
-namespace container = afc::language::container;
-
 using afc::concurrent::Protected;
 using afc::language::EraseIf;
 using afc::language::MakeNonNullUnique;
@@ -158,11 +156,12 @@ class PlayerImpl : public Player {
       Protected<MutableData>::Lock data = data_.lock();
       if (data->shutting_down) return false;
       CHECK_LT(data->generators.size(), 100ul);
-      std::vector<Generator*> enabled_generators = container::MaterializeVector(
+      std::vector<Generator*> enabled_generators =
           data->generators | std::views::filter([&](const Generator& g) {
             return g.start_time <= data->time;
           }) |
-          std::views::transform([](Generator& g) { return &g; }));
+          std::views::transform([](Generator& g) { return &g; }) |
+          std::ranges::to<std::vector>();
       if (!enabled_generators.empty()) {  // Optimization.
         new_frame = std::move(NewFrame().get_unique());
         for (int i = 0; i < iterations; i++, data->time += delta) {
