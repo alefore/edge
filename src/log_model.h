@@ -25,10 +25,12 @@ class LogCapturingGroup
 };
 
 struct LogEntryConfiguration {
+  LogEntryName name;
   std::optional<LogCapturingGroup> capturing_group;
 };
 
 struct LogEntryValue {
+  LogEntryName name;
   std::variant<language::lazy_string::LazyString> value;
   language::lazy_string::ColumnNumber position;
   language::lazy_string::ColumnNumberDelta size;
@@ -36,7 +38,7 @@ struct LogEntryValue {
 
 struct LogLine {
   // Values must be sorted by `position`.
-  std::unordered_map<LogEntryName, std::vector<LogEntryValue>> values;
+  std::vector<LogEntryValue> values;
 };
 
 class LogTypeName
@@ -65,13 +67,13 @@ struct LogView {
 class LogType {
   LogTypeName name_;
   std::wregex regex_;
-  std::unordered_map<LogEntryName, std::vector<LogEntryConfiguration>> entries_;
-  std::unordered_map<LogCapturingGroup, LogEntryName> capturing_groups_;
+  // Must be sorted by capturing_group.
+  std::vector<LogEntryConfiguration> entries_;
+  std::set<LogEntryName> entry_names_;
 
  public:
   LogType(LogTypeName name, language::lazy_string::NonEmptySingleLine pattern,
-          std::unordered_map<LogEntryName, std::vector<LogEntryConfiguration>>
-              entries);
+          std::vector<LogEntryConfiguration> entries);
 
   LogTypeName name() const;
 
