@@ -413,7 +413,8 @@ LineSequenceIterator LineSequence::end() const {
 }
 
 bool LineSequence::operator==(const LineSequence& other) const {
-  return std::equal(begin(), end(), other.begin(), other.end());
+  return lines_ == other.lines_ ||
+         std::equal(begin(), end(), other.begin(), other.end());
 }
 
 namespace {
