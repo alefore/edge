@@ -102,15 +102,10 @@ EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 EnvironmentIdentifierTable::Expand() const {
   return table_.lock([](const Table& table) {
-    // TODO(2026-04-27, P2): Use view to filter variants?
     return table | std::views::values |
-           std::views::filter([](const std::variant<UninitializedValue,
-                                                    gc::Ptr<Value>>& entry) {
-             return std::holds_alternative<gc::Ptr<Value>>(entry);
-           }) |
-           std::views::transform([](const std::variant<UninitializedValue,
-                                                       gc::Ptr<Value>>& entry) {
-             return std::get<gc::Ptr<Value>>(entry).object_metadata();
+           container::filter_variant<gc::Ptr<Value>> |
+           std::views::transform([](const gc::Ptr<Value>& entry) {
+             return entry.object_metadata();
            }) |
            std::ranges::to<std::vector>();
   });
