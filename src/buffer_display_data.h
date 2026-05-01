@@ -7,27 +7,6 @@
 namespace afc::editor {
 // Holds state related to a viewer (terminal) of a buffer.
 class BufferDisplayData {
- public:
-  language::ObservableValue<std::optional<language::text::LineColumnDelta>>&
-  view_size();
-  const language::ObservableValue<
-      std::optional<language::text::LineColumnDelta>>&
-  view_size() const;
-
-  // See max_display_width_.
-  void AddDisplayWidth(language::lazy_string::ColumnNumberDelta display_width);
-  language::lazy_string::ColumnNumberDelta max_display_width() const;
-
-  // See min_vertical_prefix_size_.
-  void AddVerticalPrefixSize(
-      language::text::LineNumberDelta vertical_prefix_size);
-  std::optional<language::text::LineNumberDelta> min_vertical_prefix_size()
-      const;
-
-  language::text::LineNumberDelta content_lines() const;
-  void set_content_lines(language::text::LineNumberDelta);
-
- private:
   // We remember the size that this buffer had when we last drew it.
   //
   // If the buffer changes size, we'll aim to full all screen space; otherwise,
@@ -57,6 +36,26 @@ class BufferDisplayData {
   // jittering.
   std::optional<language::text::LineNumberDelta> min_vertical_prefix_size_ =
       std::nullopt;
+
+ public:
+  language::ObservableValue<std::optional<language::text::LineColumnDelta>>&
+  view_size();
+  const language::ObservableValue<
+      std::optional<language::text::LineColumnDelta>>&
+  view_size() const;
+
+  // See max_display_width_.
+  void AddDisplayWidth(language::lazy_string::ColumnNumberDelta display_width);
+  language::lazy_string::ColumnNumberDelta max_display_width() const;
+
+  // See min_vertical_prefix_size_.
+  void AddVerticalPrefixSize(
+      language::text::LineNumberDelta vertical_prefix_size);
+  std::optional<language::text::LineNumberDelta> min_vertical_prefix_size()
+      const;
+
+  language::text::LineNumberDelta content_lines() const;
+  void set_content_lines(language::text::LineNumberDelta);
 };
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_DISPLAY_DATA_H__
