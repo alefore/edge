@@ -11,7 +11,6 @@
 #include "src/language/lazy_string/single_line.h"
 
 namespace afc::infrastructure::screen {
-// TODO(trivial, 2026-04-30, enum class): Drop the `k` prefix.
 enum class LineModifier {
   Reset,
   Bold,
