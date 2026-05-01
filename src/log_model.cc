@@ -45,9 +45,11 @@ std::set<LogEntryName> LogType::entry_names() const {
 }
 
 std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
+  TRACK_OPERATION(LogType_Parse);
   std::wstring line_str = ToLazyString(line).ToString();
   std::wsmatch matches;
   if (!std::regex_match(line_str, matches, regex_)) return Error{L"No match."};
+  TRACK_OPERATION(LogType_Parse_Process);
   std::unordered_map<LogEntryName, std::vector<LogEntryValue>> values;
   std::ranges::for_each(
       capturing_groups_ |
@@ -73,6 +75,7 @@ std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
   std::ranges::for_each(
       values,
       [](std::pair<const LogEntryName, std::vector<LogEntryValue>>& pair) {
+        TRACK_OPERATION(LogType_Sort);
         std::ranges::sort(pair.second, {}, &LogEntryValue::position);
       });
   return LogLine{.values = std::move(values)};
