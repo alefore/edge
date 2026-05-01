@@ -413,8 +413,14 @@ LineSequenceIterator LineSequence::end() const {
 }
 
 bool LineSequence::operator==(const LineSequence& other) const {
-  return lines_ == other.lines_ ||
-         std::equal(begin(), end(), other.begin(), other.end());
+  if (lines_ == other.lines_) return true;  // Nothing changed fast path.
+
+  // As files are being loaded, we append to their LineSequence. In this case,
+  // one LineSequence is a prefix of the other, so the std::equal comparison
+  // (below) is slow. We short-circuit it based on the sizes.
+  if (size() != other.size()) return false;
+
+  return std::equal(begin(), end(), other.begin(), other.end());
 }
 
 namespace {
