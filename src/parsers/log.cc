@@ -33,6 +33,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineRange;
@@ -116,6 +117,9 @@ class LogTreeParser : public TreeParser {
         });
     infrastructure::screen::RegisterLineModifier(environment.pool(),
                                                  environment.value());
+    environment->Define(IDENTIFIER_CONSTANT(L"log_type"),
+                        vm::Value::NewString(environment.pool(),
+                                             ToLazyString(log_type_.name())));
     environment->Define(
         IDENTIFIER_CONSTANT(L"default"),
         Mapper::New(environment.pool(),
