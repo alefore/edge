@@ -69,10 +69,10 @@ futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
     const OpenFileOptions& options,
     OpenFilesOptions::NotFoundHandler not_found_handler) {
   switch (not_found_handler) {
-    case OpenFilesOptions::NotFoundHandler::kCreate:
+    case OpenFilesOptions::NotFoundHandler::Create:
       return OpenOrCreateFile(options).Transform(
           [](gc::Root<OpenBuffer> buffer) { return Success(buffer); });
-    case OpenFilesOptions::NotFoundHandler::kIgnore:
+    case OpenFilesOptions::NotFoundHandler::Ignore:
       return OpenFileIfFound(options);
   }
   Error error{LazyString{L"Invalid value for not_found_handler."}};
@@ -126,7 +126,7 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
                   }) |
               std::ranges::to<std::vector>());
         if (options.not_found_handler ==
-            OpenFilesOptions::NotFoundHandler::kIgnore)
+            OpenFilesOptions::NotFoundHandler::Ignore)
           return std::vector<ValueOrError<gc::Root<OpenBuffer>>>{};
         LOG(INFO) << "No completion found; passing specified path: "
                   << options.path_pattern;

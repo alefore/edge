@@ -2197,7 +2197,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                     .editor = editor,
                                     .match_limit = 1,
                                     .not_found_handler = OpenFilesOptions::
-                                        NotFoundHandler::kIgnore,
+                                        NotFoundHandler::Ignore,
                                     .path_pattern = std::move(path_str),
                                     .open_file_position_suffix_mode =
                                         open_file_position::SuffixMode::Allow,

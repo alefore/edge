@@ -29,7 +29,7 @@ struct OpenFilesOptions {
   std::optional<size_t> match_limit = std::nullopt;
 
   // TODO(P0, 2026-04-29, trivial): Drop the k prefix.
-  enum class NotFoundHandler { kIgnore, kCreate };
+  enum class NotFoundHandler { Ignore, Create };
   NotFoundHandler not_found_handler;
 
   // TODO(P1, tricky, 2026-04-13): There's a mismatch here. We'd like to make

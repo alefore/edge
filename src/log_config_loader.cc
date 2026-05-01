@@ -371,7 +371,7 @@ futures::ValueOrError<LogModel> LoadModelFromPaths(
                           OpenFilesOptions{
                               .editor = editor,
                               .not_found_handler =
-                                  OpenFilesOptions::NotFoundHandler::kIgnore,
+                                  OpenFilesOptions::NotFoundHandler::Ignore,
                               .path_pattern = path_pattern,
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore,

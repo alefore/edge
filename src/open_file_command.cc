@@ -307,7 +307,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
                          OpenFilesOptions{
                              .editor = editor,
                              .not_found_handler =
-                                 OpenFilesOptions::NotFoundHandler::kCreate,
+                                 OpenFilesOptions::NotFoundHandler::Create,
                              .path_pattern = value})
                   .Transform([](auto) { return EmptyValue{}; });
             },
