@@ -47,3 +47,8 @@ build:tsan --linkopt=-fsanitize=thread
 # Ensure debug symbols are included in these configs
 build:asan --strip=never
 build:tsan --strip=never
+
+build:profiling -c opt
+build:profiling --copt="-g"
+build:profiling --copt="-fno-omit-frame-pointer"
+build:profiling --strip=never
