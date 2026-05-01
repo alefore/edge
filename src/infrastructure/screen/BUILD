@@ -37,6 +37,8 @@ cc_library(
         "//src/language:gc",
         "//src/language/error:value_or_error",
         "//src/language/lazy_string",
+        "//src/vm:callbacks",
+        "//src/vm:container",
     ],
 )
 

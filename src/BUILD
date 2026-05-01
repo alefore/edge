@@ -288,6 +288,7 @@ cc_binary(
         "//src/infrastructure/screen",
         "//src/infrastructure/screen:cursors",
         "//src/infrastructure/screen:line_modifier",
+        "//src/infrastructure/screen:line_modifier_vm",
         "//src/infrastructure/screen:visual_overlay",
         "//src/language:observers",
         "//src/language:observers_gc",
