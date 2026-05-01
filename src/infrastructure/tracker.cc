@@ -2,12 +2,12 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
+#include <ranges>
+
 #include "src/infrastructure/time.h"
-#include "src/language/container.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
-
-namespace container = afc::language::container;
 
 using afc::concurrent::EmptyValidator;
 using afc::concurrent::Protected;
@@ -25,12 +25,13 @@ Protected<Trackers>::Lock lock_trackers() {
 }  // namespace
 
 /* static */ std::list<Tracker::Data> Tracker::GetData() {
-  std::list<Tracker::Data> output = container::MaterializeList(
+  std::list<Tracker::Data> output =
       *lock_trackers() |
       std::views::transform(
           [](const NonNull<Tracker*> tracker) -> Tracker::Data {
             return *tracker->data_.lock();
-          }));
+          }) |
+      std::ranges::to<std::list>();
   output.sort([](const Tracker::Data& a, const Tracker::Data& b) {
     return a.seconds < b.seconds;
   });
