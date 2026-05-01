@@ -331,6 +331,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     if (&current_tree != root.get().get() &&
         screen_line.range.line() >= current_tree.range().begin().line &&
         screen_line.range.line() <= current_tree.range().end().line) {
+      TRACK_OPERATION(ProduceBufferView_ParseTreeHighlighter);
       ColumnNumber begin =
           screen_line.range.line() == current_tree.range().begin().line
               ? current_tree.range().begin().column
@@ -341,19 +342,23 @@ LineWithCursor::Generator::Vector ProduceBufferView(
               : line_contents->EndColumn();
       generator = ParseTreeHighlighter(begin, end, std::move(generator));
     } else if (!buffer.parse_tree()->children().empty()) {
+      TRACK_OPERATION(ProduceBufferView_ParseTreeHighlighterTokens);
       generator = ParseTreeHighlighterTokens(root, screen_line.range,
                                              std::move(generator));
     }
 
     if (buffer.Read(buffer_variables::atomic_lines) &&
         buffer.active_cursors().cursors_in_line(line)) {
+      TRACK_OPERATION(ProduceBufferView_LineHighlighter);
       generator = LineHighlighter(std::move(generator));
     }
 
     if (VisualOverlayMap overlays =
             FilterOverlays(buffer.visual_overlay_map(), screen_line.range);
-        !overlays.empty())
+        !overlays.empty()) {
+      TRACK_OPERATION(ProduceBufferView_ApplyVisualOverlay);
       generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
+    }
 
     output.lines.push_back(generator);
   }
