@@ -28,7 +28,6 @@ struct OpenFilesOptions {
   // that they'll use at most a single file.
   std::optional<size_t> match_limit = std::nullopt;
 
-  // TODO(P0, 2026-04-29, trivial): Drop the k prefix.
   enum class NotFoundHandler { Ignore, Create };
   NotFoundHandler not_found_handler;
 
