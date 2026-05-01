@@ -151,13 +151,15 @@ editor.AddBinding("ss", "Run a shell in the directory of the current buffer.",
 editor.AddBinding("sh", "Buffers: Navigate to the header / implementation.",
                   []() -> void { editor.ForEachActiveBuffer(ShowHeader); });
 
+void LogMode(string log_type) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.set_tree_parser("log");
+    buffer.set_log_type(log_type);
+  });
+}
+
 editor.AddBinding("alg", "Buffers: Mark the current buffer as a GLOG log.",
-                  []() -> void {
-                    editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-                      buffer.set_tree_parser("log");
-                      buffer.set_log_type("glog");
-                    });
-                  });
+                  []() -> void { LogMode("glog"); });
 
 ////////////////////////////////////////////////////////////////////////////////
 // Editing commands
