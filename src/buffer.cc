@@ -823,7 +823,7 @@ void OpenBuffer::UpdateTreeParser() {
             .views = std::invoke([&] -> std::vector<BSPOptions::View> {
               std::optional<LineColumnDelta> view_size =
                   root_this->display_data().view_size().Get();
-              if (view_size.has_value()) return {};
+              if (!view_size.has_value()) return {};
               return {BSPOptions::View{
                   .first_line =
                       root_this->Read(buffer_variables::view_start).line,
