@@ -6,9 +6,9 @@
 #include <list>
 #include <memory>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/safe_types.h"
-#include "src/transformation_type.h"
 #include "src/vm/callbacks.h"
 
 namespace afc::language::gc {
