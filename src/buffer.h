@@ -678,6 +678,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   const language::NonNull<std::shared_ptr<Status>> status_;
 
+  language::ObservableValue<std::shared_ptr<LogModel>> log_model_{nullptr};
+
   BufferSyntaxParser buffer_syntax_parser_;
 
   language::NonNull<std::unique_ptr<infrastructure::FileAdapter>> file_adapter_;

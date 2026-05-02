@@ -421,6 +421,15 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                   .ConsumeErrors(
                       [](Error) { return IterationControlCommand::kContinue; });
             });
+        LoadModelFromPaths(editor(), Read(buffer_variables::log_model_paths))
+            .Transform(LockAndVisitCallback(
+                [](LogModel model, gc::Root<OpenBuffer> root_this)
+                    -> futures::Value<PossibleError> {
+                  root_this->log_model_.Set(
+                      std::make_shared<LogModel>(std::move(model)));
+                  return EmptyValue{};
+                },
+                [](LogModel) { return EmptyValue{}; }, WeakPtrFromThis()));
         return true;
       }}),
       execution_context_(std::move(execution_context)) {
@@ -939,6 +948,20 @@ void OpenBuffer::AppendLines(
   contents_.append_back(
       UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
       observer_behavior);
+
+  static const LineNumberDelta kLineActivationThreshold{10};
+  if (start_new_section < kLineActivationThreshold &&
+      contents_.size() > kLineActivationThreshold) {
+    log_model_.Add(LockAndVisitCallback(
+        [](gc::Root<OpenBuffer> root_this) {
+          std::shared_ptr<LogModel> model = root_this->log_model_.Get();
+          if (model == nullptr) return Observers::State::kAlive;
+          LOG(INFO) << "Validate if it is a log.";
+          return Observers::State::kExpired;
+        },
+        []() { return Observers::State::kExpired; }, WeakPtrFromThis()));
+  }
+
   if (Read(buffer_variables::contains_line_marks)) {
     TRACK_OPERATION(OpenBuffer_StartNewLine_ScanForMarks);
     std::function<futures::Value<PredictorOutput>(PredictorInput)>

@@ -15,6 +15,7 @@ class Observable {
  public:
   virtual ~Observable() {}
 
+  // TODO(trivial, 2026-05-02): Get rid of the `k` prefix.
   enum class State { kExpired, kAlive };
   using Observer = std::move_only_function<State()>;
 
@@ -108,17 +109,9 @@ class ObservableValue : public Observable {
     return data_->value.lock([](const Value& value) { return value; });
   }
 
-  bool has_value() const {
-    return data_->value.lock(
-        [](const Value& value) { return value.has_value(); });
-  }
-
   // Adds a callback that will be updated whenever the value changes.
-  //
-  // We will only notify the observers after `Get` returns a value.
   void Add(Observers::Observer observer) const override {
-    if (!has_value() || observer() == State::kAlive)
-      data_->observers.Add(std::move(observer));
+    if (observer() == State::kAlive) data_->observers.Add(std::move(observer));
   }
 
   // The future returned ignores previous calls to Set (i.e., only gets notified
@@ -130,8 +123,7 @@ class ObservableValue : public Observable {
  private:
   struct Data {
     Observers observers = Observers();
-    concurrent::Protected<Value> value =
-        concurrent::Protected<Value>{std::nullopt};
+    concurrent::Protected<Value> value;
 
     void Set(Value next_value) {
       value.lock([&](Value& storage) {
