@@ -26,6 +26,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
+using afc::language::text::LineSequence;
 using afc::vm::Namespace;
 
 namespace afc::editor {
@@ -157,6 +158,17 @@ futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
 
 ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
 ExecutionContext::CompileString(LazyString code, ErrorHandling error_handling) {
+  TRACK_OPERATION(ExecutionContext_CompileString);
+  gc::Root<vm::Environment> sub_environment =
+      vm::Environment::New(environment_);
+  return HandleCompilationResultOrError(
+      sub_environment, afc::vm::CompileString(code, sub_environment.ptr()),
+      error_handling);
+}
+
+ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
+ExecutionContext::CompileString(LineSequence code,
+                                ErrorHandling error_handling) {
   TRACK_OPERATION(ExecutionContext_CompileString);
   gc::Root<vm::Environment> sub_environment =
       vm::Environment::New(environment_);

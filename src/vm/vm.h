@@ -9,6 +9,7 @@
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
@@ -17,9 +18,16 @@ namespace afc::vm {
 language::ValueOrError<language::gc::Root<Expression>> CompileFile(
     infrastructure::Path path, language::gc::Ptr<Environment> environment);
 
+// TODO(2026-05-03, P2): Convert all callers to the LineSequence version.
+// Delete this.
 language::ValueOrError<language::gc::Root<Expression>> CompileString(
     const language::lazy_string::LazyString& str,
     language::gc::Ptr<Environment> environment);
+
+language::ValueOrError<language::gc::Root<Expression>> CompileString(
+    const language::text::LineSequence& str,
+    language::gc::Ptr<Environment> environment);
+
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_VM_H__

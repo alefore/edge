@@ -631,16 +631,23 @@ ValueOrError<gc::Root<Expression>> CompileFile(
 
 ValueOrError<gc::Root<Expression>> CompileString(
     const LazyString& str, gc::Ptr<Environment> environment) {
+  // TODO(2026-05-03, P2): Don't use BreakLines! If `str` is very large, that
+  // will be slow, especially when the compilation fails quickly.
+  return CompileString(LineSequence::BreakLines(str), std::move(environment));
+}
+
+language::ValueOrError<language::gc::Root<Expression>> CompileString(
+    const language::text::LineSequence& str,
+    language::gc::Ptr<Environment> environment) {
   gc::Root<Compilation> compilation = Compilation::New(environment);
   compilation->PushSource(std::nullopt);
-  LineSequence::BreakLines(str).EveryLine(
-      [&compilation, parser = GetParser(compilation.value())](
-          LineNumber, const Line& line) {
-        VLOG(4) << "Compiling line: [" << line << "]";
-        CompileLine(compilation.value(), parser.get(), line.contents());
-        compilation->IncrementLine();
-        return compilation->errors().empty();
-      });
+  str.EveryLine([&compilation, parser = GetParser(compilation.value())](
+                    LineNumber, const Line& line) {
+    VLOG(4) << "Compiling line: [" << line << "]";
+    CompileLine(compilation.value(), parser.get(), line.contents());
+    compilation->IncrementLine();
+    return compilation->errors().empty();
+  });
   compilation->PopSource();
   return ResultsFromCompilation(compilation.value());
 }

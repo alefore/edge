@@ -72,8 +72,7 @@ futures::Value<PossibleError> PreviewCppExpression(
   DECLARE_OR_RETURN(
       gc::Root<ExecutionContext::CompilationResult> compilation_result,
       buffer.execution_context()->CompileString(
-          expression_str.ToLazyString(),
-          ExecutionContext::ErrorHandling::Ignore));
+          expression_str, ExecutionContext::ErrorHandling::Ignore));
   buffer.status().Reset();
   return compilation_result->expression()->purity().writes_external_outputs
              ? EmptyValue{}

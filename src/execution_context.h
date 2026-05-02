@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
@@ -83,6 +84,10 @@ class ExecutionContext {
 
   language::ValueOrError<language::gc::Root<CompilationResult>> CompileString(
       language::lazy_string::LazyString,
+      ErrorHandling error_handling = ErrorHandling::LogToStatus);
+
+  language::ValueOrError<language::gc::Root<CompilationResult>> CompileString(
+      language::text::LineSequence,
       ErrorHandling error_handling = ErrorHandling::LogToStatus);
 
   language::ValueOrError<language::gc::Root<CompilationResult>> CompileNatural(
