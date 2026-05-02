@@ -6,9 +6,9 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <variant>
 
-#include "src/language/container.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 
@@ -140,8 +140,8 @@ class VectorBlock {
   template <typename Callable>
   VectorBlock Map(const Callable& callable) const {
     return VectorBlock(ConstructorAccessTag(),
-                       container::MaterializeVector(
-                           values_ | std::views::transform(callable)));
+                       values_ | std::views::transform(callable) |
+                           std::ranges::to<std::vector>());
   }
 
   size_t size() const { return values_.size(); }
