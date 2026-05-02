@@ -6,10 +6,14 @@
 #include <regex>
 #include <set>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/types.h"
 
 namespace afc::editor {
@@ -57,11 +61,28 @@ class LogViewName
 
 struct LogView {
   LogViewName name;
-  // TODO(2026-04-30, P1, log): For now, we hold the uncompiled string. In the
-  // future, this should change to the compiled string.
   std::unordered_map<LogEntryName,
                      std::vector<language::lazy_string::NonEmptySingleLine>>
       expressions;
+};
+
+class CompiledLogView {
+  language::gc::Root<vm::Environment> environment_;
+
+  // Holds the result of compiling all expressions from log_view.
+  using ExpressionMap =
+      std::unordered_map<LogEntryName,
+                         std::vector<language::gc::Root<vm::Expression>>>;
+  ExpressionMap compiled_expressions_;
+
+ public:
+  CompiledLogView(language::gc::Root<vm::Environment> environment,
+                  const LogView& log_view);
+
+  std::expected<
+      std::unordered_map<LogEntryName, infrastructure::screen::LineModifierSet>,
+      language::Error>
+  Evaluate(std::unordered_set<LogEntryName> names) const;
 };
 
 class LogType {
