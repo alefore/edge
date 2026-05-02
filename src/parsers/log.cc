@@ -29,7 +29,6 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineRange;
 using afc::vm::Expression;
 using afc::vm::Identifier;
-using afc::vm::ToQuotedSingleLine;
 
 namespace afc::editor::parsers {
 class LogTreeParser : public TreeParser {
