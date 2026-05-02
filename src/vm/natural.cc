@@ -109,16 +109,17 @@ class ParseState {
       std::vector<Tree> extended_candidates;
       if (IsLiteralNumber(token))
         PushValue(Value::NewNumber(pool_, math::numbers::Number::FromInt64(atoi(
-                                              token.value.ToBytes().c_str()))),
+                                              token.value.ToBytes().c_str())))
+                      .ptr(),
                   extended_candidates);
       VisitValue(first_token
                      ? Identifier::New(token.value + function_name_prefix_)
                      : Identifier::New(token.value),
                  [&](Identifier identifier) {
                    for (gc::Root<Value> value : LookUp(identifier))
-                     PushValue(value, extended_candidates);
+                     PushValue(value.ptr(), extended_candidates);
                  });
-      PushValue(Value::NewString(pool_, ToLazyString(token.value)),
+      PushValue(Value::NewString(pool_, ToLazyString(token.value)).ptr(),
                 extended_candidates);
       if (extended_candidates.empty())
         return Error{LazyString{L"No valid parses found."}};
@@ -179,17 +180,15 @@ class ParseState {
                 })));
   }
 
-  // TODO(trivial, 2025-08-13): Receive value_root as gc::Ptr.
-  void PushValue(gc::Root<Value> value_root, std::vector<Tree>& output) const {
-    vm::Type type = value_root.ptr()->type();
+  void PushValue(gc::Ptr<Value> value, std::vector<Tree>& output) const {
+    vm::Type type = value->type();
     VLOG(8) << "Receive value type: " << type;
-    gc::Root<Expression> value = NewConstantExpression(value_root.ptr());
-    CHECK(!value->Types().empty());
+    gc::Root<Expression> expr = NewConstantExpression(value);
+    CHECK(!expr->Types().empty());
     if (candidates_.empty())
-      output.push_back(Tree{.type = value->Types().front(), .value = value});
+      output.push_back(Tree{.type = expr->Types().front(), .value = expr});
     else
-      for (const Tree& tree : candidates_)
-        ExtendTree(type, value, tree, output);
+      for (const Tree& tree : candidates_) ExtendTree(type, expr, tree, output);
   }
 
   static void ExtendTree(const vm::Type& type,
