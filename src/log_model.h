@@ -118,7 +118,7 @@ class LogLineEvaluator {
 class LogEvaluator {
   language::gc::Pool pool_;
   language::gc::Root<vm::Environment> environment_;
-  const LogType log_type_;
+  LogType log_type_;
 
  public:
   LogEvaluator(LogType log_type);

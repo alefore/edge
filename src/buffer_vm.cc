@@ -73,6 +73,7 @@ using afc::vm::NewConstantExpression;
 using afc::vm::NewFunctionCall;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
+using afc::vm::ToQuotedSingleLine;
 using afc::vm::Trampoline;
 
 namespace afc::vm {
@@ -582,6 +583,66 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                 args[0].ptr().value());
             buffer->set_filter(std::move(args[1]));
             return vm::Value::NewVoid(pool);
+          })
+          .ptr());
+
+  buffer_object_type.ptr()->AddField(
+      IDENTIFIER_CONSTANT(L"FilterLogLine"),
+      vm::NewCallback(
+          pool, kPurityTypeUnknown,
+          [](gc::Ptr<OpenBuffer> buffer,
+             LazyString code) -> futures::PossibleError {
+            LOG(INFO) << "Start FilterLogLine";
+            std::optional<LogType> log_type = buffer->log_type();
+            if (!log_type) return Error{L"Buffer has no valid log type."};
+            NonNull<std::shared_ptr<LogEvaluator>> evaluator =
+                MakeNonNullShared<LogEvaluator>(log_type.value());
+            DECLARE_OR_RETURN(gc::Root<vm::Expression> expr,
+                              evaluator->Compile(code));
+            LOG(INFO) << "Creating anonymous buffer";
+            return OpenOrCreateFile(
+                       OpenFileOptions{
+                           .editor_state = buffer->editor(),
+                           .path = std::nullopt,
+                           .insertion_type = BuffersList::AddBufferType::Visit})
+                .Transform(LockAndVisitCallback(
+                    [log_type = std::move(log_type), evaluator,
+                     expr = std::move(expr)](
+                        gc::Root<OpenBuffer> output,
+                        gc::Root<OpenBuffer> input) -> futures::PossibleError {
+                      CHECK(output->contents().snapshot() == LineSequence());
+                      LOG(INFO) << "Running filter";
+                      input->contents().snapshot().ForEach([&](const Line&
+                                                                   line) {
+                        VisitValue(
+                            log_type->Parse(line.contents()),
+                            [&](LogLine log_line) {
+                              LogLineEvaluator line_evaluator =
+                                  evaluator->Enter(log_line);
+                              std::expected<gc::Root<vm::Value>, Error> value =
+                                  line_evaluator.Evaluate(expr.ptr());
+                              if (!value) {
+                                LOG(INFO)
+                                    << "Evaluation failed: " << value.error();
+                                return;
+                              }
+                              if (!value->ptr()->IsBool()) {
+                                LOG(INFO)
+                                    << "Value has unexpected type: "
+                                    << ToQuotedSingleLine(value->ptr()->type());
+                                return;
+                              }
+                              if (value->ptr()->get_bool())
+                                output->AppendLine(line.contents());
+                            });
+                      });
+                      LOG(INFO) << "Output size: " << output->contents().size();
+                      return EmptyValue{};
+                    },
+                    [](gc::Root<OpenBuffer>) -> futures::PossibleError {
+                      return EmptyValue{};
+                    },
+                    buffer->WeakPtrFromThis()));
           })
           .ptr());
 
