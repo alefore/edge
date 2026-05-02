@@ -784,6 +784,8 @@ void OpenBuffer::UpdateTreeParser() {
                 .ConsumeErrors(
                     [](Error) { return SortedLineSequence(LineSequence{}); });
 
+  // TODO(2026-05-02, P2, log, trivial): Don't call LoadModelFromPaths;
+  // reuse log_model_.
   futures::JoinValues(
       (Read(buffer_variables::log_type).empty() ||
        Read(buffer_variables::tree_parser) != SINGLE_LINE_CONSTANT(L"log"))
@@ -1253,6 +1255,15 @@ void OpenBuffer::UpdateBackup() {
 BufferDisplayData& OpenBuffer::display_data() { return display_data_.value(); }
 const BufferDisplayData& OpenBuffer::display_data() const {
   return display_data_.value();
+}
+
+std::optional<LogType> OpenBuffer::log_type() const {
+  std::shared_ptr<LogModel> model = log_model_.Get();
+  if (model == nullptr) return std::nullopt;
+  LogTypeName name{Read(buffer_variables::log_type)};
+  if (auto it = model->log_types.find(name); it != model->log_types.end())
+    return it->second;
+  return std::nullopt;
 }
 
 void OpenBuffer::SortContents(

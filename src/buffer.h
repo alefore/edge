@@ -487,6 +487,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   BufferDisplayData& display_data();
   const BufferDisplayData& display_data() const;
 
+  std::optional<LogType> log_type() const;
+
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
 
