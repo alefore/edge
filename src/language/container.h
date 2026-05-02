@@ -110,6 +110,11 @@ inline constexpr auto filter_variant =
       return std::get<T>(std::forward<decltype(v)>(v));
     });
 
+// Given a range of std::optional, filter it down to values.
+inline constexpr auto filter_optional =
+    std::views::filter([](auto&& v) { return v.has_value(); }) |
+    std::views::transform([](auto&& v) -> decltype(auto) { return v.value(); });
+
 template <std::ranges::input_range Range, typename Predicate>
 std::optional<std::ranges::range_value_t<Range>> FindFirstIf(Range&& range,
                                                              Predicate pred) {
