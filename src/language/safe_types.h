@@ -333,6 +333,8 @@ auto VisitPointer(std::weak_ptr<T> t, Callable callable,
   return VisitPointer(t.lock(), std::move(callable), std::move(null_callable));
 }
 
+// TODO(2026-05-02, easy): Put the value *first*. That yields a much more
+// natural order of arguments.
 template <typename T, typename Callable, typename NullCallable>
 decltype(std::declval<Callable>()(std::declval<T>())) VisitOptional(
     Callable callable, NullCallable null_callable, std::optional<T> t) {
