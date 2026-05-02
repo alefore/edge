@@ -1,11 +1,11 @@
 #ifndef __AFC_LANGUAGE_LAZY_STRING_APPEND_H__
 #define __AFC_LANGUAGE_LAZY_STRING_APPEND_H__
 
+#include <algorithm>
 #include <memory>
 #include <ranges>
 #include <vector>
 
-#include "src/language/container.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
@@ -15,18 +15,16 @@ class NonEmptySingleLine;
 
 template <std::ranges::range R>
 auto Concatenate(R&& inputs) {
-  using InputType = typename std::remove_const<
-      typename std::remove_reference<decltype(*inputs.begin())>::type>::type;
+  using InputType = std::remove_cvref_t<std::ranges::range_reference_t<R>>;
   // The concatenation of non-empty lines … can still be empty (because the
   // sequence may itself be empty). So we short-circuit this case.
   using OutputType =
       std::conditional_t<std::is_same_v<InputType, NonEmptySingleLine>,
                          SingleLine, InputType>;
-  return container::Fold(
-      [](auto fragment, auto total) {
-        return std::move(total) + std::move(fragment);
-      },
-      OutputType{}, inputs);
+  return std::ranges::fold_left(inputs, OutputType{},
+                                [](OutputType total, const auto& fragment) {
+                                  return std::move(total) + fragment;
+                                });
 }
 
 // Returns a range transformation that can be used to intersperse a given
