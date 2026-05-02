@@ -1,6 +1,5 @@
 #include "src/vm/natural.h"
 
-#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
 #include "src/language/lazy_string/functional.h"
@@ -16,7 +15,6 @@
 #include "src/vm/environment.h"
 #include "src/vm/function_call.h"
 
-namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::language::Error;
@@ -129,16 +127,16 @@ class ParseState {
     }
 
     std::vector<std::optional<gc::Root<Expression>>> valid_outputs =
-        container::MaterializeVector(
-            candidates_ |
-            std::views::transform(
-                [this](Tree& tree) -> std::optional<gc::Root<Expression>> {
-                  return CompileTree(tree);
-                }) |
-            std::views::filter(
-                [](const std::optional<gc::Root<Expression>>& candidate) {
-                  return candidate.has_value();
-                }));
+        candidates_ |
+        std::views::transform(
+            [this](Tree& tree) -> std::optional<gc::Root<Expression>> {
+              return CompileTree(tree);
+            }) |
+        std::views::filter(
+            [](const std::optional<gc::Root<Expression>>& candidate) {
+              return candidate.has_value();
+            }) |
+        std::ranges::to<std::vector>();
     LOG(INFO) << "Natural results: " << valid_outputs.size();
     if (valid_outputs.empty())
       return Error{LazyString{L"No valid parses found (post compilation)."}};
@@ -153,10 +151,10 @@ class ParseState {
         std::get_if<types::Function>(&tree.type);
     if (function_type == nullptr) return tree.value;
     std::vector<std::optional<gc::Root<Expression>>> children_arguments =
-        container::MaterializeVector(
-            tree.children | std::views::transform([this](const Tree& argument) {
-              return CompileTree(argument);
-            }));
+        tree.children | std::views::transform([this](const Tree& argument) {
+          return CompileTree(argument);
+        }) |
+        std::ranges::to<std::vector>();
 
     if (std::ranges::any_of(children_arguments,
                             [](auto& value) { return value == std::nullopt; }))
@@ -172,12 +170,12 @@ class ParseState {
     }
     return NewFunctionCall(
         tree.value.ptr(),
-        container::MaterializeVector(
-            children_arguments |
+        children_arguments |
             std::views::transform(
                 [](std::optional<gc::Root<Expression>>& expr) {
                   return expr->ptr();
-                })));
+                }) |
+            std::ranges::to<std::vector>());
   }
 
   void PushValue(gc::Ptr<Value> value, std::vector<Tree>& output) const {
