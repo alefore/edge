@@ -16,6 +16,7 @@
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
+#include "src/vm/value.h"
 
 namespace afc::editor {
 class LogEntryName : public language::GhostType<LogEntryName, vm::Identifier> {
@@ -67,25 +68,6 @@ struct LogView {
       expressions;
 };
 
-class CompiledLogView {
-  language::gc::Root<vm::Environment> environment_;
-
-  // Holds the result of compiling all expressions from log_view.
-  using ExpressionMap =
-      std::unordered_map<LogEntryName,
-                         std::vector<language::gc::Root<vm::Expression>>>;
-  ExpressionMap compiled_expressions_;
-
- public:
-  CompiledLogView(language::gc::Root<vm::Environment> environment,
-                  const LogView& log_view);
-
-  std::expected<
-      std::unordered_map<LogEntryName, infrastructure::screen::LineModifierSet>,
-      language::Error>
-  Evaluate(std::unordered_set<LogEntryName> names) const;
-};
-
 enum class LogTypeActivationPolicy { Implicit, Explicit };
 
 class LogType {
@@ -119,6 +101,51 @@ struct LogModel {
 
   std::optional<LogTypeName> InferLogType(
       const language::text::LineSequence&) const;
+};
+
+// Evaluator that can evaluate expressions scoped to a specific LogLine.
+class LogLineEvaluator {
+  language::gc::Ptr<vm::Environment> environment_;
+
+ public:
+  LogLineEvaluator(language::gc::Ptr<vm::Environment> environment);
+
+  std::expected<language::gc::Root<vm::Value>, language::Error> Evaluate(
+      language::gc::Ptr<vm::Expression> expr) const;
+};
+
+// Evaluator that can produce LogLineEvaluator instances for a given LogType.
+class LogEvaluator {
+  language::gc::Pool pool_;
+  language::gc::Root<vm::Environment> environment_;
+  const LogType log_type_;
+
+ public:
+  LogEvaluator(LogType log_type);
+
+  std::expected<language::gc::Root<vm::Expression>, language::Error> Compile(
+      language::lazy_string::LazyString code) const;
+
+  LogLineEvaluator Enter(const LogLine& log_line);
+};
+
+class CompiledLogView {
+  LogEvaluator& log_evaluator_;
+
+  // Holds the result of compiling all expressions from log_view.
+  using ExpressionMap =
+      std::unordered_map<LogEntryName,
+                         std::vector<language::gc::Root<vm::Expression>>>;
+  ExpressionMap compiled_expressions_;
+
+ public:
+  CompiledLogView(LogEvaluator& log_evaluator_, const LogView& log_view);
+
+  std::expected<
+      std::unordered_map<LogEntryName, infrastructure::screen::LineModifierSet>,
+      language::Error>
+  Evaluate(std::unordered_set<LogEntryName> names,
+           const LogLine& log_line) const;
 };
 }  // namespace afc::editor
 

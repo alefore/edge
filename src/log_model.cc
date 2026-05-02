@@ -1,104 +1,46 @@
 #include "src/log_model.h"
 
 #include "src/concurrent/protected.h"
+#include "src/infrastructure/screen/line_modifier.h"
+#include "src/infrastructure/screen/line_modifier_vm.h"
+#include "src/infrastructure/tracker.h"
 #include "src/language/error/view.h"
+#include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/text/line.h"
+#include "src/vm/default_environment.h"
 #include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::concurrent::Protected;
+using afc::infrastructure::screen::HashToModifiers;
+using afc::infrastructure::screen::HashToModifiersBold;
 using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifiers;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::Error;
+using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::view::SkipErrors;
 using afc::vm::Environment;
 using afc::vm::Expression;
+using afc::vm::Identifier;
 
 using container::CollectExpected;
 
 namespace afc::editor {
-CompiledLogView::CompiledLogView(gc::Root<Environment> environment,
-                                 const LogView& log_view)
-    : environment_(environment),
-      compiled_expressions_(
-          log_view.expressions |
-          std::views::transform(
-              [&](std::pair<LogEntryName, std::vector<NonEmptySingleLine>> data)
-                  -> std::expected<std::pair<LogEntryName,
-                                             std::vector<gc::Root<Expression>>>,
-                                   Error> {
-                DECLARE_OR_RETURN(
-                    std::vector<gc::Root<Expression>> compile_results,
-                    CollectExpected(
-                        data.second |
-                        std::views::transform([&](NonEmptySingleLine code) {
-                          TRACK_OPERATION(CompiledLogView_Compile);
-                          return vm::CompileString(ToLazyString(code),
-                                                   environment.ptr());
-                        })));
-                return std::pair{data.first, std::move(compile_results)};
-              }) |
-          SkipErrors | std::ranges::to<std::unordered_map>()) {}
-
-std::expected<std::unordered_map<LogEntryName, LineModifierSet>, Error>
-CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names) const {
-  return CollectExpected(
-             names |
-             std::views::transform(
-                 [&](LogEntryName name)
-                     -> std::expected<std::pair<LogEntryName, LineModifierSet>,
-                                      Error> {
-                   auto data = compiled_expressions_.find(name);
-                   if (data == compiled_expressions_.end())
-                     return std::pair{name, LineModifierSet{}};
-
-                   DECLARE_OR_RETURN(
-                       std::vector<std::set<LineModifier>> output_vector,
-                       CollectExpected(
-                           data->second |
-                           std::views::transform(
-                               [&](gc::Root<Expression> expr)
-                                   -> std::expected<std::set<LineModifier>,
-                                                    Error> {
-                                 TRACK_OPERATION(CompiledLogView_Evaluate_vm);
-                                 DECLARE_OR_RETURN(
-                                     gc::Root<vm::Value> value,
-                                     vm::Evaluate(expr.ptr(),
-                                                  environment_.ptr(), nullptr)
-                                         .Get()
-                                         .value_or(
-                                             Error{L"Evaluation future "
-                                                   L"doesn't have a value."}));
-                                 using Mapper =
-                                     vm::VMTypeMapper<NonNull<std::shared_ptr<
-                                         Protected<std::set<LineModifier>>>>>;
-                                 if (!value->IsObjectType(
-                                         Mapper::object_type_name))
-                                   return Error{
-                                       LazyString{L"Value has wrong type: "} +
-                                       vm::ToQuotedSingleLine(value->type())};
-                                 TRACK_OPERATION(CompiledLogView_Extract);
-                                 return *Mapper::get(value.value())->lock();
-                               })));
-                   return std::pair{name,
-                                    output_vector | std::views::join |
-                                        std::ranges::to<LineModifierSet>()};
-                 }))
-      .transform([](auto values) {
-        return values | std::ranges::to<std::unordered_map>();
-      });
-}
-
 LogType::LogType(LogTypeName name, NonEmptySingleLine pattern,
                  std::vector<LogEntryConfiguration> entries,
                  LogTypeActivationPolicy activation_policy)
@@ -180,4 +122,154 @@ std::optional<LogTypeName> LogModel::InferLogType(
   LOG(INFO) << "Matches: " << options.size() << " " << options[0];
   return options[0];
 }
+
+LogLineEvaluator::LogLineEvaluator(gc::Ptr<vm::Environment> environment)
+    : environment_(environment) {}
+
+std::expected<gc::Root<vm::Value>, Error> LogLineEvaluator::Evaluate(
+    gc::Ptr<Expression> expr) const {
+  return vm::Evaluate(expr, environment_, nullptr)
+      .Get()
+      .value_or(Error{L"Evaluation future doesn't have a value."});
+}
+
+LogEvaluator::LogEvaluator(LogType log_type)
+    : pool_(gc::Pool::Options{}),
+      environment_(Environment::New(vm::NewDefaultEnvironment(pool_).ptr())),
+      log_type_(std::move(log_type)) {
+  TRACK_OPERATION(LogEvaluator_PrepareEnvironment);
+  // TODO(2026-04-30, P2, easy): Expose the LineModifierSet to vm.
+  using Mapper = vm::VMTypeMapper<
+      NonNull<std::shared_ptr<Protected<std::set<LineModifier>>>>>;
+  std::ranges::for_each(
+      LineModifiers(), [&](std::pair<NonEmptySingleLine, LineModifier> data) {
+        VisitValue(Identifier::New(LowerCase(data.first)), [&](Identifier id) {
+          VLOG(5) << "Define: " << id << ": " << data.first;
+          environment_->Define(
+              id,
+              Mapper::New(pool_,
+                          MakeNonNullShared<Protected<std::set<LineModifier>>>(
+                              std::set<LineModifier>{data.second})));
+        });
+      });
+  infrastructure::screen::RegisterLineModifier(pool_, environment_.value());
+  environment_->Define(
+      IDENTIFIER_CONSTANT(L"log_type"),
+      vm::Value::NewString(pool_, ToLazyString(log_type_.name())));
+  environment_->Define(
+      IDENTIFIER_CONSTANT(L"default"),
+      Mapper::New(pool_,
+                  MakeNonNullShared<Protected<std::set<LineModifier>>>()));
+  VLOG(2) << "Defining entries for all LogEntryName instances.";
+  std::ranges::for_each(log_type_.entry_names(), [&](const LogEntryName& name) {
+    // TODO(2026-04-30, P1): Don't assume string type.
+    environment_->DefineUninitialized(name.read(), vm::types::String{});
+  });
+  environment_->Define(
+      IDENTIFIER_CONSTANT(L"hash"),
+      vm::NewCallback(pool_, vm::kPurityTypePure, [](LazyString input) {
+        return MakeNonNullShared<Protected<std::set<LineModifier>>>(
+            HashToModifiers(std::hash<LazyString>{}(input),
+                            HashToModifiersBold::Never) |
+            std::ranges::to<std::set>());
+      }));
+}
+
+std::expected<gc::Root<Expression>, Error> LogEvaluator::Compile(
+    LazyString code) const {
+  TRACK_OPERATION(LogEvaluator_Compile);
+  return vm::CompileString(code, environment_.ptr());
+}
+
+LogLineEvaluator LogEvaluator::Enter(const LogLine& log_line) {
+  std::unordered_map<LogEntryName, std::vector<LazyString>> values;
+  {
+    TRACK_OPERATION(LogEvaluator_AggregateValues);
+    std::ranges::for_each(log_line.values, [&](const LogEntryValue& entry) {
+      // TODO(P1, log, 2026-04-30): Avoid the call to std::get. Use visit
+      // instead?
+      values[entry.name].push_back(std::get<LazyString>(entry.value));
+    });
+  }
+
+  {
+    TRACK_OPERATION(LogEvaluator_PrepareEnvironment);
+    std::ranges::for_each(
+        values, [&](std::pair<LogEntryName, std::vector<LazyString>> entry) {
+          environment_->Assign(entry.first.read(),
+                               vm::Value::NewString(environment_.pool(),
+                                                    Concatenate(entry.second)));
+        });
+  }
+
+  return LogLineEvaluator(environment_.ptr());
+}
+
+CompiledLogView::CompiledLogView(LogEvaluator& log_evaluator,
+                                 const LogView& log_view)
+    : log_evaluator_(log_evaluator),
+      compiled_expressions_(
+          log_view.expressions |
+          std::views::transform(
+              [&](std::pair<LogEntryName, std::vector<NonEmptySingleLine>> data)
+                  -> std::expected<std::pair<LogEntryName,
+                                             std::vector<gc::Root<Expression>>>,
+                                   Error> {
+                DECLARE_OR_RETURN(
+                    std::vector<gc::Root<Expression>> compile_results,
+                    CollectExpected(
+                        data.second |
+                        std::views::transform([&](NonEmptySingleLine code) {
+                          return log_evaluator_.Compile(ToLazyString(code));
+                        })));
+                return std::pair{data.first, std::move(compile_results)};
+              }) |
+          SkipErrors | std::ranges::to<std::unordered_map>()) {}
+
+std::expected<std::unordered_map<LogEntryName, LineModifierSet>, Error>
+CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
+                          const LogLine& log_line) const {
+  LogLineEvaluator log_line_evaluator = log_evaluator_.Enter(log_line);
+  return CollectExpected(
+             names |
+             std::views::transform(
+                 [&](LogEntryName name)
+                     -> std::expected<std::pair<LogEntryName, LineModifierSet>,
+                                      Error> {
+                   auto data = compiled_expressions_.find(name);
+                   if (data == compiled_expressions_.end())
+                     return std::pair{name, LineModifierSet{}};
+
+                   DECLARE_OR_RETURN(
+                       std::vector<std::set<LineModifier>> output_vector,
+                       CollectExpected(
+                           data->second |
+                           std::views::transform(
+                               [&](gc::Root<Expression> expr)
+                                   -> std::expected<std::set<LineModifier>,
+                                                    Error> {
+                                 TRACK_OPERATION(CompiledLogView_Evaluate_vm);
+                                 DECLARE_OR_RETURN(
+                                     gc::Root<vm::Value> value,
+                                     log_line_evaluator.Evaluate(expr.ptr()));
+                                 using Mapper =
+                                     vm::VMTypeMapper<NonNull<std::shared_ptr<
+                                         Protected<std::set<LineModifier>>>>>;
+                                 if (!value->IsObjectType(
+                                         Mapper::object_type_name))
+                                   return Error{
+                                       LazyString{L"Value has wrong type: "} +
+                                       vm::ToQuotedSingleLine(value->type())};
+                                 TRACK_OPERATION(CompiledLogView_Extract);
+                                 return *Mapper::get(value.value())->lock();
+                               })));
+                   return std::pair{name,
+                                    output_vector | std::views::join |
+                                        std::ranges::to<LineModifierSet>()};
+                 }))
+      .transform([](auto values) {
+        return values | std::ranges::to<std::unordered_map>();
+      });
+}
+
 }  // namespace afc::editor
