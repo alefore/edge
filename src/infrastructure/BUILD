@@ -17,6 +17,7 @@ cc_library(
     deps = [
         "//src/concurrent:protected",
         "//src/infrastructure:tracker",
+        "//src/language:container",
         "//src/language:ghost_type",
         "//src/language:safe_types",
     ],
@@ -232,7 +233,6 @@ cc_library(
     deps = [
         "//src/concurrent:protected",
         "//src/infrastructure:time",
-        "//src/language:container",
         "//src/language:safe_types",
     ],
 )

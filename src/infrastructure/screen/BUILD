@@ -20,6 +20,7 @@ cc_library(
     hdrs = ["line_modifier.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//src/language:container",
         "//src/language:hash",
         "//src/language/error:value_or_error",
         "//src/language/lazy_string",

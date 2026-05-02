@@ -324,11 +324,15 @@ cc_library(
     srcs = ["log_model.cc"],
     hdrs = ["log_model.h"],
     deps = [
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:ghost_type_class",
         "//src/language/error:value_or_error",
         "//src/language/error:view",
         "//src/language/lazy_string",
         "//src/language/lazy_string:single_line",
+        "//src/vm",
+        "//src/vm:environment",
+        "//src/vm:expression",
         "//src/vm:types",
     ],
 )

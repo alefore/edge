@@ -245,6 +245,7 @@ cc_library(
     name = "expression",
     srcs = ["expression.cc"],
     hdrs = ["expression.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":stack",
         ":types",

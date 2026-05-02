@@ -15,6 +15,9 @@ cc_library(
     name = "container",
     hdrs = ["container.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//src/language/error:value_or_error",
+    ],
 )
 
 cc_library(
