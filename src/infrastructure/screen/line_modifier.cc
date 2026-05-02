@@ -9,7 +9,6 @@
 
 using afc::language::Error;
 using afc::language::FromByteString;
-using afc::language::InsertOrDie;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 
