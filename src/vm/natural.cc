@@ -1,5 +1,8 @@
 #include "src/vm/natural.h"
 
+#include <algorithm>
+#include <ranges>
+
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
 #include "src/language/lazy_string/functional.h"
@@ -35,11 +38,11 @@ using afc::language::lazy_string::Token;
 namespace afc::vm::natural {
 namespace {
 using ::operator<<;
-using vm::operator<<;
+using afc::vm::operator<<;
 
 struct Tree {
   vm::Type type;
-  gc::Root<Expression> value;
+  gc::Root<vm::Value> value;
   std::vector<Tree> children = {};
 
   // How many times can we descend down the right-most child?
@@ -69,7 +72,7 @@ struct Tree {
 std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   std::wstring separator = L"";
   os << L"[";
-  os << tree.type;
+  os << tree.value.value();
   for (const Tree& c : tree.children) {
     os << separator << c;
     separator = L", ";
@@ -80,6 +83,7 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
 
 class ParseState {
   gc::Pool& pool_;
+  const SingleLine& input_;
   const std::vector<Token>& tokens_;
   const SingleLine& function_name_prefix_;
   const Environment& environment_;
@@ -88,19 +92,21 @@ class ParseState {
   std::vector<Tree> candidates_;
 
  public:
-  ParseState(gc::Pool& pool, const std::vector<Token>& tokens,
+  ParseState(gc::Pool& pool, const SingleLine& input,
+             const std::vector<Token>& tokens,
              const SingleLine& function_name_prefix,
              const Environment& environment,
              const std::vector<vm::Namespace>& search_namespaces)
       : pool_(pool),
+        input_(input),
         tokens_(tokens),
         function_name_prefix_(function_name_prefix),
         environment_(environment),
         search_namespaces_(search_namespaces) {}
 
   ValueOrError<gc::Root<Expression>> Evaluate() {
-    bool first_token = true;
-    for (auto& token : tokens_) {
+    std::vector<Tree> early_found_candidates;
+    for (const auto& [index, token] : tokens_ | std::views::enumerate) {
       VLOG(5) << "Consume token: " << token.value
               << ", candidates: " << candidates_.size();
       for (auto& c : candidates_) VLOG(6) << "Candidate: " << c;
@@ -110,7 +116,7 @@ class ParseState {
                                               token.value.ToBytes().c_str())))
                       .ptr(),
                   extended_candidates);
-      VisitValue(first_token
+      VisitValue(index == 0
                      ? Identifier::New(token.value + function_name_prefix_)
                      : Identifier::New(token.value),
                  [&](Identifier identifier) {
@@ -119,18 +125,37 @@ class ParseState {
                  });
       PushValue(Value::NewString(pool_, ToLazyString(token.value)).ptr(),
                 extended_candidates);
-      if (extended_candidates.empty())
-        return Error{LazyString{L"No valid parses found."}};
-      first_token = false;
+
+      // Try feeding the rest of the input as a string.
+      if (index > 0) {
+        LazyString arg = ToLazyString(input_.Substring(token.begin));
+        VLOG(7) << "Trying early value with: " << arg;
+        PushValue(Value::NewString(pool_, arg).ptr(), early_found_candidates);
+      }
+
       candidates_ = std::move(extended_candidates);
+
       for (auto& c : candidates_) VLOG(6) << "Extended Candidate: " << c;
+      for (auto& c : early_found_candidates)
+        VLOG(6) << "Early Candidate: " << c;
+
+      if (candidates_.empty()) {
+        if (early_found_candidates.empty())
+          return Error{LazyString{L"No valid parses found."}};
+        else {
+          break;
+        }
+      }
     }
 
+    std::ranges::copy(early_found_candidates, std::back_inserter(candidates_));
     std::vector<std::optional<gc::Root<Expression>>> valid_outputs =
         candidates_ |
         std::views::transform(
             [this](Tree& tree) -> std::optional<gc::Root<Expression>> {
-              return CompileTree(tree);
+              std::optional<gc::Root<Expression>> output = CompileTree(tree);
+              VLOG(5) << "Found value tree: " << tree;
+              return output;
             }) |
         std::views::filter(
             [](const std::optional<gc::Root<Expression>>& candidate) {
@@ -149,7 +174,8 @@ class ParseState {
   std::optional<gc::Root<Expression>> CompileTree(const Tree& tree) {
     const types::Function* function_type =
         std::get_if<types::Function>(&tree.type);
-    if (function_type == nullptr) return tree.value;
+    if (function_type == nullptr)
+      return NewConstantExpression(tree.value.ptr());
     std::vector<std::optional<gc::Root<Expression>>> children_arguments =
         tree.children | std::views::transform([this](const Tree& argument) {
           return CompileTree(argument);
@@ -169,7 +195,7 @@ class ParseState {
         return std::nullopt;
     }
     return NewFunctionCall(
-        tree.value.ptr(),
+        NewConstantExpression(tree.value.ptr()).ptr(),
         children_arguments |
             std::views::transform(
                 [](std::optional<gc::Root<Expression>>& expr) {
@@ -181,17 +207,15 @@ class ParseState {
   void PushValue(gc::Ptr<Value> value, std::vector<Tree>& output) const {
     vm::Type type = value->type();
     VLOG(8) << "Receive value type: " << type;
-    gc::Root<Expression> expr = NewConstantExpression(value);
-    CHECK(!expr->Types().empty());
     if (candidates_.empty())
-      output.push_back(Tree{.type = expr->Types().front(), .value = expr});
+      output.push_back(Tree{.type = value->type(), .value = value.ToRoot()});
     else
-      for (const Tree& tree : candidates_) ExtendTree(type, expr, tree, output);
+      for (const Tree& tree : candidates_)
+        ExtendTree(type, value, tree, output);
   }
 
-  static void ExtendTree(const vm::Type& type,
-                         const gc::Root<Expression>& value, Tree tree,
-                         std::vector<Tree>& output) {
+  static void ExtendTree(const vm::Type& type, const gc::Ptr<vm::Value>& value,
+                         Tree tree, std::vector<Tree>& output) {
     for (size_t child_insertion_depth = tree.DepthRightBranch() + 1;
          child_insertion_depth > 0; --child_insertion_depth)
       if (std::optional<Tree> new_tree =
@@ -203,8 +227,8 @@ class ParseState {
   // insertion_depth is the depth of the parent to which we'll add `value` as a
   // child.
   static std::optional<Tree> Insert(const vm::Type& type,
-                                    const gc::Root<Expression>& value,
-                                    Tree tree, size_t insertion_depth) {
+                                    const gc::Ptr<Value>& value, Tree tree,
+                                    size_t insertion_depth) {
     Tree& parent_tree = tree.RightBranchTreeAtDepth(insertion_depth);
     const types::Function* parent_function_type =
         std::get_if<types::Function>(&parent_tree.type);
@@ -219,7 +243,8 @@ class ParseState {
         (value_function_type != nullptr &&
          parent_function_type->inputs[parent_tree.children.size()] ==
              value_function_type->output.get())) {
-      parent_tree.children.push_back(Tree{.type = type, .value = value});
+      parent_tree.children.push_back(
+          Tree{.type = type, .value = value.ToRoot()});
       VLOG(8) << "Insert: " << type << " at " << insertion_depth;
       return tree;
     }
@@ -246,10 +271,10 @@ class ParseState {
 };
 
 ValueOrError<gc::Root<Expression>> CompileTokens(
-    const std::vector<Token>& tokens, const SingleLine& function_name_prefix,
-    const Environment& environment,
+    const SingleLine& input, const std::vector<Token>& tokens,
+    const SingleLine& function_name_prefix, const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
-  return ParseState(pool, tokens, function_name_prefix, environment,
+  return ParseState(pool, input, tokens, function_name_prefix, environment,
                     search_namespaces)
       .Evaluate();
 }
@@ -259,12 +284,12 @@ language::ValueOrError<gc::Root<Expression>> Compile(
     const SingleLine& input, const SingleLine& function_name_prefix,
     const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
-  return CompileTokens(TokenizeBySpaces(input), function_name_prefix,
+  return CompileTokens(input, TokenizeBySpaces(input), function_name_prefix,
                        environment, search_namespaces, pool);
 }
 
 namespace {
-// using ::operator<<;
+using ::operator<<;
 using afc::language::operator<<;
 static const vm::Namespace kEmptyNamespace;
 bool tests_registration = tests::Register(
@@ -353,6 +378,32 @@ bool tests_registration = tests::Register(
                gc::Root<Expression> expression = ValueOrDie(Compile(
                    SingleLine{LazyString{L"UnaryFunction bar"}}, SingleLine{},
                    environment.ptr().value(), {kEmptyNamespace}, pool));
+               CHECK(ValueOrDie(
+                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
+                             .Get()
+                             .value())
+                         .ptr()
+                         ->get_string() == LazyString{L"quux"});
+             }},
+        {.name = L"UnaryFunctionSwallowTail",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               language::gc::Root<Environment> environment =
+                   afc::vm::NewDefaultEnvironment(pool);
+               environment.ptr()->Define(
+                   Identifier{NonEmptySingleLine{
+                       SingleLine{LazyString{L"UnaryFunction"}}}},
+                   vm::NewCallback(pool, kPurityTypePure,
+                                   [](std::wstring a) -> std::wstring {
+                                     CHECK_EQ(LazyString{a},
+                                              LazyString{L"bar \"foo\" meh"});
+                                     return L"quux";
+                                   }));
+               gc::Root<Expression> expression = ValueOrDie(Compile(
+                   SingleLine{LazyString{L"UnaryFunction bar \"foo\" meh"}},
+                   SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
+                   pool));
                CHECK(ValueOrDie(
                          Evaluate(expression.ptr(), environment.ptr(), nullptr)
                              .Get()
