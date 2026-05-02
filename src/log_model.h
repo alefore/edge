@@ -12,6 +12,7 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/language/text/line_sequence.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
@@ -109,6 +110,9 @@ std::ostream& operator<<(std::ostream& os, const LogType& value);
 struct LogModel {
   std::unordered_map<LogTypeName, LogType> log_types;
   std::unordered_map<LogViewName, LogView> views;
+
+  std::optional<LogTypeName> InferLogType(
+      const language::text::LineSequence&) const;
 };
 }  // namespace afc::editor
 

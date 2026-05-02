@@ -2,6 +2,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/language/error/view.h"
+#include "src/language/text/line.h"
 #include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
@@ -18,9 +19,11 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::text::Line;
 using afc::language::view::SkipErrors;
 using afc::vm::Environment;
 using afc::vm::Expression;
+using container::filter_optional;
 
 using container::CollectExpected;
 
@@ -149,5 +152,22 @@ std::ostream& operator<<(std::ostream& os, const LogType& value) {
   os << value.name();
   // TODO(P2, 2026-04-28): Output more information.
   return os;
+}
+
+std::optional<LogTypeName> LogModel::InferLogType(
+    const language::text::LineSequence& lines) const {
+  std::vector<LogTypeName> options =
+      log_types |
+      std::views::transform([&](const std::pair<LogTypeName, LogType>& data)
+                                -> std::optional<LogTypeName> {
+        if (std::ranges::all_of(lines, [&data](const Line& line) -> bool {
+              return data.second.Parse(line.contents()).has_value();
+            }))
+          return data.first;
+        return std::nullopt;
+      }) |
+      filter_optional | std::ranges::to<std::vector>();
+  if (options.size() != 1) return std::nullopt;
+  return options[0];
 }
 }  // namespace afc::editor
