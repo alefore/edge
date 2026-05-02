@@ -611,6 +611,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                         gc::Root<OpenBuffer> output,
                         gc::Root<OpenBuffer> input) -> futures::PossibleError {
                       CHECK(output->contents().snapshot() == LineSequence());
+                      output->Set(buffer_variables::allow_dirty_delete, true);
                       LOG(INFO) << "Running filter";
                       input->contents().snapshot().ForEach([&](const Line&
                                                                    line) {
@@ -636,6 +637,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                 output->AppendLine(line.contents());
                             });
                       });
+                      if (output->contents().size() > LineNumberDelta{1} &&
+                          output->contents()
+                              .snapshot()
+                              .at(LineNumber{})
+                              .contents()
+                              .empty())
+                        output->EraseLines(LineNumber{}, LineNumber{1});
                       LOG(INFO) << "Output size: " << output->contents().size();
                       return EmptyValue{};
                     },

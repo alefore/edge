@@ -41,7 +41,6 @@ using ::operator<<;
 using afc::vm::operator<<;
 
 struct Tree {
-  vm::Type type;
   gc::Root<vm::Value> value;
   std::vector<Tree> children = {};
 
@@ -172,9 +171,7 @@ class ParseState {
 
  private:
   std::optional<gc::Root<Expression>> CompileTree(const Tree& tree) {
-    const types::Function* function_type =
-        std::get_if<types::Function>(&tree.type);
-    if (function_type == nullptr)
+    if (!tree.value->IsFunction())
       return NewConstantExpression(tree.value.ptr());
     std::vector<std::optional<gc::Root<Expression>>> children_arguments =
         tree.children | std::views::transform([this](const Tree& argument) {
@@ -186,9 +183,11 @@ class ParseState {
                             [](auto& value) { return value == std::nullopt; }))
       return std::nullopt;
 
-    while (children_arguments.size() < function_type->inputs.size()) {
+    const types::Function function_type =
+        std::get<types::Function>(tree.value->type());
+    while (children_arguments.size() < function_type.inputs.size()) {
       if (std::holds_alternative<types::String>(
-              function_type->inputs[children_arguments.size()]))
+              function_type.inputs[children_arguments.size()]))
         children_arguments.push_back(
             NewConstantExpression(Value::NewString(pool_, LazyString{}).ptr()));
       else
@@ -208,7 +207,7 @@ class ParseState {
     vm::Type type = value->type();
     VLOG(8) << "Receive value type: " << type;
     if (candidates_.empty())
-      output.push_back(Tree{.type = value->type(), .value = value.ToRoot()});
+      output.push_back(Tree{.value = value.ToRoot()});
     else
       for (const Tree& tree : candidates_)
         ExtendTree(type, value, tree, output);
@@ -231,9 +230,9 @@ class ParseState {
                                     size_t insertion_depth) {
     Tree& parent_tree = tree.RightBranchTreeAtDepth(insertion_depth);
     const types::Function* parent_function_type =
-        std::get_if<types::Function>(&parent_tree.type);
+        std::get_if<types::Function>(&parent_tree.value->type());
     VLOG(7) << "Attempt insert at depth " << insertion_depth
-            << " to parent_tree.type:" << parent_tree.type;
+            << " to parent_tree:" << parent_tree.value.value();
     if (parent_function_type == nullptr ||
         parent_function_type->inputs.size() <= parent_tree.children.size())
       return std::nullopt;
@@ -243,8 +242,7 @@ class ParseState {
         (value_function_type != nullptr &&
          parent_function_type->inputs[parent_tree.children.size()] ==
              value_function_type->output.get())) {
-      parent_tree.children.push_back(
-          Tree{.type = type, .value = value.ToRoot()});
+      parent_tree.children.push_back(Tree{.value = value.ToRoot()});
       VLOG(8) << "Insert: " << type << " at " << insertion_depth;
       return tree;
     }
