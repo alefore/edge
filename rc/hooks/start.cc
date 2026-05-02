@@ -161,6 +161,11 @@ void LogMode(string log_type) {
 editor.AddBinding("alg", "Buffers: Mark the current buffer as a GLOG log.",
                   []() -> void { LogMode("glog"); });
 
+void Filter(string expr) {
+  editor.ForEachActiveBuffer(
+      [](Buffer buffer) -> void { buffer.FilterLogLine(expr); });
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Editing commands
 ////////////////////////////////////////////////////////////////////////////////
