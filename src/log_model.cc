@@ -23,7 +23,6 @@ using afc::language::text::Line;
 using afc::language::view::SkipErrors;
 using afc::vm::Environment;
 using afc::vm::Expression;
-using container::filter_optional;
 
 using container::CollectExpected;
 
@@ -101,7 +100,8 @@ CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names) const {
 }
 
 LogType::LogType(LogTypeName name, NonEmptySingleLine pattern,
-                 std::vector<LogEntryConfiguration> entries)
+                 std::vector<LogEntryConfiguration> entries,
+                 LogTypeActivationPolicy activation_policy)
     : name_(std::move(name)),
       regex_(ToLazyString(pattern).ToString()),
       entries_(std::invoke([&] {
@@ -110,11 +110,16 @@ LogType::LogType(LogTypeName name, NonEmptySingleLine pattern,
       })),
       entry_names_(entries_ |
                    std::views::transform(&LogEntryConfiguration::name) |
-                   std::ranges::to<std::set>()) {
+                   std::ranges::to<std::set>()),
+      activation_policy_(activation_policy) {
   LOG(INFO) << "Created LogType with regex: [" << pattern << "]";
 }
 
 LogTypeName LogType::name() const { return name_; }
+
+LogTypeActivationPolicy LogType::activation_policy() const {
+  return activation_policy_;
+}
 
 std::set<LogEntryName> LogType::entry_names() const {
   return entries_ |
@@ -156,18 +161,23 @@ std::ostream& operator<<(std::ostream& os, const LogType& value) {
 
 std::optional<LogTypeName> LogModel::InferLogType(
     const language::text::LineSequence& lines) const {
+  LOG(INFO) << "InferLogType with lines: " << lines.size()
+            << ", types: " << log_types.size();
   std::vector<LogTypeName> options =
       log_types |
-      std::views::transform([&](const std::pair<LogTypeName, LogType>& data)
-                                -> std::optional<LogTypeName> {
-        if (std::ranges::all_of(lines, [&data](const Line& line) -> bool {
-              return data.second.Parse(line.contents()).has_value();
-            }))
-          return data.first;
-        return std::nullopt;
+      std::views::filter([&](const std::pair<LogTypeName, LogType>& data) {
+        return data.second.activation_policy() ==
+                   LogTypeActivationPolicy::Implicit &&
+               std::ranges::all_of(lines, [&data](const Line& line) -> bool {
+                 return data.second.Parse(line.contents()).has_value();
+               });
       }) |
-      filter_optional | std::ranges::to<std::vector>();
-  if (options.size() != 1) return std::nullopt;
+      std::views::keys | std::ranges::to<std::vector>();
+  if (options.empty()) {
+    LOG(INFO) << "No match.";
+    return std::nullopt;
+  }
+  LOG(INFO) << "Matches: " << options.size() << " " << options[0];
   return options[0];
 }
 }  // namespace afc::editor

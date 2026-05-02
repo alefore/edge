@@ -272,7 +272,7 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
                     ParseSectionHeader(block.at(LineNumber{}).contents()));
   CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"type"));
   LogTypeName log_type_name{header.value};
-
+  LogTypeActivationPolicy activation_policy = LogTypeActivationPolicy::Explicit;
   std::vector<NonEmptySingleLine> patterns;
   std::vector<LogEntryConfiguration> entries;
   std::vector<Error> errors =
@@ -308,6 +308,17 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
               [&patterns](NonEmptySingleLine value) {
                 patterns.push_back(value);
                 return EmptyValue{};
+              }},
+             {NON_EMPTY_SINGLE_LINE_CONSTANT(L"activation"),
+              [&activation_policy](NonEmptySingleLine value) -> PossibleError {
+                if (value == NON_EMPTY_SINGLE_LINE_CONSTANT(L"implicit"))
+                  activation_policy = LogTypeActivationPolicy::Implicit;
+                else if (value == NON_EMPTY_SINGLE_LINE_CONSTANT(L"explicit"))
+                  activation_policy = LogTypeActivationPolicy::Explicit;
+                else
+                  return Error(LazyString{L"Invalid activation policy: "} +
+                               value);
+                return EmptyValue{};
               }}},
             line.contents());
       }) |
@@ -318,7 +329,8 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
     errors.push_back(Error{L"Multiple patterns specified."});
   }
   if (!errors.empty()) return MergeErrors(errors, L", ");
-  return LogType(log_type_name, patterns[0], std::move(entries));
+  return LogType(log_type_name, patterns[0], std::move(entries),
+                 activation_policy);
 }
 
 std::expected<LogModel, language::Error> ParseLogConfig(

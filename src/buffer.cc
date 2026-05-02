@@ -949,14 +949,26 @@ void OpenBuffer::AppendLines(
       UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
       observer_behavior);
 
-  static const LineNumberDelta kLineActivationThreshold{10};
+  static const LineNumberDelta kLineActivationThreshold{8};
   if (start_new_section < kLineActivationThreshold &&
-      contents_.size() > kLineActivationThreshold) {
+      contents_.EndLine() > LineNumber{} + kLineActivationThreshold) {
     log_model_.Add(LockAndVisitCallback(
         [](gc::Root<OpenBuffer> root_this) {
           std::shared_ptr<LogModel> model = root_this->log_model_.Get();
           if (model == nullptr) return Observers::State::kAlive;
-          LOG(INFO) << "Validate if it is a log.";
+          LineSequence contents = root_this->contents().snapshot();
+          VisitOptional(
+              [&](LogTypeName name) {
+                LOG(INFO) << "Detected log type: " << name;
+                root_this->Set(buffer_variables::log_type, ToLazyString(name));
+                root_this->Set(buffer_variables::tree_parser, L"log");
+              },
+              [] {},
+              model->InferLogType(contents.ViewRange(Range{
+                  LineColumn{},
+                  LineColumn{std::min(LineNumber{} + kLineActivationThreshold,
+                                      contents.EndLine()),
+                             std::numeric_limits<ColumnNumber>::max()}})));
           return Observers::State::kExpired;
         },
         []() { return Observers::State::kExpired; }, WeakPtrFromThis()));

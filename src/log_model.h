@@ -86,18 +86,24 @@ class CompiledLogView {
   Evaluate(std::unordered_set<LogEntryName> names) const;
 };
 
+enum class LogTypeActivationPolicy { Implicit, Explicit };
+
 class LogType {
+ private:
   LogTypeName name_;
   std::wregex regex_;
   // Must be sorted by capturing_group.
   std::vector<LogEntryConfiguration> entries_;
   std::set<LogEntryName> entry_names_;
+  LogTypeActivationPolicy activation_policy_;
 
  public:
   LogType(LogTypeName name, language::lazy_string::NonEmptySingleLine pattern,
-          std::vector<LogEntryConfiguration> entries);
+          std::vector<LogEntryConfiguration> entries,
+          LogTypeActivationPolicy activation_policy);
 
   LogTypeName name() const;
+  LogTypeActivationPolicy activation_policy() const;
 
   std::set<LogEntryName> entry_names() const;
 
