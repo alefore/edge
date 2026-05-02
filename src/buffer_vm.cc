@@ -17,6 +17,7 @@
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/language/text/mutable_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/tests/tests.h"
@@ -63,6 +64,7 @@ using afc::language::text::LineProcessorInput;
 using afc::language::text::LineProcessorKey;
 using afc::language::text::LineProcessorOutputFutureVariant;
 using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
 using afc::vm::Environment;
@@ -613,38 +615,68 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                       CHECK(output->contents().snapshot() == LineSequence());
                       output->Set(buffer_variables::allow_dirty_delete, true);
                       LOG(INFO) << "Running filter";
-                      input->contents().snapshot().ForEach([&](const Line&
-                                                                   line) {
-                        VisitValue(
-                            log_type->Parse(line.contents()),
-                            [&](LogLine log_line) {
-                              LogLineEvaluator line_evaluator =
-                                  evaluator->Enter(log_line);
-                              std::expected<gc::Root<vm::Value>, Error> value =
-                                  line_evaluator.Evaluate(expr.ptr());
-                              if (!value) {
-                                LOG(INFO)
-                                    << "Evaluation failed: " << value.error();
-                                return;
-                              }
-                              if (!value->ptr()->IsBool()) {
-                                LOG(INFO)
-                                    << "Value has unexpected type: "
-                                    << ToQuotedSingleLine(value->ptr()->type());
-                                return;
-                              }
-                              if (value->ptr()->get_bool())
-                                output->AppendLine(line.contents());
+                      input->editor().thread_pool().RunIgnoringResult(
+                          [contents = input->contents().snapshot(),
+                           log_type = std::move(log_type),
+                           evaluator = std::move(evaluator),
+                           expr = std::move(expr),
+                           output_lock = output->GetLockFunction()] {
+                            MutableLineSequence tmp;
+                            contents.ForEach([&](const Line& line) {
+                              VisitValue(
+                                  log_type->Parse(line.contents()),
+                                  [&](LogLine log_line) {
+                                    LogLineEvaluator line_evaluator =
+                                        evaluator->Enter(log_line);
+                                    std::expected<gc::Root<vm::Value>, Error>
+                                        value =
+                                            line_evaluator.Evaluate(expr.ptr());
+                                    if (!value) {
+                                      LOG(INFO) << "Evaluation failed: "
+                                                << value.error();
+                                      return;
+                                    }
+                                    if (!value->ptr()->IsBool()) {
+                                      LOG(INFO) << "Value has unexpected type: "
+                                                << ToQuotedSingleLine(
+                                                       value->ptr()->type());
+                                      return;
+                                    }
+                                    if (!value->ptr()->get_bool()) return;
+                                    tmp.push_back(line);
+                                    if (tmp.size() < LineNumberDelta{1000})
+                                      return;
+                                    // TODO(2026-05-03, P2, log): The roundtrip
+                                    // to std::vector feels suboptimal.
+                                    CHECK(tmp.at(LineNumber{})
+                                              .contents()
+                                              .empty());
+                                    tmp.EraseLines(LineNumber{}, LineNumber{1});
+                                    output_lock(
+                                        [lines =
+                                             tmp.snapshot() |
+                                             std::ranges::to<std::vector>()](
+                                            OpenBuffer& output_buffer) {
+                                          output_buffer.AppendLines(
+                                              std::move(lines));
+                                        });
+                                    tmp = MutableLineSequence{};
+                                  });
                             });
-                      });
-                      if (output->contents().size() > LineNumberDelta{1} &&
-                          output->contents()
-                              .snapshot()
-                              .at(LineNumber{})
-                              .contents()
-                              .empty())
-                        output->EraseLines(LineNumber{}, LineNumber{1});
-                      LOG(INFO) << "Output size: " << output->contents().size();
+                            output_lock([](OpenBuffer& output_buffer) {
+                              if (output_buffer.contents().size() >
+                                      LineNumberDelta{1} &&
+                                  output_buffer.contents()
+                                      .snapshot()
+                                      .at(LineNumber{})
+                                      .contents()
+                                      .empty())
+                                output_buffer.EraseLines(LineNumber{},
+                                                         LineNumber{1});
+                              LOG(INFO) << "Output size: "
+                                        << output_buffer.contents().size();
+                            });
+                          });
                       return EmptyValue{};
                     },
                     [](gc::Root<OpenBuffer>) -> futures::PossibleError {

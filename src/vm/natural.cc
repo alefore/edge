@@ -148,8 +148,9 @@ class ParseState {
     }
 
     std::ranges::copy(early_found_candidates, std::back_inserter(candidates_));
+    // We reverse the view to give precedence to the early_found_candidates.
     std::vector<std::optional<gc::Root<Expression>>> valid_outputs =
-        candidates_ |
+        candidates_ | std::views::reverse |
         std::views::transform(
             [this](Tree& tree) -> std::optional<gc::Root<Expression>> {
               std::optional<gc::Root<Expression>> output = CompileTree(tree);
@@ -291,198 +292,234 @@ using ::operator<<;
 using afc::language::operator<<;
 static const vm::Namespace kEmptyNamespace;
 bool tests_registration = tests::Register(
-    L"vm::natural",
-    std::vector<tests::Test>{
-        {.name = L"SimpleString",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               gc::Root<Expression> expression = ValueOrDie(
-                   Compile(SingleLine{LazyString{L"\"foo\""}}, SingleLine{},
-                           environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
-                                            nullptr)
-                                       .Get()
-                                       .value())
-                            .ptr()
-                            ->get_string(),
-                        LazyString{L"foo"});
-             }},
-        {.name = L"FunctionNoArguments",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               environment.ptr()->Define(
-                   Identifier{NonEmptySingleLine{
-                       SingleLine{LazyString{L"SomeFunction"}}}},
-                   vm::NewCallback(pool, kPurityTypePure,
-                                   []() -> std::wstring { return L"quux"; }));
-               gc::Root<Expression> expression = ValueOrDie(Compile(
-                   SingleLine{LazyString{L"SomeFunction"}}, SingleLine{},
-                   environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
-                                            nullptr)
-                                       .Get()
-                                       .value())
-                            .ptr()
-                            ->get_string(),
-                        LazyString{L"quux"});
-             }},
-        {.name = L"MissingArguments",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               environment.ptr()->Define(
-                   Identifier{
-                       NonEmptySingleLine{SingleLine{LazyString{L"Moo"}}}},
-                   vm::NewCallback(pool, kPurityTypePure,
-                                   [](std::wstring a, std::wstring b,
-                                      std::wstring c) -> std::wstring {
-                                     return L"{" + a + L"," + b + L"," + c +
-                                            L"}";
-                                   }));
-               gc::Root<Expression> expression = ValueOrDie(
-                   Compile(SingleLine{LazyString{L"Moo Moo"}}, SingleLine{},
-                           environment.ptr().value(), {kEmptyNamespace}, pool));
-               LOG(INFO) << "Evaluating.";
-               CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
-                                            nullptr)
-                                       .Get()
-                                       .value())
-                            .ptr()
-                            ->get_string(),
-                        LazyString{L"{{,,},,}"});
-             }},
-        {.name = L"UnaryFunctionUnquotedArgument",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               environment.ptr()->Define(
-                   Identifier{NonEmptySingleLine{
-                       SingleLine{LazyString{L"UnaryFunction"}}}},
-                   vm::NewCallback(pool, kPurityTypePure,
-                                   [](std::wstring a) -> std::wstring {
-                                     CHECK(a == L"bar");
-                                     return L"quux";
-                                   }));
-               gc::Root<Expression> expression = ValueOrDie(Compile(
-                   SingleLine{LazyString{L"UnaryFunction bar"}}, SingleLine{},
-                   environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
-                             .Get()
-                             .value())
-                         .ptr()
-                         ->get_string() == LazyString{L"quux"});
-             }},
-        {.name = L"UnaryFunctionSwallowTail",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               environment.ptr()->Define(
-                   Identifier{NonEmptySingleLine{
-                       SingleLine{LazyString{L"UnaryFunction"}}}},
-                   vm::NewCallback(pool, kPurityTypePure,
-                                   [](std::wstring a) -> std::wstring {
-                                     CHECK_EQ(LazyString{a},
-                                              LazyString{L"bar \"foo\" meh"});
-                                     return L"quux";
-                                   }));
-               gc::Root<Expression> expression = ValueOrDie(Compile(
-                   SingleLine{LazyString{L"UnaryFunction bar \"foo\" meh"}},
-                   SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
-                   pool));
-               CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
-                             .Get()
-                             .value())
-                         .ptr()
-                         ->get_string() == LazyString{L"quux"});
-             }},
-        {.name = L"UnaryFunctionUnquotedArgumentWithDot",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               environment.ptr()->Define(
-                   Identifier{NonEmptySingleLine{
-                       SingleLine{LazyString{L"UnaryFunction"}}}},
-                   vm::NewCallback(pool, kPurityTypePure,
-                                   [](std::wstring a) -> std::wstring {
-                                     CHECK(a == L"ba.r");
-                                     return L"quux";
-                                   }));
-               gc::Root<Expression> expression = ValueOrDie(Compile(
-                   SingleLine{LazyString{L"UnaryFunction ba.r"}}, SingleLine{},
-                   environment.ptr().value(), {kEmptyNamespace}, pool));
-               CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
-                             .Get()
-                             .value())
-                         .ptr()
-                         ->get_string() == LazyString{L"quux"});
-             }},
-        {.name = L"SimpleFunctionTwoArguments",
-         .callback =
-             [] {
-               gc::Pool pool({});
-               language::gc::Root<Environment> environment =
-                   afc::vm::NewDefaultEnvironment(pool);
-               environment.ptr()->Define(
-                   Identifier{NonEmptySingleLine{
-                       SingleLine{LazyString{L"SomeFunction"}}}},
-                   vm::NewCallback(
-                       pool, kPurityTypePure,
-                       [](std::wstring a, std::wstring b) -> std::wstring {
-                         CHECK(a == L"bar");
-                         CHECK(b == L"foo");
-                         return L"quux";
-                       }));
-               gc::Root<Expression> expression = ValueOrDie(Compile(
-                   SingleLine{LazyString{L"SomeFunction \"bar\" \"foo\""}},
-                   SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
-                   pool));
-               CHECK(ValueOrDie(
-                         Evaluate(expression.ptr(), environment.ptr(), nullptr)
-                             .Get()
-                             .value())
-                         .ptr()
-                         ->get_string() == LazyString{L"quux"});
-             }},
-        {.name = L"NestingFunctions", .callback = [] {
-           gc::Pool pool({});
-           language::gc::Root<Environment> environment =
-               afc::vm::NewDefaultEnvironment(pool);
-           size_t calls = 0;
-           environment.ptr()->Define(
-               Identifier{NonEmptySingleLine{SingleLine{LazyString{L"foo"}}}},
-               vm::NewCallback(pool, kPurityTypePure,
-                               [&calls](std::wstring a) -> std::wstring {
-                                 calls++;
-                                 return L"[" + a + L"]";
-                               }));
-           gc::Root<Expression> expression = ValueOrDie(Compile(
-               SingleLine{LazyString{L"foo foo foo \"bar\" "}}, SingleLine{},
-               environment.ptr().value(), {kEmptyNamespace}, pool));
-           CHECK_EQ(
-               ValueOrDie(Evaluate(expression.ptr(), environment.ptr(), nullptr)
+    L"vm::natural", std::invoke([] {
+      struct Expectations {
+        std::optional<std::wstring> unary_argument;
+      };
+      auto test = [](std::wstring name, std::wstring input,
+                     Expectations expectations) {
+        return tests::Test{
+            .name = name, .callback = [input, expectations] {
+              gc::Pool pool({});
+              language::gc::Root<Environment> environment =
+                  afc::vm::NewDefaultEnvironment(pool);
+              environment.ptr()->Define(
+                  Identifier{NonEmptySingleLine{
+                      SingleLine{LazyString{L"UnaryFunction"}}}},
+                  vm::NewCallback(
+                      pool, kPurityTypePure,
+                      [expectations](std::wstring a) -> std::wstring {
+                        CHECK_EQ(
+                            LazyString{a},
+                            LazyString{expectations.unary_argument.value()});
+                        return L"quux";
+                      }));
+              gc::Root<Expression> expression = ValueOrDie(
+                  Compile(SingleLine{LazyString{input}}, SingleLine{},
+                          environment.ptr().value(), {kEmptyNamespace}, pool));
+              CHECK(ValueOrDie(
+                        Evaluate(expression.ptr(), environment.ptr(), nullptr)
+                            .Get()
+                            .value())
+                        .ptr()
+                        ->get_string() == LazyString{L"quux"});
+            }};
+      };
+      return std::vector<tests::Test>{
+          {.name = L"SimpleString",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 gc::Root<Expression> expression = ValueOrDie(Compile(
+                     SingleLine{LazyString{L"\"foo\""}}, SingleLine{},
+                     environment.ptr().value(), {kEmptyNamespace}, pool));
+                 CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(),
+                                              environment.ptr(), nullptr)
+                                         .Get()
+                                         .value())
+                              .ptr()
+                              ->get_string(),
+                          LazyString{L"foo"});
+               }},
+          {.name = L"FunctionNoArguments",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 environment.ptr()->Define(
+                     Identifier{NonEmptySingleLine{
+                         SingleLine{LazyString{L"SomeFunction"}}}},
+                     vm::NewCallback(pool, kPurityTypePure,
+                                     []() -> std::wstring { return L"quux"; }));
+                 gc::Root<Expression> expression = ValueOrDie(Compile(
+                     SingleLine{LazyString{L"SomeFunction"}}, SingleLine{},
+                     environment.ptr().value(), {kEmptyNamespace}, pool));
+                 CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(),
+                                              environment.ptr(), nullptr)
+                                         .Get()
+                                         .value())
+                              .ptr()
+                              ->get_string(),
+                          LazyString{L"quux"});
+               }},
+          {.name = L"MissingArguments",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 environment.ptr()->Define(
+                     Identifier{
+                         NonEmptySingleLine{SingleLine{LazyString{L"Moo"}}}},
+                     vm::NewCallback(pool, kPurityTypePure,
+                                     [](std::wstring a, std::wstring b,
+                                        std::wstring c) -> std::wstring {
+                                       return L"{" + a + L"," + b + L"," + c +
+                                              L"}";
+                                     }));
+                 gc::Root<Expression> expression = ValueOrDie(Compile(
+                     SingleLine{LazyString{L"Moo Moo"}}, SingleLine{},
+                     environment.ptr().value(), {kEmptyNamespace}, pool));
+                 LOG(INFO) << "Evaluating.";
+                 CHECK_EQ(ValueOrDie(Evaluate(expression.ptr(),
+                                              environment.ptr(), nullptr)
+                                         .Get()
+                                         .value())
+                              .ptr()
+                              ->get_string(),
+                          LazyString{L"{{,,},,}"});
+               }},
+          {.name = L"UnaryFunctionUnquotedArgument",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 environment.ptr()->Define(
+                     Identifier{NonEmptySingleLine{
+                         SingleLine{LazyString{L"UnaryFunction"}}}},
+                     vm::NewCallback(pool, kPurityTypePure,
+                                     [](std::wstring a) -> std::wstring {
+                                       CHECK(a == L"bar");
+                                       return L"quux";
+                                     }));
+                 gc::Root<Expression> expression = ValueOrDie(Compile(
+                     SingleLine{LazyString{L"UnaryFunction bar"}}, SingleLine{},
+                     environment.ptr().value(), {kEmptyNamespace}, pool));
+                 CHECK(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
+                                           nullptr)
+                                      .Get()
+                                      .value())
+                           .ptr()
+                           ->get_string() == LazyString{L"quux"});
+               }},
+          {.name = L"UnaryFunctionSwallowTail",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 environment.ptr()->Define(
+                     Identifier{NonEmptySingleLine{
+                         SingleLine{LazyString{L"UnaryFunction"}}}},
+                     vm::NewCallback(pool, kPurityTypePure,
+                                     [](std::wstring a) -> std::wstring {
+                                       CHECK_EQ(LazyString{a},
+                                                LazyString{L"bar \"foo\" meh"});
+                                       return L"quux";
+                                     }));
+                 gc::Root<Expression> expression = ValueOrDie(Compile(
+                     SingleLine{LazyString{L"UnaryFunction bar \"foo\" meh"}},
+                     SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
+                     pool));
+                 CHECK(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
+                                           nullptr)
+                                      .Get()
+                                      .value())
+                           .ptr()
+                           ->get_string() == LazyString{L"quux"});
+               }},
+          test(L"UnaryFunctionSwallowTailQuotes", L"UnaryFunction bar=\"foo\"",
+               Expectations{.unary_argument = L"bar=\"foo\""}),
+          {.name = L"UnaryFunctionUnquotedArgumentWithDot",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 environment.ptr()->Define(
+                     Identifier{NonEmptySingleLine{
+                         SingleLine{LazyString{L"UnaryFunction"}}}},
+                     vm::NewCallback(pool, kPurityTypePure,
+                                     [](std::wstring a) -> std::wstring {
+                                       CHECK(a == L"ba.r");
+                                       return L"quux";
+                                     }));
+                 gc::Root<Expression> expression = ValueOrDie(
+                     Compile(SingleLine{LazyString{L"UnaryFunction ba.r"}},
+                             SingleLine{}, environment.ptr().value(),
+                             {kEmptyNamespace}, pool));
+                 CHECK(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
+                                           nullptr)
+                                      .Get()
+                                      .value())
+                           .ptr()
+                           ->get_string() == LazyString{L"quux"});
+               }},
+          {.name = L"SimpleFunctionTwoArguments",
+           .callback =
+               [] {
+                 gc::Pool pool({});
+                 language::gc::Root<Environment> environment =
+                     afc::vm::NewDefaultEnvironment(pool);
+                 environment.ptr()->Define(
+                     Identifier{NonEmptySingleLine{
+                         SingleLine{LazyString{L"SomeFunction"}}}},
+                     vm::NewCallback(
+                         pool, kPurityTypePure,
+                         [](std::wstring a, std::wstring b) -> std::wstring {
+                           CHECK(a == L"bar");
+                           CHECK(b == L"foo");
+                           return L"quux";
+                         }));
+                 gc::Root<Expression> expression = ValueOrDie(Compile(
+                     SingleLine{LazyString{L"SomeFunction \"bar\" \"foo\""}},
+                     SingleLine{}, environment.ptr().value(), {kEmptyNamespace},
+                     pool));
+                 CHECK(ValueOrDie(Evaluate(expression.ptr(), environment.ptr(),
+                                           nullptr)
+                                      .Get()
+                                      .value())
+                           .ptr()
+                           ->get_string() == LazyString{L"quux"});
+               }},
+          {.name = L"NestingFunctions", .callback = [] {
+             gc::Pool pool({});
+             language::gc::Root<Environment> environment =
+                 afc::vm::NewDefaultEnvironment(pool);
+             size_t calls = 0;
+             environment.ptr()->Define(
+                 Identifier{NonEmptySingleLine{SingleLine{LazyString{L"foo"}}}},
+                 vm::NewCallback(pool, kPurityTypePure,
+                                 [&calls](std::wstring a) -> std::wstring {
+                                   calls++;
+                                   return L"[" + a + L"]";
+                                 }));
+             gc::Root<Expression> expression = ValueOrDie(Compile(
+                 SingleLine{LazyString{L"foo foo foo \"bar\" "}}, SingleLine{},
+                 environment.ptr().value(), {kEmptyNamespace}, pool));
+             CHECK_EQ(ValueOrDie(
+                          Evaluate(expression.ptr(), environment.ptr(), nullptr)
                               .Get()
                               .value())
-                   .ptr()
-                   ->get_string(),
-               LazyString{L"[[[bar]]]"});
-           CHECK_EQ(calls, 3ul);
-         }}});
+                          .ptr()
+                          ->get_string(),
+                      LazyString{L"[[[bar]]]"});
+             CHECK_EQ(calls, 3ul);
+           }}};
+    }));
 }  // namespace
 }  // namespace afc::vm::natural
