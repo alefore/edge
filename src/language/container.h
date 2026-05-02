@@ -2,6 +2,7 @@
 #define __AFC_LANGUAGE_CONTAINERS__
 
 #include <algorithm>
+#include <expected>
 #include <generator>
 #include <list>
 #include <optional>
@@ -11,6 +12,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "src/language/error/value_or_error.h"
 
 namespace afc::language {
 template <typename Container>
@@ -162,6 +165,8 @@ auto MaterializeList(auto&& view) {
       std::move(view));
 }
 
+// TODO(trivial, 2026-05-02, P2): Migrate all callers to std::ranges::fold_left
+// and delete this.
 template <typename Container, typename Callable, typename Value>
 Value Fold(Callable aggregate, Value identity, Container&& container) {
   Value output = std::move(identity);
@@ -206,6 +211,32 @@ auto UniqueValuesOf(R&& elements) {
         co_yield std::forward<decltype(value)>(value);
   };
   return impl(std::views::all(std::forward<R>(elements)));
+}
+
+template <std::ranges::input_range R>
+auto CollectExpected(R&& r) {
+  using ResultType = std::ranges::range_value_t<R>;
+  using T = typename ResultType::value_type;
+  using Accumulator =
+      std::expected<std::vector<T>, std::vector<language::Error>>;
+
+  Accumulator result = std::ranges::fold_left(
+      std::forward<R>(r), Accumulator{std::vector<T>{}},
+      [](Accumulator&& acc, ResultType&& next) -> Accumulator {
+        if (acc.has_value() && next.has_value()) {
+          acc.value().push_back(std::move(*next));
+        } else if (acc.has_value() && !next.has_value()) {
+          return std::unexpected(std::vector<Error>{std::move(next.error())});
+        } else if (!acc.has_value() && !next.has_value()) {
+          acc.error().push_back(std::move(next.error()));
+        } else {
+          // Ignore next.value().
+        }
+        return std::move(acc);
+      });
+  using ReturnType = std::expected<std::vector<T>, language::Error>;
+  return result ? ReturnType{std::move(result.value())}
+                : ReturnType{language::MergeErrors(result.error(), L", ")};
 }
 }  // namespace container
 }  // namespace afc::language
