@@ -3,6 +3,8 @@
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/infrastructure/screen/line_modifier_vm.h"
+#include "src/language/error/value_or_error.h"
+#include "src/language/error/view.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -63,33 +65,49 @@ class LogTreeParser : public TreeParser {
         Environment::New(vm::NewDefaultEnvironment(pool).ptr());
     PrepareEnvironment(environment.ptr());
     ParseTree output = ParseTree(range);
+    CompiledLogView compiled_log_view{environment, log_view_};
     range.ForEachLine([&](LineNumber i) {
       VisitValue(
           log_type_.Parse(contents.at(i).contents().read()), [&](LogLine line) {
-            TRACK_OPERATION(LogTreeParser_ProcessLogLine);
             std::unordered_map<LogEntryName, std::vector<LazyString>> values;
-            std::ranges::for_each(line.values, [&](const LogEntryValue& entry) {
-              // TODO(P1, log, 2026-04-30): Avoid the call to std::get. Use
-              // visit instead?
-              values[entry.name].push_back(std::get<LazyString>(entry.value));
-            });
-            std::ranges::for_each(
-                values,
-                [&](std::pair<LogEntryName, std::vector<LazyString>> entry) {
-                  environment->Assign(
-                      entry.first.read(),
-                      vm::Value::NewString(environment.pool(),
-                                           Concatenate(entry.second)));
-                });
+            {
+              TRACK_OPERATION(LogTreeParser_FindChildren_AggregateValues);
+              std::ranges::for_each(line.values,
+                                    [&](const LogEntryValue& entry) {
+                                      // TODO(P1, log, 2026-04-30): Avoid the
+                                      // call to std::get. Use visit instead?
+                                      values[entry.name].push_back(
+                                          std::get<LazyString>(entry.value));
+                                    });
+            }
 
-            std::unordered_map<LogEntryName, LineModifierSet> modifiers =
-                GetModifiers(values | std::views::keys, environment.ptr());
+            {
+              TRACK_OPERATION(LogTreeParser_FindChildren_PrepareEnvironment);
+              std::ranges::for_each(
+                  values,
+                  [&](std::pair<LogEntryName, std::vector<LazyString>> entry) {
+                    environment->Assign(
+                        entry.first.read(),
+                        vm::Value::NewString(environment.pool(),
+                                             Concatenate(entry.second)));
+                  });
+            }
+
+            std::expected<std::unordered_map<LogEntryName, LineModifierSet>,
+                          Error>
+                modifiers_map = compiled_log_view.Evaluate(
+                    values | std::views::keys |
+                    std::ranges::to<std::unordered_set>());
+            if (!modifiers_map) {
+              LOG(INFO) << "Error: " << modifiers_map.error();
+              return;
+            }
 
             TRACK_OPERATION(LogTreeParser_ProduceTrees);
             std::ranges::for_each(line.values, [&](const LogEntryValue& data) {
               ParseTree child(
                   LineRange(LineColumn{i, data.position}, data.size).read());
-              child.set_modifiers(modifiers.find(data.name)->second);
+              child.set_modifiers(modifiers_map->find(data.name)->second);
               output.PushChild(std::move(child));
             });
           });
@@ -141,66 +159,6 @@ class LogTreeParser : public TreeParser {
                                   HashToModifiersBold::Never) |
                   std::ranges::to<std::set>());
             }));
-  }
-
-  template <std::ranges::input_range R>
-  std::unordered_map<LogEntryName, LineModifierSet> GetModifiers(
-      R&& keys, gc::Ptr<Environment> environment) {
-    TRACK_OPERATION(LogTreeParser_GetModifiers);
-    return keys |
-           std::views::transform(
-               [this, &environment](const LogEntryName& key)
-                   -> std::pair<LogEntryName, LineModifierSet> {
-                 LineModifierSet current_modifiers;
-                 auto it = log_view_.expressions.find(key);
-                 if (it == log_view_.expressions.end())
-                   return std::pair{key, LineModifierSet{}};
-                 gc::Root<vm::Environment> sub_environment =
-                     Environment::New(environment);
-                 for (NonEmptySingleLine code : it->second) {
-                   std::expected<gc::Root<Expression>, Error> expr =
-                       std::invoke([&] {
-                         TRACK_OPERATION(LogTreeParser_GetModifiers_Compile);
-                         return vm::CompileString(ToLazyString(code),
-                                                  sub_environment.ptr());
-                       });
-                   if (!expr) {
-                     LOG(INFO) << "Compilation error: " << expr.error();
-                     continue;
-                   }
-
-                   std::expected<gc::Root<vm::Value>, Error> result =
-                       std::invoke([&] {
-                         TRACK_OPERATION(LogTreeParser_GetModifiers_Evaluate);
-                         return Evaluate(expr->ptr(), sub_environment.ptr(),
-                                         nullptr)
-                             .Get()
-                             .value_or(Error{L"Evaluation future doesn't "
-                                             L"have a value."});
-                       });
-                   using Mapper =
-                       vm::VMTypeMapper<language::NonNull<std::shared_ptr<
-                           concurrent::Protected<std::set<LineModifier>>>>>;
-                   if (result &&
-                       !result.value()->IsObjectType(Mapper::object_type_name))
-                     result = Error{LazyString{L"Result has wrong type: "} +
-                                    ToQuotedSingleLine(result->ptr()->type())};
-                   if (!result) {
-                     LOG(INFO) << "Error: " << result.error();
-                     continue;
-                   }
-
-                   TRACK_OPERATION(LogTreeParser_GetModifiers_Extract);
-                   Mapper::get(result.value().value())
-                       ->lock([&current_modifiers](
-                                  const std::set<LineModifier>& elements) {
-                         for (LineModifier x : elements)
-                           current_modifiers.insert(x);
-                       });
-                 }
-                 return std::pair{key, current_modifiers};
-               }) |
-           std::ranges::to<std::unordered_map>();
   }
 };
 
