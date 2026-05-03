@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_BUFFER_NAME_H__
 #define __AFC_EDITOR_BUFFER_NAME_H__
 
+#include <vector>
+
 #include "src/infrastructure/dirname.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/hash.h"
@@ -101,11 +103,16 @@ class AnonymousBufferName
 
 struct FilterBufferName {
   language::lazy_string::NonEmptySingleLine source_buffer;
-  language::lazy_string::SingleLine filter;
+  std::vector<language::lazy_string::SingleLine> filters;
 
   FilterBufferName& operator=(const FilterBufferName&) = default;
   bool operator==(const FilterBufferName&) const = default;
   std::strong_ordering operator<=>(const FilterBufferName&) const = default;
+
+  // Prefer creation through FileBufferNameFactory::New.
+  FilterBufferName(
+      language::lazy_string::NonEmptySingleLine input_source_buffer,
+      std::vector<language::lazy_string::SingleLine> input_filters);
 };
 
 using BufferName =
@@ -114,6 +121,12 @@ using BufferName =
                  ConsoleBufferName, PredictionsBufferName, HistoryBufferName,
                  ServerBufferName, CommandBufferName, AnonymousBufferName,
                  FilterBufferName, language::lazy_string::LazyString>;
+
+struct FilterBufferNameFactory {
+  // If `source_buffer` is a `FilterBufferName`, joins the filters.
+  static FilterBufferName New(BufferName source_buffer,
+                              language::lazy_string::SingleLine filter);
+};
 
 language::lazy_string::NonEmptySingleLine ToSingleLine(const BufferName&);
 
@@ -166,7 +179,8 @@ struct hash<afc::editor::PredictionsBufferName> {
 template <>
 struct hash<afc::editor::FilterBufferName> {
   size_t operator()(const afc::editor::FilterBufferName& input) const {
-    return compute_hash(input.source_buffer, input.filter);
+    return compute_hash(input.source_buffer,
+                        MakeHashableIteratorRange(input.filters));
   }
 };
 }  // namespace std

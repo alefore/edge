@@ -1,5 +1,6 @@
 #include "src/buffer_name.h"
 
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/text/line_sequence.h"
@@ -10,6 +11,8 @@ using afc::infrastructure::Path;
 using afc::language::Error;
 using afc::language::overload;
 using afc::language::to_wstring;
+using afc::language::lazy_string::Concatenate;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -19,6 +22,23 @@ using afc::vm::EscapedString;
 namespace afc::editor {
 
 using ::operator<<;
+
+FilterBufferName::FilterBufferName(NonEmptySingleLine input_source_buffer,
+                                   std::vector<SingleLine> input_filters)
+    : source_buffer(std::move(input_source_buffer)),
+      filters(std::move(input_filters)) {}
+
+FilterBufferName FilterBufferNameFactory::New(BufferName source_buffer_variant,
+                                              SingleLine filter) {
+  if (FilterBufferName* source_buffer =
+          std::get_if<FilterBufferName>(&source_buffer_variant);
+      source_buffer != nullptr) {
+    source_buffer->filters.push_back(filter);
+    return *source_buffer;
+  }
+  return FilterBufferName(ToSingleLine(source_buffer_variant),
+                          std::vector{filter});
+}
 
 namespace {
 NonEmptySingleLine VisualizePath(const Path& path) {
@@ -80,7 +100,8 @@ NonEmptySingleLine ToSingleLine(const BufferName& p) {
           [](const FilterBufferName& input) -> NonEmptySingleLine {
             return NON_EMPTY_SINGLE_LINE_CONSTANT(L"- filter") +
                    input.source_buffer + NON_EMPTY_SINGLE_LINE_CONSTANT(L": ") +
-                   input.filter;
+                   Concatenate(input.filters |
+                               Intersperse(SINGLE_LINE_CONSTANT(L", ")));
           },
           [](const LazyString& str) -> NonEmptySingleLine {
             return NON_EMPTY_SINGLE_LINE_CONSTANT(L"[") +

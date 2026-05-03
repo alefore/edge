@@ -175,11 +175,10 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer_root,
     const HistoryFile&, DeleteNotification::Value abort_value,
     SingleLine filter) {
-  gc::Root<OpenBuffer> filter_buffer_root = OpenBuffer::New(
-      {.editor = editor_state,
-       .name = FilterBufferName{
-           .source_buffer = ToSingleLine(history_buffer_root->name()),
-           .filter = filter}});
+  gc::Root<OpenBuffer> filter_buffer_root =
+      OpenBuffer::New({.editor = editor_state,
+                       .name = FilterBufferNameFactory::New(
+                           history_buffer_root->name(), filter)});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
   filter_buffer.Set(buffer_variables::allow_dirty_delete, true);
   filter_buffer.Set(buffer_variables::show_in_buffers_list, false);

@@ -605,12 +605,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             return OpenOrCreateFile(
                        OpenFileOptions{
                            .editor_state = buffer->editor(),
-                           .name =
-                               FilterBufferName{
-                                   .source_buffer =
-                                       ToSingleLine(buffer->name()),
-                                   .filter = LineSequence::BreakLines(code)
-                                                 .FoldLines()},
+                           .name = FilterBufferNameFactory::New(
+                               buffer->name(),
+                               LineSequence::BreakLines(code).FoldLines()),
                            .path = std::nullopt,
                            .insertion_type = BuffersList::AddBufferType::Visit})
                 .Transform(LockAndVisitCallback(
