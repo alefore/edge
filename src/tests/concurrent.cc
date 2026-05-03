@@ -18,7 +18,6 @@ using afc::language::EraseOrDie;
 using afc::language::GetValueOrDie;
 using afc::language::hash_combine;
 using afc::language::InsertOrDie;
-using afc::language::MakeHashableIteratorRange;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using ::operator<<;
