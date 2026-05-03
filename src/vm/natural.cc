@@ -148,9 +148,8 @@ class ParseState {
     }
 
     std::ranges::copy(early_found_candidates, std::back_inserter(candidates_));
-    // We reverse the view to give precedence to the early_found_candidates.
     std::vector<std::optional<gc::Root<Expression>>> valid_outputs =
-        candidates_ | std::views::reverse |
+        candidates_ |
         std::views::transform(
             [this](Tree& tree) -> std::optional<gc::Root<Expression>> {
               std::optional<gc::Root<Expression>> output = CompileTree(tree);
