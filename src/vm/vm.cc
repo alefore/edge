@@ -655,7 +655,7 @@ std::generator<SingleLine> YieldLines(LazyString input) {
   while (position) {
     std::optional<ColumnNumber> next =
         FindFirstOf(input, {L'\n'}, position.value());
-    if (next) CHECK_GT(next.value(), position.value());
+    if (next) CHECK_GE(next.value(), position.value());
     co_yield input.Substring(
         position.value(),
         next.value_or(ColumnNumber{} + input.size()).ToDelta() -
