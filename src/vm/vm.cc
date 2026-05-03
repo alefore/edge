@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include <fstream>
+#include <generator>
 #include <iostream>
 #include <istream>
 #include <sstream>
@@ -619,6 +620,23 @@ ValueOrError<gc::Root<Expression>> ResultsFromCompilation(
       []() { return Error{LazyString{L"Unexpected empty expression."}}; },
       std::move(compilation.expr));
 }
+
+template <std::ranges::input_range R>
+language::ValueOrError<language::gc::Root<Expression>> CompileLines(
+    R&& lines, language::gc::Ptr<Environment> environment) {
+  gc::Root<Compilation> compilation = Compilation::New(environment);
+  compilation->PushSource(std::nullopt);
+  std::ranges::all_of(
+      lines, [&compilation, parser = std::shared_ptr<void>(GetParser(
+                                compilation.value()))](const SingleLine& line) {
+        VLOG(4) << "Compiling line: [" << line << "]";
+        CompileLine(compilation.value(), parser.get(), line);
+        compilation->IncrementLine();
+        return compilation->errors().empty();
+      });
+  compilation->PopSource();
+  return ResultsFromCompilation(compilation.value());
+}
 }  // namespace
 
 ValueOrError<gc::Root<Expression>> CompileFile(
@@ -629,27 +647,35 @@ ValueOrError<gc::Root<Expression>> CompileFile(
   return ResultsFromCompilation(compilation.value());
 }
 
+std::generator<SingleLine> YieldLines(LazyString input) {
+  // We deliberately don't use LineSequence::BreakLines() because we want to
+  // consume the input lazily. When there's an early compilation error, we
+  // shouldn't look much further than its occurrence.
+  std::optional<ColumnNumber> position = ColumnNumber{};
+  while (position) {
+    std::optional<ColumnNumber> next =
+        FindFirstOf(input, {L'\n'}, position.value());
+    if (next) CHECK_GT(next.value(), position.value());
+    co_yield input.Substring(
+        position.value(),
+        next.value_or(ColumnNumber{} + input.size()).ToDelta() -
+            position->ToDelta());
+    position = next.transform([](ColumnNumber pos) { return pos.next(); });
+  }
+}
+
 ValueOrError<gc::Root<Expression>> CompileString(
     const LazyString& str, gc::Ptr<Environment> environment) {
-  // TODO(2026-05-03, P2): Don't use BreakLines! If `str` is very large, that
-  // will be slow, especially when the compilation fails quickly.
-  return CompileString(LineSequence::BreakLines(str), std::move(environment));
+  return CompileLines(YieldLines(str), std::move(environment));
 }
 
 language::ValueOrError<language::gc::Root<Expression>> CompileString(
     const language::text::LineSequence& str,
     language::gc::Ptr<Environment> environment) {
-  gc::Root<Compilation> compilation = Compilation::New(environment);
-  compilation->PushSource(std::nullopt);
-  str.EveryLine([&compilation, parser = GetParser(compilation.value())](
-                    LineNumber, const Line& line) {
-    VLOG(4) << "Compiling line: [" << line << "]";
-    CompileLine(compilation.value(), parser.get(), line.contents());
-    compilation->IncrementLine();
-    return compilation->errors().empty();
-  });
-  compilation->PopSource();
-  return ResultsFromCompilation(compilation.value());
+  return CompileLines(str | std::views::transform([](const Line& line) {
+                        return line.contents();
+                      }),
+                      std::move(environment));
 }
 
 }  // namespace afc::vm
