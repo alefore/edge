@@ -614,6 +614,12 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                         gc::Root<OpenBuffer> input) -> futures::PossibleError {
                       CHECK(output->contents().snapshot() == LineSequence());
                       output->Set(buffer_variables::allow_dirty_delete, true);
+                      output->Set(buffer_variables::log_view,
+                                  input->Read(buffer_variables::log_view));
+                      output->Set(buffer_variables::log_type,
+                                  input->Read(buffer_variables::log_type));
+                      output->Set(buffer_variables::tree_parser,
+                                  input->Read(buffer_variables::tree_parser));
                       LOG(INFO) << "Running filter";
                       input->editor().thread_pool().RunIgnoringResult(
                           [contents = input->contents().snapshot(),
@@ -622,7 +628,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                            expr = std::move(expr),
                            output_lock = output->GetLockFunction()] {
                             MutableLineSequence tmp;
+                            size_t inputs_seen = 0;
                             contents.ForEach([&](const Line& line) {
+                              inputs_seen++;
                               VisitValue(
                                   log_type->Parse(line.contents()),
                                   [&](LogLine log_line) {
@@ -644,38 +652,55 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                     }
                                     if (!value->ptr()->get_bool()) return;
                                     tmp.push_back(line);
-                                    if (tmp.size() < LineNumberDelta{1000})
+                                    if (tmp.size() < LineNumberDelta{1000} &&
+                                        inputs_seen % 5000 != 0)
                                       return;
                                     // TODO(2026-05-03, P2, log): The roundtrip
                                     // to std::vector feels suboptimal.
-                                    CHECK(tmp.at(LineNumber{})
-                                              .contents()
-                                              .empty());
-                                    tmp.EraseLines(LineNumber{}, LineNumber{1});
+                                    tmp.MaybeEraseEmptyFirstLine();
+                                    size_t percent = static_cast<size_t>(
+                                        std::round(100.0 * inputs_seen /
+                                                   contents.size().read()));
+                                    Line percent_line =
+                                        LineBuilder(
+                                            SINGLE_LINE_CONSTANT(L"[Scanned:") +
+                                            NonEmptySingleLine(percent) +
+                                            SINGLE_LINE_CONSTANT(L"%]"))
+                                            .Build();
                                     output_lock(
-                                        [lines =
+                                        [percent_line = std::move(percent_line),
+                                         lines =
                                              tmp.snapshot() |
                                              std::ranges::to<std::vector>()](
-                                            OpenBuffer& output_buffer) {
+                                            OpenBuffer& output_buffer) mutable {
                                           output_buffer.AppendLines(
                                               std::move(lines));
+                                          output_buffer.status()
+                                              .SetInformationText(
+                                                  std::move(percent_line));
                                         });
                                     tmp = MutableLineSequence{};
                                   });
                             });
-                            output_lock([](OpenBuffer& output_buffer) {
-                              if (output_buffer.contents().size() >
-                                      LineNumberDelta{1} &&
-                                  output_buffer.contents()
-                                      .snapshot()
-                                      .at(LineNumber{})
-                                      .contents()
-                                      .empty())
-                                output_buffer.EraseLines(LineNumber{},
-                                                         LineNumber{1});
-                              LOG(INFO) << "Output size: "
-                                        << output_buffer.contents().size();
-                            });
+                            tmp.MaybeEraseEmptyFirstLine();
+                            output_lock(
+                                [lines = tmp.snapshot() |
+                                         std::ranges::to<std::vector>()](
+                                    OpenBuffer& output_buffer) {
+                                  output_buffer.AppendLines(std::move(lines));
+                                  if (output_buffer.contents().size() >
+                                          LineNumberDelta{1} &&
+                                      output_buffer.contents()
+                                          .snapshot()
+                                          .at(LineNumber{})
+                                          .contents()
+                                          .empty())
+                                    output_buffer.EraseLines(LineNumber{},
+                                                             LineNumber{1});
+                                  output_buffer.status().Reset();
+                                  LOG(INFO) << "Output size: "
+                                            << output_buffer.contents().size();
+                                });
                           });
                       return EmptyValue{};
                     },
