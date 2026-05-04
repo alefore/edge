@@ -1295,7 +1295,7 @@ class OperationMode : public EditorMode {
 
 SingleLine CommandArgumentRepetitions::ToString() const {
   return TrimLeft(
-      Concatenate(get_list() | std::views::transform([](int r) {
+      Concatenate(get_list() | std::views::transform([](int r) -> SingleLine {
                     return (r > 0 ? SingleLine::Char<L'+'>() : SingleLine{}) +
                            NonEmptySingleLine(r);
                   })),
