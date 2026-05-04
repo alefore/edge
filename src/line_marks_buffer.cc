@@ -144,7 +144,7 @@ class Impl : public Command {
     LOG(INFO) << "Installing Marks Buffer.";
     editor_.AddBuffer(buffer_root, BuffersList::AddBufferType::Visit);
     editor_.set_current_buffer(buffer_root,
-                               CommandArgumentModeApplyMode::kFinal);
+                               CommandArgumentModeApplyMode::Final);
     editor_.status().Reset();
     editor_.ResetRepetitions();
   }

@@ -96,7 +96,7 @@ namespace {
 
 SingleLine GetPredictInput(const OpenBuffer& buffer) {
   Range range =
-      buffer.FindPartialRange(Modifiers{.structure = Structure::kLine,
+      buffer.FindPartialRange(Modifiers{.structure = Structure::Line,
                                         .direction = Direction::Backwards},
                               buffer.position());
   range.set_end(std::max(range.end(), buffer.position()));
@@ -159,7 +159,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
         if (!editor_state.has_current_buffer()) {
           // Seems lame, but what can we do?
           editor_state.set_current_buffer(buffer,
-                                          CommandArgumentModeApplyMode::kFinal);
+                                          CommandArgumentModeApplyMode::Final);
         }
         return buffer;
       });
@@ -556,7 +556,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   static void ReplaceContents(OpenBuffer& buffer,
                               LineSequence contents_to_insert) {
     buffer.ApplyToCursors(transformation::Delete{
-        .modifiers = {.structure = Structure::kLine,
+        .modifiers = {.structure = Structure::Line,
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::DoNothing,
                       .boundary_begin = Modifiers::LIMIT_CURRENT,
@@ -636,7 +636,7 @@ class LinePromptCommand : public Command {
     auto buffer = editor_state_.current_buffer();
     if (!buffer.has_value()) return;
     auto options = options_supplier_();
-    if (editor_state_.structure() == Structure::kLine) {
+    if (editor_state_.structure() == Structure::Line) {
       editor_state_.ResetStructure();
       VisitPointer(
           buffer->ptr()->OptionalCurrentLine(),
@@ -671,7 +671,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       LazyString input) {
   if (input.size().IsZero()) return;
   switch (editor.args().prompt_history_behavior) {
-    case CommandLineValues::HistoryFileBehavior::kUpdate:
+    case CommandLineValues::HistoryFileBehavior::Update:
       GetHistoryBuffer(editor, history_file)
           .Transform([history_line = BuildHistoryLine(editor, input)](
                          gc::Root<OpenBuffer> history) {
@@ -679,7 +679,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
             return Success();
           });
       return;
-    case CommandLineValues::HistoryFileBehavior::kReadOnly:
+    case CommandLineValues::HistoryFileBehavior::ReadOnly:
       break;
   }
 }
@@ -771,7 +771,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Delete{
                             .modifiers =
-                                {.structure = Structure::kLine,
+                                {.structure = Structure::Line,
                                  .paste_buffer_behavior =
                                      Modifiers::PasteBufferBehavior::DoNothing,
                                  .boundary_begin = Modifiers::LIMIT_CURRENT,
@@ -805,7 +805,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                         LineNumber(0));
                     prompt_state->editor_state().set_current_buffer(
                         predictions_buffer.value(),
-                        CommandArgumentModeApplyMode::kFinal);
+                        CommandArgumentModeApplyMode::Final);
                     if (!prompt_state->editor_state()
                              .status()
                              .prompt_buffer()
@@ -833,12 +833,12 @@ void Prompt(PromptOptions options) {
           std::invoke([insertion = editor_state.modifiers().insertion] {
             switch (insertion) {
               case Modifiers::ModifyMode::Shift:
-                return EditorMode::CursorMode::kInserting;
+                return EditorMode::CursorMode::Inserting;
               case Modifiers::ModifyMode::Overwrite:
-                return EditorMode::CursorMode::kOverwriting;
+                return EditorMode::CursorMode::Overwriting;
             }
             LOG(FATAL) << "Invalid insertion mode.";
-            return EditorMode::CursorMode::kDefault;
+            return EditorMode::CursorMode::Default;
           }));
 
   editor_state.set_keyboard_redirect(

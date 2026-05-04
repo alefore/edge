@@ -540,10 +540,10 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
                                    CppCommandMode mode) {
   std::wstring description;
   switch (mode) {
-    case CppCommandMode::kLiteral:
+    case CppCommandMode::Literal:
       description = L"prompts for a command (a C string) and runs it";
       break;
-    case CppCommandMode::kShell:
+    case CppCommandMode::Shell:
       description =
           L"prompts for a command, splits it into tokens, and runs it";
       break;
@@ -557,7 +557,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
         Predictor predictor = EmptyPredictor;
         std::optional<HistoryFile> history_file;
         switch (mode) {
-          case CppCommandMode::kLiteral:
+          case CppCommandMode::Literal:
             handler = std::bind_front(RunCppCommandLiteralHandler,
                                       std::ref(editor_state));
             prompt_builder.AppendString(SINGLE_LINE_CONSTANT(L"cpp"));
@@ -565,7 +565,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
             colorize_options_provider = std::bind_front(
                 CppColorizeOptionsProvider, std::ref(editor_state));
             break;
-          case CppCommandMode::kShell:
+          case CppCommandMode::Shell:
             handler = std::bind_front(RunCppCommandShellHandler,
                                       std::ref(editor_state));
             prompt_builder.AppendString(SingleLine::Char<L':'>());

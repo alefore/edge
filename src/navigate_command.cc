@@ -195,7 +195,7 @@ class NavigateTransformation : public CompositeTransformation {
     Output output;
     auto range = GetRange(state_, input.buffer, input.position);
 
-    if (input.mode == transformation::Input::Mode::kPreview) {
+    if (input.mode == transformation::Input::Mode::Preview) {
       std::vector<NavigateOperation::Type> directions = {
           NavigateOperation::Type::Forward, NavigateOperation::Type::Backward};
       for (auto& direction : directions) {
@@ -214,7 +214,7 @@ class NavigateTransformation : public CompositeTransformation {
         output.Push(transformation::Delete{
             .modifiers = {.paste_buffer_behavior =
                               Modifiers::PasteBufferBehavior::DoNothing},
-            .mode = transformation::Input::Mode::kPreview,
+            .mode = transformation::Input::Mode::Preview,
             .initiator = transformation::Delete::Initiator::Internal});
       }
 
@@ -240,13 +240,13 @@ class NavigateTransformation : public CompositeTransformation {
     }
     output->Push(transformation::SetPosition(WriteIndex(position, index)));
     output->Push(transformation::Delete{
-        .modifiers = {.structure = Structure::kLine,
+        .modifiers = {.structure = Structure::Line,
                       .direction = direction,
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::DoNothing},
-        .line_end_behavior = transformation::Delete::LineEndBehavior::kStop,
+        .line_end_behavior = transformation::Delete::LineEndBehavior::Stop,
         .preview_modifiers = {LineModifier::Dim},
-        .mode = transformation::Input::Mode::kPreview,
+        .mode = transformation::Input::Mode::Preview,
         .initiator = transformation::Delete::Initiator::Internal});
   }
 
@@ -261,7 +261,7 @@ NavigateState InitialState(EditorState& editor_state) {
   Structure structure = editor_state.modifiers().structure;
   // TODO: Move to Structure.
   NavigateState initial_state;
-  if (structure == Structure::kChar) {
+  if (structure == Structure::Char) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
       return SearchRange{0, buffer.LineAt(position.line)->EndColumn().read()};
@@ -274,7 +274,7 @@ NavigateState InitialState(EditorState& editor_state) {
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
       return position.column.read();
     };
-  } else if (structure == Structure::kSymbol) {
+  } else if (structure == Structure::Symbol) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
       auto contents = buffer.LineAt(position.line);
@@ -301,7 +301,7 @@ NavigateState InitialState(EditorState& editor_state) {
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
       return position.column.read();
     };
-  } else if (structure == Structure::kLine) {
+  } else if (structure == Structure::Line) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn) {
       return SearchRange{0,

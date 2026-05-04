@@ -121,7 +121,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
     ++columns_vector.index_active;
     columns_vector.push_back(
         {.lines = SectionBrackets(LineNumberDelta(screen_lines.size()),
-                                  SectionBracketsSide::kLeft),
+                                  SectionBracketsSide::Left),
          .width = ColumnNumberDelta(1)});
   }
 
@@ -177,7 +177,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
   if (sections_count > 1) {
     columns_vector.push_back(
         {.lines = SectionBrackets(LineNumberDelta(screen_lines.size()),
-                                  SectionBracketsSide::kRight),
+                                  SectionBracketsSide::Right),
          .width = ColumnNumberDelta(1)});
   }
 
@@ -485,7 +485,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
               options.main_cursor_display ==
                   OutputProducerOptions::MainCursorDisplay::kActive) {
             frame_options.active_state =
-                FrameOutputProducerOptions::ActiveState::kActive;
+                FrameOutputProducerOptions::ActiveState::Active;
           }
 
           frame_options.extra_information =

@@ -10,13 +10,13 @@ void Observers::Add(Observers::Observer observer) const {
 void Observers::Notify() {
   if (notify_state_.lock([](NotifyState& value) {
         switch (value) {
-          case NotifyState::kIdle:
-            value = NotifyState::kRunning;
+          case NotifyState::Idle:
+            value = NotifyState::Running;
             return false;
-          case NotifyState::kRunning:
-            value = NotifyState::kRunningAndScheduled;
+          case NotifyState::Running:
+            value = NotifyState::RunningAndScheduled;
             return true;
-          case NotifyState::kRunningAndScheduled:
+          case NotifyState::RunningAndScheduled:
             return true;
         }
         LOG(FATAL) << "Invalid state.";
@@ -51,14 +51,14 @@ void Observers::Notify() {
 
     auto notify_state = notify_state_.lock();
     switch (*notify_state) {
-      case NotifyState::kIdle:
+      case NotifyState::Idle:
         LOG(FATAL) << "Unexpected state.";
         break;
-      case NotifyState::kRunning:
-        *notify_state = NotifyState::kIdle;
+      case NotifyState::Running:
+        *notify_state = NotifyState::Idle;
         return;
-      case NotifyState::kRunningAndScheduled:
-        *notify_state = NotifyState::kRunning;
+      case NotifyState::RunningAndScheduled:
+        *notify_state = NotifyState::Running;
         break;
     }
   }

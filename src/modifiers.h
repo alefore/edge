@@ -54,7 +54,7 @@ struct Modifiers {
   // Sets the modifiers to their default values, including resetting any form
   // of stickyness.
   void ResetHard() {
-    structure = Structure::kChar;
+    structure = Structure::Char;
     default_direction = Direction::Forwards;
     default_insertion = ModifyMode::Shift;
     ResetSoft();
@@ -72,7 +72,7 @@ struct Modifiers {
 
   void ResetStructure() {
     if (!sticky_structure) {
-      structure = Structure::kChar;
+      structure = Structure::Char;
     }
   }
 
@@ -83,7 +83,7 @@ struct Modifiers {
   void ResetRepetitions() { repetitions = std::nullopt; }
 
   // Fields follow.
-  Structure structure = Structure::kChar;
+  Structure structure = Structure::Char;
   bool sticky_structure = false;
 
   Strength strength = Strength::Normal;

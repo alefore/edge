@@ -51,30 +51,30 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   enum class ViewMode {
     // Automatically start editing all files opened (as soon as they have been
     // loaded).
-    kAllBuffers,
+    AllBuffers,
     // Default mode (where only a given file is edited).
-    kDefault
+    Default
   };
-  ViewMode view_mode = ViewMode::kDefault;
+  ViewMode view_mode = ViewMode::Default;
 
   double frames_per_second = 30.0;
 
   enum class LocalPathResolutionBehavior {
     // A local path is interpreted as relative to the current directory of the
     // Edge client instance.
-    kSimple,
+    Simple,
     // A local path is given to the Edge server, allowing it to do a full
     // resolution (e.g., including looking it up in the configured search
     // paths).
-    kAdvanced
+    Advanced
   };
   LocalPathResolutionBehavior initial_path_resolution_behavior =
-      LocalPathResolutionBehavior::kSimple;
+      LocalPathResolutionBehavior::Simple;
 
-  enum class HistoryFileBehavior { kUpdate, kReadOnly };
-  HistoryFileBehavior prompt_history_behavior = HistoryFileBehavior::kUpdate;
+  enum class HistoryFileBehavior { Update, ReadOnly };
+  HistoryFileBehavior prompt_history_behavior = HistoryFileBehavior::Update;
 
-  HistoryFileBehavior positions_history_behavior = HistoryFileBehavior::kUpdate;
+  HistoryFileBehavior positions_history_behavior = HistoryFileBehavior::Update;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&

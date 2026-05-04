@@ -31,9 +31,9 @@ class VersionPropertyReceiver {
   using Key = VersionPropertyKey;
   enum class VersionExecution {
     // MarkVersionDone hasn't executed for the last value of version_.
-    kRunning,
+    Running,
     // MarkVersionDone has run with the last value of version_.
-    kDone
+    Done
   };
 
   using VersionPropertyValue =
@@ -48,7 +48,7 @@ class VersionPropertyReceiver {
     std::map<Key, VersionValue> information = {};
 
     int version_id = 0;
-    VersionExecution last_version_state = VersionExecution::kDone;
+    VersionExecution last_version_state = VersionExecution::Done;
   };
 
  public:

@@ -32,12 +32,12 @@ std::wstring Bisect::Serialize() const { return L"Bisect()"; }
 
 namespace {
 LineColumn RangeCenter(const Range& range, Structure structure) {
-  if (structure == Structure::kChar) {
+  if (structure == Structure::Char) {
     return LineColumn(range.begin().line,
                       ColumnNumber() + (range.begin().column.ToDelta() +
                                         range.end().column.ToDelta()) /
                                            2);
-  } else if (structure == Structure::kLine) {
+  } else if (structure == Structure::Line) {
     if (range.begin().line == range.end().line) return range.begin();
     return LineColumn(
         LineNumber() +
@@ -55,7 +55,7 @@ const bool range_center_tests_registration = tests::Register(
             CHECK_EQ(
                 RangeCenter(Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21))),
-                            Structure::kChar),
+                            Structure::Char),
                 LineColumn(LineNumber(2), ColumnNumber(21)));
           }},
      {.name = L"EmptyRangeLine",
@@ -64,14 +64,14 @@ const bool range_center_tests_registration = tests::Register(
             CHECK_EQ(
                 RangeCenter(Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21))),
-                            Structure::kLine),
+                            Structure::Line),
                 LineColumn(LineNumber(2), ColumnNumber(21)));
           }},
      {.name = L"NormalRangeChar", .callback = [] {
         CHECK_EQ(
             RangeCenter(Range(LineColumn(LineNumber(21), ColumnNumber(2)),
                               LineColumn(LineNumber(21), ColumnNumber(10))),
-                        Structure::kChar),
+                        Structure::Char),
             LineColumn(LineNumber(21), ColumnNumber(6)));
       }}});
 
@@ -94,7 +94,7 @@ const bool adjust_range_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                AdjustRange(Structure::kChar, Direction::Forwards,
+                AdjustRange(Structure::Char, Direction::Forwards,
                             Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21)))),
                 Range(LineColumn(LineNumber(2), ColumnNumber(21)),
@@ -104,7 +104,7 @@ const bool adjust_range_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                AdjustRange(Structure::kChar, Direction::Backwards,
+                AdjustRange(Structure::Char, Direction::Backwards,
                             Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21)))),
                 Range(LineColumn(LineNumber(2), ColumnNumber(21)),
@@ -114,7 +114,7 @@ const bool adjust_range_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                AdjustRange(Structure::kChar, Direction::Forwards,
+                AdjustRange(Structure::Char, Direction::Forwards,
                             Range(LineColumn(LineNumber(2), ColumnNumber(12)),
                                   LineColumn(LineNumber(2), ColumnNumber(20)))),
                 Range(LineColumn(LineNumber(2), ColumnNumber(16)),
@@ -122,7 +122,7 @@ const bool adjust_range_tests_registration = tests::Register(
           }},
      {.name = L"NormalRangeCharBackwards", .callback = [] {
         CHECK_EQ(
-            AdjustRange(Structure::kChar, Direction::Backwards,
+            AdjustRange(Structure::Char, Direction::Backwards,
                         Range(LineColumn(LineNumber(2), ColumnNumber(12)),
                               LineColumn(LineNumber(2), ColumnNumber(20)))),
             Range(LineColumn(LineNumber(2), ColumnNumber(12)),
@@ -131,7 +131,7 @@ const bool adjust_range_tests_registration = tests::Register(
 
 Range GetRange(const LineSequence& contents, Direction initial_direction,
                Structure structure, LineColumn position) {
-  if (structure == Structure::kChar) {
+  if (structure == Structure::Char) {
     switch (initial_direction) {
       case Direction::Forwards:
         return Range(
@@ -141,7 +141,7 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
       case Direction::Backwards:
         return Range(LineColumn(position.line, ColumnNumber()), position);
     }
-  } else if (structure == Structure::kLine) {
+  } else if (structure == Structure::Line) {
     switch (initial_direction) {
       case Direction::Forwards:
         return Range(position, LineColumn(contents.EndLine(),
@@ -165,35 +165,35 @@ const bool get_range_tests_registration = [] {
         .callback =
             [] {
               CHECK_EQ(GetRange(LineSequence(), Direction::Forwards,
-                                Structure::kChar, LineColumn()),
+                                Structure::Char, LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferCharBackwards",
         .callback =
             [] {
               CHECK_EQ(GetRange(LineSequence(), Direction::Backwards,
-                                Structure::kChar, LineColumn()),
+                                Structure::Char, LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferLineForwards",
         .callback =
             [] {
               CHECK_EQ(GetRange(LineSequence(), Direction::Forwards,
-                                Structure::kLine, LineColumn()),
+                                Structure::Line, LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferLineBackwards",
         .callback =
             [] {
               CHECK_EQ(GetRange(LineSequence(), Direction::Backwards,
-                                Structure::kLine, LineColumn()),
+                                Structure::Line, LineColumn()),
                        Range());
             }},
        {.name = L"NonEmptyBufferCharForwards",
         .callback =
             [=] {
               CHECK_EQ(
-                  GetRange(snapshot(), Direction::Forwards, Structure::kChar,
+                  GetRange(snapshot(), Direction::Forwards, Structure::Char,
                            LineColumn(LineNumber(1), ColumnNumber(4))),
                   Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                         LineColumn(LineNumber(1), ColumnNumber(9))));
@@ -202,7 +202,7 @@ const bool get_range_tests_registration = [] {
         .callback =
             [=] {
               CHECK_EQ(
-                  GetRange(snapshot(), Direction::Backwards, Structure::kChar,
+                  GetRange(snapshot(), Direction::Backwards, Structure::Char,
                            LineColumn(LineNumber(1), ColumnNumber(4))),
                   Range(LineColumn(LineNumber(1), ColumnNumber(0)),
                         LineColumn(LineNumber(1), ColumnNumber(4))));
@@ -211,13 +211,13 @@ const bool get_range_tests_registration = [] {
         .callback =
             [=] {
               CHECK_EQ(
-                  GetRange(snapshot(), Direction::Forwards, Structure::kLine,
+                  GetRange(snapshot(), Direction::Forwards, Structure::Line,
                            LineColumn(LineNumber(1), ColumnNumber(4))),
                   Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                         LineColumn(LineNumber(3), ColumnNumber(6))));
             }},
        {.name = L"NonEmptyBufferLineBackwards", .callback = [=] {
-          CHECK_EQ(GetRange(snapshot(), Direction::Backwards, Structure::kLine,
+          CHECK_EQ(GetRange(snapshot(), Direction::Backwards, Structure::Line,
                             LineColumn(LineNumber(1), ColumnNumber(4))),
                    Range(LineColumn(LineNumber(0), ColumnNumber(0)),
                          LineColumn(LineNumber(1), ColumnNumber(4))));
@@ -244,9 +244,9 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
   static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
   static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
   switch (input.mode) {
-    case transformation::Input::Mode::kFinal:
+    case transformation::Input::Mode::Final:
       break;
-    case transformation::Input::Mode::kPreview:
+    case transformation::Input::Mode::Preview:
       VisualOverlayMap overlays;
       if (range.value().begin() != center)
         overlays[kPriority][kKey].insert(

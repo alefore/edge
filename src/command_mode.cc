@@ -221,7 +221,7 @@ class SetStructureCommand : public Command {
     } else if (!editor_state_.sticky_structure()) {
       editor_state_.set_sticky_structure(true);
     } else {
-      editor_state_.set_structure(Structure::kChar);
+      editor_state_.set_structure(Structure::Char);
       editor_state_.set_sticky_structure(false);
     }
   }
@@ -324,7 +324,7 @@ class ActivateLink : public Command {
                   buffer.ptr()->status().Reset();
                   editor_state_.set_current_buffer(
                       target_link.value(),
-                      CommandArgumentModeApplyMode::kFinal);
+                      CommandArgumentModeApplyMode::Final);
                   std::optional<LineColumn> target_position =
                       outgoing_link.line_column;
                   if (target_position.has_value())
@@ -421,7 +421,7 @@ class HardRedrawCommand : public Command {
   EditorState& editor_state_;
 };
 
-enum class VariableLocation { kBuffer, kEditor };
+enum class VariableLocation { Buffer, Editor };
 
 void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
@@ -430,7 +430,7 @@ void ToggleVariable(EditorState& editor_state,
   vm::Identifier name = variable->name();
   LazyString command;
   switch (variable_location) {
-    case VariableLocation::kBuffer:
+    case VariableLocation::Buffer:
       command =
           LazyString{L"// Variables: Toggle buffer variable (bool): "} + name +
           LazyString{
@@ -441,7 +441,7 @@ void ToggleVariable(EditorState& editor_state,
           LazyString{L"() ? \"🗸\" : \"⛶\") + \" "} + name +
           LazyString{L"\"); }); editor.set_repetitions(1);"};
       break;
-    case VariableLocation::kEditor:
+    case VariableLocation::Editor:
       command = LazyString{L"// Variables: Toggle editor variable: "} + name +
                 LazyString{L"\neditor.set_"} + name +
                 LazyString{L"(editor.repetitions() == 0 ? false : !editor."} +
@@ -470,12 +470,12 @@ void ToggleVariable(EditorState& editor_state,
   vm::Identifier name = variable->name();
   LazyString command;
   switch (variable_location) {
-    case VariableLocation::kBuffer:
+    case VariableLocation::Buffer:
       command = LazyString{L"// Variables: Toggle buffer variable (string): "} +
                 name + LazyString{L"\neditor.SetVariablePrompt(\""} + name +
                 LazyString{L"\");"};
       break;
-    case VariableLocation::kEditor:
+    case VariableLocation::Editor:
       // TODO: Implement.
       CHECK(false) << "Not implemented.";
       break;
@@ -496,7 +496,7 @@ void ToggleVariable(EditorState& editor_state,
   vm::Identifier name = variable->name();
   LazyString command;
   switch (variable_location) {
-    case VariableLocation::kBuffer:
+    case VariableLocation::Buffer:
       command =
           LazyString{L"// Variables: Toggle buffer variable (int): "} + name +
           LazyString{
@@ -506,7 +506,7 @@ void ToggleVariable(EditorState& editor_state,
           name + LazyString{L" := \" + buffer."} + name +
           LazyString{L"().tostring()); }); editor.set_repetitions(1);\n"};
       break;
-    case VariableLocation::kEditor:
+    case VariableLocation::Editor:
       command =
           LazyString{L"// Variables: Toggle editor variable (int): "} + name +
           LazyString{L"\neditor.set_"} + name +
@@ -546,9 +546,9 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   commands.Add({L'a', L'v'}, NewSetVariableCommand(editor_state).ptr());
   commands.Add({L'a', L'c'}, NewRunCppFileCommand(editor_state).ptr());
   commands.Add({L'a', L'C'},
-               NewRunCppCommand(editor_state, CppCommandMode::kLiteral).ptr());
+               NewRunCppCommand(editor_state, CppCommandMode::Literal).ptr());
   commands.Add({L':'},
-               NewRunCppCommand(editor_state, CppCommandMode::kShell).ptr());
+               NewRunCppCommand(editor_state, CppCommandMode::Shell).ptr());
   commands.Add({L'a', L'.'}, NewOpenDirectoryCommand(editor_state).ptr());
   commands.Add({L'a', L'o'}, NewOpenFileCommand(editor_state).ptr());
   commands.Add(
@@ -604,31 +604,31 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
 
   commands.Add({L'W'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kSymbol))
+                               editor_state, Structure::Symbol))
                            .ptr());
   commands.Add({L'w'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kWord))
+                               editor_state, Structure::Word))
                            .ptr());
   commands.Add({L'E'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kPage))
+                               editor_state, Structure::Page))
                            .ptr());
   commands.Add({L'c'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kCursor))
+                               editor_state, Structure::Cursor))
                            .ptr());
   commands.Add({L'B'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kBuffer))
+                               editor_state, Structure::Buffer))
                            .ptr());
   commands.Add({L'!'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kMark))
+                               editor_state, Structure::Mark))
                            .ptr());
   commands.Add({L't'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                               editor_state, Structure::kTree))
+                               editor_state, Structure::Tree))
                            .ptr());
 
   commands.Add(
@@ -714,7 +714,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
             L"home", LazyString{L"moves to the beginning of the current line"},
             operation::TopCommand(), editor_state,
             {operation::CommandReachBegin{
-                .structure = Structure::kChar,
+                .structure = Structure::Char,
                 .repetitions = operation::CommandArgumentRepetitions(1)}})
             .ptr());
 
@@ -724,7 +724,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                  L"end", LazyString{L"moves to the end of the current line"},
                  operation::TopCommand(), editor_state,
                  {operation::CommandReachBegin{
-                     .structure = Structure::kChar,
+                     .structure = Structure::Char,
                      .repetitions = operation::CommandArgumentRepetitions(1),
                      .direction = Direction::Backwards}})
                  .ptr());
@@ -734,7 +734,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                   LazyString{L"moves to the beginning of the current file"},
                   operation::TopCommand(), editor_state,
                   {operation::CommandReachBegin{
-                      .structure = Structure::kLine,
+                      .structure = Structure::Line,
                       .repetitions = operation::CommandArgumentRepetitions(1)}})
                   .ptr());
   commands.Add(
@@ -743,7 +743,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           L"file-end", LazyString{L"moves to the end of the current file"},
           operation::TopCommand(), editor_state,
           {operation::CommandReachBegin{
-              .structure = Structure::kLine,
+              .structure = Structure::Line,
               .repetitions = operation::CommandArgumentRepetitions(1),
               .direction = Direction::Backwards}})
           .ptr());
@@ -765,7 +765,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                   LazyString{L"moves past the next token in the syntax tree"},
                   operation::TopCommand{}, editor_state,
                   {operation::CommandReach{
-                      .structure = Structure::kTree,
+                      .structure = Structure::Tree,
                       .repetitions = operation::CommandArgumentRepetitions(1)}})
                   .ptr());
 
@@ -773,15 +773,15 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   commands.Add({L'\t'}, NewFindCompletionCommand(editor_state).ptr());
 
   RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
-                       VariableLocation::kEditor, commands_root.ptr().value());
+                       VariableLocation::Editor, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, editor_variables::IntStruct(),
-                       VariableLocation::kEditor, commands_root.ptr().value());
+                       VariableLocation::Editor, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
-                       VariableLocation::kBuffer, commands_root.ptr().value());
+                       VariableLocation::Buffer, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, buffer_variables::StringStruct(),
-                       VariableLocation::kBuffer, commands_root.ptr().value());
+                       VariableLocation::Buffer, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
-                       VariableLocation::kBuffer, commands_root.ptr().value());
+                       VariableLocation::Buffer, commands_root.ptr().value());
 
   commands.Add({ControlChar::Escape},
                editor_state.gc_pool()

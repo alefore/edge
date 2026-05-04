@@ -90,7 +90,7 @@ NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
 Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
                        Direction direction) {
   return Modifiers{
-      .structure = structure.value_or(Structure::kChar),
+      .structure = structure.value_or(Structure::Char),
       .direction = repetitions < 0 ? ReverseDirection(direction) : direction,
       .repetitions = abs(repetitions)};
 }
@@ -138,8 +138,8 @@ void AppendStatus(const CommandReach& reach, LineBuilder& output) {
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
   SerializeCall(
       (reach.direction == Direction::Backwards
-           ? (reach.structure == Structure::kLine ? kHomeUp : kHomeRight)
-           : (reach.structure == Structure::kLine ? kHomeDown : kHomeLeft))
+           ? (reach.structure == Structure::Line ? kHomeUp : kHomeRight)
+           : (reach.structure == Structure::Line ? kHomeDown : kHomeLeft))
           .read(),
       {StructureToString(reach.structure).read(), reach.repetitions.ToString()},
       output);
@@ -166,10 +166,10 @@ void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
-  NonEmptySingleLine backwards = c.structure == Structure::kLine
+  NonEmptySingleLine backwards = c.structure == Structure::Line
                                      ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")
                                      : NON_EMPTY_SINGLE_LINE_CONSTANT(L"👈");
-  NonEmptySingleLine forwards = c.structure == Structure::kLine
+  NonEmptySingleLine forwards = c.structure == Structure::Line
                                     ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")
                                     : NON_EMPTY_SINGLE_LINE_CONSTANT(L"👉");
   SerializeCall(
@@ -224,9 +224,9 @@ futures::Value<UndoCallback> ExecuteTransformation(
             buffer.Read(buffer_variables::multiple_cursors)
                 ? Modifiers::CursorsAffected::kAll
                 : Modifiers::CursorsAffected::kOnlyCurrent,
-            application_type == ApplicationType::kPreview
-                ? transformation::Input::Mode::kPreview
-                : transformation::Input::Mode::kFinal);
+            application_type == ApplicationType::Preview
+                ? transformation::Input::Mode::Preview
+                : transformation::Input::Mode::Final);
       })
       .Transform([buffers_transformed](EmptyValue) {
         return UndoCallback([buffers_transformed] {
@@ -273,7 +273,7 @@ bool apply_repetitions_test = tests::Register(
               [] {
                 NonNull<std::shared_ptr<OperationScope>> operation_scope;
                 LOG(INFO) << ToString(ApplyRepetitions(
-                    CommandArgumentRepetitions(1), Structure::kLine,
+                    CommandArgumentRepetitions(1), Structure::Line,
                     NewMoveTransformation(operation_scope)));
               }},
          {.name = L"LongRepetitionsList", .callback = [] {
@@ -284,7 +284,7 @@ bool apply_repetitions_test = tests::Register(
             repetitions.sum(1);
             repetitions.sum(-1);
             LOG(INFO) << ToString(
-                ApplyRepetitions(repetitions, Structure::kLine,
+                ApplyRepetitions(repetitions, Structure::Line,
                                  NewMoveTransformation(operation_scope)));
           }}}));
 }  // namespace
@@ -308,14 +308,14 @@ transformation::ModifiersAndComposite GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachLine reach_line) {
-  return ApplyRepetitions(reach_line.repetitions, Structure::kLine,
+  return ApplyRepetitions(reach_line.repetitions, Structure::Line,
                           NewMoveTransformation(operation_scope));
 }
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachPage reach_page) {
-  return ApplyRepetitions(reach_page.repetitions, Structure::kPage,
+  return ApplyRepetitions(reach_page.repetitions, Structure::Page,
                           NewMoveTransformation(operation_scope));
 }
 
@@ -335,7 +335,7 @@ transformation::Stack GetTransformation(
     CommandReachBisect bisect) {
   transformation::Stack transformation;
   transformation.push_back(MakeNonNullUnique<transformation::Bisect>(
-      bisect.structure.value_or(Structure::kChar),
+      bisect.structure.value_or(Structure::Char),
       std::move(bisect.directions)));
   return transformation;
 }
@@ -378,7 +378,7 @@ class State {
   void Push(Command command) {
     TRACK_OPERATION(State_Push);
     commands_.push_back(command);
-    Update(ApplicationType::kPreview);
+    Update(ApplicationType::Preview);
   }
 
   void AppendStatusString(LineBuilder& output) const {
@@ -393,7 +393,7 @@ class State {
     editor_state_.set_keyboard_redirect(std::nullopt);
   }
 
-  void Update() { Update(ApplicationType::kPreview); }
+  void Update() { Update(ApplicationType::Preview); }
 
   void Commit() {
     TRACK_OPERATION(Operation_State_Commit);
@@ -542,11 +542,11 @@ std::optional<CommandArgumentRepetitions*> GetRepetitions(Command& command) {
 
 const std::unordered_map<wchar_t, Structure>& structure_bindings() {
   static const std::unordered_map<wchar_t, Structure> output = {
-      {L'z', Structure::kChar},      {L'x', Structure::kWord},
-      {L'c', Structure::kSymbol},    {L'v', Structure::kLine},
-      {L'b', Structure::kParagraph}, {L'n', Structure::kPage},
-      {L'm', Structure::kBuffer},    {L'C', Structure::kCursor},
-      {L'V', Structure::kTree}};
+      {L'z', Structure::Char},      {L'x', Structure::Word},
+      {L'c', Structure::Symbol},    {L'v', Structure::Line},
+      {L'b', Structure::Paragraph}, {L'n', Structure::Page},
+      {L'm', Structure::Buffer},    {L'C', Structure::Cursor},
+      {L'V', Structure::Tree}};
   return output;
 }
 
@@ -561,7 +561,7 @@ void CheckStructureChar(KeyCommandsMap& cmap,
     VLOG(9) << "Add key: " << entry.second;
     NonEmptySingleLine structure_name = StructureToString(entry.second);
     cmap.Insert(entry.first,
-                {.category = KeyCommandsMap::Category::kStructure,
+                {.category = KeyCommandsMap::Category::Structure,
                  .description = Description{structure_name},
                  .active = *structure == std::nullopt,
                  .handler =
@@ -572,7 +572,7 @@ void CheckStructureChar(KeyCommandsMap& cmap,
                          repetitions->sum(1);
                        }
                      }})
-        .Insert(entry.first, {.category = KeyCommandsMap::Category::kStructure,
+        .Insert(entry.first, {.category = KeyCommandsMap::Category::Structure,
                               .description = Description{structure_name},
                               .active = entry.second == *structure,
                               .handler = [repetitions](ExtendedChar) {
@@ -583,18 +583,18 @@ void CheckStructureChar(KeyCommandsMap& cmap,
 
 void CheckIncrementsChar(KeyCommandsMap& cmap,
                          CommandArgumentRepetitions* output) {
-  cmap.Insert(L'h', {.category = KeyCommandsMap::Category::kRepetitions,
+  cmap.Insert(L'h', {.category = KeyCommandsMap::Category::Repetitions,
                      .description = kMoveLeft,
                      .handler = [output](ExtendedChar) { output->sum(-1); }})
       .Insert(ControlChar::LeftArrow,
-              {.category = KeyCommandsMap::Category::kRepetitions,
+              {.category = KeyCommandsMap::Category::Repetitions,
                .description = kMoveLeft,
                .handler = [output](ExtendedChar) { output->sum(-1); }})
-      .Insert(L'l', {.category = KeyCommandsMap::Category::kRepetitions,
+      .Insert(L'l', {.category = KeyCommandsMap::Category::Repetitions,
                      .description = kMoveRight,
                      .handler = [output](ExtendedChar) { output->sum(1); }})
       .Insert(ControlChar::RightArrow,
-              {.category = KeyCommandsMap::Category::kRepetitions,
+              {.category = KeyCommandsMap::Category::Repetitions,
                .description = kMoveRight,
                .handler = [output](ExtendedChar) { output->sum(1); }});
 }
@@ -603,7 +603,7 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
   cmap.Insert(
       ControlChar::Backspace,
-      {.category = KeyCommandsMap::Category::kStringControl,
+      {.category = KeyCommandsMap::Category::StringControl,
        .description =
            Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"PopRepetitions")},
        .active = !output->empty(),
@@ -611,7 +611,7 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
   for (int i = 0; i < 10; i++)
     cmap.Insert(
         L'0' + i,
-        {.category = KeyCommandsMap::Category::kRepetitions,
+        {.category = KeyCommandsMap::Category::Repetitions,
          .description =
              Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Repetitions")},
          .handler = [output, i](ExtendedChar) { output->factor(i); }});
@@ -624,43 +624,43 @@ static const Description kBisectDown{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👇")
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
-  if (output->structure.value_or(Structure::kChar) == Structure::kChar &&
+  if (output->structure.value_or(Structure::Char) == Structure::Char &&
       !output->repetitions.empty()) {
-    cmap.Insert(L'H', {.category = KeyCommandsMap::Category::kNewCommand,
+    cmap.Insert(L'H', {.category = KeyCommandsMap::Category::NewCommand,
                        .description = kBisectLeft,
                        .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](ExtendedChar) {
                              state->Push(CommandReachBisect{
-                                 .structure = Structure::kChar,
+                                 .structure = Structure::Char,
                                  .directions = {Direction::Backwards}});
                            }})
-        .Insert(L'L', {.category = KeyCommandsMap::Category::kNewCommand,
+        .Insert(L'L', {.category = KeyCommandsMap::Category::NewCommand,
                        .description = kBisectRight,
                        .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](ExtendedChar) {
                          state->Push(CommandReachBisect{
-                             .structure = Structure::kChar,
+                             .structure = Structure::Char,
                              .directions = {Direction::Forwards}});
                        }});
   }
 
-  if (output->structure == Structure::kLine && !output->repetitions.empty()) {
-    cmap.Insert(L'K', {.category = KeyCommandsMap::Category::kNewCommand,
+  if (output->structure == Structure::Line && !output->repetitions.empty()) {
+    cmap.Insert(L'K', {.category = KeyCommandsMap::Category::NewCommand,
                        .description = kBisectUp,
                        .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](ExtendedChar) {
                              state->Push(CommandReachBisect{
-                                 .structure = Structure::kLine,
+                                 .structure = Structure::Line,
                                  .directions = {Direction::Backwards}});
                            }})
-        .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
+        .Insert(L'J', {.category = KeyCommandsMap::Category::NewCommand,
                        .description = kBisectDown,
                        .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](ExtendedChar) {
                          state->Push(CommandReachBisect{
-                             .structure = Structure::kLine,
+                             .structure = Structure::Line,
                              .directions = {Direction::Forwards}});
                        }});
   }
@@ -672,10 +672,10 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
                        State*) {
-  if (output->structure == Structure::kLine) {
+  if (output->structure == Structure::Line) {
     auto handler = [&](Description description) {
       return KeyCommandsMap::KeyCommand{
-          .category = KeyCommandsMap::Category::kRepetitions,
+          .category = KeyCommandsMap::Category::Repetitions,
           .description = description,
           .handler = [output](ExtendedChar t) {
             int delta = (t == ExtendedChar(L'j') ||
@@ -702,8 +702,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
   CheckIncrementsChar(cmap, &output->repetitions);
   CheckRepetitionsChar(cmap, &output->repetitions);
 
-  if (output->structure.value_or(Structure::kChar) == Structure::kChar ||
-      output->structure == Structure::kLine) {
+  if (output->structure.value_or(Structure::Char) == Structure::Char ||
+      output->structure == Structure::Line) {
     // Don't let CheckRepetitionsChar below handle these; we'd
     // rather preserve the usual meaning (of scrolling by a
     // character).
@@ -713,7 +713,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                        State* state) {
-  cmap.Insert(L'K', {.category = KeyCommandsMap::Category::kNewCommand,
+  cmap.Insert(L'K', {.category = KeyCommandsMap::Category::NewCommand,
                      .description =
                          Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👆")},
                      .active = !output->repetitions.empty() &&
@@ -721,39 +721,39 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                      .handler =
                          [state](ExtendedChar) {
                            state->Push(CommandReachBisect{
-                               .structure = Structure::kLine,
+                               .structure = Structure::Line,
                                .directions = {Direction::Backwards}});
                          }})
-      .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
+      .Insert(L'J', {.category = KeyCommandsMap::Category::NewCommand,
                      .description =
                          Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👇")},
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() > 0,
                      .handler = [state](ExtendedChar) {
                        state->Push(CommandReachBisect{
-                           .structure = Structure::kLine,
+                           .structure = Structure::Line,
                            .directions = {Direction::Forwards}});
                      }});
 
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(
           L'j',
-          {.category = KeyCommandsMap::Category::kRepetitions,
+          {.category = KeyCommandsMap::Category::Repetitions,
            .description = kMoveDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
       .Insert(
           ControlChar::DownArrow,
-          {.category = KeyCommandsMap::Category::kRepetitions,
+          {.category = KeyCommandsMap::Category::Repetitions,
            .description = kMoveDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
       .Insert(
           L'k',
-          {.category = KeyCommandsMap::Category::kRepetitions,
+          {.category = KeyCommandsMap::Category::Repetitions,
            .description = kMoveUp,
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }})
       .Insert(
           ControlChar::UpArrow,
-          {.category = KeyCommandsMap::Category::kRepetitions,
+          {.category = KeyCommandsMap::Category::Repetitions,
            .description = kMoveUp,
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
 }
@@ -762,12 +762,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(
           ControlChar::PageDown,
-          {.category = KeyCommandsMap::Category::kNewCommand,
+          {.category = KeyCommandsMap::Category::NewCommand,
            .description = kPageDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
       .Insert(
           ControlChar::PageUp,
-          {.category = KeyCommandsMap::Category::kNewCommand,
+          {.category = KeyCommandsMap::Category::NewCommand,
            .description = kPageUp,
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
 }
@@ -787,7 +787,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
                      });
   cmap.Insert(
       ControlChar::Backspace,
-      {.category = KeyCommandsMap::Category::kStringControl,
+      {.category = KeyCommandsMap::Category::StringControl,
        .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
        .active = !output->query.empty(),
        .handler = [output](ExtendedChar) {
@@ -800,34 +800,34 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                        State*) {
   cmap.Insert(
       ControlChar::Backspace,
-      {.category = KeyCommandsMap::Category::kStringControl,
+      {.category = KeyCommandsMap::Category::StringControl,
        .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Pop")},
        .active = !output->directions.empty(),
        .handler = [output](ExtendedChar) {
          return output->directions.pop_back();
        }});
 
-  if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
-    cmap.Insert(L'h', {.category = KeyCommandsMap::Category::kDirection,
+  if (output->structure.value_or(Structure::Char) == Structure::Char) {
+    cmap.Insert(L'h', {.category = KeyCommandsMap::Category::Direction,
                        .description = kBisectLeft,
                        .handler =
                            [output](ExtendedChar) {
                              output->directions.push_back(Direction::Backwards);
                            }})
-        .Insert(L'l', {.category = KeyCommandsMap::Category::kDirection,
+        .Insert(L'l', {.category = KeyCommandsMap::Category::Direction,
                        .description = kBisectRight,
                        .handler = [output](ExtendedChar) {
                          output->directions.push_back(Direction::Forwards);
                        }});
   }
-  if (output->structure == Structure::kLine) {
-    cmap.Insert(L'k', {.category = KeyCommandsMap::Category::kDirection,
+  if (output->structure == Structure::Line) {
+    cmap.Insert(L'k', {.category = KeyCommandsMap::Category::Direction,
                        .description = kBisectDown,
                        .handler =
                            [output](ExtendedChar) {
                              output->directions.push_back(Direction::Backwards);
                            }})
-        .Insert(L'j', {.category = KeyCommandsMap::Category::kDirection,
+        .Insert(L'j', {.category = KeyCommandsMap::Category::Direction,
                        .description = kBisectUp,
                        .handler = [output](ExtendedChar) {
                          output->directions.push_back(Direction::Forwards);
@@ -837,7 +837,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(ControlChar::Backspace,
-              {.category = KeyCommandsMap::Category::kStringControl,
+              {.category = KeyCommandsMap::Category::StringControl,
                .description =
                    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
                .active = !output->input.empty(),
@@ -893,10 +893,10 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(
           L'p',
-          {.category = KeyCommandsMap::Category::kRepetitions,
+          {.category = KeyCommandsMap::Category::Repetitions,
            .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Paste")},
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
-      .Insert(L'f', {.category = KeyCommandsMap::Category::kStringControl,
+      .Insert(L'f', {.category = KeyCommandsMap::Category::StringControl,
                      .description =
                          Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Filter")},
                      .handler = [output](ExtendedChar) {
@@ -916,7 +916,7 @@ class OperationMode : public EditorMode {
     GetGlobalKeyCommandsMap().Execute(c);
   }
 
-  CursorMode cursor_mode() const override { return CursorMode::kDefault; }
+  CursorMode cursor_mode() const override { return CursorMode::Default; }
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override {
@@ -963,12 +963,12 @@ class OperationMode : public EditorMode {
 
     cmap.PushNew()
         .Insert(L'\n',
-                {.category = KeyCommandsMap::Category::kTop,
+                {.category = KeyCommandsMap::Category::Top,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Apply")},
                  .handler = [this](ExtendedChar) { state_.Commit(); }})
         .Insert(ControlChar::Backspace,
-                {.category = KeyCommandsMap::Category::kStringControl,
+                {.category = KeyCommandsMap::Category::StringControl,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
                  .handler = [this](ExtendedChar) {
@@ -981,7 +981,7 @@ class OperationMode : public EditorMode {
          structure_bindings())
       structure_keys.Insert(
           entry.first,
-          {.category = KeyCommandsMap::Category::kStructure,
+          {.category = KeyCommandsMap::Category::Structure,
            .description = Description{StructureToString(entry.second)},
            .handler = [this, structure = entry.second](ExtendedChar) {
              int last_repetitions = 0;
@@ -1001,35 +1001,35 @@ class OperationMode : public EditorMode {
 
     structure_keys
         .Insert(L'h',
-                {.category = KeyCommandsMap::Category::kNewCommand,
+                {.category = KeyCommandsMap::Category::NewCommand,
                  .description = kMoveLeft,
                  .handler =
                      [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::kChar,
+                       state_.Push(CommandReach{.structure = Structure::Char,
                                                 .repetitions = -1});
                      }})
         .Insert(ControlChar::LeftArrow,
-                {.category = KeyCommandsMap::Category::kNewCommand,
+                {.category = KeyCommandsMap::Category::NewCommand,
                  .description = kMoveLeft,
                  .handler =
                      [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::kChar,
+                       state_.Push(CommandReach{.structure = Structure::Char,
                                                 .repetitions = -1});
                      }})
         .Insert(L'l',
-                {.category = KeyCommandsMap::Category::kNewCommand,
+                {.category = KeyCommandsMap::Category::NewCommand,
                  .description = kMoveRight,
                  .handler =
                      [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::kChar,
+                       state_.Push(CommandReach{.structure = Structure::Char,
                                                 .repetitions = 1});
                      }})
         .Insert(ControlChar::RightArrow,
-                {.category = KeyCommandsMap::Category::kNewCommand,
+                {.category = KeyCommandsMap::Category::NewCommand,
                  .description = kMoveRight,
                  .handler =
                      [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::kChar,
+                       state_.Push(CommandReach{.structure = Structure::Char,
                                                 .repetitions = 1});
                      }})
         .OnHandle([this] {
@@ -1042,7 +1042,7 @@ class OperationMode : public EditorMode {
     // Unhandled character.
     cmap.PushNew()
         .Insert(ControlChar::Escape,
-                {.category = KeyCommandsMap::Category::kStringControl,
+                {.category = KeyCommandsMap::Category::StringControl,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Cancel")},
                  .handler =
@@ -1077,13 +1077,13 @@ class OperationMode : public EditorMode {
     using PTB = transformation::Stack::PostTransformationBehavior;
     auto push = [&state = state_](Description description, Command value) {
       return KeyCommandsMap::KeyCommand{
-          .category = KeyCommandsMap::Category::kNewCommand,
+          .category = KeyCommandsMap::Category::NewCommand,
           .description = description,
           .handler = [&state, value](ExtendedChar) { state.Push(value); }};
     };
     auto PageHandler = [&](ControlChar c) {
       return KeyCommandsMap::KeyCommand{
-          .category = KeyCommandsMap::Category::kNewCommand,
+          .category = KeyCommandsMap::Category::NewCommand,
           .description = c == ControlChar::PageUp ? kPageUp : kPageDown,
           .handler = [&state = state_, c](ExtendedChar) {
             if (CommandReach* reach =
@@ -1103,7 +1103,7 @@ class OperationMode : public EditorMode {
             c == ExtendedChar(ControlChar::DownArrow) ||
             c == ExtendedChar(ControlChar::UpArrow));
       return KeyCommandsMap::KeyCommand{
-          .category = KeyCommandsMap::Category::kNewCommand,
+          .category = KeyCommandsMap::Category::NewCommand,
           .description = (c == ExtendedChar(L'j') ||
                           c == ExtendedChar(ControlChar::DownArrow))
                              ? kMoveDown
@@ -1128,7 +1128,7 @@ class OperationMode : public EditorMode {
     KeyCommandsMap cmap;
     cmap.OnHandle([this] { ShowStatus(); });
     cmap.Insert(L'd',
-                {.category = KeyCommandsMap::Category::kTop,
+                {.category = KeyCommandsMap::Category::Top,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Delete")},
                  .handler =
@@ -1151,7 +1151,7 @@ class OperationMode : public EditorMode {
         .Insert(
             L'p',
             KeyCommandsMap::KeyCommand{
-                .category = KeyCommandsMap::Category::kNewCommand,
+                .category = KeyCommandsMap::Category::NewCommand,
                 .description = kDescriptionPaste,
                 .active = editor_state_.buffer_registry()
                               .Find(PasteBuffer{})
@@ -1159,7 +1159,7 @@ class OperationMode : public EditorMode {
                 .handler = [&state = state_](
                                ExtendedChar) { state.Push(CommandPaste{}); }})
         .Insert(L'?',
-                {.category = KeyCommandsMap::Category::kTop,
+                {.category = KeyCommandsMap::Category::Top,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Help")},
                  .handler =
@@ -1168,7 +1168,7 @@ class OperationMode : public EditorMode {
                        state.set_top_command(top_command);
                      }})
         .Insert(L'~',
-                {.category = KeyCommandsMap::Category::kTop,
+                {.category = KeyCommandsMap::Category::Top,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"SwitchCase")},
                  .handler =
@@ -1185,7 +1185,7 @@ class OperationMode : public EditorMode {
                        state.set_top_command(top_command);
                      }})
         .Insert(L'$',
-                {.category = KeyCommandsMap::Category::kTop,
+                {.category = KeyCommandsMap::Category::Top,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Shell")},
                  .handler =
@@ -1207,7 +1207,7 @@ class OperationMode : public EditorMode {
                      }})
         .Insert(L'|', push(kDescriptionShell, CommandSetShell{}))
         .Insert(L'+',
-                {.category = KeyCommandsMap::Category::kTop,
+                {.category = KeyCommandsMap::Category::Top,
                  .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                      L"CursorEveryLine")},
                  .handler =
@@ -1238,9 +1238,9 @@ class OperationMode : public EditorMode {
                 push(kHomeRight,
                      CommandReachBegin{.direction = Direction::Backwards}))
         .Insert(L'K',
-                push(kHomeUp, CommandReachBegin{.structure = Structure::kLine}))
+                push(kHomeUp, CommandReachBegin{.structure = Structure::Line}))
         .Insert(L'J', push(kHomeDown, CommandReachBegin{
-                                          .structure = Structure::kLine,
+                                          .structure = Structure::Line,
                                           .direction = Direction::Backwards}));
     return cmap;
   }

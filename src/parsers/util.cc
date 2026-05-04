@@ -92,7 +92,7 @@ ParseQuotedStringState ParseQuotedString(
   if (!at_quote && multiple_lines_support == MultipleLinesSupport::kReject) {
     result->set_position(original_position);
     result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
-    return ParseQuotedStringState::kDone;
+    return ParseQuotedStringState::Done;
   }
 
   const LineColumn final_position = result->position();
@@ -149,8 +149,8 @@ ParseQuotedStringState ParseQuotedString(
 
   if (!at_quote)
     return nested_expression_columns.size() % 2 == 0
-               ? ParseQuotedStringState::kInDefaultState
-               : ParseQuotedStringState::kInNestedExpression;
+               ? ParseQuotedStringState::InDefaultState
+               : ParseQuotedStringState::InNestedExpression;
 
   CHECK_EQ(result->position().line, original_position.line);
 
@@ -161,7 +161,7 @@ ParseQuotedStringState ParseQuotedString(
   result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim}, {});
 
   // TODO: words_parser_->FindChildren(result->contents(), tree);
-  return ParseQuotedStringState::kDone;
+  return ParseQuotedStringState::Done;
 }
 
 void ParseNumber(ParseData* result, LineModifierSet number_modifiers,

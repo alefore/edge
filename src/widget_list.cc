@@ -172,7 +172,7 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
                              SingleLine{
                                  LazyString{std::to_wstring(children_skipped)}},
                     .active_state =
-                        FrameOutputProducerOptions::ActiveState::kActive})};
+                        FrameOutputProducerOptions::ActiveState::Active})};
          }});
 
   return output;

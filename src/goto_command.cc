@@ -71,7 +71,7 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
                                               const OpenBuffer& buffer,
                                               const Modifiers& modifiers,
                                               LineColumn position, int calls) {
-  if (structure == Structure::kChar) {
+  if (structure == Structure::Char) {
     const std::unordered_set<wchar_t> line_prefix_characters =
         container::MaterializeUnorderedSet(
             buffer.Read(buffer_variables::line_prefix_characters));
@@ -90,7 +90,7 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
         modifiers.repetitions.value_or(1), calls));
     CHECK_LE(position.column, line->EndColumn());
     return position;
-  } else if (structure == Structure::kSymbol) {
+  } else if (structure == Structure::Symbol) {
     position.column = modifiers.direction == Direction::Backwards
                           ? buffer.LineAt(position.line)->EndColumn()
                           : ColumnNumber();
@@ -116,14 +116,14 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
       } break;
     }
     return position;
-  } else if (structure == Structure::kLine) {
+  } else if (structure == Structure::Line) {
     size_t lines = buffer.EndLine().read();
     position.line =
         LineNumber(ComputePosition(0, lines, lines, modifiers.direction,
                                    modifiers.repetitions.value_or(1), calls));
     CHECK_LE(position.line, LineNumber(0) + buffer.contents().size());
     return position;
-  } else if (structure == Structure::kMark) {
+  } else if (structure == Structure::Mark) {
     // Navigates marks in the current buffer.
     const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& marks =
         buffer.GetLineMarks();
@@ -139,7 +139,7 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
                         modifiers.repetitions.value_or(1), calls);
     CHECK_LE(index, lines.size());
     return lines.at(index).first.first;
-  } else if (structure == Structure::kPage) {
+  } else if (structure == Structure::Page) {
     CHECK_GT(buffer.contents().size(), LineNumberDelta(0));
     std::optional<LineColumnDelta> view_size =
         buffer.display_data().view_size().Get();
@@ -179,13 +179,13 @@ class GotoCommand : public Command {
       return;
     }
     auto structure = editor_state_.structure();
-    if (structure == Structure::kChar || structure == Structure::kSymbol ||
-        structure == Structure::kLine || structure == Structure::kMark ||
-        structure == Structure::kPage || structure == Structure::kSearch ||
-        structure == Structure::kCursor) {
+    if (structure == Structure::Char || structure == Structure::Symbol ||
+        structure == Structure::Line || structure == Structure::Mark ||
+        structure == Structure::Page || structure == Structure::Search ||
+        structure == Structure::Cursor) {
       editor_state_.ApplyToActiveBuffers(
           MakeNonNullUnique<GotoTransformation>(calls_));
-    } else if (structure == Structure::kBuffer) {
+    } else if (structure == Structure::Buffer) {
       std::vector<gc::Root<OpenBuffer>> buffers =
           editor_state_.buffer_registry().buffers();
       size_t position = ComputePosition(
@@ -198,7 +198,7 @@ class GotoCommand : public Command {
           !current.has_value() ||
           &it->ptr().value() != &current->ptr().value()) {
         editor_state_.set_current_buffer(*it,
-                                         CommandArgumentModeApplyMode::kFinal);
+                                         CommandArgumentModeApplyMode::Final);
       }
     }
 

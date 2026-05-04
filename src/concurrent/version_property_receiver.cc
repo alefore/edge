@@ -22,7 +22,7 @@ language::NonNull<std::unique_ptr<VersionPropertyReceiver::Version>>
 VersionPropertyReceiver::StartNewVersion() {
   return data_->lock([this](Data& data) {
     data.version_id++;
-    data.last_version_state = VersionExecution::kRunning;
+    data.last_version_state = VersionExecution::Running;
     return MakeNonNullUnique<Version>(Version::ConstructorAccessKey{},
                                       data_.get_shared(), data.version_id);
   });
@@ -44,7 +44,7 @@ VersionPropertyReceiver::Version::~Version() {
                           return entry.second.version_id < version_id_;
                         });
           if (data.version_id == version_id_) {
-            data.last_version_state = VersionExecution::kDone;
+            data.last_version_state = VersionExecution::Done;
           }
         });
       },

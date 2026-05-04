@@ -42,12 +42,12 @@ struct ForkCommandOptions {
   // What should we do if the buffer already existed?
   enum class ExistingBufferBehavior {
     // Reuse it (initiates a reload).
-    kReuse,
+    Reuse,
     // Ignore the previous buffer. Create a new one.
-    kIgnore
+    Ignore
   };
   ExistingBufferBehavior existing_buffer_behavior =
-      ExistingBufferBehavior::kReuse;
+      ExistingBufferBehavior::Reuse;
 };
 
 language::gc::Root<Command> NewForkCommand(EditorState& editor_state);

@@ -32,8 +32,8 @@ class QuitCommand : public Command {
     LOG(INFO) << "Triggering termination with value: " << exit_value_;
     editor_state_.Terminate(
         editor_state_.modifiers().strength <= Modifiers::Strength::Normal
-            ? EditorState::TerminationType::kWhenClean
-            : EditorState::TerminationType::kIgnoringErrors,
+            ? EditorState::TerminationType::WhenClean
+            : EditorState::TerminationType::IgnoringErrors,
         exit_value_);
     VisitPointer(
         editor_state_.current_buffer(),

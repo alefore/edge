@@ -173,7 +173,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
                                        : std::make_optional(it->second));
   }
 
-  if (input.mode == transformation::Input::Mode::kFinal) return Output{};
+  if (input.mode == transformation::Input::Mode::Final) return Output{};
   VisualOverlayMap overlays;
   for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
        matches) {

@@ -44,7 +44,7 @@ class RepeatMode : public EditorMode {
     }
   }
 
-  CursorMode cursor_mode() const { return CursorMode::kDefault; }
+  CursorMode cursor_mode() const { return CursorMode::Default; }
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override {

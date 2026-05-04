@@ -38,12 +38,12 @@ struct Input {
   enum class Mode {
     // Just preview what this transformation would do. Don't apply any
     // long-lasting effects.
-    kPreview,
+    Preview,
     // Apply the transformation.
-    kFinal,
+    Final,
   };
   // Input parameter.
-  Mode mode = Mode::kFinal;
+  Mode mode = Mode::Final;
 
   Adapter& adapter;
 

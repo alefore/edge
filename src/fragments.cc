@@ -58,7 +58,7 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
               if (!editor.has_current_buffer()) {
                 // Seems lame, but what can we do?
                 editor.set_current_buffer(buffer,
-                                          CommandArgumentModeApplyMode::kFinal);
+                                          CommandArgumentModeApplyMode::Final);
               }
               return buffer->WaitForEndOfFile();
             });

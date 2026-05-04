@@ -360,7 +360,7 @@ bool Pool::Eden::IsEmpty() const {
     const NonNull<std::shared_ptr<ObjectMetadata>>& object) {
   return object->data_.lock([](ObjectMetadata::Data& data) {
     switch (data.expand_state) {
-      case ObjectMetadata::ExpandState::kDone:
+      case ObjectMetadata::ExpandState::Done:
       case ObjectMetadata::ExpandState::kScheduled:
         return true;
       case ObjectMetadata::ExpandState::kUnreached:
@@ -398,11 +398,11 @@ void Pool::Expand(const Operation& parallel_operation,
                     -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
                   CHECK(object_data.expand_callback != nullptr);
                   switch (object_data.expand_state) {
-                    case ObjectMetadata::ExpandState::kDone:
+                    case ObjectMetadata::ExpandState::Done:
                       return {};
                     case ObjectMetadata::ExpandState::kScheduled: {
                       object_data.expand_state =
-                          ObjectMetadata::ExpandState::kDone;
+                          ObjectMetadata::ExpandState::Done;
                       TRACK_OPERATION(gc_Pool_Expand_Step_call);
                       auto values = object_data.expand_callback();
                       for (auto& v : values) CHECK(v.get_shared() != nullptr);
@@ -451,7 +451,7 @@ void Pool::RemoveUnreachable(const Operation& parallel_operation,
                     local_expired_objects_callbacks.push_back(
                         std::move(object_data.expand_callback));
                     return true;
-                  case ObjectMetadata::ExpandState::kDone:
+                  case ObjectMetadata::ExpandState::Done:
                     object_data.expand_state =
                         ObjectMetadata::ExpandState::kUnreached;
                     return false;

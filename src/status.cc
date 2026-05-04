@@ -200,9 +200,9 @@ Line Status::prompt_extra_information_line() const {
     }
   }
   switch (values.last_version_state) {
-    case VersionPropertyReceiver::VersionExecution::kDone:
+    case VersionPropertyReceiver::VersionExecution::Done:
       break;
-    case VersionPropertyReceiver::VersionExecution::kRunning:
+    case VersionPropertyReceiver::VersionExecution::Running:
       options.AppendString(SingleLine::Char<L' '>() + SingleLine::Char<L'…'>(),
                            dim);
       break;

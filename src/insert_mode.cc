@@ -584,7 +584,7 @@ class InsertMode : public InputReceiver,
               return buffer
                   .ApplyToCursors(transformation::Delete{
                       .modifiers =
-                          {.structure = Structure::kLine,
+                          {.structure = Structure::Line,
                            .paste_buffer_behavior =
                                Modifiers::PasteBufferBehavior::DoNothing,
                            .boundary_begin = Modifiers::CURRENT_POSITION,
@@ -757,12 +757,12 @@ class InsertMode : public InputReceiver,
   CursorMode cursor_mode() const override {
     switch (options_.editor_state.modifiers().insertion) {
       case Modifiers::ModifyMode::Shift:
-        return CursorMode::kInserting;
+        return CursorMode::Inserting;
       case Modifiers::ModifyMode::Overwrite:
-        return CursorMode::kOverwriting;
+        return CursorMode::Overwriting;
     }
     LOG(FATAL) << "Invalid cursor mode.";
-    return CursorMode::kInserting;
+    return CursorMode::Inserting;
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
@@ -816,8 +816,8 @@ class InsertMode : public InputReceiver,
                       Line{SingleLine{LazyString{L" "}}}),
                   .final_position =
                       direction == Direction::Backwards
-                          ? transformation::Insert::FinalPosition::kStart
-                          : transformation::Insert::FinalPosition::kEnd});
+                          ? transformation::Insert::FinalPosition::Start
+                          : transformation::Insert::FinalPosition::End});
               break;
           }
 
@@ -1098,24 +1098,24 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 
 void DefaultScrollBehavior::PageUp(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = Structure::kPage, .direction = Direction::Backwards},
+      {.structure = Structure::Page, .direction = Direction::Backwards},
       NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::PageDown(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = Structure::kPage}, NewMoveTransformation()});
+      {.structure = Structure::Page}, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Up(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = Structure::kLine, .direction = Direction::Backwards},
+      {.structure = Structure::Line, .direction = Direction::Backwards},
       NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Down(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = Structure::kLine}, NewMoveTransformation()});
+      {.structure = Structure::Line}, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Left(OpenBuffer& buffer) {
@@ -1210,15 +1210,15 @@ void EnterInsertMode(InsertModeOptions options) {
           };
         }
 
-        if (shared_options->editor_state.structure() == Structure::kChar ||
-            shared_options->editor_state.structure() == Structure::kLine) {
+        if (shared_options->editor_state.structure() == Structure::Char ||
+            shared_options->editor_state.structure() == Structure::Line) {
           for (OpenBuffer& buffer :
                shared_options->buffers.value() | gc::view::Value) {
             buffer.CheckPosition();
             buffer.PushTransformationStack();
             buffer.PushTransformationStack();
           }
-          if (shared_options->editor_state.structure() == Structure::kLine)
+          if (shared_options->editor_state.structure() == Structure::Line)
             for (OpenBuffer& buffer :
                  shared_options->buffers.value() | gc::view::Value)
               buffer.ApplyToCursors(

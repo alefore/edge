@@ -47,7 +47,7 @@ void Clear(EditorState* editor_state) {
       editor_state->buffer_registry()
           .Find(BufferName(LazyString{L"anonymous buffer 0"}))
           .value(),
-      CommandArgumentModeApplyMode::kFinal);
+      CommandArgumentModeApplyMode::Final);
 
   editor_state->ProcessInput(
       VectorExtendedChar(LazyString{L"eegde999999999999999\n"}));

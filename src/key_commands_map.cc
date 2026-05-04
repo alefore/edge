@@ -29,17 +29,17 @@ using afc::language::text::MutableLineSequence;
 namespace afc::editor::operation {
 /* static */ LazyString KeyCommandsMap::ToString(Category category) {
   switch (category) {
-    case KeyCommandsMap::Category::kStringControl:
+    case KeyCommandsMap::Category::StringControl:
       return LazyString{L"String"};
-    case KeyCommandsMap::Category::kRepetitions:
+    case KeyCommandsMap::Category::Repetitions:
       return LazyString{L"Repetitions"};
-    case KeyCommandsMap::Category::kDirection:
+    case KeyCommandsMap::Category::Direction:
       return LazyString{L"Direction"};
-    case KeyCommandsMap::Category::kStructure:
+    case KeyCommandsMap::Category::Structure:
       return LazyString{L"Structure"};
-    case KeyCommandsMap::Category::kNewCommand:
+    case KeyCommandsMap::Category::NewCommand:
       return LazyString{L"Command"};
-    case KeyCommandsMap::Category::kTop:
+    case KeyCommandsMap::Category::Top:
       return LazyString{L"Top"};
   }
   LOG(FATAL) << "Invalid category.";
@@ -137,7 +137,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             KeyCommandsMap map;
             bool executed = false;
             map.Insert(
-                L'a', {.category = KeyCommandsMap::Category::kStringControl,
+                L'a', {.category = KeyCommandsMap::Category::StringControl,
                        .description =
                            Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Test")},
                        .handler = [&executed](ExtendedChar) {
@@ -154,7 +154,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             bool executed = false;
             map.Insert(
                 L'b',
-                {.category = KeyCommandsMap::Category::kStringControl,
+                {.category = KeyCommandsMap::Category::StringControl,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Test")},
                  .handler = [&executed](ExtendedChar) { executed = true; }});
@@ -195,7 +195,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             KeyCommandsMap map;
             map.Insert(
                 L'c',
-                {.category = KeyCommandsMap::Category::kDirection,
+                {.category = KeyCommandsMap::Category::Direction,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Test")},
                  .handler = [](ExtendedChar) { /* Handler code here */ }});
@@ -209,7 +209,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.OnHandle([&on_handle_executions] { on_handle_executions++; })
                 .Insert(
                     L'd',
-                    {.category = KeyCommandsMap::Category::kStructure,
+                    {.category = KeyCommandsMap::Category::Structure,
                      .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                          L"OnHandle test")},
                      .handler = [](ExtendedChar) { /* Handler code here */ }});
@@ -258,19 +258,19 @@ const bool key_commands_map_tests_registration = tests::Register(
 
             map.Insert(
                    L'0',
-                   {.category = KeyCommandsMap::Category::kStringControl,
+                   {.category = KeyCommandsMap::Category::StringControl,
                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                         L"Execute0")},
                     .handler = [&](ExtendedChar) { execution_count[0]++; }})
                 .Insert(
                     L'1',
-                    {.category = KeyCommandsMap::Category::kRepetitions,
+                    {.category = KeyCommandsMap::Category::Repetitions,
                      .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                          L"Execute1")},
                      .handler = [&](ExtendedChar) { execution_count[1]++; }})
                 .Insert(
                     L'2',
-                    {.category = KeyCommandsMap::Category::kDirection,
+                    {.category = KeyCommandsMap::Category::Direction,
                      .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                          L"Execute2")},
                      .handler = [&](ExtendedChar) { execution_count[2]++; }});
@@ -295,7 +295,7 @@ const bool key_commands_map_tests_registration = tests::Register(
         size_t executions = 0;
 
         map.Insert(L'0',
-                   {.category = KeyCommandsMap::Category::kStringControl,
+                   {.category = KeyCommandsMap::Category::StringControl,
                     .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                         L"Handler for '0'")},
                     .handler =
@@ -304,7 +304,7 @@ const bool key_commands_map_tests_registration = tests::Register(
                           executions++;
                         }})
             .Insert(L'1',
-                    {.category = KeyCommandsMap::Category::kRepetitions,
+                    {.category = KeyCommandsMap::Category::Repetitions,
                      .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                          L"Handler for '1'")},
                      .handler =
@@ -313,7 +313,7 @@ const bool key_commands_map_tests_registration = tests::Register(
                            executions++;
                          }})
             .Insert(L'2',
-                    {.category = KeyCommandsMap::Category::kDirection,
+                    {.category = KeyCommandsMap::Category::Direction,
                      .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(
                          L"Handler for '2'")},
                      .handler = [&executions](ExtendedChar c) {

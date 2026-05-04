@@ -387,7 +387,7 @@ int main(int argc, const char** argv) {
                           LOG(INFO) << "POLLHUP enabled in fd 0. "
                                        "AttemptTermination(0).";
                           editor_state().Terminate(
-                              EditorState::TerminationType::kIgnoringErrors, 0);
+                              EditorState::TerminationType::IgnoringErrors, 0);
                         } else {
                           CHECK(screen_curses != nullptr);
                           std::vector<ExtendedChar> input;

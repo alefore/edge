@@ -146,7 +146,7 @@ class EditorState {
   std::optional<int> exit_value() const { return exit_value_; }
   std::optional<language::lazy_string::LazyString> GetExitNotice() const;
 
-  enum class TerminationType { kWhenClean, kIgnoringErrors };
+  enum class TerminationType { WhenClean, IgnoringErrors };
   void Terminate(TerminationType termination_type, int exit_value);
 
   void ResetModifiers();

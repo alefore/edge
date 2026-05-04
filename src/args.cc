@@ -215,9 +215,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               [](LazyString input)
                   -> ValueOrError<CommandLineValues::ViewMode> {
                 if (input == LazyString{L"all"})
-                  return CommandLineValues::ViewMode::kAllBuffers;
+                  return CommandLineValues::ViewMode::AllBuffers;
                 if (input == LazyString{L"default"})
-                  return CommandLineValues::ViewMode::kDefault;
+                  return CommandLineValues::ViewMode::Default;
                 return Error{LazyString{L"Invalid value (valid values are "
                                         L"`all` and `default`): "} +
                              input};
@@ -240,7 +240,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"based on search paths (rather than simply attempting to open "
               L"them as relative paths to the current working directory)."})
           .Set(&CommandLineValues::initial_path_resolution_behavior,
-               CommandLineValues::LocalPathResolutionBehavior::kAdvanced),
+               CommandLineValues::LocalPathResolutionBehavior::Advanced),
 
       Handler<CommandLineValues>(
           {FlagName{L"prompt_history_read_only"}},
@@ -252,7 +252,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"If this flag is given, that functionality is disabled (but "
               L"Edge will still attempt to read prompt history files)."})
           .Set(&CommandLineValues::prompt_history_behavior,
-               CommandLineValues::HistoryFileBehavior::kReadOnly),
+               CommandLineValues::HistoryFileBehavior::ReadOnly),
 
       Handler<CommandLineValues>(
           {FlagName{L"positions_history_read_only"}},
@@ -264,7 +264,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"is disabled (but Edge may still attempt to read previous "
               L"state)."})
           .Set(&CommandLineValues::positions_history_behavior,
-               CommandLineValues::HistoryFileBehavior::kReadOnly)};
+               CommandLineValues::HistoryFileBehavior::ReadOnly)};
   return handlers;
 }
 
@@ -282,13 +282,13 @@ LazyString CommandsToRun(CommandLineValues args) {
     } else {
       LOG(INFO) << L"Will open a relative path: " << path;
       switch (args.initial_path_resolution_behavior) {
-        case CommandLineValues::LocalPathResolutionBehavior::kSimple: {
+        case CommandLineValues::LocalPathResolutionBehavior::Simple: {
           char* dir = get_current_dir_name();
           full_path = LazyString{FromByteString(dir)} + LazyString{L"/"} + path;
           free(dir);
           break;
         }
-        case CommandLineValues::LocalPathResolutionBehavior::kAdvanced:
+        case CommandLineValues::LocalPathResolutionBehavior::Advanced:
           full_path = path;
       }
     }
@@ -312,12 +312,12 @@ LazyString CommandsToRun(CommandLineValues args) {
     start_shell = false;
   }
   switch (args.view_mode) {
-    case CommandLineValues::ViewMode::kAllBuffers:
+    case CommandLineValues::ViewMode::AllBuffers:
       commands_to_run +=
           LazyString{L"editor.set_multiple_buffers(true);\n"} +
           LazyString{L"editor.SetHorizontalSplitsWithAllBuffers();\n"};
       break;
-    case CommandLineValues::ViewMode::kDefault:
+    case CommandLineValues::ViewMode::Default:
       break;
   }
   if (args.client.has_value()) {

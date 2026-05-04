@@ -19,9 +19,9 @@ namespace afc::editor {
 enum class CommandArgumentModeApplyMode {
   // We're only updating the state to preview what the result of the operation
   // would be.
-  kPreview,
+  Preview,
   // We're actually executing the command.
-  kFinal
+  Final
 };
 
 // General mode that collects characters and uses the to modify an argument of
@@ -29,7 +29,7 @@ enum class CommandArgumentModeApplyMode {
 // executed and the mode is reset.
 //
 // Every time the argument is modified, the transformation is executed, just in
-// kPreview mode.
+// Preview mode.
 template <typename Argument>
 class CommandArgumentMode : public EditorMode {
  public:
@@ -62,7 +62,7 @@ class CommandArgumentMode : public EditorMode {
     CHECK(options_.status_factory != nullptr);
     CHECK(options_.undo != nullptr);
     CHECK(options_.apply != nullptr);
-    Transform(CommandArgumentModeApplyMode::kPreview, BuildArgument());
+    Transform(CommandArgumentModeApplyMode::Preview, BuildArgument());
   }
 
   void ProcessInput(infrastructure::ExtendedChar c) override {
@@ -72,7 +72,7 @@ class CommandArgumentMode : public EditorMode {
         if (!argument_string_.empty()) {
           argument_string_.pop_back();
         }
-        return Transform(CommandArgumentModeApplyMode::kPreview,
+        return Transform(CommandArgumentModeApplyMode::Preview,
                          BuildArgument());
       }
       auto argument = BuildArgument();
@@ -82,12 +82,12 @@ class CommandArgumentMode : public EditorMode {
                                       },
                                       [](infrastructure::ControlChar) {}},
                    c);
-        return Transform(CommandArgumentModeApplyMode::kPreview, argument);
+        return Transform(CommandArgumentModeApplyMode::Preview, argument);
       }
       return (c == infrastructure::ExtendedChar(
                        infrastructure::ControlChar::Escape)
                   ? futures::Value<language::EmptyValue>(language::EmptyValue{})
-                  : Transform(CommandArgumentModeApplyMode::kFinal, argument))
+                  : Transform(CommandArgumentModeApplyMode::Final, argument))
           .Transform(
               [&editor_state = options_.editor_state, c](language::EmptyValue) {
                 editor_state.status().Reset();
@@ -101,7 +101,7 @@ class CommandArgumentMode : public EditorMode {
     });
   }
 
-  CursorMode cursor_mode() const override { return CursorMode::kDefault; }
+  CursorMode cursor_mode() const override { return CursorMode::Default; }
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override {
@@ -170,9 +170,9 @@ void SetOptionsForBufferTransformation(
           return buffer.ptr()
               ->ApplyToCursors(transformation_factory(std::move(argument)),
                                cursors_affected,
-                               mode == CommandArgumentModeApplyMode::kPreview
-                                   ? transformation::Input::Mode::kPreview
-                                   : transformation::Input::Mode::kFinal)
+                               mode == CommandArgumentModeApplyMode::Preview
+                                   ? transformation::Input::Mode::Preview
+                                   : transformation::Input::Mode::Final)
               .Transform([](auto) {
                 return futures::IterationControlCommand::Continue;
               });

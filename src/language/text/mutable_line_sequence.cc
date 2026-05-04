@@ -132,9 +132,9 @@ void MutableLineSequence::insert_line(LineNumber line_position, Line line,
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(lines_->size(), original_size + 1);
   switch (observer_behavior) {
-    case ObserverBehavior::kHide:
+    case ObserverBehavior::Hide:
       break;
-    case ObserverBehavior::kShow:
+    case ObserverBehavior::Show:
       observer_->LinesInserted(line_position, LineNumberDelta(1));
   }
 }
@@ -164,9 +164,9 @@ void MutableLineSequence::DeleteCharactersFromLine(
   });
 
   switch (observer_behavior) {
-    case ObserverBehavior::kHide:
+    case ObserverBehavior::Hide:
       break;
-    case ObserverBehavior::kShow:
+    case ObserverBehavior::Show:
       observer_->DeletedCharacters(position, amount);
   }
 }
@@ -206,9 +206,9 @@ void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
     options.Append(LineBuilder(std::move(line_to_append)));
   });
   switch (observer_behavior) {
-    case ObserverBehavior::kHide:
+    case ObserverBehavior::Hide:
       break;
-    case ObserverBehavior::kShow:
+    case ObserverBehavior::Show:
       observer_->AppendedToLine(position);
   }
 }
@@ -228,7 +228,7 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
       [](NonNull<Lines::Ptr> value) { return value; },
       [] { return Lines::PushBack(nullptr, Line()); });
 
-  if (observer_behavior == ObserverBehavior::kHide) {
+  if (observer_behavior == ObserverBehavior::Hide) {
     return;
   }
   observer_->LinesErased(first, last - first);
@@ -244,9 +244,9 @@ void MutableLineSequence::SplitLine(LineColumn position) {
   LineBuilder builder(at(position.line));
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1), std::move(builder).Build(),
-              ObserverBehavior::kHide);
+              ObserverBehavior::Hide);
   observer_->SplitLine(position);
-  DeleteToLineEnd(position, ObserverBehavior::kHide);
+  DeleteToLineEnd(position, ObserverBehavior::Hide);
 }
 
 namespace {
@@ -276,8 +276,8 @@ void MutableLineSequence::FoldNextLine(LineNumber position) {
   }
 
   ColumnNumber initial_size = at(position).EndColumn();
-  AppendToLine(position, at(next_line), ObserverBehavior::kHide);
-  EraseLines(next_line, position + LineNumberDelta(2), ObserverBehavior::kHide);
+  AppendToLine(position, at(next_line), ObserverBehavior::Hide);
+  EraseLines(next_line, position + LineNumberDelta(2), ObserverBehavior::Hide);
   observer_->FoldedLine(LineColumn(position, initial_size));
 }
 
@@ -323,9 +323,9 @@ void MutableLineSequence::push_back(Line line,
   LineNumber position = EndLine();
   lines_ = Lines::PushBack(lines_.get_shared(), line);
   switch (observer_behavior) {
-    case ObserverBehavior::kHide:
+    case ObserverBehavior::Hide:
       break;
-    case ObserverBehavior::kShow:
+    case ObserverBehavior::Show:
       observer_->LinesInserted(position + LineNumberDelta(1),
                                LineNumberDelta(1));
   }
@@ -390,7 +390,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
       [this](LineNumber a, LineNumber b) {
         a = LineNumber(a % size());
         b = LineNumber(b % size());
-        EraseLines(std::min(a, b), std::max(a, b), ObserverBehavior::kShow);
+        EraseLines(std::min(a, b), std::max(a, b), ObserverBehavior::Show);
       })));
 
   output.push_back(

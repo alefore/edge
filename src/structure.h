@@ -16,18 +16,18 @@ class OpenBuffer;
 class ParseTree;
 
 enum class Structure {
-  kChar,
-  kWord,
-  kSymbol,
-  kLine,
-  kMark,
-  kPage,
-  kSearch,
-  kTree,
-  kCursor,
-  kSentence,
-  kParagraph,
-  kBuffer,
+  Char,
+  Word,
+  Symbol,
+  Line,
+  Mark,
+  Page,
+  Search,
+  Tree,
+  Cursor,
+  Sentence,
+  Paragraph,
+  Buffer,
 };
 
 std::ostream& operator<<(std::ostream& os, const Structure& structure);

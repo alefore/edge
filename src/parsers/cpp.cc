@@ -290,12 +290,12 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                                .prefix_suffix_modifiers = {LineModifier::Dim},
                                .modifiers = {LineModifier::Green}},
         MultipleLinesSupport::kAccept, state)) {
-      case ParseQuotedStringState::kDone:
+      case ParseQuotedStringState::Done:
         return;
-      case ParseQuotedStringState::kInNestedExpression:
+      case ParseQuotedStringState::InNestedExpression:
         result->SetState(MULTIPLE_LINE_STRING_IN_NESTED_EXPRESSION);
         return;
-      case ParseQuotedStringState::kInDefaultState:
+      case ParseQuotedStringState::InDefaultState:
         result->SetState(MULTIPLE_LINE_STRING_IN_DEFAULT_STATE);
         return;
     }

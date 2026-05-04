@@ -230,7 +230,7 @@ class ExternalCompletion : public CompositeTransformation {
                              },
                          .insertion_type = BuffersList::AddBufferType::Ignore,
                          .existing_buffer_behavior = ForkCommandOptions::
-                             ExistingBufferBehavior::kIgnore})
+                             ExistingBufferBehavior::Ignore})
               ->WaitForEndOfFile();
         })
         .Transform(

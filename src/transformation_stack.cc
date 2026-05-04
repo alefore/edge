@@ -100,7 +100,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
                                         Delete original_delete_transformation) {
   LineSequence contents =
       input.adapter.contents().ViewRange(*original_delete_transformation.range);
-  if (input.mode == Input::Mode::kPreview) {
+  if (input.mode == Input::Mode::Preview) {
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers = {LineModifier::Green,
@@ -354,7 +354,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             return PreviewCppExpression(input.buffer, contents)
                 .ConsumeErrors([](Error) { return EmptyValue{}; })
                 .Transform([input, output, contents](EmptyValue) {
-                  if (input.mode == Input::Mode::kPreview &&
+                  if (input.mode == Input::Mode::Preview &&
                       input.buffer.status().text().empty()) {
                     input.buffer.status().SetInformationText(
                         LineBuilder(ToString(AnalyzeContent(
@@ -378,7 +378,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::CommandSystem: {
-            if (input.mode == Input::Mode::kPreview) {
+            if (input.mode == Input::Mode::Preview) {
               delete_transformation.preview_modifiers = {
                   LineModifier::Green, LineModifier::Underline};
               return Apply(delete_transformation,
@@ -406,7 +406,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                {L"EDGE_PARENT_BUFFER_PATH",
                                 buffer_root->Read(buffer_variables::path)}},
                           .existing_buffer_behavior = ForkCommandOptions::
-                              ExistingBufferBehavior::kIgnore});
+                              ExistingBufferBehavior::Ignore});
                   return std::move(output.value());
                 });
           }
@@ -418,7 +418,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             if (range.lines() > LineNumberDelta(1))
               transformations.push_back(
                   {.modifiers =
-                       {.structure = Structure::kLine,
+                       {.structure = Structure::Line,
                         .repetitions =
                             (range.lines() - LineNumberDelta(1)).read(),
                         .boundary_end = Modifiers::LIMIT_NEIGHBOR},
@@ -442,7 +442,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 });
           }
           case Stack::PostTransformationBehavior::CursorOnEachLine: {
-            if (input.mode == Input::Mode::kPreview) {
+            if (input.mode == Input::Mode::Preview) {
               return std::move(output.value());
             }
             struct Cursors cursors{

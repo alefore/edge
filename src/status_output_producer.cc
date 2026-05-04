@@ -146,11 +146,11 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     SingleLine structure;
-    if (options.modifiers.structure == Structure::kTree) {
+    if (options.modifiers.structure == Structure::Tree) {
       structure = SINGLE_LINE_CONSTANT(L"tree<") +
                   NonEmptySingleLine(options.buffer->tree_depth()).read() +
                   SINGLE_LINE_CONSTANT(L">");
-    } else if (options.modifiers.structure != Structure::kChar) {
+    } else if (options.modifiers.structure != Structure::Char) {
       structure = ToNonEmptySingleLine(options.modifiers.structure);
     }
     if (!structure.empty()) {
@@ -283,7 +283,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
 
   ColumnsVector context_columns_vector{.index_active = 1};
   context_columns_vector.push_back(
-      {.lines = SectionBrackets(context_lines, SectionBracketsSide::kLeft),
+      {.lines = SectionBrackets(context_lines, SectionBracketsSide::Left),
        .width = ColumnNumberDelta(1)});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);
 

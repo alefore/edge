@@ -26,24 +26,24 @@ enum class CurrentState {
 // What's the state of the parser (when `ParseQuotedString` returns)?
 enum class ParseQuotedStringState {
   // The quoted string was fully consumed (including `quote_char`).
-  kDone,
+  Done,
   // The quoted string continues in the next line, in the default state.
   // Only returned when MultipleLinesSupport::kAccept.
-  kInDefaultState,
+  InDefaultState,
   // The quoted string continues in the next line, inside a nested expression.
   // Only returned when MultipleLinesSupport::kAccept.
-  kInNestedExpression
+  InNestedExpression
 };
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const ParseQuotedStringState& state) {
   switch (state) {
-    case ParseQuotedStringState::kDone:
-      return os << "kDone";
-    case ParseQuotedStringState::kInDefaultState:
-      return os << "kInDefaultState";
-    case ParseQuotedStringState::kInNestedExpression:
-      return os << "kInNestedExpression";
+    case ParseQuotedStringState::Done:
+      return os << "Done";
+    case ParseQuotedStringState::InDefaultState:
+      return os << "InDefaultState";
+    case ParseQuotedStringState::InNestedExpression:
+      return os << "InNestedExpression";
   }
   return os;  // Should not reach here
 }

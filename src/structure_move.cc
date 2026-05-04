@@ -86,14 +86,14 @@ std::optional<LineColumn> Move(
     Structure structure, const LineSequence& contents, LineColumn position,
     Range range, const Modifiers& modifiers) {
   switch (structure) {
-    case Structure::kChar:
-    case Structure::kWord:
-    case Structure::kSymbol:
-    case Structure::kTree:
-    case Structure::kParagraph:
+    case Structure::Char:
+    case Structure::Word:
+    case Structure::Symbol:
+    case Structure::Tree:
+    case Structure::Paragraph:
       return MoveInRange(range, modifiers);
 
-    case Structure::kLine: {
+    case Structure::Line: {
       int direction = (modifiers.direction == Direction::Backwards ? -1 : 1);
       size_t repetitions = modifiers.repetitions.value_or(1);
       if (modifiers.direction == Direction::Backwards &&
@@ -111,7 +111,7 @@ std::optional<LineColumn> Move(
       return position;
     }
 
-    case Structure::kMark: {
+    case Structure::Mark: {
       switch (modifiers.direction) {
         case Direction::Forwards:
           return GetMarkPosition(buffer_information.line_marks.begin(),
@@ -127,20 +127,20 @@ std::optional<LineColumn> Move(
       return std::nullopt;
     }
 
-    case Structure::kPage:
+    case Structure::Page:
       return Move(
-          buffer_information, Structure::kLine, contents, position, range,
-          {.structure = Structure::kLine,
+          buffer_information, Structure::Line, contents, position, range,
+          {.structure = Structure::Line,
            .direction = modifiers.direction,
            .repetitions =
                ComputePageMoveLines(buffer_information.screen_lines,
                                     buffer_information.margin_lines_ratio,
                                     modifiers.repetitions)
                    .read()});
-    case Structure::kSearch:
-    case Structure::kCursor:
-    case Structure::kSentence:
-    case Structure::kBuffer:
+    case Structure::Search:
+    case Structure::Cursor:
+    case Structure::Sentence:
+    case Structure::Buffer:
       return std::nullopt;
   }
   LOG(FATAL) << "Invalid structure or case didn't return: " << structure;

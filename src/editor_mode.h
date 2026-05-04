@@ -24,7 +24,7 @@ class InputReceiver {
   virtual size_t Receive(const std::vector<infrastructure::ExtendedChar>& input,
                          size_t start_index) = 0;
 
-  enum class CursorMode { kDefault, kInserting, kOverwriting };
+  enum class CursorMode { Default, Inserting, Overwriting };
   virtual CursorMode cursor_mode() const = 0;
 
   virtual std::vector<

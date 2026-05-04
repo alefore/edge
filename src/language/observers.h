@@ -71,15 +71,15 @@ class Observers : public Observable {
   // This allow us to make Notify reentrant.
   enum class NotifyState {
     // Notify is not running. The first call should actually work.
-    kIdle,
+    Idle,
     // A call to Notify is running; once it finishes, it should return.
-    kRunning,
+    Running,
     // A call to Notify happened while Notify was running. When the thread that
-    // is delivering notifications finishes, it should switch back to kRunning
+    // is delivering notifications finishes, it should switch back to Running
     // and start delivering notifications again.
-    kRunningAndScheduled
+    RunningAndScheduled
   };
-  concurrent::Protected<NotifyState> notify_state_ = NotifyState::kIdle;
+  concurrent::Protected<NotifyState> notify_state_ = NotifyState::Idle;
 };
 
 template <typename Value>

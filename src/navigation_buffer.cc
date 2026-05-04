@@ -203,7 +203,7 @@ class NavigationBufferCommand : public Command {
           return output;
         });
     editor_state_.set_current_buffer(buffer_root,
-                                     CommandArgumentModeApplyMode::kFinal);
+                                     CommandArgumentModeApplyMode::Final);
     editor_state_.status().Reset();
     editor_state_.ResetRepetitions();
   }

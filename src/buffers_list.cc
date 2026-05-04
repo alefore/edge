@@ -438,7 +438,7 @@ const bool remove_common_prefixes_tests_registration =
            }}};
     }());
 
-enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
+enum class SelectionState { ReceivingInput, Idle, ExcludedByFilter };
 
 LineBuilder GetBufferContents(const LineSequence& contents,
                               ColumnNumberDelta columns, LineColumn position) {
@@ -477,17 +477,17 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   LineModifierSet bold = modifiers;
 
   switch (selection_state) {
-    case SelectionState::kExcludedByFilter:
+    case SelectionState::ExcludedByFilter:
       modifiers.insert(LineModifier::Dim);
       bold.insert(LineModifier::Dim);
       break;
-    case SelectionState::kReceivingInput:
+    case SelectionState::ReceivingInput:
       modifiers.insert(LineModifier::Reverse);
       modifiers.insert(LineModifier::Cyan);
       bold = dim = modifiers;
       bold.insert(LineModifier::Bold);
       break;
-    case SelectionState::kIdle:
+    case SelectionState::Idle:
       bold.insert(LineModifier::Bold);
       break;
   }
@@ -528,7 +528,7 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
            GetBufferVisibleString(
                ColumnNumberDelta(48), SINGLE_LINE_CONSTANT(L"name_irrelevant"),
                LineSequence(), LineColumn{}, LineModifierSet{},
-               SelectionState::kIdle,
+               SelectionState::Idle,
                ValueOrDie(
                    ValueOrDie(Path::New(LazyString{
                                   L"edge-clang/edge/src/args.cc/.edge_state"}))
@@ -726,15 +726,15 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             SelectionState selection_state;
             switch (filter_result) {
               case FilterResult::Excluded:
-                selection_state = SelectionState::kExcludedByFilter;
+                selection_state = SelectionState::ExcludedByFilter;
                 break;
               case FilterResult::Included:
                 selection_state =
                     options->active_buffers.find(
                         NonNull<const OpenBuffer*>::AddressOf(buffer)) !=
                             options->active_buffers.end()
-                        ? SelectionState::kReceivingInput
-                        : SelectionState::kIdle;
+                        ? SelectionState::ReceivingInput
+                        : SelectionState::Idle;
             }
             if (columns_width[j] > prefix_width) {
               LineBuilder visible_string = GetBufferVisibleString(

@@ -142,10 +142,10 @@ struct MetadataLine {
   LineModifier modifier;
   Line suffix;
   enum class Type {
-    kDefault,
-    kMark,
-    kFlags,
-    kLineContents,
+    Default,
+    Mark,
+    Flags,
+    LineContents,
   };
   Type type;
 };
@@ -425,7 +425,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     output.push_back(MetadataLine{
         info_char, info_char_modifier,
         LineBuilder{OpenBuffer::FlagsToString(target_buffer->Flags())}.Build(),
-        MetadataLine::Type::kFlags});
+        MetadataLine::Type::Flags});
 #if 0
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::Green;
@@ -451,7 +451,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       !metadata.empty())
     output.push_back(MetadataLine{L'>', LineModifier::Green,
                                   LineBuilder{metadata}.Build(),
-                                  MetadataLine::Type::kLineContents});
+                                  MetadataLine::Type::LineContents});
 
   auto call_generic_marks_logic =
       INLINE_TRACKER(BufferMetadataOutput_Prepare_GenericMarksLogic);
@@ -474,7 +474,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
             ? source->ptr()->contents().at(mark.source_line)
             : Line(Parenthesize(SINGLE_LINE_CONSTANT(L"dead mark: ") +
                                 ToSingleLine(mark.source_buffer))),
-        MetadataLine::Type::kMark});
+        MetadataLine::Type::Mark});
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
@@ -500,14 +500,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       wrapper.Append(LineBuilder(mark_contents));
       output.push_back(MetadataLine{'!', LineModifier::Red,
                                     std::move(wrapper).Build(),
-                                    MetadataLine::Type::kMark});
+                                    MetadataLine::Type::Mark});
     }
   }
 
   if (output.empty())
     output.push_back(MetadataLine{info_char, info_char_modifier,
                                   GetDefaultInformation(options, range.line()),
-                                  MetadataLine::Type::kDefault});
+                                  MetadataLine::Type::Default});
   CHECK(!output.empty());
   return output;
 }
@@ -851,7 +851,7 @@ ColumnsVector::Column BufferMetadataOutput(
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
     const std::list<MetadataLine>& v = metadata_by_line[i.read()];
     if (!v.empty() &&
-        (v.size() != 1 || v.front().type != MetadataLine::Type::kDefault)) {
+        (v.size() != 1 || v.front().type != MetadataLine::Type::Default)) {
       boxes_input.push_back(
           {.reference = i, .size = LineNumberDelta(v.size())});
       VLOG(6) << "Pushed input box: " << boxes_input.back();

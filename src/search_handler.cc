@@ -128,10 +128,10 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
 std::ostream& operator<<(std::ostream& os, const SearchResultsSummary& a) {
   os << "[search results summary: matches:" << a.matches << ", completion:";
   switch (a.search_completion) {
-    case SearchResultsSummary::SearchCompletion::kInterrupted:
+    case SearchResultsSummary::SearchCompletion::Interrupted:
       os << "interrupted";
       break;
-    case SearchResultsSummary::SearchCompletion::kFull:
+    case SearchResultsSummary::SearchCompletion::Full:
       os << "full";
       break;
   }

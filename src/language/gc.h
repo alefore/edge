@@ -180,7 +180,7 @@ class ObjectMetadata {
 
     // The object has been reached and expanded: all its outgoing references
     // have been scheduled.
-    kDone
+    Done
   };
   struct Data {
     ExpandCallback expand_callback;

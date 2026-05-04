@@ -191,7 +191,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   if (options.modifiers.text_delete_behavior ==
           Modifiers::TextDeleteBehavior::kDelete &&
-      input.mode == Input::Mode::kFinal &&
+      input.mode == Input::Mode::Final &&
       options.initiator == Delete::Initiator::User) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
     HandleLineDeletion(range, input.adapter, input.buffer);
@@ -204,7 +204,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       GetDeletedTextBuffer(input.buffer, range);
   if (options.modifiers.paste_buffer_behavior ==
           Modifiers::PasteBufferBehavior::DeleteInto &&
-      input.mode == Input::Mode::kFinal && input.delete_buffer.has_value()) {
+      input.mode == Input::Mode::Final && input.delete_buffer.has_value()) {
     VLOG(5) << "Preparing delete buffer.";
     output->added_to_paste_buffer = true;
     input.delete_buffer->ptr()->ApplyToCursors(transformation::Insert{
@@ -214,7 +214,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   if (options.modifiers.text_delete_behavior ==
           Modifiers::TextDeleteBehavior::kKeep &&
-      input.mode == Input::Mode::kFinal) {
+      input.mode == Input::Mode::Final) {
     LOG(INFO) << "Not actually deleting region.";
     output->position = range.end();
     return std::move(*output);
@@ -232,12 +232,12 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         transformation::Insert insert_options{
             .contents_to_insert = delete_buffer.ptr()->contents().snapshot(),
             .final_position = options.modifiers.direction == Direction::Forwards
-                                  ? Insert::FinalPosition::kEnd
-                                  : Insert::FinalPosition::kStart};
+                                  ? Insert::FinalPosition::End
+                                  : Insert::FinalPosition::Start};
         output->undo_stack->push_front(insert_options);
         output->undo_stack->push_front(
             transformation::SetPosition(range.begin()));
-        if (input.mode != Input::Mode::kPreview) {
+        if (input.mode != Input::Mode::Preview) {
           return std::move(*output);
         }
         LOG(INFO) << "Inserting preview at: " << range.begin();
@@ -296,9 +296,9 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           pool, PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Delete>> options, LazyString value) {
             if (value == LazyString{L"stop"}) {
-              options->line_end_behavior = Delete::LineEndBehavior::kStop;
+              options->line_end_behavior = Delete::LineEndBehavior::Stop;
             } else if (value == LazyString{L"delete"}) {
-              options->line_end_behavior = Delete::LineEndBehavior::kDelete;
+              options->line_end_behavior = Delete::LineEndBehavior::Delete;
             }
             return options;
           })

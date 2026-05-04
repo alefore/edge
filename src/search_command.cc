@@ -53,11 +53,11 @@ void MergeInto(SearchResultsSummary current_results,
   VisitValue(final_results, [&](SearchResultsSummary& output) {
     output.matches += current_results.matches;
     switch (current_results.search_completion) {
-      case SearchResultsSummary::SearchCompletion::kInterrupted:
+      case SearchResultsSummary::SearchCompletion::Interrupted:
         output.search_completion =
-            SearchResultsSummary::SearchCompletion::kInterrupted;
+            SearchResultsSummary::SearchCompletion::Interrupted;
         break;
-      case SearchResultsSummary::SearchCompletion::kFull:
+      case SearchResultsSummary::SearchCompletion::Full:
         break;
     }
   });
@@ -82,7 +82,7 @@ const bool merge_into_tests_registration =
                               CHECK_EQ(input_copy, expected_output);
                             }});
       };
-      const auto kInterrupted = S::SearchCompletion::kInterrupted;
+      const auto Interrupted = S::SearchCompletion::Interrupted;
       return std::vector(
           {test(L"BothEmpty", S{}, S{}, S{}),
            test(L"AddMatches", S{.matches = 5}, S{.matches = 7},
@@ -90,16 +90,16 @@ const bool merge_into_tests_registration =
            test(L"CanHandleErrors", S{.matches = 12}, Error{LazyString{L"Foo"}},
                 Error{LazyString{L"Foo"}}),
            test(L"CurrentInterrupted",
-                S{.matches = 5, .search_completion = kInterrupted},
+                S{.matches = 5, .search_completion = Interrupted},
                 S{.matches = 7},
-                S{.matches = 12, .search_completion = kInterrupted}),
+                S{.matches = 12, .search_completion = Interrupted}),
            test(L"FinalInterrupted", S{.matches = 3},
-                S{.matches = 5, .search_completion = kInterrupted},
-                S{.matches = 8, .search_completion = kInterrupted}),
+                S{.matches = 5, .search_completion = Interrupted},
+                S{.matches = 8, .search_completion = Interrupted}),
            test(L"BothInterrupted",
-                S{.matches = 389, .search_completion = kInterrupted},
-                S{.matches = 500, .search_completion = kInterrupted},
-                S{.matches = 889, .search_completion = kInterrupted})});
+                S{.matches = 389, .search_completion = Interrupted},
+                S{.matches = 500, .search_completion = Interrupted},
+                S{.matches = 889, .search_completion = Interrupted})});
     }());
 
 void DoSearch(OpenBuffer& buffer, SearchOptions options) {
@@ -346,10 +346,9 @@ class SearchCommand : public Command {
                                                                       max())
                                                   ? SearchResultsSummary::
                                                         SearchCompletion::
-                                                            kInterrupted
+                                                            Interrupted
                                                   : SearchResultsSummary::
-                                                        SearchCompletion::
-                                                            kFull},
+                                                        SearchCompletion::Full},
                                       results.value());
                                   return abort_value.has_value()
                                              ? Control::Stop

@@ -142,7 +142,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
         TestParseQuotedString(
             L"EmptyString", L"\"\"", L'\"', kContentModifiers,
             kContentProperties, std::nullopt, MultipleLinesSupport::kReject,
-            CurrentState::kStart, ParseQuotedStringState::kDone,
+            CurrentState::kStart, ParseQuotedStringState::Done,
             ContainerTree({OpeningQuote(),
                            NewTree(ColumnNumber{1}, SINGLE_LINE_CONSTANT(L""),
                                    {}, {}, {}),
@@ -150,7 +150,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
         TestParseQuotedString(
             L"SimpleString", L"\"hello\"", L'\"', kContentModifiers,
             kContentProperties, std::nullopt, MultipleLinesSupport::kReject,
-            CurrentState::kStart, ParseQuotedStringState::kDone,
+            CurrentState::kStart, ParseQuotedStringState::Done,
             ContainerTree(
                 {OpeningQuote(),
                  NewTree(
@@ -167,7 +167,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .prefix_suffix_modifiers = kNestedPrefixSuffixModifiers,
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kReject, CurrentState::kStart,
-            ParseQuotedStringState::kDone,
+            ParseQuotedStringState::Done,
             ContainerTree(
                 {OpeningQuote(),
                  NewTree(
@@ -197,7 +197,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .prefix_suffix_modifiers = kNestedPrefixSuffixModifiers,
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kReject, CurrentState::kStart,
-            ParseQuotedStringState::kDone,
+            ParseQuotedStringState::Done,
             ContainerTree(
                 {OpeningQuote(),
                  NewTree(ColumnNumber{1},
@@ -241,7 +241,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
             L"MultiLine_NoNested_StartsAndDoesntFinish",
             L"\"first line of string", L'\"', kContentModifiers,
             kContentProperties, std::nullopt, MultipleLinesSupport::kAccept,
-            CurrentState::kStart, ParseQuotedStringState::kInDefaultState,
+            CurrentState::kStart, ParseQuotedStringState::InDefaultState,
             ContainerTree(
                 {OpeningQuote(),
                  StringParentTree(
@@ -254,7 +254,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
             L"MultiLine_NoNested_ContinuationLine", L"second line of string",
             L'\"', kContentModifiers, kContentProperties, std::nullopt,
             MultipleLinesSupport::kAccept, CurrentState::kContinuationInDefault,
-            ParseQuotedStringState::kInDefaultState,
+            ParseQuotedStringState::InDefaultState,
             ContainerTree({StringParentContinuationTree({NewTree(
                 ColumnNumber{0}, SINGLE_LINE_CONSTANT(L"second line of string"),
                 kContentModifiers, kContentProperties, {})})})),
@@ -262,7 +262,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
             L"MultiLine_NoNested_ContinuationFinishes",
             L"third line of string\"", L'\"', kContentModifiers,
             kContentProperties, std::nullopt, MultipleLinesSupport::kAccept,
-            CurrentState::kContinuationInDefault, ParseQuotedStringState::kDone,
+            CurrentState::kContinuationInDefault, ParseQuotedStringState::Done,
             ContainerTree(
                 {NewTree(ColumnNumber{0},
                          SINGLE_LINE_CONSTANT(L"third line of string"), {}, {},
@@ -282,7 +282,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .prefix_suffix_modifiers = kNestedPrefixSuffixModifiers,
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kAccept, CurrentState::kStart,
-            ParseQuotedStringState::kInNestedExpression,
+            ParseQuotedStringState::InNestedExpression,
             ContainerTree(
                 {OpeningQuote(),
                  StringParentTree(
@@ -308,7 +308,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kAccept,
             CurrentState::kContinuationInNestedExpression,
-            ParseQuotedStringState::kInNestedExpression,
+            ParseQuotedStringState::InNestedExpression,
             ContainerTree({StringParentContinuationTree({NewTree(
                 ColumnNumber{0}, SINGLE_LINE_CONSTANT(L"more nested content"),
                 kNestedContentModifiers, {}, {})})})),
@@ -324,7 +324,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kAccept,
             CurrentState::kContinuationInNestedExpression,
-            ParseQuotedStringState::kInDefaultState,
+            ParseQuotedStringState::InDefaultState,
             ContainerTree({StringParentTree(
                 ColumnNumber{0},
                 {NewTree(ColumnNumber{0}, SINGLE_LINE_CONSTANT(L"nested_end"),
@@ -345,7 +345,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .prefix_suffix_modifiers = kNestedPrefixSuffixModifiers,
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kAccept, CurrentState::kContinuationInDefault,
-            ParseQuotedStringState::kInNestedExpression,
+            ParseQuotedStringState::InNestedExpression,
             ContainerTree({StringParentContinuationTree(
                 {NewTree(ColumnNumber{0},
                          SINGLE_LINE_CONSTANT(L"default content "),
@@ -365,7 +365,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .prefix_suffix_modifiers = kNestedPrefixSuffixModifiers,
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kAccept, CurrentState::kContinuationInDefault,
-            ParseQuotedStringState::kInDefaultState,
+            ParseQuotedStringState::InDefaultState,
             ContainerTree({StringParentContinuationTree(
                 {NewTree(ColumnNumber{0}, SINGLE_LINE_CONSTANT(L"default "),
                          kContentModifiers, kContentProperties, {}),
@@ -389,7 +389,7 @@ bool parse_quoted_string_tests = afc::tests::Register(
                 .prefix_suffix_modifiers = kNestedPrefixSuffixModifiers,
                 .modifiers = kNestedContentModifiers},
             MultipleLinesSupport::kAccept, CurrentState::kContinuationInDefault,
-            ParseQuotedStringState::kDone,
+            ParseQuotedStringState::Done,
             ContainerTree(
                 {NewTree(
                      ColumnNumber{0},

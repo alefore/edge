@@ -16,8 +16,8 @@ struct FrameOutputProducerOptions {
       language::lazy_string::ColumnNumberDelta();
   language::lazy_string::SingleLine title;
   std::optional<size_t> position_in_parent = std::nullopt;
-  enum class ActiveState { kActive, kInactive };
-  ActiveState active_state = ActiveState::kInactive;
+  enum class ActiveState { Active, Inactive };
+  ActiveState active_state = ActiveState::Inactive;
   language::lazy_string::SingleLine extra_information =
       language::lazy_string::SingleLine();
   language::lazy_string::SingleLine prefix =

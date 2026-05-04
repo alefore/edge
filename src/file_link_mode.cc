@@ -110,7 +110,7 @@ futures::Value<PossibleError> GenerateContents(
     NonNull<std::shared_ptr<struct stat>> stat_buffer,
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     OpenBuffer& target) {
-  CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
+  CHECK(target.disk_state() == OpenBuffer::DiskState::Current);
   DECLARE_OR_RETURN(Path path, Path::New(target.Read(buffer_variables::path)));
   LOG(INFO) << "GenerateContents: " << path;
   return file_system_driver->Stat(path).Transform(LockAndVisitCallback(

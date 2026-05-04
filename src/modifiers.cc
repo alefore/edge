@@ -101,7 +101,7 @@ void Modifiers::Register(language::gc::Pool& pool,
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_line"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
-                        output->structure = Structure::kLine;
+                        output->structure = Structure::Line;
                         return output;
                       })
           .ptr());
@@ -163,7 +163,7 @@ std::wstring Modifiers::Serialize() const {
     output += L".set_backwards()";
   }
   // TODO: Handle other structures.
-  if (structure == Structure::kLine) {
+  if (structure == Structure::Line) {
     output += L".set_line()";
   }
   if (repetitions.has_value()) {

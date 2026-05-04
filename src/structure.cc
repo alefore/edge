@@ -76,40 +76,40 @@ std::ostream& operator<<(std::ostream& os, const Structure& structure) {
 language::lazy_string::NonEmptySingleLine ToNonEmptySingleLine(
     const Structure& structure) {
   switch (structure) {
-    case Structure::kChar:
+    case Structure::Char:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"char")};
       break;
-    case Structure::kWord:
+    case Structure::Word:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"word")};
       break;
-    case Structure::kSymbol:
+    case Structure::Symbol:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"symbol")};
       break;
-    case Structure::kLine:
+    case Structure::Line:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"line")};
       break;
-    case Structure::kMark:
+    case Structure::Mark:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"mark")};
       break;
-    case Structure::kPage:
+    case Structure::Page:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"page")};
       break;
-    case Structure::kSearch:
+    case Structure::Search:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"search")};
       break;
-    case Structure::kTree:
+    case Structure::Tree:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"tree")};
       break;
-    case Structure::kCursor:
+    case Structure::Cursor:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"cursor")};
       break;
-    case Structure::kSentence:
+    case Structure::Sentence:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"sentence")};
       break;
-    case Structure::kParagraph:
+    case Structure::Paragraph:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"paragraph")};
       break;
-    case Structure::kBuffer:
+    case Structure::Buffer:
       return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"buffer")};
       break;
   }
@@ -119,39 +119,39 @@ language::lazy_string::NonEmptySingleLine ToNonEmptySingleLine(
 
 Structure StructureLower(Structure structure) {
   switch (structure) {
-    case Structure::kChar:
-      return Structure::kChar;
-    case Structure::kWord:
-      return Structure::kChar;
-    case Structure::kSymbol:
-      return Structure::kWord;
-    case Structure::kLine:
-      return Structure::kSymbol;
-    case Structure::kMark:
-      return Structure::kLine;
-    case Structure::kPage:
-      return Structure::kMark;
-    case Structure::kSearch:
-      return Structure::kPage;
-    case Structure::kTree:
-      return Structure::kTree;
-    case Structure::kCursor:
-      return Structure::kSearch;
-    case Structure::kSentence:
-      return Structure::kSymbol;
-    case Structure::kParagraph:
-      return Structure::kSentence;
-    case Structure::kBuffer:
-      return Structure::kCursor;
+    case Structure::Char:
+      return Structure::Char;
+    case Structure::Word:
+      return Structure::Char;
+    case Structure::Symbol:
+      return Structure::Word;
+    case Structure::Line:
+      return Structure::Symbol;
+    case Structure::Mark:
+      return Structure::Line;
+    case Structure::Page:
+      return Structure::Mark;
+    case Structure::Search:
+      return Structure::Page;
+    case Structure::Tree:
+      return Structure::Tree;
+    case Structure::Cursor:
+      return Structure::Search;
+    case Structure::Sentence:
+      return Structure::Symbol;
+    case Structure::Paragraph:
+      return Structure::Sentence;
+    case Structure::Buffer:
+      return Structure::Cursor;
   }
   LOG(FATAL) << "Invalid structure";
-  return Structure::kChar;
+  return Structure::Char;
 }
 
 StructureSpaceBehavior GetStructureSpaceBehavior(Structure structure) {
   switch (structure) {
-    case Structure::kLine:
-    case Structure::kSentence:
+    case Structure::Line:
+    case Structure::Sentence:
       return StructureSpaceBehavior::kBackwards;
     default:
       return StructureSpaceBehavior::kForwards;
@@ -160,8 +160,8 @@ StructureSpaceBehavior GetStructureSpaceBehavior(Structure structure) {
 
 StructureSearchQuery GetStructureSearchQuery(Structure structure) {
   switch (structure) {
-    case Structure::kWord:
-    case Structure::kSymbol:
+    case Structure::Word:
+    case Structure::Symbol:
       return StructureSearchQuery::Region;
     default:
       return StructureSearchQuery::Prompt;
@@ -170,11 +170,11 @@ StructureSearchQuery GetStructureSearchQuery(Structure structure) {
 
 StructureSearchRange GetStructureSearchRange(Structure structure) {
   switch (structure) {
-    case Structure::kLine:
-    case Structure::kTree:
-    case Structure::kCursor:
-    case Structure::kSentence:
-    case Structure::kParagraph:
+    case Structure::Line:
+    case Structure::Tree:
+    case Structure::Cursor:
+    case Structure::Sentence:
+    case Structure::Paragraph:
       return StructureSearchRange::Region;
     default:
       return StructureSearchRange::Buffer;
@@ -193,29 +193,29 @@ const std::unordered_set<wchar_t> kSpacesAndExclamationSigns =
 
 void SeekToNext(SeekInput input) {
   switch (input.structure) {
-    case Structure::kChar:
-    case Structure::kMark:
-    case Structure::kPage:
-    case Structure::kSearch:
-    case Structure::kCursor:
-    case Structure::kBuffer:
+    case Structure::Char:
+    case Structure::Mark:
+    case Structure::Page:
+    case Structure::Search:
+    case Structure::Cursor:
+    case Structure::Buffer:
       return;
 
-    case Structure::kWord:
+    case Structure::Word:
       Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharIsAlpha();
       return;
 
-    case Structure::kSymbol:
+    case Structure::Symbol:
       Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharIn(input.symbol_characters);
       return;
 
-    case Structure::kLine:
+    case Structure::Line:
       switch (input.direction) {
         case Direction::Forwards: {
           Seek seek(input.contents, input.position);
@@ -229,7 +229,7 @@ void SeekToNext(SeekInput input) {
       LOG(FATAL) << "Invalid direction value.";
       return;
 
-    case Structure::kTree: {
+    case Structure::Tree: {
       Range range;
       if (!FindTreeRange(input.parse_tree, *input.position, input.direction,
                          &range)) {
@@ -241,14 +241,14 @@ void SeekToNext(SeekInput input) {
     }
       return;
 
-    case Structure::kSentence:
+    case Structure::Sentence:
       Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharNotIn(spaces);
       return;
 
-    case Structure::kParagraph:
+    case Structure::Paragraph:
       Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .UntilNextLineIsNotSubsetOf(input.line_prefix_characters);
@@ -258,13 +258,13 @@ void SeekToNext(SeekInput input) {
 
 bool SeekToLimit(SeekInput input) {
   switch (input.structure) {
-    case Structure::kChar:
+    case Structure::Char:
       return StartSeekToLimit(input)
                  .WrappingLines()
                  .WithDirection(input.direction)
                  .Once() == Seek::Result::Done;
 
-    case Structure::kWord: {
+    case Structure::Word: {
       StartSeekToLimit(input);
       Seek seek(input.contents, input.position);
       seek.WithDirection(input.direction).WrappingLines();
@@ -282,7 +282,7 @@ bool SeekToLimit(SeekInput input) {
       return true;
     }
 
-    case Structure::kSymbol:
+    case Structure::Symbol:
       StartSeekToLimit(input);
       return Seek(input.contents, input.position)
                  .WithDirection(input.direction)
@@ -290,7 +290,7 @@ bool SeekToLimit(SeekInput input) {
                  .UntilCurrentCharNotIn(input.symbol_characters) ==
              Seek::Result::Done;
 
-    case Structure::kLine: {
+    case Structure::Line: {
       StartSeekToLimit(input);
       switch (input.direction) {
         case Direction::Forwards:
@@ -308,13 +308,13 @@ bool SeekToLimit(SeekInput input) {
       return false;
     }
 
-    case Structure::kMark:
-    case Structure::kPage:
-    case Structure::kSearch:
+    case Structure::Mark:
+    case Structure::Page:
+    case Structure::Search:
       StartSeekToLimit(input);
       return true;  // TODO: Implement.
 
-    case Structure::kTree: {
+    case Structure::Tree: {
       StartSeekToLimit(input);
       Range range;
       if (!FindTreeRange(input.parse_tree, *input.position, input.direction,
@@ -332,7 +332,7 @@ bool SeekToLimit(SeekInput input) {
       LOG(FATAL) << "Invalid direction value.";
     }
       return false;
-    case Structure::kCursor: {
+    case Structure::Cursor: {
       StartSeekToLimit(input);
       bool has_boundary = false;
       LineColumn boundary;
@@ -356,7 +356,7 @@ bool SeekToLimit(SeekInput input) {
     }
       return true;
 
-    case Structure::kSentence: {
+    case Structure::Sentence: {
       StartSeekToLimit(input);
       if (input.direction == Direction::Backwards) {
         Seek(input.contents, input.position)
@@ -394,14 +394,14 @@ bool SeekToLimit(SeekInput input) {
       }
     }
 
-    case Structure::kParagraph:
+    case Structure::Paragraph:
       return StartSeekToLimit(input)
                  .WithDirection(input.direction)
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(input.line_prefix_characters) ==
              Seek::Result::Done;
 
-    case Structure::kBuffer:
+    case Structure::Buffer:
       StartSeekToLimit(input);
       if (input.direction == Direction::Backwards) {
         *input.position = LineColumn();

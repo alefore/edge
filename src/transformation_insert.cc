@@ -78,7 +78,7 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
     transformation::Delete delete_options =
         GetCharactersDeleteOptions(chars_inserted);
     delete_options.line_end_behavior =
-        transformation::Delete::LineEndBehavior::kStop;
+        transformation::Delete::LineEndBehavior::Stop;
     delayed_shared_result =
         Apply(TransformationAtPosition(result->position,
                                        std::move(delete_options)),
@@ -90,8 +90,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
   }
 
   LineColumn position = options.position.value_or(
-      options.final_position == Insert::FinalPosition::kStart ? start_position
-                                                              : final_position);
+      options.final_position == Insert::FinalPosition::Start ? start_position
+                                                             : final_position);
 
   return std::move(delayed_shared_result)
       .Transform(

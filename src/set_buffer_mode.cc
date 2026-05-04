@@ -457,11 +457,11 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         editor.buffer_registry().GetListedBuffer(state.indices[state.index]);
     editor.set_current_buffer(buffer, mode);
     switch (mode) {
-      case CommandArgumentModeApplyMode::kFinal:
+      case CommandArgumentModeApplyMode::Final:
         editor.buffer_tree().set_filter(std::nullopt);
         break;
 
-      case CommandArgumentModeApplyMode::kPreview:
+      case CommandArgumentModeApplyMode::Preview:
         if (state.indices.size() !=
             editor.buffer_registry().ListedBuffersCount())
           editor.buffer_tree().set_filter(container::MaterializeVector(
@@ -486,7 +486,7 @@ std::optional<gc::Root<InputReceiver>> NewSetBufferMode(EditorState& editor) {
         editor.buffer_registry().GetListedBuffer(
             (std::max(editor.modifiers().repetitions.value(), 1ul) - 1) %
             editor.buffer_registry().ListedBuffersCount()),
-        CommandArgumentModeApplyMode::kFinal);
+        CommandArgumentModeApplyMode::Final);
     editor.ResetRepetitions();
     return std::nullopt;
   }
@@ -508,7 +508,7 @@ std::optional<gc::Root<InputReceiver>> NewSetBufferMode(EditorState& editor) {
                         [&editor](gc::Root<OpenBuffer> initial_buffer_root) {
                           editor.set_current_buffer(
                               initial_buffer_root,
-                              CommandArgumentModeApplyMode::kFinal);
+                              CommandArgumentModeApplyMode::Final);
                         },
                         [] {});
                     editor.buffer_tree().set_filter(std::nullopt);

@@ -31,12 +31,12 @@ class Description
 class KeyCommandsMap {
  public:
   enum class Category {
-    kStringControl,
-    kRepetitions,
-    kDirection,
-    kStructure,
-    kNewCommand,
-    kTop,
+    StringControl,
+    Repetitions,
+    Direction,
+    Structure,
+    NewCommand,
+    Top,
   };
 
   struct KeyCommand {

@@ -23,11 +23,11 @@ namespace afc::editor {
 
 Line FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =
-      options.active_state == FrameOutputProducerOptions::ActiveState::kInactive
+      options.active_state == FrameOutputProducerOptions::ActiveState::Inactive
           ? LineModifierSet({LineModifier::Dim})
           : LineModifierSet({LineModifier::Bold, LineModifier::Cyan});
   LineModifierSet title_modifiers =
-      options.active_state == FrameOutputProducerOptions::ActiveState::kActive
+      options.active_state == FrameOutputProducerOptions::ActiveState::Active
           ? LineModifierSet(
                 {LineModifier::Bold, LineModifier::Cyan, LineModifier::Reverse})
           : LineModifierSet();

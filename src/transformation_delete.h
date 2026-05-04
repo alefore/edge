@@ -18,17 +18,17 @@ struct Delete {
 
   Modifiers modifiers = Modifiers();
 
-  enum class LineEndBehavior { kStop, kDelete };
-  LineEndBehavior line_end_behavior = LineEndBehavior::kDelete;
+  enum class LineEndBehavior { Stop, Delete };
+  LineEndBehavior line_end_behavior = LineEndBehavior::Delete;
 
-  // When mode is kPreview, what colors should the deleted text be previewed in?
+  // When mode is Preview, what colors should the deleted text be previewed in?
   infrastructure::screen::LineModifierSet preview_modifiers = {
       infrastructure::screen::LineModifier::Red,
       infrastructure::screen::LineModifier::Underline};
 
   // If set, overrides the mode passed when the transformation is executed. This
   // is used by CompositeTransformations that want to effectively erase text
-  // even in kPreview mode.
+  // even in Preview mode.
   std::optional<Input::Mode> mode = std::nullopt;
 
   std::optional<language::text::Range> range = std::nullopt;

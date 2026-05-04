@@ -432,7 +432,7 @@ gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
 
 void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
                                      CommandArgumentModeApplyMode apply_mode) {
-  if (apply_mode == CommandArgumentModeApplyMode::kFinal) {
+  if (apply_mode == CommandArgumentModeApplyMode::Final) {
     buffer->Visit();
   }
   buffer_tree_.GetActiveLeaf().SetBuffer(buffer.ptr().ToWeakPtr());
@@ -442,7 +442,7 @@ void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
 void EditorState::SetActiveBuffer(size_t position) {
   set_current_buffer(buffer_registry_->GetListedBuffer(
                          position % buffer_registry_->ListedBuffersCount()),
-                     CommandArgumentModeApplyMode::kFinal);
+                     CommandArgumentModeApplyMode::Final);
 }
 
 void EditorState::AdvanceActiveBuffer(int delta) {
@@ -456,7 +456,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
     delta %= total;
   }
   set_current_buffer(buffer_registry_->GetListedBuffer(delta % total),
-                     CommandArgumentModeApplyMode::kFinal);
+                     CommandArgumentModeApplyMode::Final);
 }
 
 void EditorState::AdjustWidgets() {
@@ -573,7 +573,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
               LazyString{std::to_wstring(buffer_registry().buffers().size())}} +
           SingleLine{LazyString{L")"}})
           .Build());
-  if (termination_type == TerminationType::kWhenClean) {
+  if (termination_type == TerminationType::WhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     if (auto buffers_with_problems =
             buffer_registry().buffers() | gc::view::Value |
@@ -641,7 +641,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           EraseOrDie(data->pending_buffers, buffer);
 
           if (data->pending_buffers.empty()) {
-            if (data->termination_type == TerminationType::kIgnoringErrors) {
+            if (data->termination_type == TerminationType::IgnoringErrors) {
               exit_value_ = data->exit_value;
               return EmptyValue{};
             }
@@ -796,7 +796,7 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
         [this, input, start_index](gc::Root<OpenBuffer> buffer) {
           if (!has_current_buffer()) {
             buffer_registry_->AddListedBuffer(buffer);
-            set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
+            set_current_buffer(buffer, CommandArgumentModeApplyMode::Final);
             CHECK(has_current_buffer());
             CHECK(&current_buffer().value().ptr().value() ==
                   &buffer.ptr().value());

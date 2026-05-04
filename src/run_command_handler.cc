@@ -451,7 +451,7 @@ class ForkEditorCommand : public Command {
   }
 
   void ProcessInput(ExtendedChar) override {
-    if (editor_state_.structure() == Structure::kChar) {
+    if (editor_state_.structure() == Structure::Char) {
       std::optional<gc::Root<OpenBuffer>> original_buffer =
           editor_state_.current_buffer();
       // TODO(easy, 2022-05-16): Why is this safe?
@@ -501,7 +501,7 @@ class ForkEditorCommand : public Command {
               },
           .predictor =
               TokenPredictor(GetFilePredictor(FilePredictorOptions{}))});
-    } else if (editor_state_.structure() == Structure::kLine) {
+    } else if (editor_state_.structure() == Structure::Line) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
       if (!buffer.has_value()) {
@@ -674,7 +674,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
   BufferName name = options.name.value_or(CommandBufferName{options.command});
   if (options.existing_buffer_behavior ==
-      ForkCommandOptions::ExistingBufferBehavior::kReuse) {
+      ForkCommandOptions::ExistingBufferBehavior::Reuse) {
     if (std::optional<gc::Root<OpenBuffer>> buffer =
             editor_state.buffer_registry().Find(name);
         buffer.has_value()) {

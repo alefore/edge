@@ -19,7 +19,7 @@
 namespace afc::editor {
 class EditorState;
 namespace operation {
-enum class ApplicationType { kPreview, kCommit };
+enum class ApplicationType { Preview, kCommit };
 
 struct TopCommand {
   transformation::Stack::PostTransformationBehavior

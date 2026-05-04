@@ -249,13 +249,13 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   void AppendRawLine(
       language::lazy_string::SingleLine line,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
-          language::text::MutableLineSequence::ObserverBehavior::kShow);
+          language::text::MutableLineSequence::ObserverBehavior::Show);
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(
       language::text::Line line,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
-          language::text::MutableLineSequence::ObserverBehavior::kShow);
+          language::text::MutableLineSequence::ObserverBehavior::Show);
 
   void AppendToLastLine(language::lazy_string::SingleLine str);
   void AppendToLastLine(language::text::Line line);
@@ -268,7 +268,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   void AppendLines(
       std::vector<language::text::Line> lines,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
-          language::text::MutableLineSequence::ObserverBehavior::kShow);
+          language::text::MutableLineSequence::ObserverBehavior::Show);
 
   void DeleteRange(const language::text::Range& range);
 
@@ -330,9 +330,9 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   enum class DiskState {
     // The file (in disk) reflects our last changes.
-    kCurrent,
+    Current,
     // The file (in disk) doesn't reflect the last changes applied by the user.
-    kStale
+    Stale
   };
   void SetDiskState(DiskState disk_state) { disk_state_ = disk_state; }
   DiskState disk_state() const { return disk_state_; }
@@ -613,15 +613,15 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   enum class ReloadState {
     // No need to reload this buffer.
-    kDone,
+    Done,
     // A reload is currently ongoing. If it finishes in this state, we switch to
-    // kDone.
-    kOngoing,
+    // Done.
+    Ongoing,
     // A reload is underway, but a new reload was requested. Once it's done, it
     // should switch to kUnderway and restart.
-    kPending,
+    Pending,
   };
-  ReloadState reload_state_ = ReloadState::kDone;
+  ReloadState reload_state_ = ReloadState::Done;
 
   std::optional<infrastructure::ProcessId> child_pid_ = std::nullopt;
   std::optional<int> child_exit_status_;
@@ -637,8 +637,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   language::text::MutableLineSequence contents_;
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
-  DiskState disk_state_ = DiskState::kCurrent;
-  DiskState backup_state_ = DiskState::kCurrent;
+  DiskState disk_state_ = DiskState::Current;
+  DiskState backup_state_ = DiskState::Current;
   bool reading_from_parser_ = false;
 
   BufferVariablesInstance variables_;

@@ -34,9 +34,9 @@ LineWithCursor::Generator::Vector SectionBrackets(
                 .line = LineBuilder{SingleLine{LazyString{c}}}.Build()};
           }});
   };
-  push(section_brackets_side == SectionBracketsSide::kLeft ? L"╭" : L"╮");
+  push(section_brackets_side == SectionBracketsSide::Left ? L"╭" : L"╮");
   for (LineNumberDelta i(1); i + LineNumberDelta(1) < lines; ++i) push(L"│");
-  push(section_brackets_side == SectionBracketsSide::kLeft ? L"╰" : L"╯");
+  push(section_brackets_side == SectionBracketsSide::Left ? L"╰" : L"╯");
   push(L"");
   return output;
 }
@@ -49,7 +49,7 @@ const bool tests_registration = tests::Register(
          .callback =
              [] {
                CHECK_EQ(SectionBrackets(LineNumberDelta(0),
-                                        SectionBracketsSide::kLeft)
+                                        SectionBracketsSide::Left)
                             .size(),
                         LineNumberDelta(0));
              }},
@@ -57,15 +57,15 @@ const bool tests_registration = tests::Register(
          .callback =
              [] {
                CHECK_EQ(SectionBrackets(LineNumberDelta(1),
-                                        SectionBracketsSide::kLeft)
+                                        SectionBracketsSide::Left)
                             .size(),
                         LineNumberDelta(1));
                CHECK_EQ(SectionBrackets(LineNumberDelta(2),
-                                        SectionBracketsSide::kLeft)
+                                        SectionBracketsSide::Left)
                             .size(),
                         LineNumberDelta(2));
                CHECK_EQ(SectionBrackets(LineNumberDelta(3),
-                                        SectionBracketsSide::kLeft)
+                                        SectionBracketsSide::Left)
                             .size(),
                         LineNumberDelta(3));
              }},
@@ -73,7 +73,7 @@ const bool tests_registration = tests::Register(
          .callback =
              [] {
                auto output = SectionBrackets(LineNumberDelta(10),
-                                             SectionBracketsSide::kLeft);
+                                             SectionBracketsSide::Left);
                CHECK_EQ(output.size(), LineNumberDelta(10));
                CHECK_EQ(output.width, ColumnNumberDelta(1));
              }},

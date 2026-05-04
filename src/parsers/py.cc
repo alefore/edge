@@ -189,7 +189,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
                     .prefix_suffix_modifiers = {LineModifier::Dim},
                     .modifiers = {LineModifier::Green}},
                 MultipleLinesSupport::kReject,
-                CurrentState::kStart) == ParseQuotedStringState::kDone);
+                CurrentState::kStart) == ParseQuotedStringState::Done);
       return;
     }
 

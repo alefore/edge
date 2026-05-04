@@ -142,13 +142,13 @@ class FlashcardReviewLog {
 
   gc::Ptr<OpenBuffer> buffer() { return review_buffer_; }
 
-  enum class Score { kFail, kHard, kGood, kEasy };
+  enum class Score { Fail, Hard, Good, Easy };
   ValueOrError<EmptyValue> SetScore(Score score) {
     static const std::unordered_map<Score, NonEmptySingleLine> score_strs = {
-        {Score::kFail, NON_EMPTY_SINGLE_LINE_CONSTANT(L"fail")},
-        {Score::kHard, NON_EMPTY_SINGLE_LINE_CONSTANT(L"hard")},
-        {Score::kGood, NON_EMPTY_SINGLE_LINE_CONSTANT(L"good")},
-        {Score::kEasy, NON_EMPTY_SINGLE_LINE_CONSTANT(L"easy")}};
+        {Score::Fail, NON_EMPTY_SINGLE_LINE_CONSTANT(L"fail")},
+        {Score::Hard, NON_EMPTY_SINGLE_LINE_CONSTANT(L"hard")},
+        {Score::Good, NON_EMPTY_SINGLE_LINE_CONSTANT(L"good")},
+        {Score::Easy, NON_EMPTY_SINGLE_LINE_CONSTANT(L"easy")}};
     CHECK(score_strs.contains(score));
     static const auto kSeparator = NON_EMPTY_SINGLE_LINE_CONSTANT(L" ");
     ASSIGN_OR_RETURN(NonEmptySingleLine date, HumanReadableDate(Now()));
@@ -292,9 +292,9 @@ class Flashcard {
                       return input.ptr();
                     })),
         card_front_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
-                                           CardType::kFront)),
+                                           CardType::Front)),
         card_back_buffer_(std::bind_front(&Flashcard::PrepareCardBuffer, this,
-                                          CardType::kBack)) {}
+                                          CardType::Back)) {}
 
   Flashcard(const Flashcard&) = delete;
   Flashcard(Flashcard&&) = delete;
@@ -322,16 +322,15 @@ class Flashcard {
   }
 
  private:
-  enum class CardType { kFront, kBack };
+  enum class CardType { Front, Back };
   futures::ListenableValue<gc::Ptr<OpenBuffer>> PrepareCardBuffer(
       CardType card_type) {
     LOG(INFO) << "Starting computation of card: "
-              << (card_type == CardType::kFront ? "front" : "back");
+              << (card_type == CardType::Front ? "front" : "back");
     static const SingleLine kPadding = SINGLE_LINE_CONSTANT(L"  ");
     LineSequence card_contents = PrepareCardContents(
         buffer_->contents().snapshot(), answer_,
-        card_type == CardType::kFront ? (kPadding + hint_ + kPadding)
-                                      : answer_);
+        card_type == CardType::Front ? (kPadding + hint_ + kPadding) : answer_);
     return futures::ListenableValue(
         OpenAnonymousBuffer(buffer_->editor())
             .Transform([card_type, card_contents,
@@ -350,7 +349,7 @@ class Flashcard {
                   [&](gc::Root<Flashcard> root_this) {
                     Visit(
                         output_buffer->execution_context()->FunctionCall(
-                            card_type == CardType::kFront
+                            card_type == CardType::Front
                                 ? IDENTIFIER_CONSTANT(
                                       L"ConfigureFrontCardBuffer")
                                 : IDENTIFIER_CONSTANT(
@@ -490,10 +489,10 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
             static const std::unordered_map<LazyString,
                                             FlashcardReviewLog::Score>
                 scores = {
-                    {LazyString{L"fail"}, FlashcardReviewLog::Score::kFail},
-                    {LazyString{L"hard"}, FlashcardReviewLog::Score::kHard},
-                    {LazyString{L"good"}, FlashcardReviewLog::Score::kGood},
-                    {LazyString{L"easy"}, FlashcardReviewLog::Score::kEasy}};
+                    {LazyString{L"fail"}, FlashcardReviewLog::Score::Fail},
+                    {LazyString{L"hard"}, FlashcardReviewLog::Score::Hard},
+                    {LazyString{L"good"}, FlashcardReviewLog::Score::Good},
+                    {LazyString{L"easy"}, FlashcardReviewLog::Score::Easy}};
             return VisitOptional(
                 [flashcard](FlashcardReviewLog::Score score)
                     -> futures::Value<PossibleError> {

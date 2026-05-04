@@ -89,11 +89,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       const std::function<void(const language::text::Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 
-  enum class ObserverBehavior { kShow, kHide };
+  enum class ObserverBehavior { Show, Hide };
 
   void insert_line(
       language::text::LineNumber line_position, value_type line,
-      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+      ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
@@ -139,11 +139,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void DeleteCharactersFromLine(
       language::text::LineColumn position,
       language::lazy_string::ColumnNumberDelta amount,
-      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+      ObserverBehavior observer_behavior = ObserverBehavior::Show);
   // Delete characters from position.line in range [position.column, ...).
   void DeleteToLineEnd(
       language::text::LineColumn position,
-      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+      ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   // Sets the character and modifiers in a given position.
   //
@@ -158,11 +158,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void InsertCharacter(language::text::LineColumn position);
   void AppendToLine(
       language::text::LineNumber line, language::text::Line line_to_append,
-      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+      ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last,
-                  ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+                  ObserverBehavior observer_behavior = ObserverBehavior::Show);
   bool MaybeEraseEmptyFirstLine();
 
   void SplitLine(language::text::LineColumn position);
@@ -175,11 +175,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   void push_back(std::wstring str);
   void push_back(value_type line,
-                 ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+                 ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   template <std::ranges::range R>
   void append_back(
-      R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::kShow) {
+      R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::Show) {
     Lines::Ptr subtree = std::invoke([&lines] {
       TRACK_OPERATION(MutableLineSequence_append_back_subtree);
       return Lines::FromRange(lines.begin(), lines.end());
@@ -190,9 +190,9 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     LineNumber position = EndLine();
     lines_ = Lines::Append(lines_, subtree);
     switch (observer_behavior) {
-      case ObserverBehavior::kHide:
+      case ObserverBehavior::Hide:
         break;
-      case ObserverBehavior::kShow:
+      case ObserverBehavior::Show:
         observer_->LinesInserted(position, LineNumberDelta(lines.size()));
     }
   }

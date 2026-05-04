@@ -27,13 +27,13 @@ struct Insert {
 
   enum class FinalPosition {
     // Leaves the buffer position at the start of the inserted text.
-    kStart,
+    Start,
 
     // Leaves the buffer position at the end of the inserted text.
-    kEnd,
+    End,
   };
   // Ignored if `position` is set.
-  FinalPosition final_position = FinalPosition::kEnd;
+  FinalPosition final_position = FinalPosition::End;
 
   std::optional<infrastructure::screen::LineModifierSet> modifiers_set =
       std::nullopt;

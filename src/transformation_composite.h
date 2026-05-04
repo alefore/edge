@@ -38,7 +38,7 @@ class CompositeTransformation {
     language::text::Range range = language::text::Range();
     const OpenBuffer& buffer;
     Modifiers modifiers = Modifiers();
-    transformation::Input::Mode mode = transformation::Input::Mode::kFinal;
+    transformation::Input::Mode mode = transformation::Input::Mode::Final;
   };
 
   class Output {

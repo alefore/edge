@@ -64,11 +64,11 @@ struct SearchResultsSummary {
   size_t matches = 0;
   enum class SearchCompletion {
     // The search was interrupted. It's possible that there are more matches.
-    kInterrupted,
+    Interrupted,
     // The search consumed the entire input.
-    kFull,
+    Full,
   };
-  SearchCompletion search_completion = SearchCompletion::kFull;
+  SearchCompletion search_completion = SearchCompletion::Full;
 };
 
 std::ostream& operator<<(std::ostream& os, const SearchResultsSummary& a);

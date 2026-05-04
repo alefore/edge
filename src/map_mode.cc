@@ -205,9 +205,7 @@ void MapMode::ProcessInput(ExtendedChar c) {
   if (reset_input) current_input_.clear();
 }
 
-MapMode::CursorMode MapMode::cursor_mode() const {
-  return CursorMode::kDefault;
-}
+MapMode::CursorMode MapMode::cursor_mode() const { return CursorMode::Default; }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> MapMode::Expand()
     const {

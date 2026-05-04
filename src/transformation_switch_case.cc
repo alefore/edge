@@ -58,16 +58,16 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
                         contents_to_insert.snapshot().CountCharacters(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::DoNothing},
-      .mode = transformation::Input::Mode::kFinal,
+      .mode = transformation::Input::Mode::Final,
       .initiator = transformation::Delete::Initiator::Internal});
 
   output.Push(transformation::Insert{
       .contents_to_insert = contents_to_insert.snapshot(),
       .final_position = input.modifiers.direction == Direction::Backwards
-                            ? transformation::Insert::FinalPosition::kStart
-                            : transformation::Insert::FinalPosition::kEnd,
+                            ? transformation::Insert::FinalPosition::Start
+                            : transformation::Insert::FinalPosition::End,
       .modifiers_set =
-          input.mode == transformation::Input::Mode::kPreview
+          input.mode == transformation::Input::Mode::Preview
               ? LineModifierSet({LineModifier::Underline, LineModifier::Blue})
               : std::optional<LineModifierSet>()});
 

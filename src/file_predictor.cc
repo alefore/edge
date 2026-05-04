@@ -440,7 +440,7 @@ futures::Value<LineSequence> GetSearchPathsBuffer(EditorState& editor_state,
                      buffer->Set(buffer_variables::show_in_buffers_list, false);
                      if (!editor_state.has_current_buffer()) {
                        editor_state.set_current_buffer(
-                           buffer, CommandArgumentModeApplyMode::kFinal);
+                           buffer, CommandArgumentModeApplyMode::Final);
                      }
                      return buffer;
                    });

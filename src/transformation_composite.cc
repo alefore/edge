@@ -156,7 +156,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
       vm::NewCallback(
           pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
-            return input->mode == transformation::Input::Mode::kFinal;
+            return input->mode == transformation::Input::Mode::Final;
           })
           .ptr());
   environment.DefineType(input_type.ptr());

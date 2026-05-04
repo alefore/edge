@@ -244,7 +244,7 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
 
   // We need to trigger the call to `handle_save` in order to unlink the file
   // in `address`.
-  buffer.SetDiskState(OpenBuffer::DiskState::kStale);
+  buffer.SetDiskState(OpenBuffer::DiskState::Stale);
 
   buffer.Set(buffer_variables::allow_dirty_delete, true);
   buffer.Set(buffer_variables::clear_on_reload, false);

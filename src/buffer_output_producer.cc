@@ -286,15 +286,15 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                   case Widget::OutputProducerOptions::MainCursorDisplay::
                       kActive:
                     switch (cursor_mode) {
-                      case EditorMode::CursorMode::kDefault:
+                      case EditorMode::CursorMode::Default:
                         options.modifiers_main_cursor = {
                             multiple_cursors ? LineModifier::Green
                                              : LineModifier::White};
                         break;
-                      case EditorMode::CursorMode::kInserting:
+                      case EditorMode::CursorMode::Inserting:
                         options.modifiers_main_cursor = {LineModifier::Yellow};
                         break;
-                      case EditorMode::CursorMode::kOverwriting:
+                      case EditorMode::CursorMode::Overwriting:
                         options.modifiers_main_cursor = {
                             LineModifier::Red, LineModifier::Underline};
                         break;

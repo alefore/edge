@@ -75,7 +75,7 @@ class MoveTransformation : public CompositeTransformation {
             << input.modifiers;
     // TODO: Finish moving to Structure.
     Structure structure = input.modifiers.structure;
-    if (structure == Structure::kCursor) {
+    if (structure == Structure::Cursor) {
       return Output(
           transformation::SwapActiveCursor{.modifiers = input.modifiers});
     }

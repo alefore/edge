@@ -5,7 +5,7 @@
 #include "src/line_with_cursor.h"
 
 namespace afc::editor {
-enum class SectionBracketsSide { kLeft, kRight };
+enum class SectionBracketsSide { Left, Right };
 LineWithCursor::Generator::Vector SectionBrackets(
     language::text::LineNumberDelta lines,
     SectionBracketsSide section_brackets_side);

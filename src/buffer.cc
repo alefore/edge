@@ -324,11 +324,11 @@ class OpenBufferMutableLineSequenceObserver
                                  .ptr())});
     if (update_disk_state) {
       if (HasValue(root_this->ptr()->options_.get_save_callback())) {
-        root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
+        root_this->ptr()->SetDiskState(OpenBuffer::DiskState::Stale);
         if (root_this->ptr()->Read(buffer_variables::persist_state)) {
           switch (root_this->ptr()->backup_state_) {
-            case OpenBuffer::DiskState::kCurrent: {
-              root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
+            case OpenBuffer::DiskState::Current: {
+              root_this->ptr()->backup_state_ = OpenBuffer::DiskState::Stale;
               auto flush_backup_time = Now();
               flush_backup_time.tv_sec += 30;
               root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
@@ -345,7 +345,7 @@ class OpenBufferMutableLineSequenceObserver
                           .ptr())});
             } break;
 
-            case OpenBuffer::DiskState::kStale:
+            case OpenBuffer::DiskState::Stale:
               break;  // Nothing.
           }
         }
@@ -562,7 +562,7 @@ void OpenBuffer::Close(CloseAccessTag) {
 
 futures::Value<gc::Root<OpenBuffer>> OpenBuffer::WaitForEndOfFile() {
   if (fd_ == nullptr && fd_error_ == nullptr &&
-      reload_state_ == ReloadState::kDone)
+      reload_state_ == ReloadState::Done)
     return RootFromThis();
   return end_of_file_observers_.NewFuture().Transform(
       [root_weak = WeakPtrFromThis()](
@@ -661,7 +661,7 @@ void OpenBuffer::ClearContents() {
   options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
                                                      name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
-                       MutableLineSequence::ObserverBehavior::kHide);
+                       MutableLineSequence::ObserverBehavior::Hide);
   file_adapter_->SetPositionToZero();
   undo_state_.Clear();
 }
@@ -1038,13 +1038,13 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
   }
 
   switch (reload_state_) {
-    case ReloadState::kDone:
-      reload_state_ = ReloadState::kOngoing;
+    case ReloadState::Done:
+      reload_state_ = ReloadState::Ongoing;
       break;
-    case ReloadState::kOngoing:
-      reload_state_ = ReloadState::kPending;
+    case ReloadState::Ongoing:
+      reload_state_ = ReloadState::Pending;
       return Error{LazyString{L"Reload is already in progress."}};
-    case ReloadState::kPending:
+    case ReloadState::Pending:
       return Error{
           LazyString{L"Reload is already in progress and new one scheduled."}};
   }
@@ -1076,7 +1076,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             LOG(INFO) << root_this->name() << ": Reload: generating contents.";
             if (root_this->Read(buffer_variables::clear_on_reload)) {
               root_this->ClearContents();
-              root_this->SetDiskState(DiskState::kCurrent);
+              root_this->SetDiskState(DiskState::Current);
             }
             if (root_this->options_.generate_contents != nullptr)
               return futures::IgnoreErrors(
@@ -1103,15 +1103,15 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             root_this->log_ = std::move(log);
             LOG(INFO) << root_this->name() << ": Reload: Finalizing reload.";
             switch (root_this->reload_state_) {
-              case ReloadState::kDone:
+              case ReloadState::Done:
                 LOG(FATAL) << root_this->name()
-                           << ":Invalid reload state! Can't be kDone.";
+                           << ":Invalid reload state! Can't be Done.";
                 break;
-              case ReloadState::kOngoing:
-                root_this->reload_state_ = ReloadState::kDone;
+              case ReloadState::Ongoing:
+                root_this->reload_state_ = ReloadState::Done;
                 break;
-              case ReloadState::kPending:
-                root_this->reload_state_ = ReloadState::kDone;
+              case ReloadState::Pending:
+                root_this->reload_state_ = ReloadState::Done;
                 root_this->SignalEndOfFile();
                 LOG(INFO) << root_this->name()
                           << ": Reload: Restarting operation.";
@@ -1141,7 +1141,7 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
         [&editor = editor(), contents_snapshot, root_buffer = RootFromThis()](
             EmptyValue) -> futures::Value<PossibleError> {
           if (contents_snapshot == root_buffer->contents().snapshot())
-            root_buffer->SetDiskState(OpenBuffer::DiskState::kCurrent);
+            root_buffer->SetDiskState(OpenBuffer::DiskState::Current);
           if (root_buffer->Read(
                   buffer_variables::trigger_reload_on_buffer_write)) {
             std::ranges::for_each(
@@ -1183,8 +1183,8 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               Parenthesize(dirty() ? LazyString{L"dirty"}
                                    : LazyString{L"clean"}) +
               LazyString{L" "} +
-              (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
-                                                : LazyString{L"not modified"}),
+              (disk_state_ == DiskState::Stale ? LazyString{L"modified"}
+                                               : LazyString{L"not modified"}),
           AbsolutePath::New(Read(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::Absolute) {
@@ -1241,7 +1241,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
 Log& OpenBuffer::log() const { return log_.value(); }
 
 void OpenBuffer::UpdateBackup() {
-  CHECK(backup_state_ == DiskState::kStale);
+  CHECK(backup_state_ == DiskState::Stale);
   log_->Append(LazyString{L"UpdateBackup starts."});
   CHECK(options_.get_save_callback != nullptr);
   VisitValue(
@@ -1249,7 +1249,7 @@ void OpenBuffer::UpdateBackup() {
         save_callback(Options::SaveOptions{
             .buffer = RootFromThis(), .save_type = Options::SaveType::kBackup});
       });
-  backup_state_ = DiskState::kCurrent;
+  backup_state_ = DiskState::Current;
 }
 
 BufferDisplayData& OpenBuffer::display_data() { return display_data_.value(); }
@@ -1366,10 +1366,10 @@ void OpenBuffer::AppendToLastLine(Line line) {
   LineBuilder options(contents_.back());
   options.Append(LineBuilder(std::move(line)));
   AppendRawLine(std::move(options).Build(),
-                MutableLineSequence::ObserverBehavior::kHide);
+                MutableLineSequence::ObserverBehavior::Hide);
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),
-                       MutableLineSequence::ObserverBehavior::kHide);
+                       MutableLineSequence::ObserverBehavior::Hide);
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
@@ -1613,13 +1613,13 @@ SeekInput OpenBuffer::NewSeekInput(Structure structure, Direction direction,
 }
 
 void OpenBuffer::CreateCursor() {
-  if (options_.editor.modifiers().structure == Structure::kChar) {
+  if (options_.editor.modifiers().structure == Structure::Char) {
     CHECK_LE(position().line, LineNumber(0) + contents_.size());
     active_cursors().insert(position());
   } else {
     auto structure = options_.editor.modifiers().structure;
     Modifiers tmp_modifiers = options_.editor.modifiers();
-    tmp_modifiers.structure = Structure::kCursor;
+    tmp_modifiers.structure = Structure::Cursor;
     Range range = FindPartialRange(tmp_modifiers, position());
     if (range.empty()) return;
     options_.editor.set_direction(Direction::Forwards);
@@ -1713,7 +1713,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   }
 
   if (modifiers.direction == Direction::Backwards &&
-      modifiers.structure != Structure::kTree) {
+      modifiers.structure != Structure::Tree) {
     // TODO: Handle this in structure.
     Seek(contents_.snapshot(), &position).Backwards().WrappingLines().Once();
   }
@@ -1971,7 +1971,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
               tracker_erase_call = nullptr;
 
               buffer->AppendLines(std::move(lines_to_insert),
-                                  MutableLineSequence::ObserverBehavior::kHide);
+                                  MutableLineSequence::ObserverBehavior::Hide);
             },
             [](const auto&) {}, WeakPtrFromThis())});
   });
@@ -2320,7 +2320,7 @@ OpenBuffer::FreezeDiskState() {
 }
 
 bool OpenBuffer::dirty() const {
-  return (disk_state_ == DiskState::kStale &&
+  return (disk_state_ == DiskState::Stale &&
           (!Read(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
@@ -2342,7 +2342,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
     output.insert({BufferFlagKey{SingleLine::Char<L'↷'>()},
                    BufferFlagValue{NonEmptySingleLine{size}}});
 
-  if (disk_state() == DiskState::kStale) {
+  if (disk_state() == DiskState::Stale) {
     output.insert(
         {BufferFlagKey{SingleLine::Char<L'🐾'>()}, BufferFlagValue{}});
   }
@@ -2498,7 +2498,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
                         Read(buffer_variables::multiple_cursors)
                             ? Modifiers::CursorsAffected::kAll
                             : Modifiers::CursorsAffected::kOnlyCurrent,
-                        transformation::Input::Mode::kFinal);
+                        transformation::Input::Mode::Final);
 }
 
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
@@ -2600,7 +2600,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                   undo_stack_weak](transformation::Result result) {
         VLOG(6) << "Got results of transformation: "
                 << transformation::ToString(transformation);
-        if (mode == transformation::Input::Mode::kFinal &&
+        if (mode == transformation::Input::Mode::Final &&
             root_this->Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
             root_this->editor().buffer_registry().Remove(FuturePasteBuffer{});
@@ -2618,7 +2618,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
         }
 
         if (result.modified_buffer &&
-            mode == transformation::Input::Mode::kFinal) {
+            mode == transformation::Input::Mode::Final) {
           root_this->editor().StartHandlingInterrupts();
           root_this->last_transformation_ = std::move(transformation);
         }

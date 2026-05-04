@@ -53,9 +53,9 @@ futures::Value<CompositeTransformation::Output> Paste::Apply(
                 .modifiers_set =
                     std::invoke([&input] -> std::optional<LineModifierSet> {
                       switch (input.mode) {
-                        case transformation::Input::Mode::kFinal:
+                        case transformation::Input::Mode::Final:
                           return std::nullopt;
-                        case transformation::Input::Mode::kPreview:
+                        case transformation::Input::Mode::Preview:
                           return LineModifierSet{LineModifier::Cyan};
                       }
                       LOG(FATAL) << "Invalid input mode.";

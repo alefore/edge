@@ -349,7 +349,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       if (ParseQuotedString(result, c, {LineModifier::Yellow}, {}, std::nullopt,
                             MultipleLinesSupport::kAccept,
                             parsers::CurrentState::kStart) !=
-          ParseQuotedStringState::kDone) {
+          ParseQuotedStringState::Done) {
         result->SetState(c == L'\'' ? IN_MULTIPLE_LINE_STRING_SINGLE_QUOTE
                                     : IN_MULTIPLE_LINE_STRING_DOUBLE_QUOTE);
         CHECK(seek.read() == L'\n');
@@ -515,7 +515,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                           {LineModifier::Yellow}, {}, std::nullopt,
                           MultipleLinesSupport::kAccept,
                           CurrentState::kContinuationInDefault) ==
-        ParseQuotedStringState::kDone)
+        ParseQuotedStringState::Done)
       return;
     result->SetState(original_state);
     CHECK(result->seek().read() == L'\n');

@@ -6,7 +6,7 @@ using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 Command::CursorMode Command::cursor_mode() const {
-  return CursorMode::kDefault;
+  return CursorMode::Default;
 }
 
 /* static */ const CommandCategory& CommandCategory::kBuffers() {
