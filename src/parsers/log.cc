@@ -49,7 +49,8 @@ class LogTreeParser : public TreeParser {
     LogEvaluator evaluator(log_type_);
     ParseTree output = ParseTree(range);
     output.set_properties(
-        ParseTree::PropertyMap{{ParseTreePropertyName::LinkTarget(),
+        ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}},
+                               {ParseTreePropertyName::LinkTarget(),
                                 L"vm:editor.SetStatus(\"LogLineOpen();\")"}});
     CompiledLogView compiled_log_view(evaluator, log_view_);
     range.ForEachLine([&](LineNumber i) {
