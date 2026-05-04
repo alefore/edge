@@ -39,7 +39,7 @@ size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
     infrastructure::screen::LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreePropertyName> properties) {
+    ParseTree::PropertyMap properties) {
   return ParseQuotedString(result, quote_char, std::move(string_modifiers),
                            std::move(properties), MultipleLinesSupport::kReject,
                            CurrentState::kStart);
@@ -47,7 +47,7 @@ ParseQuotedStringState ParseQuotedString(
 
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreePropertyName> properties,
+    ParseTree::PropertyMap properties,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state) {
   return ParseQuotedString(result, quote_char, string_modifiers, properties,
                            std::nullopt, multiple_lines_support, current_state);
@@ -55,7 +55,7 @@ ParseQuotedStringState ParseQuotedString(
 
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreePropertyName> properties,
+    ParseTree::PropertyMap properties,
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state) {
   LineColumn original_position = result->position();
@@ -121,7 +121,7 @@ ParseQuotedStringState ParseQuotedString(
       result->PushAndPop(
           len,
           at_prefix ? string_modifiers : nested_expression_syntax->modifiers,
-          at_prefix ? properties : std::unordered_set<ParseTreePropertyName>{});
+          at_prefix ? properties : ParseTree::PropertyMap{});
     }
 
     const NonEmptySingleLine& token = at_prefix
@@ -144,7 +144,7 @@ ParseQuotedStringState ParseQuotedString(
                            : nested_expression_syntax->modifiers,
                        nested_expression_columns.size() % 2 == 0
                            ? properties
-                           : std::unordered_set<ParseTreePropertyName>{});
+                           : ParseTree::PropertyMap{});
   }
 
   if (!at_quote)
@@ -165,7 +165,7 @@ ParseQuotedStringState ParseQuotedString(
 }
 
 void ParseNumber(ParseData* result, LineModifierSet number_modifiers,
-                 std::unordered_set<ParseTreePropertyName> properties) {
+                 ParseTree::PropertyMap properties) {
   CHECK_GE(result->position().column, ColumnNumber(1));
   LineColumn original_position = result->position();
   original_position.column--;

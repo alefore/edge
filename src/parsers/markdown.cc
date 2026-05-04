@@ -141,7 +141,9 @@ class MarkdownParser : public LineOrientedTreeParser {
 
   void HandleOpenLink(ParseData* result) {
     TRACK_OPERATION(MarkdownParser_HandleOpenLink);
-    result->Push(LINK, ColumnNumberDelta(), {}, {ParseTreePropertyName::Link()});
+    result->Push(
+        LINK, ColumnNumberDelta(), {},
+        ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}}});
     result->seek().Once();
     result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::Cyan}, {});
   }
@@ -159,7 +161,8 @@ class MarkdownParser : public LineOrientedTreeParser {
     if (seek.read() == L'(') {
       seek.Once();
       result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::Underline},
-                   {ParseTreePropertyName::LinkTarget()});
+                   ParseTree::PropertyMap{
+                       {ParseTreePropertyName::LinkTarget(), LazyString{}}});
     } else {
       while (result->state() == LINK_TEXT || result->state() == LINK)
         result->PopBack();

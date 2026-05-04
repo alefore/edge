@@ -233,23 +233,24 @@ void ParseTree::PushChild(ParseTree child) {
 size_t ParseTree::hash() const {
   return language::hash_combine(
       compute_hash(range_, MakeHashableIteratorRange(modifiers_),
-                   MakeHashableIteratorRange(properties_)),
+                   MakeHashableIteratorRange(properties_ | std::views::keys),
+                   MakeHashableIteratorRange(properties_ | std::views::values)),
       children_hashes_);
 }
 
-void ParseTree::set_properties(
-    std::unordered_set<ParseTreePropertyName> properties) {
+void ParseTree::set_properties(PropertyMap properties) {
   properties_ = std::move(properties);
 }
 
-const std::unordered_set<ParseTreePropertyName>& ParseTree::properties() const {
+const ParseTree::PropertyMap& ParseTree::properties() const {
   return properties_;
 }
 
-std::optional<EmptyValue> ParseTree::get_property_value(
+std::optional<LazyString> ParseTree::get_property_value(
     const ParseTreePropertyName& name) const {
-  return properties_.contains(name) ? EmptyValue{}
-                                    : std::optional<EmptyValue>();
+  if (auto it = properties_.find(name); it != properties_.end())
+    return it->second;
+  return std::nullopt;
 }
 
 bool ParseTree::operator==(const ParseTree& other) const {
@@ -513,7 +514,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
             return MakeNonNullShared<Protected<std::set<LazyString>>>(
                 MakeProtected(container::MaterializeSet(
-                    tree->properties() |
+                    tree->properties() | std::views::keys |
                     std::views::transform(
                         [](const ParseTreePropertyName& property) {
                           return ToLazyString(property);
@@ -538,8 +539,7 @@ auto FirstOrError(R&& r, E&& error) {
 
 ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
                                  const LineSequence& contents) {
-  if (tree.properties().find(ParseTreePropertyName::LinkTarget()) !=
-      tree.properties().end())
+  if (tree.get_property_value(ParseTreePropertyName::LinkTarget()).has_value())
     return URL::New(NonEmptySingleLine::New(
         SingleLine::New(contents.ViewRange(tree.range()).ToLazyString())));
 

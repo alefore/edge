@@ -16,6 +16,7 @@ using infrastructure::screen::LineModifierSet;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
@@ -106,14 +107,16 @@ class DiffParser : public LineOrientedTreeParser {
 
     ColumnNumber path_start = result->position().column;
     VLOG(7) << "Found link starting at: " << path_start;
-    result->Push(FILE_LINE, path_start.ToDelta(),
-                 {LineModifier::Bold,
-                  c == '+' ? LineModifier::Green : LineModifier::Red},
-                 {ParseTreePropertyName::Link()});
+    result->Push(
+        FILE_LINE, path_start.ToDelta(),
+        {LineModifier::Bold,
+         c == '+' ? LineModifier::Green : LineModifier::Red},
+        ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}}});
     seek.ToEndOfLine();
-    result->PushAndPop(result->position().column - path_start,
-                       {LineModifier::Underline},
-                       {ParseTreePropertyName::LinkTarget()});
+    result->PushAndPop(
+        result->position().column - path_start, {LineModifier::Underline},
+        ParseTree::PropertyMap{
+            {ParseTreePropertyName::LinkTarget(), LazyString{}}});
     result->PopBack();
     return true;
   }

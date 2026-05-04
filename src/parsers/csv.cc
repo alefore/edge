@@ -16,6 +16,7 @@ using infrastructure::screen::LineModifierSet;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
@@ -24,6 +25,10 @@ using language::text::Range;
 
 enum State { DEFAULT, CSV_ROW, CSV_CELL };
 
+// TODO(2026-05-04, P2): We could use ParseTree::PropertyMap much better now,
+// given that we now support values. So StringValue and NumberValue could be
+// combined into a CellFormat property, and TableCell could become a single
+// property with the csv_column number as a value.
 class CsvParser : public LineOrientedTreeParser {
  protected:
   void ParseLine(ParseData* result) override {
@@ -55,21 +60,27 @@ class CsvParser : public LineOrientedTreeParser {
     switch (seek.read()) {
       case L'\"':
         seek.Once();
-        ParseQuotedString(result, L'"', modifiers,
-                          {ParseTreePropertyName::TableCell(csv_column),
-                           ParseTreePropertyName::StringValue()});
+        ParseQuotedString(
+            result, L'"', modifiers,
+            ParseTree::PropertyMap{
+                {ParseTreePropertyName::TableCell(csv_column), LazyString{}},
+                {ParseTreePropertyName::StringValue(), LazyString{}}});
         break;
       default:
         if (isdigit(seek.read())) {
           seek.Once();
           ParseNumber(result, modifiers,
-                      {ParseTreePropertyName::TableCell(csv_column)});
+                      ParseTree::PropertyMap{
+                          {ParseTreePropertyName::TableCell(csv_column),
+                           LazyString{}}});
         } else {
           ColumnNumber start = result->position().column;
           seek.UntilCurrentCharNotIn({L','});
-          result->PushAndPop(result->position().column - start, modifiers,
-                             {ParseTreePropertyName::TableCell(csv_column),
-                              ParseTreePropertyName::NumberValue()});
+          result->PushAndPop(
+              result->position().column - start, modifiers,
+              ParseTree::PropertyMap{
+                  {ParseTreePropertyName::TableCell(csv_column), LazyString{}},
+                  {ParseTreePropertyName::NumberValue(), LazyString{}}});
         }
     }
     SkipSpaces(result);

@@ -58,8 +58,8 @@ class ParseTreePropertyName
 
 class ParseTree {
  public:
-  // TODO(P2, 2026-05-04, log): Convert to an actual map.
-  using PropertyMap = std::unordered_set<ParseTreePropertyName>;
+  using PropertyMap = std::unordered_map<ParseTreePropertyName,
+                                         language::lazy_string::LazyString>;
 
  private:
   std::vector<ParseTree> children_;
@@ -109,8 +109,7 @@ class ParseTree {
 
   void set_properties(PropertyMap properties);
   const PropertyMap& properties() const;
-  // TODO(P2, 2026-05-04, log): Return an optional<vm::Value>.
-  std::optional<language::EmptyValue> get_property_value(
+  std::optional<language::lazy_string::LazyString> get_property_value(
       const ParseTreePropertyName&) const;
 
   bool operator==(const ParseTree& other) const;
