@@ -75,7 +75,7 @@ class VersionPropertyReceiver {
     VersionExecution last_version_state;
 
     struct Value {
-      enum class Status { kExpired, kCurrent };
+      enum class Status { Expired, Current };
       Status status;
       VersionPropertyValue value;
     };

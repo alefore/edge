@@ -86,8 +86,8 @@ VersionPropertyReceiver::PropertyValues VersionPropertyReceiver::GetValues()
       output.property_values.insert(
           {key, PropertyValues::Value{
                     .status = value.version_id < data.version_id
-                                  ? PropertyValues::Value::Status::kExpired
-                                  : PropertyValues::Value::Status::kCurrent,
+                                  ? PropertyValues::Value::Status::Expired
+                                  : PropertyValues::Value::Status::Current,
                     .value = value.value}});
     return output;
   });

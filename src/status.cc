@@ -182,7 +182,7 @@ Line Status::prompt_extra_information_line() const {
 
       const auto& modifiers = value.status ==
                                       VersionPropertyReceiver::PropertyValues::
-                                          Value::Status::kExpired
+                                          Value::Status::Expired
                                   ? dim
                                   : empty;
       options.AppendString(key.read().read(), modifiers);
