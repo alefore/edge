@@ -21,6 +21,7 @@ using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::VisitValue;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -51,6 +52,10 @@ class LogTreeParser : public TreeParser {
     range.ForEachLine([&](LineNumber i) {
       VisitValue(
           log_type_.Parse(contents.at(i).contents().read()), [&](LogLine line) {
+            ParseTree line_output(
+                LineRange(LineColumn{i},
+                          std::numeric_limits<ColumnNumberDelta>::max())
+                    .read());
             std::expected<std::unordered_map<LogEntryName, LineModifierSet>,
                           Error>
                 modifiers_map = compiled_log_view.Evaluate(
@@ -67,8 +72,9 @@ class LogTreeParser : public TreeParser {
               ParseTree child(
                   LineRange(LineColumn{i, data.position}, data.size).read());
               child.set_modifiers(modifiers_map->find(data.name)->second);
-              output.PushChild(std::move(child));
+              line_output.PushChild(std::move(child));
             });
+            output.PushChild(std::move(line_output));
           });
     });
     return output;
