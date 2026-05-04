@@ -58,7 +58,7 @@ NonNull<std::shared_ptr<WorkQueue>> ExecutionContext::work_queue() const {
   return work_queue_;
 }
 
-const language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>&
+const NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>&
 ExecutionContext::file_system_driver() const {
   return file_system_driver_;
 }
@@ -197,19 +197,9 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
                                std::vector<gc::Ptr<vm::Value>> arguments) {
   return VisitOptional(
       [&](vm::Environment::LookupResult procedure) {
-        std::vector<gc::Root<vm::Expression>> arg_roots =
-            container::MaterializeVector(
-                std::move(arguments) |
-                std::views::transform(vm::NewConstantExpression));
-        return Success(CompilationResult::New(
-            vm::NewFunctionCall(
-                vm::NewConstantExpression(
-                    std::get<gc::Root<vm::Value>>(procedure.value).ptr())
-                    .ptr(),
-                container::MaterializeVector(std::move(arg_roots) |
-                                             gc::view::Ptr))
-                .ptr(),
-            environment_, work_queue()));
+        return FunctionCall(
+            std::get<gc::Root<vm::Value>>(procedure.value).ptr(),
+            std::move(arguments));
       },
       [&function_name] {
         return Error{ToLazyString(function_name) +
@@ -217,13 +207,28 @@ ExecutionContext::FunctionCall(const vm::Identifier& function_name,
       },
       environment_->Lookup(
           vm::Namespace{}, function_name,
-          vm::types::Function{
-              .output = vm::Type{vm::types::Void{}},
-              .inputs = container::MaterializeVector(
-                  arguments |
-                  std::views::transform([](const gc::Ptr<vm::Value>& arg) {
-                    return arg->type();
-                  }))}));
+          vm::types::Function{.output = vm::Type{vm::types::Void{}},
+                              .inputs = arguments |
+                                        std::views::transform(
+                                            [](const gc::Ptr<vm::Value>& arg) {
+                                              return arg->type();
+                                            }) |
+                                        std::ranges::to<std::vector>()}));
+}
+
+ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
+ExecutionContext::FunctionCall(gc::Ptr<vm::Value> function_value,
+                               std::vector<gc::Ptr<vm::Value>> arguments) {
+  // TODO(P1, 2026-05-03): Validate that the types match?
+  std::vector<gc::Root<vm::Expression>> arg_roots =
+      std::move(arguments) | std::views::transform(vm::NewConstantExpression) |
+      std::ranges::to<std::vector>();
+  return CompilationResult::New(
+      vm::NewFunctionCall(
+          vm::NewConstantExpression(function_value).ptr(),
+          std::move(arg_roots) | gc::view::Ptr | std::ranges::to<std::vector>())
+          .ptr(),
+      environment_, work_queue());
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
@@ -231,7 +236,7 @@ ExecutionContext::Expand() const {
   return {environment_.object_metadata()};
 }
 
-language::ValueOrError<language::gc::Root<ExecutionContext::CompilationResult>>
+ValueOrError<gc::Root<ExecutionContext::CompilationResult>>
 ExecutionContext::HandleCompilationResultOrError(
     gc::Root<vm::Environment> sub_environment,
     ValueOrError<gc::Root<vm::Expression>> expression,

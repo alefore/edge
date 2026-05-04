@@ -102,6 +102,10 @@ class ExecutionContext {
       const vm::Identifier& function_name,
       std::vector<language::gc::Ptr<vm::Value>> arguments);
 
+  language::ValueOrError<language::gc::Root<CompilationResult>> FunctionCall(
+      language::gc::Ptr<vm::Value> function_value,
+      std::vector<language::gc::Ptr<vm::Value>> arguments);
+
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 
