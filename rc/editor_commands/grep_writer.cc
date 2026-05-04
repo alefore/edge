@@ -52,19 +52,14 @@ void ApplyLine(string content_to_parse) {
       InsertTransformationBuilder().set_text(content).build());
 }
 
-void Apply(Buffer buffer) {
+void Save(Buffer buffer) {
   buffer.ForEach(
       [](number num, string content) -> void { ApplyLine(content); });
-}
 
-void Save(Buffer buffer) {
   SetString paths_to_save;
   buffer.ForEach([](number num, string content) -> void {
     VectorString line_struct = ParseLine(content);
-    if (line_struct.size() != 3) {
-      Error("GrepWriter: Unable to parse line");
-      return;
-    }
+    if (line_struct.size() != 3) return;
     paths_to_save.insert(line_struct.get(0));
   });
   VectorString paths_to_save_vector;
@@ -77,11 +72,6 @@ void Save(Buffer buffer) {
       });
 }
 }  // namespace internal
-
-void Apply() {
-  editor.ForEachActiveBuffer(
-      [](Buffer buffer) -> void { internal::Apply(buffer); });
-}
 
 void Save() {
   editor.ForEachActiveBuffer(
