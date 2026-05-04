@@ -593,7 +593,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
             .handler = std::move(handler),
             .cancel_handler = []() { /* Nothing. */ },
             .predictor = predictor,
-            .status = PromptOptions::Status::kBuffer};
+            .status = PromptOptions::Status::Buffer};
       });
 }
 }  // namespace afc::editor

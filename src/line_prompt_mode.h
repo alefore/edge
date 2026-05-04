@@ -73,8 +73,8 @@ struct PromptOptions {
   // `PredictorInput::source_buffers`.
   std::vector<language::gc::Root<OpenBuffer>> source_buffers = {};
 
-  enum class Status { kEditor, kBuffer };
-  Status status = Status::kEditor;
+  enum class Status { Editor, Buffer };
+  Status status = Status::Editor;
 };
 
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,

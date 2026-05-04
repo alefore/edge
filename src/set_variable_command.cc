@@ -105,7 +105,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                 },
             .cancel_handler = []() { /* Nothing. */ },
             .predictor = var->predictor(),
-            .status = PromptOptions::Status::kBuffer});
+            .status = PromptOptions::Status::Buffer});
     return EmptyValue{};
   }
 
@@ -143,7 +143,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                   return EmptyValue{};
                 },
             .cancel_handler = []() { /* Nothing. */ },
-            .status = PromptOptions::Status::kEditor});
+            .status = PromptOptions::Status::Editor});
     return EmptyValue{};
   }
   if (auto var = buffer_variables::BoolStruct()->find_variable(name);
@@ -193,7 +193,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
             },
         .cancel_handler = []() { /* Nothing. */ },
         .predictor = var->predictor(),
-        .status = PromptOptions::Status::kBuffer});
+        .status = PromptOptions::Status::Buffer});
     return EmptyValue{};
   }
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
@@ -224,7 +224,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
               return EmptyValue{};
             },
         .cancel_handler = []() { /* Nothing. */ },
-        .status = PromptOptions::Status::kBuffer});
+        .status = PromptOptions::Status::Buffer});
     return EmptyValue{};
   }
 
@@ -276,7 +276,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                                        std::ref(editor_state)),
             .cancel_handler = []() { /* Nothing. */ },
             .predictor = variables_predictor,
-            .status = PromptOptions::Status::kBuffer};
+            .status = PromptOptions::Status::Buffer};
       });
 }
 

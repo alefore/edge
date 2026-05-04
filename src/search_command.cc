@@ -385,7 +385,7 @@ class SearchCommand : public Command {
                    });
              },
          .predictor = SearchHandlerPredictor,
-         .status = PromptOptions::Status::kBuffer});
+         .status = PromptOptions::Status::Buffer});
   }
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override {

@@ -272,7 +272,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
         history_(std::move(history)),
         prompt_buffer_(std::move(prompt_buffer)),
         status_buffer_([&]() -> std::optional<gc::Root<OpenBuffer>> {
-          if (options.status == PromptOptions::Status::kEditor)
+          if (options.status == PromptOptions::Status::Editor)
             return std::nullopt;
           auto active_buffers = editor_state().active_buffers();
           return active_buffers.size() == 1
