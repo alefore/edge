@@ -392,8 +392,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                   LineNumberDelta(0))))),
       .layout_goal =
           input.buffer_display_data.content_lines() != buffer.lines_size()
-              ? BufferContentsViewLayout::Input::LayoutGoal::kVisibility
-              : BufferContentsViewLayout::Input::LayoutGoal::kAvoidJitter,
+              ? BufferContentsViewLayout::Input::LayoutGoal::Visibility
+              : BufferContentsViewLayout::Input::LayoutGoal::AvoidJitter,
       .flow_mode = buffer.Read(buffer_variables::flow_mode)};
 
   input.buffer_display_data.set_content_lines(buffer.lines_size());

@@ -45,10 +45,10 @@ struct BufferContentsViewLayout {
     language::text::LineNumberDelta margin_lines;
 
     enum class LayoutGoal {
-      kVisibility,   // Prefer to occupy as much of the screen as possible.
-      kAvoidJitter,  // Prefer to reduce jitter across re-draws.
+      Visibility,   // Prefer to occupy as much of the screen as possible.
+      AvoidJitter,  // Prefer to reduce jitter across re-draws.
     };
-    LayoutGoal layout_goal = LayoutGoal::kAvoidJitter;
+    LayoutGoal layout_goal = LayoutGoal::AvoidJitter;
 
     bool flow_mode = false;
   };

@@ -214,7 +214,7 @@ std::list<LineRange> AdjustToHonorMargin(
         std::max(LineNumberDelta(0),
                  options.margin_lines - position_line->ToDelta()),
         (options.layout_goal ==
-             BufferContentsViewLayout::Input::LayoutGoal::kVisibility &&
+             BufferContentsViewLayout::Input::LayoutGoal::Visibility &&
          !options.flow_mode)
             ? options.lines_shown - LineNumberDelta(output.size())
             : LineNumberDelta(0));
@@ -250,11 +250,11 @@ std::ostream& operator<<(
     std::ostream& os,
     const BufferContentsViewLayout::Input::LayoutGoal& layout_goal) {
   switch (layout_goal) {
-    case BufferContentsViewLayout::Input::LayoutGoal::kVisibility:
-      os << "LayoutGoal::kVisibility";
+    case BufferContentsViewLayout::Input::LayoutGoal::Visibility:
+      os << "LayoutGoal::Visibility";
       break;
-    case BufferContentsViewLayout::Input::LayoutGoal::kAvoidJitter:
-      os << "LayoutGoal::kAvoidJitter";
+    case BufferContentsViewLayout::Input::LayoutGoal::AvoidJitter:
+      os << "LayoutGoal::AvoidJitter";
       break;
   }
   return os;
@@ -638,7 +638,7 @@ const bool buffer_contents_view_layout_tests_registration =
                  options.margin_lines = LineNumberDelta(2);
                  options.active_position = LineColumn(LineNumber(13));
                  options.layout_goal =
-                     BufferContentsViewLayout::Input::LayoutGoal::kVisibility;
+                     BufferContentsViewLayout::Input::LayoutGoal::Visibility;
                  auto ranges = get_ranges(options);
                  CHECK_EQ(ranges.size(), 10ul);
                  CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn(LineNumber(7))));
@@ -841,7 +841,7 @@ const bool buffer_contents_view_layout_tests_registration =
                  options.active_position = LineColumn{LineNumber{6}};
                  options.lines_shown = LineNumberDelta{10};
                  options.layout_goal =
-                     BufferContentsViewLayout::Input::LayoutGoal::kVisibility;
+                     BufferContentsViewLayout::Input::LayoutGoal::Visibility;
                  auto ranges = get_ranges(options);
                  CHECK_EQ(ranges.size(), 3ul);
                  CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn{LineNumber{4}}));
