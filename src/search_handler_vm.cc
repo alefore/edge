@@ -80,7 +80,7 @@ void RegisterSearchOptionsVm(gc::Pool& pool, Environment& environment) {
                 [buffer_contents = buffer->contents().snapshot()](
                     const SearchOptions& data) -> ValueOrError<OutputType> {
                   DECLARE_OR_RETURN(std::vector<LineColumn> positions,
-                                    SearchHandler(Direction::kForwards, data,
+                                    SearchHandler(Direction::Forwards, data,
                                                   buffer_contents));
                   return MakeNonNullShared<Protected<std::vector<LineColumn>>>(
                       MakeProtected(std::move(positions)));
@@ -109,7 +109,7 @@ void RegisterSearchOptionsVm(gc::Pool& pool, Environment& environment) {
                                   DECLARE_OR_RETURN_OTHER(
                                       std::vector<LineColumn> positions,
                                       SearchHandler(
-                                          Direction::kForwards,
+                                          Direction::Forwards,
                                           search_options_data,
                                           buffer->contents().snapshot()),
                                       false);

@@ -29,8 +29,8 @@ struct BufferOutputProducerInput {
   BufferDisplayData& buffer_display_data;
 
   language::text::LineColumn view_start;
-  enum class StatusBehavior { kShow, kIgnore };
-  StatusBehavior status_behavior = StatusBehavior::kShow;
+  enum class StatusBehavior { Show, Ignore };
+  StatusBehavior status_behavior = StatusBehavior::Show;
 };
 
 // Handles things like `multiple_cursors`, `paste_mode`, `scrollbar`, displaying

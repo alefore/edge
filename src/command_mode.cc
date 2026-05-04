@@ -97,10 +97,10 @@ class UndoCommand : public Command {
       : editor_state_(editor_state), direction_(direction) {}
 
   LazyString Description() const override {
-    switch (direction_.value_or(Direction::kForwards)) {
-      case Direction::kBackwards:
+    switch (direction_.value_or(Direction::Forwards)) {
+      case Direction::Backwards:
         return LazyString{L"re-does the last change to the current buffer"};
-      case Direction::kForwards:
+      case Direction::Forwards:
         return LazyString{L"un-does the last change to the current buffer"};
     }
     LOG(FATAL) << "Invalid direction value.";
@@ -654,7 +654,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                            .ptr());
   commands.Add({L'U'}, editor_state.gc_pool()
                            .NewRoot(MakeNonNullUnique<UndoCommand>(
-                               editor_state, Direction::kBackwards))
+                               editor_state, Direction::Backwards))
                            .ptr());
   commands.Add({L'\n'},
                editor_state.gc_pool()
@@ -685,9 +685,9 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   // commands.Add({L'j'}, std::make_unique<LineDown>());
   // commands.Add({L'k'}, std::make_unique<LineUp>());
   // commands.Add({L'l'},
-  // std::make_unique<MoveForwards>(Direction::kForwards));
+  // std::make_unique<MoveForwards>(Direction::Forwards));
   // commands.Add({L'h'},
-  // std::make_unique<MoveForwards>(Direction::kBackwards));
+  // std::make_unique<MoveForwards>(Direction::Backwards));
   for (ExtendedChar x :
        std::vector<ExtendedChar>({L'l', ControlChar::kRightArrow}))
     commands.Add(
@@ -726,7 +726,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                  {operation::CommandReachBegin{
                      .structure = Structure::kChar,
                      .repetitions = operation::CommandArgumentRepetitions(1),
-                     .direction = Direction::kBackwards}})
+                     .direction = Direction::Backwards}})
                  .ptr());
   commands.Add(
       {L'K'}, operation::NewTopLevelCommand(
@@ -745,7 +745,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           {operation::CommandReachBegin{
               .structure = Structure::kLine,
               .repetitions = operation::CommandArgumentRepetitions(1),
-              .direction = Direction::kBackwards}})
+              .direction = Direction::Backwards}})
           .ptr());
   commands.Add(
       {L'~'}, operation::NewTopLevelCommand(

@@ -10,7 +10,7 @@ namespace afc::language::error {
 // This class is thread-safe.
 class Log {
  public:
-  enum class InsertResult { kInserted, kAlreadyFound };
+  enum class InsertResult { Inserted, AlreadyFound };
   InsertResult Insert(language::Error error, infrastructure::Duration duration);
 
  private:

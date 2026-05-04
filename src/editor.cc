@@ -405,9 +405,9 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
                     buffer->Read(buffer_variables::name),
                 error);
             switch (buffer->status().InsertError(error, 30)) {
-              case error::Log::InsertResult::kInserted:
+              case error::Log::InsertResult::Inserted:
                 return MakeUnexpected(error);
-              case error::Log::InsertResult::kAlreadyFound:
+              case error::Log::InsertResult::AlreadyFound:
                 return OpenBuffer::PrepareToCloseOutput();
             }
             LOG(FATAL) << "Invalid enum value.";
@@ -596,9 +596,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                  buffer->Read(buffer_variables::name);
                         })))},
           30)) {
-        case error::Log::InsertResult::kInserted:
+        case error::Log::InsertResult::Inserted:
           return;
-        case error::Log::InsertResult::kAlreadyFound:
+        case error::Log::InsertResult::AlreadyFound:
           break;
       }
     }
@@ -657,9 +657,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                                  ToSingleLine(b.name()).read();
                                         }))},
                   5)) {
-                case error::Log::InsertResult::kInserted:
+                case error::Log::InsertResult::Inserted:
                   return EmptyValue{};
-                case error::Log::InsertResult::kAlreadyFound:
+                case error::Log::InsertResult::AlreadyFound:
                   break;
               }
             }

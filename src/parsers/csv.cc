@@ -39,7 +39,7 @@ class CsvParser : public LineOrientedTreeParser {
  private:
   void SkipSpaces(ParseData* result) {
     auto seek = result->seek();
-    while (std::iswspace(seek.read()) && seek.Once() == Seek::Result::kDone)
+    while (std::iswspace(seek.read()) && seek.Once() == Seek::Result::Done)
       continue;
   }
 

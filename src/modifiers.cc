@@ -30,19 +30,19 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
 std::ostream& operator<<(std::ostream& os, const Modifiers& m) {
   os << "[structure: " << m.structure << "][direction: ";
   switch (m.direction) {
-    case Direction::kForwards:
+    case Direction::Forwards:
       os << "forwards";
       break;
-    case Direction::kBackwards:
+    case Direction::Backwards:
       os << "backwards";
       break;
   }
   os << "][default direction: ";
   switch (m.default_direction) {
-    case Direction::kForwards:
+    case Direction::Forwards:
       os << "forwards";
       break;
-    case Direction::kBackwards:
+    case Direction::Backwards:
       os << "backwards";
       break;
   }
@@ -92,7 +92,7 @@ void Modifiers::Register(language::gc::Pool& pool,
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_backwards"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
-                        output->direction = Direction::kBackwards;
+                        output->direction = Direction::Backwards;
                         return output;
                       })
           .ptr());
@@ -159,7 +159,7 @@ void Modifiers::Register(language::gc::Pool& pool,
 
 std::wstring Modifiers::Serialize() const {
   std::wstring output = L"Modifiers()";
-  if (direction == Direction::kBackwards) {
+  if (direction == Direction::Backwards) {
     output += L".set_backwards()";
   }
   // TODO: Handle other structures.

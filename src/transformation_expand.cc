@@ -78,7 +78,7 @@ SingleLine GetToken(const CompositeTransformation::Input& input,
 transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
   CHECK_GT(characters, ColumnNumberDelta());
   return transformation::Delete{
-      .modifiers = {.direction = Direction::kBackwards,
+      .modifiers = {.direction = Direction::Backwards,
                     .repetitions = characters.read(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},

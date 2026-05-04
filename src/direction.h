@@ -6,7 +6,7 @@
 namespace afc {
 namespace editor {
 
-enum class Direction { kBackwards, kForwards };
+enum class Direction { Backwards, Forwards };
 
 Direction ReverseDirection(Direction direction);
 std::wstring ToString(Direction direction);

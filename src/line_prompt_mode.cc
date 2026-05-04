@@ -97,7 +97,7 @@ namespace {
 SingleLine GetPredictInput(const OpenBuffer& buffer) {
   Range range =
       buffer.FindPartialRange(Modifiers{.structure = Structure::kLine,
-                                        .direction = Direction::kBackwards},
+                                        .direction = Direction::Backwards},
                               buffer.position());
   range.set_end(std::max(range.end(), buffer.position()));
   auto line = buffer.LineAt(range.begin().line);

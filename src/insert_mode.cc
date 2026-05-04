@@ -289,7 +289,7 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
   futures::Value<Output> Apply(Input input) const override {
-    if (direction_ == Direction::kBackwards) {
+    if (direction_ == Direction::Backwards) {
       ++input.position.line;
     }
     Output output = Output::SetPosition(LineColumn(input.position.line));
@@ -515,15 +515,15 @@ class InsertMode : public InputReceiver,
         return;
 
       case ControlChar::kCtrlD:
-        HandleDelete({4}, Direction::kForwards);
+        HandleDelete({4}, Direction::Forwards);
         return;
 
       case ControlChar::kDelete:
-        HandleDelete({27, '[', 51, 126}, Direction::kForwards);
+        HandleDelete({27, '[', 51, 126}, Direction::Forwards);
         return;
 
       case ControlChar::kBackspace:
-        HandleDelete({127}, Direction::kBackwards);
+        HandleDelete({127}, Direction::Backwards);
         return;
 
       case ControlChar::kCtrlU: {
@@ -815,7 +815,7 @@ class InsertMode : public InputReceiver,
                   .contents_to_insert = LineSequence::WithLine(
                       Line{SingleLine{LazyString{L" "}}}),
                   .final_position =
-                      direction == Direction::kBackwards
+                      direction == Direction::Backwards
                           ? transformation::Insert::FinalPosition::kStart
                           : transformation::Insert::FinalPosition::kEnd});
               break;
@@ -825,7 +825,7 @@ class InsertMode : public InputReceiver,
               ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
     switch (direction) {
-      case Direction::kBackwards:
+      case Direction::Backwards:
         if (current_insertion_->back().empty()) {
           StartNewInsertion();
         } else {
@@ -834,7 +834,7 @@ class InsertMode : public InputReceiver,
                   current_insertion_->range().end()));
         }
         break;
-      case Direction::kForwards:
+      case Direction::Forwards:
         StartNewInsertion();
     }
   }
@@ -1098,7 +1098,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 
 void DefaultScrollBehavior::PageUp(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = Structure::kPage, .direction = Direction::kBackwards},
+      {.structure = Structure::kPage, .direction = Direction::Backwards},
       NewMoveTransformation()});
 }
 
@@ -1109,7 +1109,7 @@ void DefaultScrollBehavior::PageDown(OpenBuffer& buffer) {
 
 void DefaultScrollBehavior::Up(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = Structure::kLine, .direction = Direction::kBackwards},
+      {.structure = Structure::kLine, .direction = Direction::Backwards},
       NewMoveTransformation()});
 }
 
@@ -1120,7 +1120,7 @@ void DefaultScrollBehavior::Down(OpenBuffer& buffer) {
 
 void DefaultScrollBehavior::Left(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.direction = Direction::kBackwards}, NewMoveTransformation()});
+      {.direction = Direction::Backwards}, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Right(OpenBuffer& buffer) {

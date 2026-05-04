@@ -234,7 +234,7 @@ class SearchCommand : public Command {
             if (range.end().line > range.begin().line) {
               // This can happen when repetitions are used (to find multiple
               // words). We just cap it at the start/end of the line.
-              if (editor_state.direction() == Direction::kBackwards) {
+              if (editor_state.direction() == Direction::Backwards) {
                 range.set_begin(LineColumn(range.end().line));
               } else {
                 range.set_end(
@@ -322,7 +322,7 @@ class SearchCommand : public Command {
                                 buffer.contents().snapshot();
                             return editor_state.thread_pool()
                                 .Run([search_options, contents] {
-                                  return SearchHandler(Direction::kForwards,
+                                  return SearchHandler(Direction::Forwards,
                                                        search_options.value(),
                                                        contents);
                                 })
@@ -411,7 +411,7 @@ class SearchCommand : public Command {
         return std::nullopt;
       }
       CHECK_LE(range.begin(), range.end());
-      if (editor.modifiers().direction == Direction::kBackwards) {
+      if (editor.modifiers().direction == Direction::Backwards) {
         search_options.starting_position = range.end();
         search_options.limit_position = range.begin();
       } else {

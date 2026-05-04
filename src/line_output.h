@@ -8,7 +8,7 @@
 #include "src/language/text/line.h"
 
 namespace afc::editor {
-enum class LineWrapStyle { kBreakWords, kContentBased };
+enum class LineWrapStyle { BreakWords, ContentBased };
 std::ostream& operator<<(std::ostream& os,
                          const LineWrapStyle& line_wrap_style);
 

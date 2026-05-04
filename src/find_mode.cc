@@ -48,11 +48,11 @@ std::optional<ColumnNumber> FindTransformation::SeekOnce(
   int direction;
   ColumnNumberDelta times;
   switch (modifiers.direction) {
-    case Direction::kForwards:
+    case Direction::Forwards:
       direction = 1;
       times = line.EndColumn() - column;
       break;
-    case Direction::kBackwards:
+    case Direction::Backwards:
       direction = -1;
       times = (column + ColumnNumberDelta(1)).ToDelta();
       break;

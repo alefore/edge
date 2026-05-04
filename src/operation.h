@@ -65,7 +65,7 @@ struct CommandReach {
 struct CommandReachBegin {
   std::optional<Structure> structure = std::nullopt;
   CommandArgumentRepetitions repetitions = {1};
-  Direction direction = Direction::kForwards;
+  Direction direction = Direction::Forwards;
 };
 
 // Similar to CommandReach with structure = StructureLine.

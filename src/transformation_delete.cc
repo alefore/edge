@@ -172,10 +172,10 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     range.set_end(std::max(range.end(), output->position));
     if (range.empty()) {
       switch (options.modifiers.direction) {
-        case Direction::kForwards:
+        case Direction::Forwards:
           range.set_end(input.adapter.contents().PositionAfter(range.end()));
           break;
-        case Direction::kBackwards:
+        case Direction::Backwards:
           range.set_begin(
               input.adapter.contents().PositionBefore(range.begin()));
           break;
@@ -232,7 +232,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         transformation::Insert insert_options{
             .contents_to_insert = delete_buffer.ptr()->contents().snapshot(),
             .final_position =
-                options.modifiers.direction == Direction::kForwards
+                options.modifiers.direction == Direction::Forwards
                     ? Insert::FinalPosition::kEnd
                     : Insert::FinalPosition::kStart};
         output->undo_stack->push_front(insert_options);

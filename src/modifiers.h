@@ -55,7 +55,7 @@ struct Modifiers {
   // of stickyness.
   void ResetHard() {
     structure = Structure::kChar;
-    default_direction = Direction::kForwards;
+    default_direction = Direction::Forwards;
     default_insertion = ModifyMode::kShift;
     ResetSoft();
   }
@@ -88,8 +88,8 @@ struct Modifiers {
 
   Strength strength = Strength::kNormal;
 
-  Direction direction = Direction::kForwards;
-  Direction default_direction = Direction::kForwards;
+  Direction direction = Direction::Forwards;
+  Direction default_direction = Direction::Forwards;
 
   ModifyMode insertion = ModifyMode::kShift;
   ModifyMode default_insertion = ModifyMode::kShift;

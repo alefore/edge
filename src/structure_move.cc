@@ -21,7 +21,7 @@ using language::text::Range;
 namespace {
 LineColumn MoveInRange(Range range, Modifiers modifiers) {
   CHECK_LE(range.begin(), range.end());
-  return modifiers.direction == Direction::kForwards ? range.end()
+  return modifiers.direction == Direction::Forwards ? range.end()
                                                      : range.begin();
 }
 
@@ -38,7 +38,7 @@ static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
       std::upper_bound(it_begin, it_end, current,
                        [&](const LineColumn& target, const auto& map_entry) {
                          const LineColumn& entry_target = map_entry.first.first;
-                         return modifiers.direction == Direction::kForwards
+                         return modifiers.direction == Direction::Forwards
                                     ? target < entry_target
                                     : target > entry_target;
                        });
@@ -94,9 +94,9 @@ std::optional<LineColumn> Move(
       return MoveInRange(range, modifiers);
 
     case Structure::kLine: {
-      int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
+      int direction = (modifiers.direction == Direction::Backwards ? -1 : 1);
       size_t repetitions = modifiers.repetitions.value_or(1);
-      if (modifiers.direction == Direction::kBackwards &&
+      if (modifiers.direction == Direction::Backwards &&
           repetitions > position.line.read()) {
         position = LineColumn();
       } else {
@@ -113,12 +113,12 @@ std::optional<LineColumn> Move(
 
     case Structure::kMark: {
       switch (modifiers.direction) {
-        case Direction::kForwards:
+        case Direction::Forwards:
           return GetMarkPosition(buffer_information.line_marks.begin(),
                                  buffer_information.line_marks.end(), position,
                                  modifiers);
           break;
-        case Direction::kBackwards:
+        case Direction::Backwards:
           return GetMarkPosition(buffer_information.line_marks.rbegin(),
                                  buffer_information.line_marks.rend(), position,
                                  modifiers);

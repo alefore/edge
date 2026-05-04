@@ -63,7 +63,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
 
   output.Push(transformation::Insert{
       .contents_to_insert = contents_to_insert.snapshot(),
-      .final_position = input.modifiers.direction == Direction::kBackwards
+      .final_position = input.modifiers.direction == Direction::Backwards
                             ? transformation::Insert::FinalPosition::kStart
                             : transformation::Insert::FinalPosition::kEnd,
       .modifiers_set =

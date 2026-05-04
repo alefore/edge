@@ -85,7 +85,7 @@ futures::Value<EmptyValue> UndoState::Apply(ApplyOptions apply_options) {
   return futures::While(
       [this, data] -> futures::Value<IterationControlCommand> {
         if (data->repetitions == data->options.repetitions ||
-            (data->options.direction == Direction::kForwards
+            (data->options.direction == Direction::Forwards
                  ? undo_stack_.empty()
                  : redo_stack_.empty())) {
           return IterationControlCommand::Stop;
@@ -93,12 +93,12 @@ futures::Value<EmptyValue> UndoState::Apply(ApplyOptions apply_options) {
 
         NonNull<std::shared_ptr<transformation::Stack>> value = [&] {
           switch (data->options.direction) {
-            case Direction::kForwards: {
+            case Direction::Forwards: {
               auto output = std::move(undo_stack_.back());
               undo_stack_.pop_back();
               return output;
             }
-            case Direction::kBackwards: {
+            case Direction::Backwards: {
               auto output = std::move(redo_stack_.back().redo);
               redo_stack_.pop_back();
               return output;
@@ -119,11 +119,11 @@ futures::Value<EmptyValue> UndoState::Apply(ApplyOptions apply_options) {
                   break;
                 case ApplyOptions::RedoMode::kPopulate:
                   switch (data->options.direction) {
-                    case Direction::kForwards:
+                    case Direction::Forwards:
                       redo_stack_.push_back(RedoStackEntry{
                           .undo = value, .redo = std::move(result.undo_stack)});
                       break;
-                    case Direction::kBackwards:
+                    case Direction::Backwards:
                       undo_stack_.push_back(std::move(result.undo_stack));
                       break;
                   }

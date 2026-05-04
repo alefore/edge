@@ -137,7 +137,7 @@ void AppendStatus(const CommandReach& reach, LineBuilder& output) {
 
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
   SerializeCall(
-      (reach.direction == Direction::kBackwards
+      (reach.direction == Direction::Backwards
            ? (reach.structure == Structure::kLine ? kHomeUp : kHomeRight)
            : (reach.structure == Structure::kLine ? kHomeDown : kHomeLeft))
           .read(),
@@ -180,9 +180,9 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
                       std::views::transform(
                           [&](const Direction& direction) -> SingleLine {
                             switch (direction) {
-                              case Direction::kForwards:
+                              case Direction::Forwards:
                                 return forwards.read();
-                              case Direction::kBackwards:
+                              case Direction::Backwards:
                                 return backwards.read();
                             }
                             LOG(FATAL) << "Invalid direction.";
@@ -257,7 +257,7 @@ transformation::Stack ApplyRepetitions(
           std::views::transform([&](int repetitions_value) {
             return transformation::ModifiersAndComposite{
                 .modifiers = GetModifiers(structure, repetitions_value,
-                                          Direction::kForwards),
+                                          Direction::Forwards),
                 .transformation = inner_transformation};
           }),
       std::back_inserter(output));
@@ -633,7 +633,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                            [state](ExtendedChar) {
                              state->Push(CommandReachBisect{
                                  .structure = Structure::kChar,
-                                 .directions = {Direction::kBackwards}});
+                                 .directions = {Direction::Backwards}});
                            }})
         .Insert(L'L', {.category = KeyCommandsMap::Category::kNewCommand,
                        .description = kBisectRight,
@@ -641,7 +641,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        .handler = [state](ExtendedChar) {
                          state->Push(CommandReachBisect{
                              .structure = Structure::kChar,
-                             .directions = {Direction::kForwards}});
+                             .directions = {Direction::Forwards}});
                        }});
   }
 
@@ -653,7 +653,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                            [state](ExtendedChar) {
                              state->Push(CommandReachBisect{
                                  .structure = Structure::kLine,
-                                 .directions = {Direction::kBackwards}});
+                                 .directions = {Direction::Backwards}});
                            }})
         .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
                        .description = kBisectDown,
@@ -661,7 +661,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        .handler = [state](ExtendedChar) {
                          state->Push(CommandReachBisect{
                              .structure = Structure::kLine,
-                             .directions = {Direction::kForwards}});
+                             .directions = {Direction::Forwards}});
                        }});
   }
 
@@ -682,7 +682,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
                          t == ExtendedChar(ControlChar::kDownArrow))
                             ? 1
                             : -1;
-            if (output->direction == Direction::kBackwards) {
+            if (output->direction == Direction::Backwards) {
               delta *= -1;
             }
             output->repetitions.sum(delta);
@@ -722,7 +722,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                          [state](ExtendedChar) {
                            state->Push(CommandReachBisect{
                                .structure = Structure::kLine,
-                               .directions = {Direction::kBackwards}});
+                               .directions = {Direction::Backwards}});
                          }})
       .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
                      .description =
@@ -732,7 +732,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                      .handler = [state](ExtendedChar) {
                        state->Push(CommandReachBisect{
                            .structure = Structure::kLine,
-                           .directions = {Direction::kForwards}});
+                           .directions = {Direction::Forwards}});
                      }});
 
   CheckRepetitionsChar(cmap, &output->repetitions);
@@ -813,12 +813,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                  .description = kBisectLeft,
                  .handler =
                      [output](ExtendedChar) {
-                       output->directions.push_back(Direction::kBackwards);
+                       output->directions.push_back(Direction::Backwards);
                      }})
         .Insert(L'l', {.category = KeyCommandsMap::Category::kDirection,
                        .description = kBisectRight,
                        .handler = [output](ExtendedChar) {
-                         output->directions.push_back(Direction::kForwards);
+                         output->directions.push_back(Direction::Forwards);
                        }});
   }
   if (output->structure == Structure::kLine) {
@@ -827,12 +827,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                  .description = kBisectDown,
                  .handler =
                      [output](ExtendedChar) {
-                       output->directions.push_back(Direction::kBackwards);
+                       output->directions.push_back(Direction::Backwards);
                      }})
         .Insert(L'j', {.category = KeyCommandsMap::Category::kDirection,
                        .description = kBisectUp,
                        .handler = [output](ExtendedChar) {
-                         output->directions.push_back(Direction::kForwards);
+                         output->directions.push_back(Direction::Forwards);
                        }});
   }
 }
@@ -1237,15 +1237,15 @@ class OperationMode : public EditorMode {
         .Insert(ControlChar::kHome, push(kHomeLeft, CommandReachBegin{}))
         .Insert(L'L',
                 push(kHomeRight,
-                     CommandReachBegin{.direction = Direction::kBackwards}))
+                     CommandReachBegin{.direction = Direction::Backwards}))
         .Insert(ControlChar::kEnd,
                 push(kHomeRight,
-                     CommandReachBegin{.direction = Direction::kBackwards}))
+                     CommandReachBegin{.direction = Direction::Backwards}))
         .Insert(L'K',
                 push(kHomeUp, CommandReachBegin{.structure = Structure::kLine}))
         .Insert(L'J', push(kHomeDown, CommandReachBegin{
                                           .structure = Structure::kLine,
-                                          .direction = Direction::kBackwards}));
+                                          .direction = Direction::Backwards}));
     return cmap;
   }
 

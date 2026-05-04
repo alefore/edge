@@ -14,7 +14,7 @@ class Seek {
   Seek(const language::text::LineSequence& contents,
        language::text::LineColumn* position);
 
-  enum class Result { kDone, kUnableToAdvance };
+  enum class Result { Done, UnableToAdvance };
 
   Seek& WrappingLines();
   Seek& WithDirection(Direction direction);
@@ -55,8 +55,8 @@ class Seek {
   template <typename Callable>
   Result AdvanceWhile(Callable&& callable) const {
     while (callable(read()))
-      if (Once() == Result::kUnableToAdvance) return Result::kUnableToAdvance;
-    return Result::kDone;
+      if (Once() == Result::UnableToAdvance) return Result::UnableToAdvance;
+    return Result::Done;
   }
 
   template <typename Callable>
@@ -71,7 +71,7 @@ class Seek {
   language::text::LineColumn* const position_;
 
   bool wrapping_lines_ = false;
-  Direction direction_ = Direction::kForwards;
+  Direction direction_ = Direction::Forwards;
 
   // Ensures that position will never move outside of this range.
   language::text::Range range_;

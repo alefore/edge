@@ -7,7 +7,7 @@
 #include "src/language/text/line_sequence.h"
 
 namespace afc::language::text {
-enum class FilterPredicateResult { kKeep, kErase };
+enum class FilterPredicateResult { Keep, Erase };
 
 LineSequence FilterLines(
     LineSequence input,

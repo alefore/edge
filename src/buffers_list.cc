@@ -296,7 +296,7 @@ struct BuffersListOptions {
   std::optional<std::unordered_set<NonNull<const OpenBuffer*>>> filter;
 };
 
-enum class FilterResult { kExcluded, kIncluded };
+enum class FilterResult { Excluded, Included };
 
 LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
                                    const OpenBuffer& buffer,
@@ -309,7 +309,7 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
         kSecondsWarningHighlight) {
       output.insert(LineModifier::Reverse);
     }
-  } else if (filter_result == FilterResult::kExcluded) {
+  } else if (filter_result == FilterResult::Excluded) {
     output.insert(LineModifier::Dim);
   } else if (buffer.child_pid().has_value()) {
     output.insert(LineModifier::Yellow);
@@ -679,8 +679,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                  options->filter.value().find(
                      NonNull<const OpenBuffer*>::AddressOf(buffer)) !=
                      options->filter.value().end())
-                    ? FilterResult::kIncluded
-                    : FilterResult::kExcluded;
+                    ? FilterResult::Included
+                    : FilterResult::Excluded;
 
             SingleLine number_prefix =
                 SingleLine{LazyString{std::to_wstring(index + j + 1)}};
@@ -716,7 +716,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
-                  progress, filter_result == FilterResult::kExcluded
+                  progress, filter_result == FilterResult::Excluded
                                 ? LineModifierSet{LineModifier::Dim}
                                 : progress_modifier);
 
@@ -725,10 +725,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             SelectionState selection_state;
             switch (filter_result) {
-              case FilterResult::kExcluded:
+              case FilterResult::Excluded:
                 selection_state = SelectionState::kExcludedByFilter;
                 break;
-              case FilterResult::kIncluded:
+              case FilterResult::Included:
                 selection_state =
                     options->active_buffers.find(
                         NonNull<const OpenBuffer*>::AddressOf(buffer)) !=

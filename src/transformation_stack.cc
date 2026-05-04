@@ -342,8 +342,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                         std::max(input.position, output->position))};
         Delete delete_transformation{
             .modifiers = {.direction = input.position < output->position
-                                           ? Direction::kForwards
-                                           : Direction::kBackwards},
+                                           ? Direction::Forwards
+                                           : Direction::Backwards},
             .range = range,
             .initiator = transformation::Delete::Initiator::kInternal};
         switch (copy->post_transformation_behavior) {

@@ -13,7 +13,7 @@ LineSequence FilterLines(
   MutableLineSequence builder;
   builder.append_back(container::MaterializeVector(
       input | std::views::filter([&](const Line& line) {
-        return predicate(line) == FilterPredicateResult::kKeep;
+        return predicate(line) == FilterPredicateResult::Keep;
       })));
   if (builder.size() > LineNumberDelta(1))
     builder.EraseLines(LineNumber(), LineNumber(1));

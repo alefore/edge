@@ -262,9 +262,9 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
 
   output.insert(output.end(), results_before.begin(), results_before.end());
   switch (direction) {
-    case Direction::kForwards:
+    case Direction::Forwards:
       break;
-    case Direction::kBackwards:
+    case Direction::Backwards:
       std::reverse(output.begin(), output.end());
       break;
   }
@@ -282,7 +282,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
             [=] {
               CHECK(ValueOrDie(
                         SearchHandler(
-                            Direction::kForwards,
+                            Direction::Forwards,
                             SearchOptions{
                                 .starting_position = LineColumn(
                                     contents().range().end().line,
@@ -297,7 +297,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        Direction::kForwards,
+                        Direction::Forwards,
                         SearchOptions{
                             .starting_position = LineColumn(
                                 contents().range().end().line,
@@ -313,7 +313,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        Direction::kForwards,
+                        Direction::Forwards,
                         SearchOptions{
                             .starting_position = contents().range().end(),
                             .search_query = SingleLine{LazyString{L"rero"}},
@@ -327,7 +327,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        Direction::kBackwards,
+                        Direction::Backwards,
                         SearchOptions{
                             .starting_position =
                                 LineColumn(LineNumber(1), ColumnNumber(3)),
@@ -345,7 +345,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        Direction::kForwards,
+                        Direction::Forwards,
                         SearchOptions{
                             .starting_position =
                                 LineColumn(LineNumber(0), ColumnNumber(7)),
@@ -360,7 +360,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
             }},
        {.name = L"ReachMatchLimit", .callback = [=] {
           CHECK(ValueOrDie(SearchHandler(
-                    Direction::kForwards,
+                    Direction::Forwards,
                     SearchOptions{.starting_position = LineColumn(
                                       LineNumber(1), ColumnNumber(3)),
                                   .search_query = SingleLine{LazyString{L"."}},

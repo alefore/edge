@@ -452,7 +452,7 @@ const bool buffer_contents_view_layout_tests_registration =
                    .contents = contents,
                    .active_position = LineColumn(),
                    .active_cursors = active_cursors,
-                   .line_wrap_style = LineWrapStyle::kBreakWords,
+                   .line_wrap_style = LineWrapStyle::BreakWords,
                    .symbol_characters = container::MaterializeUnorderedSet(
                        LazyString{L"abcdefghijklmnopqrstuvwxyz"}),
                    .lines_shown = LineNumberDelta(10),

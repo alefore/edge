@@ -122,10 +122,10 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                                       .read()},
                     BufferFlagValue{}});
     }
-    if (options.modifiers.default_direction == Direction::kBackwards) {
+    if (options.modifiers.default_direction == Direction::Backwards) {
       flags.insert(
           {BufferFlagKey{SINGLE_LINE_CONSTANT(L"REVERSE")}, BufferFlagValue{}});
-    } else if (options.modifiers.direction == Direction::kBackwards) {
+    } else if (options.modifiers.direction == Direction::Backwards) {
       flags.insert(
           {BufferFlagKey{SINGLE_LINE_CONSTANT(L"reverse")}, BufferFlagValue{}});
     }
@@ -295,7 +295,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
           .buffer_display_data = context_buffer.display_data(),
           .view_start = {},
           .status_behavior =
-              BufferOutputProducerInput::StatusBehavior::kIgnore});
+              BufferOutputProducerInput::StatusBehavior::Ignore});
 
   context_columns_vector.push_back({.lines = buffer_output.lines});
   CHECK_EQ(context_columns_vector.back().lines.size(), context_lines);

@@ -24,9 +24,9 @@ ColumnNumberDelta LineOutputLength(
     if (shown <= screen_positions || output.IsZero()) ++output;
   }
   switch (line_wrap_style) {
-    case LineWrapStyle::kBreakWords:
+    case LineWrapStyle::BreakWords:
       break;
-    case LineWrapStyle::kContentBased:
+    case LineWrapStyle::ContentBased:
       if (begin + output >= line.EndColumn()) {
         break;
       }
@@ -53,14 +53,14 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(LineOutputLength({}, ColumnNumber(), ColumnNumberDelta(),
-                                   LineWrapStyle::kBreakWords, {})
+                                   LineWrapStyle::BreakWords, {})
                       .IsZero());
           }},
      {.name = L"EmptyAndWants",
       .callback =
           [] {
             CHECK(LineOutputLength({}, ColumnNumber(), ColumnNumberDelta(80),
-                                   LineWrapStyle::kBreakWords, {})
+                                   LineWrapStyle::BreakWords, {})
                       .IsZero());
           }},
      {.name = L"NormalConsumed",
@@ -68,7 +68,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejandro"}}},
                                    ColumnNumber(), ColumnNumberDelta(80),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(9));
           }},
      {.name = L"NormalOverflow",
@@ -76,7 +76,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejandro"}}},
                                    ColumnNumber(), ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(6));
           }},
      {.name = L"SimpleWide",
@@ -84,7 +84,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"a🦋lejandro"}}},
                                    ColumnNumber(), ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(5));
           }},
      {.name = L"WideConsumed",
@@ -92,7 +92,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"a🦋o"}}},
                                    ColumnNumber(), ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(3));
           }},
      {.name = L"CharacterDoesNotFit",
@@ -100,7 +100,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejo🦋"}}},
                                    ColumnNumber(), ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(5));
           }},
      {.name = L"CharacterAtBorder",
@@ -108,7 +108,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejo🦋"}}},
                                    ColumnNumber(), ColumnNumberDelta(7),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(6));
           }},
      {.name = L"SingleWidthNormalCharacter",
@@ -116,7 +116,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"alejo🦋"}}},
                                    ColumnNumber(), ColumnNumberDelta(1),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(1));
           }},
      {.name = L"SingleWidthWide",
@@ -124,7 +124,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(Line{SingleLine{LazyString{L"🦋"}}},
                                    ColumnNumber(), ColumnNumberDelta(1),
-                                   LineWrapStyle::kBreakWords,
+                                   LineWrapStyle::BreakWords,
                                    {}) == ColumnNumberDelta(1));
           }},
      {.name = L"ManyWideOverflow",
@@ -133,7 +133,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(
                       Line{SingleLine{LazyString{L"🦋🦋🦋🦋abcdef"}}},
                       ColumnNumber(), ColumnNumberDelta(5),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(2));
+                      LineWrapStyle::BreakWords, {}) == ColumnNumberDelta(2));
           }},
      {.name = L"ManyWideOverflowAfter",
       .callback =
@@ -141,7 +141,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(
                       Line{SingleLine{LazyString{L"🦋🦋🦋🦋abcdef"}}},
                       ColumnNumber(), ColumnNumberDelta(10),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(6));
+                      LineWrapStyle::BreakWords, {}) == ColumnNumberDelta(6));
           }},
      {.name = L"ManyWideOverflowExact",
       .callback =
@@ -149,14 +149,14 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(
                       Line{SingleLine{LazyString{L"🦋🦋🦋🦋abcdef"}}},
                       ColumnNumber(), ColumnNumberDelta(4),
-                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(2));
+                      LineWrapStyle::BreakWords, {}) == ColumnNumberDelta(2));
           }},
      {.name = L"ContentBasedWrapFits",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line{SingleLine{LazyString{L"abcde"}}}, ColumnNumber(),
-                      ColumnNumberDelta(10), LineWrapStyle::kContentBased,
+                      ColumnNumberDelta(10), LineWrapStyle::ContentBased,
                       symbol_characters_for_testing) == ColumnNumberDelta(5));
           }},
      {.name = L"ContentBasedWrapLineWithSpaces",
@@ -165,14 +165,14 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(
                       Line{SingleLine{LazyString{L"abcde fghijklmnopqrstuv"}}},
                       ColumnNumber(), ColumnNumberDelta(10),
-                      LineWrapStyle::kContentBased,
+                      LineWrapStyle::ContentBased,
                       symbol_characters_for_testing) == ColumnNumberDelta(6));
           }},
      {.name = L"ContentBasedWrapLineTooLong", .callback = [] {
         CHECK(LineOutputLength(
                   Line{SingleLine{LazyString{L"abcdefghijklmnopqrstuv"}}},
                   ColumnNumber(), ColumnNumberDelta(10),
-                  LineWrapStyle::kContentBased,
+                  LineWrapStyle::ContentBased,
                   symbol_characters_for_testing) == ColumnNumberDelta(10));
       }}});
 }  // namespace
@@ -180,11 +180,11 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
 std::ostream& operator<<(std::ostream& os,
                          const LineWrapStyle& line_wrap_style) {
   switch (line_wrap_style) {
-    case LineWrapStyle::kBreakWords:
-      os << "LineWrapStyle::kBreakWords";
+    case LineWrapStyle::BreakWords:
+      os << "LineWrapStyle::BreakWords";
       break;
-    case LineWrapStyle::kContentBased:
-      os << "LineWrapStyle::kContentBase";
+    case LineWrapStyle::ContentBased:
+      os << "LineWrapStyle::ContentBase";
       break;
   }
   return os;
@@ -203,9 +203,9 @@ std::list<ColumnRange> BreakLineForOutput(
                                          line_wrap_style, symbol_characters)});
     start = output.back().end;
     switch (line_wrap_style) {
-      case LineWrapStyle::kBreakWords:
+      case LineWrapStyle::BreakWords:
         break;
-      case LineWrapStyle::kContentBased:
+      case LineWrapStyle::ContentBased:
         while (start < line.EndColumn() && line.get(start) == L' ') {
           ++start;
         }
@@ -221,7 +221,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(BreakLineForOutput({}, ColumnNumberDelta(10),
-                                     LineWrapStyle::kBreakWords, {}) ==
+                                     LineWrapStyle::BreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(0)}}));
           }},
      {.name = L"Fits",
@@ -229,7 +229,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
           [] {
             CHECK(BreakLineForOutput(Line{SingleLine{LazyString{L"foo"}}},
                                      ColumnNumberDelta(10),
-                                     LineWrapStyle::kBreakWords, {}) ==
+                                     LineWrapStyle::BreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(3)}}));
           }},
      {.name = L"FitsExactly",
@@ -237,7 +237,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
           [] {
             CHECK(BreakLineForOutput(Line{SingleLine{LazyString{L"foobar"}}},
                                      ColumnNumberDelta(6),
-                                     LineWrapStyle::kBreakWords, {}) ==
+                                     LineWrapStyle::BreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(6)}}));
           }},
      {.name = L"Breaks",
@@ -245,7 +245,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
           [] {
             CHECK(BreakLineForOutput(
                       Line{SingleLine{LazyString{L"foobarheyyou"}}},
-                      ColumnNumberDelta(3), LineWrapStyle::kBreakWords,
+                      ColumnNumberDelta(3), LineWrapStyle::BreakWords,
                       {}) == std::list<ColumnRange>({
                                  {ColumnNumber(0), ColumnNumber(3)},
                                  {ColumnNumber(3), ColumnNumber(6)},
@@ -258,7 +258,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
           [] {
             CHECK(BreakLineForOutput(
                       Line{SingleLine{LazyString{L"foo bar hey"}}},
-                      ColumnNumberDelta(5), LineWrapStyle::kContentBased,
+                      ColumnNumberDelta(5), LineWrapStyle::ContentBased,
                       symbol_characters_for_testing) ==
                   std::list<ColumnRange>({
                       {ColumnNumber(0), ColumnNumber(4)},
@@ -269,7 +269,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
      {.name = L"BreaksMultipleSpaces", .callback = [] {
         CHECK(BreakLineForOutput(
                   Line{SingleLine{LazyString{L"foo     bar hey"}}},
-                  ColumnNumberDelta(5), LineWrapStyle::kContentBased,
+                  ColumnNumberDelta(5), LineWrapStyle::ContentBased,
                   symbol_characters_for_testing) ==
               std::list<ColumnRange>({
                   {ColumnNumber(0), ColumnNumber(5)},

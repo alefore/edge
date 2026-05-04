@@ -1622,17 +1622,17 @@ void OpenBuffer::CreateCursor() {
     tmp_modifiers.structure = Structure::kCursor;
     Range range = FindPartialRange(tmp_modifiers, position());
     if (range.empty()) return;
-    options_.editor.set_direction(Direction::kForwards);
+    options_.editor.set_direction(Direction::Forwards);
     LOG(INFO) << "Range for cursors: " << range;
     while (!range.empty()) {
       LineColumn tmp_first = range.begin();
-      SeekToNext(NewSeekInput(structure, Direction::kForwards, &tmp_first));
+      SeekToNext(NewSeekInput(structure, Direction::Forwards, &tmp_first));
       if (tmp_first > range.begin() && tmp_first < range.end()) {
         VLOG(5) << "Creating cursor at: " << tmp_first;
         active_cursors().insert(tmp_first);
       }
       if (!SeekToLimit(
-              NewSeekInput(structure, Direction::kForwards, &tmp_first))) {
+              NewSeekInput(structure, Direction::Forwards, &tmp_first))) {
         break;
       }
       range.set_begin(tmp_first);
@@ -1652,7 +1652,7 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position,
   auto output = cursors.begin();
   while (output != cursors.end() &&
          (*output < position ||
-          (direction == Direction::kForwards && *output == position &&
+          (direction == Direction::Forwards && *output == position &&
            std::next(output) != cursors.end() &&
            *std::next(output) == position))) {
     ++output;
@@ -1661,7 +1661,7 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position,
 
   size_t repetitions = modifiers.repetitions.value_or(1) % cursors.size();
   size_t final_position;  // From cursors->begin().
-  if (direction == Direction::kForwards) {
+  if (direction == Direction::Forwards) {
     final_position = (index + repetitions) % cursors.size();
   } else if (index >= repetitions) {
     final_position = index - repetitions;
@@ -1712,7 +1712,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     }
   }
 
-  if (modifiers.direction == Direction::kBackwards &&
+  if (modifiers.direction == Direction::Backwards &&
       modifiers.structure != Structure::kTree) {
     // TODO: Handle this in structure.
     Seek(contents_.snapshot(), &position).Backwards().WrappingLines().Once();
@@ -1728,7 +1728,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
-      output_begin = modifiers.direction == Direction::kForwards
+      output_begin = modifiers.direction == Direction::Forwards
                          ? std::max(position, output_begin)
                          : std::min(position, output_begin);
       break;
@@ -1752,7 +1752,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   }
 
   LOG(INFO) << "After seek, initial position: " << output_begin;
-  LineColumn output_end = modifiers.direction == Direction::kForwards
+  LineColumn output_end = modifiers.direction == Direction::Forwards
                               ? std::max(position, output_begin)
                               : std::min(position, output_begin);
   bool move_start = true;
@@ -1786,7 +1786,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   LOG(INFO) << "After adjusting end: " << output_begin << " to " << output_end;
 
   if (output_begin > output_end) {
-    CHECK(modifiers.direction == Direction::kBackwards);
+    CHECK(modifiers.direction == Direction::Backwards);
     std::swap(output_begin, output_end);
     if (move_start) {
       Seek(contents_.snapshot(), &output_begin).WrappingLines().Once();

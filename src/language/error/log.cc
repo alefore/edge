@@ -19,8 +19,8 @@ Log::InsertResult Log::Insert(language::Error error,
     InsertResult output =
         std::ranges::contains(
             entries | std::views::transform(&ErrorAndExpiration::error), error)
-            ? InsertResult::kAlreadyFound
-            : InsertResult::kInserted;
+            ? InsertResult::AlreadyFound
+            : InsertResult::Inserted;
     entries.push_back(ErrorAndExpiration{
         .error = std::move(error),
         .expiration = infrastructure::AddSeconds(now, duration)});
@@ -36,28 +36,28 @@ const bool tests_registration = tests::Register(
                          [] {
                            Log log;
                            CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1000) ==
-                                 Log::InsertResult::kInserted);
+                                 Log::InsertResult::Inserted);
                            CHECK(log.Insert(Error{LazyString{L"Bar"}}, 1000) ==
-                                 Log::InsertResult::kInserted);
+                                 Log::InsertResult::Inserted);
                          }},
                     {.name = L"InsertFinds",
                      .callback =
                          [] {
                            Log log;
                            CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1000) ==
-                                 Log::InsertResult::kInserted);
+                                 Log::InsertResult::Inserted);
                            CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1000) ==
-                                 Log::InsertResult::kAlreadyFound);
+                                 Log::InsertResult::AlreadyFound);
                          }},
                     {.name = L"InsertExpires", .callback = [] {
                        Log log;
                        CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1) ==
-                             Log::InsertResult::kInserted);
+                             Log::InsertResult::Inserted);
                        CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1) ==
-                             Log::InsertResult::kAlreadyFound);
+                             Log::InsertResult::AlreadyFound);
                        sleep(2);
                        CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1) ==
-                             Log::InsertResult::kInserted);
+                             Log::InsertResult::Inserted);
                      }}});
 }  // namespace
 

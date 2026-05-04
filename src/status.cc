@@ -272,7 +272,7 @@ void Status::Set(Error error) {
 error::Log::InsertResult Status::InsertError(
     language::Error error, infrastructure::Duration duration) {
   error::Log::InsertResult output = errors_log_.Insert(error, duration);
-  if (output == error::Log::InsertResult::kInserted) Set(error);
+  if (output == error::Log::InsertResult::Inserted) Set(error);
   return output;
 }
 

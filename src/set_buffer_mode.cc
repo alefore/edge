@@ -408,7 +408,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                     search_futures.push_back(
                         editor.thread_pool()
                             .Run(std::bind_front(
-                                SearchHandler, Direction::kForwards,
+                                SearchHandler, Direction::Forwards,
                                 SearchOptions{.search_query = text_input,
                                               .required_positions = 1,
                                               .case_sensitive = buffer.Read(

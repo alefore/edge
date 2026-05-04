@@ -66,8 +66,8 @@ SortedLineSequence PrepareBuffer(LineSequence input) {
   TRACK_OPERATION(CompletionModel_PrepareBuffer_sort);
   return SortedLineSequence(FilterLines(input, [](const Line& line) {
     return line.contents().size().IsZero()
-               ? language::text::FilterPredicateResult::kErase
-               : language::text::FilterPredicateResult::kKeep;
+               ? language::text::FilterPredicateResult::Erase
+               : language::text::FilterPredicateResult::Keep;
   }));
 }
 

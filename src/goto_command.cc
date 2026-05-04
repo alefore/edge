@@ -58,9 +58,9 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   }
 
   switch (direction) {
-    case Direction::kForwards:
+    case Direction::Forwards:
       return std::min(prefix_len + repetitions - 1, elements);
-    case Direction::kBackwards:
+    case Direction::Backwards:
       return suffix_start - std::min(suffix_start, repetitions - 1);
   }
   LOG(FATAL) << "Invalid direction.";
@@ -91,14 +91,14 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
     CHECK_LE(position.column, line->EndColumn());
     return position;
   } else if (structure == Structure::kSymbol) {
-    position.column = modifiers.direction == Direction::kBackwards
+    position.column = modifiers.direction == Direction::Backwards
                           ? buffer.LineAt(position.line)->EndColumn()
                           : ColumnNumber();
 
     VLOG(4) << "Start SYMBOL GotoCommand: " << modifiers;
     Range range = buffer.FindPartialRange(modifiers, position);
     switch (modifiers.direction) {
-      case Direction::kForwards: {
+      case Direction::Forwards: {
         Modifiers modifiers_copy = modifiers;
         modifiers_copy.repetitions = 1;
         range = buffer.FindPartialRange(
@@ -107,10 +107,10 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
         position = range.begin();
       } break;
 
-      case Direction::kBackwards: {
+      case Direction::Backwards: {
         Modifiers modifiers_copy = modifiers;
         modifiers_copy.repetitions = 1;
-        modifiers_copy.direction = Direction::kForwards;
+        modifiers_copy.direction = Direction::Forwards;
         range = buffer.FindPartialRange(modifiers_copy, range.begin());
         position = buffer.contents().snapshot().PositionBefore(range.end());
       } break;

@@ -7,20 +7,20 @@ namespace editor {
 
 Direction ReverseDirection(Direction direction) {
   switch (direction) {
-    case Direction::kForwards:
-      return Direction::kBackwards;
-    case Direction::kBackwards:
-      return Direction::kForwards;
+    case Direction::Forwards:
+      return Direction::Backwards;
+    case Direction::Backwards:
+      return Direction::Forwards;
   }
   LOG(FATAL) << "Invalid direction value.";
-  return Direction::kForwards;
+  return Direction::Forwards;
 }
 
 std::wstring ToString(Direction direction) {
   switch (direction) {
-    case Direction::kForwards:
+    case Direction::Forwards:
       return L"Forwards";
-    case Direction::kBackwards:
+    case Direction::Backwards:
       return L"Backwards";
   }
   LOG(FATAL) << "Invalid direction.";

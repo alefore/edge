@@ -338,7 +338,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (!buffer.Read(buffer_variables::flow_mode) ||
       buffer.status().GetType() == Status::Type::kPrompt)
     switch (input.status_behavior) {
-      case BufferOutputProducerInput::StatusBehavior::kShow:
+      case BufferOutputProducerInput::StatusBehavior::Show:
         status_lines =
             StatusOutput({.status = buffer.status(),
                           .buffer = &buffer,
@@ -347,7 +347,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                               input.output_producer_options.size.line / 4,
                               input.output_producer_options.size.column)});
         break;
-      case BufferOutputProducerInput::StatusBehavior::kIgnore:
+      case BufferOutputProducerInput::StatusBehavior::Ignore:
         break;
     }
 
@@ -364,8 +364,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                              : buffer.position(),
       .active_cursors = buffer.active_cursors(),
       .line_wrap_style = buffer.Read(buffer_variables::wrap_from_content)
-                             ? LineWrapStyle::kContentBased
-                             : LineWrapStyle::kBreakWords,
+                             ? LineWrapStyle::ContentBased
+                             : LineWrapStyle::BreakWords,
       .symbol_characters = container::MaterializeUnorderedSet(
           buffer.Read(buffer_variables::symbol_characters)),
       .lines_shown = input.output_producer_options.size.line,

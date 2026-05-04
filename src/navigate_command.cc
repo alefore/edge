@@ -220,10 +220,9 @@ class NavigateTransformation : public CompositeTransformation {
             .initiator = transformation::Delete::Initiator::kInternal});
       }
 
-      DeleteExterior(range.begin(), Direction::kBackwards, input.position,
+      DeleteExterior(range.begin(), Direction::Backwards, input.position,
                      &output);
-      DeleteExterior(range.end(), Direction::kForwards, input.position,
-                     &output);
+      DeleteExterior(range.end(), Direction::Forwards, input.position, &output);
     }
 
     output.Push(transformation::SetPosition(
@@ -236,7 +235,7 @@ class NavigateTransformation : public CompositeTransformation {
   // that point on (in the direction specified).
   void DeleteExterior(size_t index, Direction direction, LineColumn position,
                       Output* output) const {
-    if (index == 0 && direction == Direction::kBackwards) {
+    if (index == 0 && direction == Direction::Backwards) {
       // Otherwise we'll be saying that we want to delete the previous
       // line.
       return;

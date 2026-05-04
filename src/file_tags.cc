@@ -57,7 +57,7 @@ namespace afc::editor {
   LineSequence contents = buffer->contents().snapshot();
   DECLARE_OR_RETURN(
       LineColumn tags_start,
-      GetNextMatch(Direction::kForwards,
+      GetNextMatch(Direction::Forwards,
                    SearchOptions{
                        .search_query = SINGLE_LINE_CONSTANT(L"## Tags"),
                        .required_positions = 1,
