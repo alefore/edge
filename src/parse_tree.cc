@@ -539,9 +539,14 @@ auto FirstOrError(R&& r, E&& error) {
 
 ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
                                  const LineSequence& contents) {
-  if (tree.get_property_value(ParseTreePropertyName::LinkTarget()).has_value())
+  if (std::optional<LazyString> link_target_value =
+          tree.get_property_value(ParseTreePropertyName::LinkTarget());
+      link_target_value.has_value()) {
     return URL::New(NonEmptySingleLine::New(
-        SingleLine::New(contents.ViewRange(tree.range()).ToLazyString())));
+        SingleLine::New(link_target_value->empty()
+                            ? contents.ViewRange(tree.range()).ToLazyString()
+                            : link_target_value.value())));
+  }
 
   return FirstOrError(
       tree.children() |
