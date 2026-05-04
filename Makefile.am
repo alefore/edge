@@ -251,6 +251,8 @@ src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \
 src/log.cc \
 src/log.h \
+src/log_model_vm.cc \
+src/log_model_vm.h \
 src/log_model.cc \
 src/log_model.h \
 src/log_config_loader.cc \

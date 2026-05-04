@@ -2193,8 +2193,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 }  // namespace
 
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
-OpenBuffer::OpenBufferForCurrentPosition(
-    RemoteURLBehavior remote_url_behavior) {
+OpenBuffer::OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior,
+                                         VmURLBehavior vm_url_behavior) {
   if (Read(buffer_variables::is_prompt)) return std::nullopt;
 
   // When the cursor moves quickly, there's a race between multiple executions
@@ -2214,11 +2214,12 @@ OpenBuffer::OpenBufferForCurrentPosition(
              MakeNonNullShared<std::vector<URL>>(
                  GetURLsForCurrentPosition(*this)),
              [&editor = editor(), adjusted_position, data, remote_url_behavior,
+              vm_url_behavior,
               execution_context =
                   execution_context().ToRoot()](const URL& url) {
                LOG(INFO) << "Opening URL: " << url;
                return HandleURL(editor, execution_context.ptr().value(),
-                                remote_url_behavior, url)
+                                remote_url_behavior, vm_url_behavior, url)
                    .Transform(
                        [data](std::optional<gc::Root<OpenBuffer>> buffer)
                            -> futures::ValueOrError<IterationControlCommand> {
@@ -2447,7 +2448,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 }
 
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
-  buffer->OpenBufferForCurrentPosition(RemoteURLBehavior::Ignore)
+  buffer
+      ->OpenBufferForCurrentPosition(RemoteURLBehavior::Ignore,
+                                     VmURLBehavior::Ignore)
       .Transform(LockAndVisitCallback(
           [](std::optional<gc::Root<OpenBuffer>> result,
              gc::Root<OpenBuffer> locked_buffer) {

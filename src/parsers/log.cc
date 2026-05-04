@@ -7,6 +7,7 @@
 #include "src/language/error/view.h"
 #include "src/language/gc.h"
 #include "src/log_model.h"
+#include "src/log_model_vm.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 #include "src/vm/vm.h"
@@ -25,6 +26,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineRange;
@@ -48,10 +50,11 @@ class LogTreeParser : public TreeParser {
     // TODO(2026-04-30, P2): Consider moving evaluator_ to be a class value?
     LogEvaluator evaluator(log_type_);
     ParseTree output = ParseTree(range);
-    output.set_properties(
-        ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}},
-                               {ParseTreePropertyName::LinkTarget(),
-                                L"vm:editor.SetStatus(\"LogLineOpen();\")"}});
+    output.set_properties(ParseTree::PropertyMap{
+        {ParseTreePropertyName::Link(), LazyString{}},
+        {ParseTreePropertyName::LinkTarget(),
+         LazyString{L"vm:buffer."} + ToLazyString(kOpenLogLineIdentifier()) +
+             LazyString{L"()"}}});
     CompiledLogView compiled_log_view(evaluator, log_view_);
     range.ForEachLine([&](LineNumber i) {
       VisitValue(

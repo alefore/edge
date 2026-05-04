@@ -10,9 +10,11 @@ class EditorState;
 class OpenBuffer;
 
 enum class RemoteURLBehavior { Ignore, LaunchBrowser };
+enum class VmURLBehavior { Ignore, Execute };
 
 futures::ValueOrError<std::optional<language::gc::Root<OpenBuffer>>> HandleURL(
     EditorState& editor, ExecutionContext& execution_context,
-    RemoteURLBehavior remote_url_behavior, const URL& url);
+    RemoteURLBehavior remote_url_behavior, VmURLBehavior vm_url_behavior,
+    const URL& url);
 }  // namespace afc::editor
 #endif

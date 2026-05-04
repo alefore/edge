@@ -19,6 +19,7 @@
 #include "src/language/text/line_column_vm.h"
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/language/wstring.h"
+#include "src/log_model_vm.h"
 #include "src/parse_tree.h"
 #include "src/tests/tests.h"
 #include "src/transformation_vm.h"
@@ -589,6 +590,12 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
+      kOpenLogLineIdentifier(),
+      vm::NewCallback(pool, kPurityTypeUnknown, [](gc::Ptr<OpenBuffer> buffer) {
+        return OpenLogLine(buffer.value());
+      }).ptr());
+
+  buffer_object_type.ptr()->AddField(
       IDENTIFIER_CONSTANT(L"FilterLogLine"),
       vm::NewCallback(
           pool, kPurityTypeUnknown,
@@ -658,8 +665,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                     if (tmp.size() < LineNumberDelta{1000} &&
                                         inputs_seen % 5000 != 0)
                                       return;
-                                    // TODO(2026-05-03, P2, log): The roundtrip
-                                    // to std::vector feels suboptimal.
+                                    // TODO(2026-05-03, P2, log): The
+                                    // roundtrip to std::vector feels
+                                    // suboptimal.
                                     tmp.MaybeEraseEmptyFirstLine();
                                     size_t percent = static_cast<size_t>(
                                         std::round(100.0 * inputs_seen /
@@ -938,6 +946,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   environment.DefineType(buffer_object_type.ptr());
   vm::container::Export<std::vector<gc::Ptr<OpenBuffer>>>(pool, environment);
 }
+
 namespace {
 bool vector_tests_register = afc::tests::Register(
     L"VMVectorBuffer",

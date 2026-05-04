@@ -337,7 +337,8 @@ class ActivateLink : public Command {
 
           buffer.ptr()->MaybeAdjustPositionCol();
           buffer.ptr()
-              ->OpenBufferForCurrentPosition(RemoteURLBehavior::LaunchBrowser)
+              ->OpenBufferForCurrentPosition(RemoteURLBehavior::LaunchBrowser,
+                                             VmURLBehavior::Execute)
               .Transform(
                   [&editor_state = editor_state_](
                       std::optional<gc::Root<OpenBuffer>> optional_target) {

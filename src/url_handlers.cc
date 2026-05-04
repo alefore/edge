@@ -74,7 +74,8 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleVmURL(
 
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
     EditorState& editor, ExecutionContext& execution_context,
-    RemoteURLBehavior remote_url_behavior, const URL& url) {
+    RemoteURLBehavior remote_url_behavior, VmURLBehavior vm_url_behavior,
+    const URL& url) {
   VLOG(5) << "Checking URL: " << url;
   const URL::Scheme scheme = url.scheme().value_or(URL::Scheme::File);
   switch (scheme) {
@@ -82,7 +83,7 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
     case URL::Scheme::Https:
       switch (remote_url_behavior) {
         case RemoteURLBehavior::Ignore:
-          break;
+          return std::nullopt;
         case RemoteURLBehavior::LaunchBrowser:
           editor.work_queue()->DeleteLater(
               AddSeconds(Now(), 1.0),
@@ -101,7 +102,12 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
     case URL::Scheme::File:
       return HandleFileURL(editor, url);
     case URL::Scheme::Vm:
-      return HandleVmURL(editor, execution_context, url);
+      switch (vm_url_behavior) {
+        case VmURLBehavior::Ignore:
+          return std::nullopt;
+        case VmURLBehavior::Execute:
+          return HandleVmURL(editor, execution_context, url);
+      }
   }
   LOG(FATAL) << "Invalid scheme.";
   std::unreachable();

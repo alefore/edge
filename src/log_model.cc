@@ -41,6 +41,16 @@ using afc::vm::Identifier;
 using container::CollectExpected;
 
 namespace afc::editor {
+std::map<LogEntryName, std::vector<LogEntryValue>> LogLine::ValueGroups()
+    const {
+  std::map<LogEntryName, std::vector<LogEntryValue>> output;
+  std::ranges::for_each(values, [&](const LogEntryValue& entry) {
+    // TODO(P1, log, 2026-04-30): Avoid the call to std::get. Use visit instead?
+    output[entry.name].push_back(entry);
+  });
+  return output;
+}
+
 LogType::LogType(LogTypeName name, NonEmptySingleLine pattern,
                  std::vector<LogEntryConfiguration> entries,
                  LogTypeActivationPolicy activation_policy)
@@ -182,17 +192,24 @@ std::expected<gc::Root<Expression>, Error> LogEvaluator::Compile(
 }
 
 LogLineEvaluator LogEvaluator::Enter(const LogLine& log_line) {
-  std::unordered_map<LogEntryName, std::vector<LazyString>> values;
-  {
-    TRACK_OPERATION(LogEvaluator_AggregateValues);
-    std::ranges::for_each(log_line.values, [&](const LogEntryValue& entry) {
-      // TODO(P1, log, 2026-04-30): Avoid the call to std::get. Use visit
-      // instead?
-      values[entry.name].push_back(std::get<LazyString>(entry.value));
-    });
-  }
+  std::unordered_map<LogEntryName, std::vector<LazyString>> values =
+      log_line.ValueGroups() |
+      std::views::transform(
+          [](std::pair<LogEntryName, std::vector<LogEntryValue>> data) {
+            return std::make_pair(
+                data.first,
+                data.second |
+                    std::views::transform([](const LogEntryValue& value) {
+                      // TODO(P1, log, 2026-04-30): Avoid the call
+                      // to std::get. Use visit instead?
+                      return std::get<LazyString>(value.value);
+                    }) |
+                    std::ranges::to<std::vector>());
+          }) |
+      std::ranges::to<std::unordered_map>();
 
   {
+    // TODO(2026-05-05, P2, trivial): Use TRACK_SCOPE (requires defining it).
     TRACK_OPERATION(LogEvaluator_PrepareEnvironment);
     std::ranges::for_each(
         values, [&](std::pair<LogEntryName, std::vector<LazyString>> entry) {

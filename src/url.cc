@@ -127,11 +127,14 @@ const bool get_local_file_path_tests_registration = tests::Register(
 
 SingleLine URL::StripScheme() const {
   NonEmptySingleLine str = read();
-  return FindFirstOf(str, {L':'})
-      .transform([&](ColumnNumber colon) {
-        return str.Substring(colon + ColumnNumberDelta{1});
-      })
-      .value_or(str);
+  return vm::EscapedString::ParseURL(FindFirstOf(str, {L':'})
+                                         .transform([&](ColumnNumber colon) {
+                                           return str.Substring(
+                                               colon + ColumnNumberDelta{1});
+                                         })
+                                         .value_or(str))
+      .value()
+      .OriginalString();
 }
 
 namespace {

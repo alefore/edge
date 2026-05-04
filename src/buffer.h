@@ -497,7 +497,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   void set_position(const language::text::LineColumn& position);
 
   futures::ValueOrError<std::optional<language::gc::Root<OpenBuffer>>>
-  OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior);
+  OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior,
+                               VmURLBehavior vm_url_behavior);
 
   // Returns the position of just after the last character of the current file.
   language::text::LineColumn end_position() const;

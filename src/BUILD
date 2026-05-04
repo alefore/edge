@@ -115,6 +115,8 @@ cc_binary(
         "log.h",
         "log_config_loader.cc",
         "log_config_loader.h",
+        "log_model_vm.cc",
+        "log_model_vm.h",
         "lru_cache.cc",
         "lru_cache.h",
         "main.cc",

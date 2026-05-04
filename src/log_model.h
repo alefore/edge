@@ -45,6 +45,8 @@ struct LogEntryValue {
 struct LogLine {
   // Values must be sorted by `position`.
   std::vector<LogEntryValue> values;
+
+  std::map<LogEntryName, std::vector<LogEntryValue>> ValueGroups() const;
 };
 
 class LogTypeName
