@@ -393,7 +393,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .layout_goal =
           input.buffer_display_data.content_lines() != buffer.lines_size()
               ? BufferContentsViewLayout::Input::LayoutGoal::kVisibility
-              : BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering,
+              : BufferContentsViewLayout::Input::LayoutGoal::kAvoidJitter,
       .flow_mode = buffer.Read(buffer_variables::flow_mode)};
 
   input.buffer_display_data.set_content_lines(buffer.lines_size());
@@ -441,7 +441,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   if (!status_lines.size().IsZero()) {
     (buffer.status().GetType() == Status::Type::Prompt ? output.lines
-                                                        : status_lines)
+                                                       : status_lines)
         .RemoveCursor();
     output.lines.Append(std::move(status_lines));
   }

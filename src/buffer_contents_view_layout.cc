@@ -253,8 +253,8 @@ std::ostream& operator<<(
     case BufferContentsViewLayout::Input::LayoutGoal::kVisibility:
       os << "LayoutGoal::kVisibility";
       break;
-    case BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering:
-      os << "LayoutGoal::kNoFlickering";
+    case BufferContentsViewLayout::Input::LayoutGoal::kAvoidJitter:
+      os << "LayoutGoal::kAvoidJitter";
       break;
   }
   return os;
