@@ -14,9 +14,9 @@ static Observers::Observer WeakPtrLockingObserver(
         data.Lock(),
         [callable](language::gc::Root<P> root) {
           callable(root.ptr().value());
-          return Observers::State::kAlive;
+          return Observers::State::Alive;
         },
-        [] { return Observers::State::kExpired; });
+        [] { return Observers::State::Expired; });
   };
 }
 }  // namespace afc::language

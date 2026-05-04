@@ -140,7 +140,7 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
               LazyString{L"; error: "},
           Path::New(ToLazyString(str.Substring(start, pos - start)))));
 
-  if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
+  if (delimiter == '\"' && path.GetRootType() == Path::RootType::Relative &&
       compilation.current_source_path().has_value())
     VisitValue(compilation.current_source_path()->Dirname(),
                [&](Path source_directory) {

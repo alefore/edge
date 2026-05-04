@@ -344,7 +344,7 @@ transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&,
     transformation::Stack& stack, CommandSetShell shell) {
   stack.post_transformation_behavior =
-      transformation::Stack::PostTransformationBehavior::kCommandSystem;
+      transformation::Stack::PostTransformationBehavior::CommandSystem;
   stack.shell = transformation::ShellCommand(shell.input.read());
   return transformation::Stack{};
 }
@@ -586,14 +586,14 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
   cmap.Insert(L'h', {.category = KeyCommandsMap::Category::kRepetitions,
                      .description = kMoveLeft,
                      .handler = [output](ExtendedChar) { output->sum(-1); }})
-      .Insert(ControlChar::kLeftArrow,
+      .Insert(ControlChar::LeftArrow,
               {.category = KeyCommandsMap::Category::kRepetitions,
                .description = kMoveLeft,
                .handler = [output](ExtendedChar) { output->sum(-1); }})
       .Insert(L'l', {.category = KeyCommandsMap::Category::kRepetitions,
                      .description = kMoveRight,
                      .handler = [output](ExtendedChar) { output->sum(1); }})
-      .Insert(ControlChar::kRightArrow,
+      .Insert(ControlChar::RightArrow,
               {.category = KeyCommandsMap::Category::kRepetitions,
                .description = kMoveRight,
                .handler = [output](ExtendedChar) { output->sum(1); }});
@@ -602,7 +602,7 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
   cmap.Insert(
-      ControlChar::kBackspace,
+      ControlChar::Backspace,
       {.category = KeyCommandsMap::Category::kStringControl,
        .description =
            Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"PopRepetitions")},
@@ -679,7 +679,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
           .description = description,
           .handler = [output](ExtendedChar t) {
             int delta = (t == ExtendedChar(L'j') ||
-                         t == ExtendedChar(ControlChar::kDownArrow))
+                         t == ExtendedChar(ControlChar::DownArrow))
                             ? 1
                             : -1;
             if (output->direction == Direction::Backwards) {
@@ -690,11 +690,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
     };
     cmap.Insert(L'j',
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
-        .Insert(ControlChar::kDownArrow,
+        .Insert(ControlChar::DownArrow,
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
         .Insert(L'k',
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}))
-        .Insert(ControlChar::kUpArrow,
+        .Insert(ControlChar::UpArrow,
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}));
   }
 
@@ -742,7 +742,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
            .description = kMoveDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
       .Insert(
-          ControlChar::kDownArrow,
+          ControlChar::DownArrow,
           {.category = KeyCommandsMap::Category::kRepetitions,
            .description = kMoveDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
@@ -752,7 +752,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
            .description = kMoveUp,
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }})
       .Insert(
-          ControlChar::kUpArrow,
+          ControlChar::UpArrow,
           {.category = KeyCommandsMap::Category::kRepetitions,
            .description = kMoveUp,
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
@@ -761,12 +761,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(
-          ControlChar::kPageDown,
+          ControlChar::PageDown,
           {.category = KeyCommandsMap::Category::kNewCommand,
            .description = kPageDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
       .Insert(
-          ControlChar::kPageUp,
+          ControlChar::PageUp,
           {.category = KeyCommandsMap::Category::kNewCommand,
            .description = kPageUp,
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
@@ -775,7 +775,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
                        State*) {
   if (output->query.size() < ColumnNumberDelta{3})
-    cmap.SetFallback({L'\n', ControlChar::kEscape, ControlChar::kBackspace},
+    cmap.SetFallback({L'\n', ControlChar::Escape, ControlChar::Backspace},
                      [output](ExtendedChar extended_c) {
                        std::visit(overload{[](ControlChar) {},
                                            [&](wchar_t c) {
@@ -786,7 +786,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
                                   extended_c);
                      });
   cmap.Insert(
-      ControlChar::kBackspace,
+      ControlChar::Backspace,
       {.category = KeyCommandsMap::Category::kStringControl,
        .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
        .active = !output->query.empty(),
@@ -799,7 +799,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                        State*) {
   cmap.Insert(
-      ControlChar::kBackspace,
+      ControlChar::Backspace,
       {.category = KeyCommandsMap::Category::kStringControl,
        .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Pop")},
        .active = !output->directions.empty(),
@@ -808,13 +808,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
        }});
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
-    cmap.Insert(L'h',
-                {.category = KeyCommandsMap::Category::kDirection,
-                 .description = kBisectLeft,
-                 .handler =
-                     [output](ExtendedChar) {
-                       output->directions.push_back(Direction::Backwards);
-                     }})
+    cmap.Insert(L'h', {.category = KeyCommandsMap::Category::kDirection,
+                       .description = kBisectLeft,
+                       .handler =
+                           [output](ExtendedChar) {
+                             output->directions.push_back(Direction::Backwards);
+                           }})
         .Insert(L'l', {.category = KeyCommandsMap::Category::kDirection,
                        .description = kBisectRight,
                        .handler = [output](ExtendedChar) {
@@ -822,13 +821,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                        }});
   }
   if (output->structure == Structure::kLine) {
-    cmap.Insert(L'k',
-                {.category = KeyCommandsMap::Category::kDirection,
-                 .description = kBisectDown,
-                 .handler =
-                     [output](ExtendedChar) {
-                       output->directions.push_back(Direction::Backwards);
-                     }})
+    cmap.Insert(L'k', {.category = KeyCommandsMap::Category::kDirection,
+                       .description = kBisectDown,
+                       .handler =
+                           [output](ExtendedChar) {
+                             output->directions.push_back(Direction::Backwards);
+                           }})
         .Insert(L'j', {.category = KeyCommandsMap::Category::kDirection,
                        .description = kBisectUp,
                        .handler = [output](ExtendedChar) {
@@ -838,7 +836,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
-  cmap.Insert(ControlChar::kBackspace,
+  cmap.Insert(ControlChar::Backspace,
               {.category = KeyCommandsMap::Category::kStringControl,
                .description =
                    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
@@ -849,7 +847,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
                          ColumnNumber{0},
                          output->input.size() - ColumnNumberDelta{1});
                    }})
-      .SetFallback({'\n', ControlChar::kEscape, ControlChar::kBackspace},
+      .SetFallback({'\n', ControlChar::Escape, ControlChar::Backspace},
                    [output](ExtendedChar extended_c) {
                      std::visit(overload{[](ControlChar) {},
                                          [&](wchar_t c) {
@@ -864,12 +862,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
   if (output->query_input.has_value()) {
     cmap.SetFallback(
-        {'\n', ControlChar::kEscape}, [output](ExtendedChar extended_c) {
+        {'\n', ControlChar::Escape}, [output](ExtendedChar extended_c) {
           std::visit(
               overload{
                   [output](ControlChar c) {
                     switch (c) {
-                      case ControlChar::kBackspace:
+                      case ControlChar::Backspace:
                         if (output->query_input->empty())
                           output->query_input = std::nullopt;
                         else
@@ -969,7 +967,7 @@ class OperationMode : public EditorMode {
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Apply")},
                  .handler = [this](ExtendedChar) { state_.Commit(); }})
-        .Insert(ControlChar::kBackspace,
+        .Insert(ControlChar::Backspace,
                 {.category = KeyCommandsMap::Category::kStringControl,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
@@ -1010,7 +1008,7 @@ class OperationMode : public EditorMode {
                        state_.Push(CommandReach{.structure = Structure::kChar,
                                                 .repetitions = -1});
                      }})
-        .Insert(ControlChar::kLeftArrow,
+        .Insert(ControlChar::LeftArrow,
                 {.category = KeyCommandsMap::Category::kNewCommand,
                  .description = kMoveLeft,
                  .handler =
@@ -1026,7 +1024,7 @@ class OperationMode : public EditorMode {
                        state_.Push(CommandReach{.structure = Structure::kChar,
                                                 .repetitions = 1});
                      }})
-        .Insert(ControlChar::kRightArrow,
+        .Insert(ControlChar::RightArrow,
                 {.category = KeyCommandsMap::Category::kNewCommand,
                  .description = kMoveRight,
                  .handler =
@@ -1043,19 +1041,21 @@ class OperationMode : public EditorMode {
 
     // Unhandled character.
     cmap.PushNew()
-        .Insert(ControlChar::kEscape,
+        .Insert(ControlChar::Escape,
                 {.category = KeyCommandsMap::Category::kStringControl,
                  .description =
                      Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Cancel")},
                  .handler =
                      [&state = state_](ExtendedChar) {
                        if (state.top_command().post_transformation_behavior ==
-                           transformation::Stack::kNone) {
+                           transformation::Stack::PostTransformationBehavior::
+                               None) {
                          state.Abort();
                        } else {
                          TopCommand top_command = state.top_command();
                          top_command.post_transformation_behavior =
-                             transformation::Stack::kNone;
+                             transformation::Stack::PostTransformationBehavior::
+                                 None;
                          state.set_top_command(std::move(top_command));
                        }
                      }})
@@ -1084,7 +1084,7 @@ class OperationMode : public EditorMode {
     auto PageHandler = [&](ControlChar c) {
       return KeyCommandsMap::KeyCommand{
           .category = KeyCommandsMap::Category::kNewCommand,
-          .description = c == ControlChar::kPageUp ? kPageUp : kPageDown,
+          .description = c == ControlChar::PageUp ? kPageUp : kPageDown,
           .handler = [&state = state_, c](ExtendedChar) {
             if (CommandReach* reach =
                     state.empty()
@@ -1095,17 +1095,17 @@ class OperationMode : public EditorMode {
             }
             state.Push(CommandReachPage{
                 .repetitions = operation::CommandArgumentRepetitions(
-                    c == ControlChar::kPageUp ? -1 : 1)});
+                    c == ControlChar::PageUp ? -1 : 1)});
           }};
     };
     auto MoveHandler = [&](ExtendedChar c) {
       CHECK(c == ExtendedChar(L'j') || c == ExtendedChar(L'k') ||
-            c == ExtendedChar(ControlChar::kDownArrow) ||
-            c == ExtendedChar(ControlChar::kUpArrow));
+            c == ExtendedChar(ControlChar::DownArrow) ||
+            c == ExtendedChar(ControlChar::UpArrow));
       return KeyCommandsMap::KeyCommand{
           .category = KeyCommandsMap::Category::kNewCommand,
           .description = (c == ExtendedChar(L'j') ||
-                          c == ExtendedChar(ControlChar::kDownArrow))
+                          c == ExtendedChar(ControlChar::DownArrow))
                              ? kMoveDown
                              : kMoveUp,
           .handler = [&state = state_, c](ExtendedChar) {
@@ -1120,7 +1120,7 @@ class OperationMode : public EditorMode {
             state.Push(CommandReachLine{
                 .repetitions = operation::CommandArgumentRepetitions(
                     c == ExtendedChar(L'k') ||
-                            c == ExtendedChar(ControlChar::kUpArrow)
+                            c == ExtendedChar(ControlChar::UpArrow)
                         ? -1
                         : 1)});
           }};
@@ -1134,17 +1134,16 @@ class OperationMode : public EditorMode {
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
-                         case PTB::kDeleteRegion:
+                         case PTB::DeleteRegion:
                            top_command.post_transformation_behavior =
-                               PTB::kCopyRegion;
+                               PTB::CopyRegion;
                            break;
-                         case PTB::kCopyRegion:
-                           top_command.post_transformation_behavior =
-                               PTB::kNone;
+                         case PTB::CopyRegion:
+                           top_command.post_transformation_behavior = PTB::None;
                            break;
                          default:
                            top_command.post_transformation_behavior =
-                               PTB::kDeleteRegion;
+                               PTB::DeleteRegion;
                            break;
                        }
                        state.set_top_command(top_command);
@@ -1175,13 +1174,12 @@ class OperationMode : public EditorMode {
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
-                         case PTB::kCapitalsSwitch:
-                           top_command.post_transformation_behavior =
-                               PTB::kNone;
+                         case PTB::CapitalsSwitch:
+                           top_command.post_transformation_behavior = PTB::None;
                            break;
                          default:
                            top_command.post_transformation_behavior =
-                               PTB::kCapitalsSwitch;
+                               PTB::CapitalsSwitch;
                            break;
                        }
                        state.set_top_command(top_command);
@@ -1193,17 +1191,16 @@ class OperationMode : public EditorMode {
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
-                         case PTB::kCommandSystem:
+                         case PTB::CommandSystem:
                            top_command.post_transformation_behavior =
-                               PTB::kCommandCpp;
+                               PTB::CommandCpp;
                            break;
-                         case PTB::kCommandCpp:
-                           top_command.post_transformation_behavior =
-                               PTB::kNone;
+                         case PTB::CommandCpp:
+                           top_command.post_transformation_behavior = PTB::None;
                            break;
                          default:
                            top_command.post_transformation_behavior =
-                               PTB::kCommandSystem;
+                               PTB::CommandSystem;
                            break;
                        }
                        state.set_top_command(top_command);
@@ -1216,29 +1213,28 @@ class OperationMode : public EditorMode {
                  .handler =
                      [&state = state_, top_command](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
-                         case PTB::kCursorOnEachLine:
-                           top_command.post_transformation_behavior =
-                               PTB::kNone;
+                         case PTB::CursorOnEachLine:
+                           top_command.post_transformation_behavior = PTB::None;
                            break;
                          default:
                            top_command.post_transformation_behavior =
-                               PTB::kCursorOnEachLine;
+                               PTB::CursorOnEachLine;
                        }
                        state.set_top_command(top_command);
                      }})
         .Insert(L'f', push(kReachQuery, CommandReachQuery{}))
-        .Insert(ControlChar::kPageDown, PageHandler(ControlChar::kPageDown))
-        .Insert(ControlChar::kPageUp, PageHandler(ControlChar::kPageUp))
+        .Insert(ControlChar::PageDown, PageHandler(ControlChar::PageDown))
+        .Insert(ControlChar::PageUp, PageHandler(ControlChar::PageUp))
         .Insert(L'j', MoveHandler('j'))
         .Insert(L'k', MoveHandler('k'))
-        .Insert(ControlChar::kDownArrow, MoveHandler(ControlChar::kDownArrow))
-        .Insert(ControlChar::kUpArrow, MoveHandler(ControlChar::kUpArrow))
+        .Insert(ControlChar::DownArrow, MoveHandler(ControlChar::DownArrow))
+        .Insert(ControlChar::UpArrow, MoveHandler(ControlChar::UpArrow))
         .Insert(L'H', push(kHomeLeft, CommandReachBegin{}))
-        .Insert(ControlChar::kHome, push(kHomeLeft, CommandReachBegin{}))
+        .Insert(ControlChar::Home, push(kHomeLeft, CommandReachBegin{}))
         .Insert(L'L',
                 push(kHomeRight,
                      CommandReachBegin{.direction = Direction::Backwards}))
-        .Insert(ControlChar::kEnd,
+        .Insert(ControlChar::End,
                 push(kHomeRight,
                      CommandReachBegin{.direction = Direction::Backwards}))
         .Insert(L'K',
@@ -1251,38 +1247,38 @@ class OperationMode : public EditorMode {
 
   static void AppendStatus(TopCommand top_command, LineBuilder& output) {
     switch (top_command.post_transformation_behavior) {
-      case transformation::Stack::PostTransformationBehavior::kNone:
+      case transformation::Stack::PostTransformationBehavior::None:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🦋 Move"),
             LineModifierSet{LineModifier::Bold, LineModifier::Cyan});
         return;
-      case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
+      case transformation::Stack::PostTransformationBehavior::DeleteRegion:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"✂️  Delete"),
             LineModifierSet{LineModifier::Bold, LineModifier::BgRed});
         return;
-      case transformation::Stack::PostTransformationBehavior::kCopyRegion:
+      case transformation::Stack::PostTransformationBehavior::CopyRegion:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"📋 Copy"),
             LineModifierSet{LineModifier::Bold, LineModifier::Yellow});
         return;
-      case transformation::Stack::PostTransformationBehavior::kCommandSystem:
+      case transformation::Stack::PostTransformationBehavior::CommandSystem:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🐚 System"),
             LineModifierSet{LineModifier::Bold, LineModifier::Green});
         return;
-      case transformation::Stack::PostTransformationBehavior::kCommandCpp:
+      case transformation::Stack::PostTransformationBehavior::CommandCpp:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
             LineModifierSet{LineModifier::Bold, LineModifier::Green,
                             LineModifier::Underline});
         return;
-      case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
+      case transformation::Stack::PostTransformationBehavior::CapitalsSwitch:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"🔠 Aa"),
             LineModifierSet{LineModifier::Bold, LineModifier::Magenta});
         return;
-      case transformation::Stack::PostTransformationBehavior::kCursorOnEachLine:
+      case transformation::Stack::PostTransformationBehavior::CursorOnEachLine:
         output.AppendString(
             SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
             LineModifierSet{LineModifier::Bold, LineModifier::Magenta});

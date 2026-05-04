@@ -245,7 +245,7 @@ std::optional<Environment::LookupResult> Environment::Lookup(
 std::vector<Environment::LookupResult> Environment::PolyLookup(
     const Namespace& symbol_namespace, const Identifier& symbol) const {
   std::vector<LookupResult> output;
-  PolyLookup(symbol_namespace, symbol, LookupResult::VariableScope::kLocal,
+  PolyLookup(symbol_namespace, symbol, LookupResult::VariableScope::Local,
              output);
   return output;
 }
@@ -278,7 +278,7 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
   if (parent_environment_.has_value()) {
     (*parent_environment_)
         ->PolyLookup(symbol_namespace, symbol,
-                     LookupResult::VariableScope::kGlobal, output);
+                     LookupResult::VariableScope::Global, output);
   }
 }
 

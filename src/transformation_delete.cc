@@ -203,7 +203,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   gc::Root<OpenBuffer> delete_buffer =
       GetDeletedTextBuffer(input.buffer, range);
   if (options.modifiers.paste_buffer_behavior ==
-          Modifiers::PasteBufferBehavior::kDeleteInto &&
+          Modifiers::PasteBufferBehavior::DeleteInto &&
       input.mode == Input::Mode::kFinal && input.delete_buffer.has_value()) {
     VLOG(5) << "Preparing delete buffer.";
     output->added_to_paste_buffer = true;

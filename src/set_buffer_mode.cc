@@ -55,24 +55,24 @@ struct Operation {
 };
 
 struct Data {
-  enum class State { kDefault, kReadingFilter, kReadingSearch };
-  // If state is kReadingFilter, the back of operations must be of type kFilter.
-  // If state is kReadingSearch, the back of operations must be of type kSearch.
-  State state = State::kDefault;
+  enum class State { Default, ReadingFilter, ReadingSearch };
+  // If state is ReadingFilter, the back of operations must be of type Filter.
+  // If state is ReadingSearch, the back of operations must be of type Search.
+  State state = State::Default;
 
   std::vector<Operation> operations;
   std::optional<size_t> initial_number;
 };
 
 bool CharConsumer(ExtendedChar c, Data& data) {
-  CHECK(data.state != Data::State::kReadingFilter ||
+  CHECK(data.state != Data::State::ReadingFilter ||
         (!data.operations.empty() &&
          data.operations.back().type == Operation::Type::kFilter));
-  CHECK(data.state != Data::State::kReadingSearch ||
+  CHECK(data.state != Data::State::ReadingSearch ||
         (!data.operations.empty() &&
          data.operations.back().type == Operation::Type::kSearch));
   switch (data.state) {
-    case Data::State::kDefault:
+    case Data::State::Default:
       return std::visit(
           overload{
               [&](wchar_t regular_c) {
@@ -121,12 +121,12 @@ bool CharConsumer(ExtendedChar c, Data& data) {
                     return true;
 
                   case L'w':
-                    data.state = Data::State::kReadingFilter;
+                    data.state = Data::State::ReadingFilter;
                     data.operations.push_back({Operation::Type::kFilter});
                     return true;
 
                   case L'/':
-                    data.state = Data::State::kReadingSearch;
+                    data.state = Data::State::ReadingSearch;
                     data.operations.push_back({Operation::Type::kSearch});
                     return true;
 
@@ -137,12 +137,12 @@ bool CharConsumer(ExtendedChar c, Data& data) {
               [](ControlChar) { return false; }},
           c);
 
-    case Data::State::kReadingFilter:
-    case Data::State::kReadingSearch:
-      if (c == ExtendedChar(ControlChar::kEscape))
+    case Data::State::ReadingFilter:
+    case Data::State::ReadingSearch:
+      if (c == ExtendedChar(ControlChar::Escape))
         return false;
       else if (c == ExtendedChar(L'\n')) {
-        data.state = Data::State::kDefault;
+        data.state = Data::State::Default;
         CHECK(!data.operations.empty());
         CHECK(data.operations.back().type == Operation::Type::kFilter ||
               data.operations.back().type == Operation::Type::kSearch);
@@ -196,7 +196,7 @@ Line BuildStatus(const Data& data) {
                             LineModifierSet{LineModifier::Dim});
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
-            data.state == Data::State::kReadingFilter) {
+            data.state == Data::State::ReadingFilter) {
           output.AppendString(SingleLine::Char<L'…'>(),
                               LineModifierSet{LineModifier::Yellow});
         }
@@ -213,7 +213,7 @@ Line BuildStatus(const Data& data) {
 
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
-            data.state == Data::State::kReadingSearch) {
+            data.state == Data::State::ReadingSearch) {
           output.AppendString(SingleLine::Char<L'…'>(),
                               LineModifierSet{LineModifier::Yellow});
         }

@@ -424,7 +424,7 @@ class InsertMode : public InputReceiver,
   void ProcessControl(ControlChar control_c, bool old_literal) {
     TRACK_OPERATION(InsertMode_ProcessInput_ControlChar);
     switch (control_c) {
-      case ControlChar::kEscape:
+      case ControlChar::Escape:
         ResetScrollBehavior();
         StartNewInsertion();
 
@@ -476,57 +476,57 @@ class InsertMode : public InputReceiver,
             });
         return;
 
-      case ControlChar::kPageUp:
+      case ControlChar::PageUp:
         ApplyScrollBehavior({27, '[', '5', '~'}, &ScrollBehavior::PageUp);
         return;
 
-      case ControlChar::kPageDown:
+      case ControlChar::PageDown:
         ApplyScrollBehavior({27, '[', '6', '~'}, &ScrollBehavior::PageDown);
         return;
 
-      case ControlChar::kUpArrow:
+      case ControlChar::UpArrow:
         ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
         return;
 
-      case ControlChar::kDownArrow:
+      case ControlChar::DownArrow:
         ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
         return;
 
-      case ControlChar::kLeftArrow:
+      case ControlChar::LeftArrow:
         ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left);
         return;
 
-      case ControlChar::kRightArrow:
+      case ControlChar::RightArrow:
         ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
         return;
 
-      case ControlChar::kHome:
-      case ControlChar::kCtrlA:
+      case ControlChar::Home:
+      case ControlChar::CtrlA:
         ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
         return;
 
-      case ControlChar::kEnd:
-      case ControlChar::kCtrlE:
+      case ControlChar::End:
+      case ControlChar::CtrlE:
         ApplyScrollBehavior({5}, &ScrollBehavior::End);
         return;
 
-      case ControlChar::kCtrlL:
+      case ControlChar::CtrlL:
         WriteLineBuffer(buffers_, {0x0c});
         return;
 
-      case ControlChar::kCtrlD:
+      case ControlChar::CtrlD:
         HandleDelete({4}, Direction::Forwards);
         return;
 
-      case ControlChar::kDelete:
+      case ControlChar::Delete:
         HandleDelete({27, '[', 51, 126}, Direction::Forwards);
         return;
 
-      case ControlChar::kBackspace:
+      case ControlChar::Backspace:
         HandleDelete({127}, Direction::Backwards);
         return;
 
-      case ControlChar::kCtrlU: {
+      case ControlChar::CtrlU: {
         ResetScrollBehavior();
         StartNewInsertion();
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
@@ -561,7 +561,7 @@ class InsertMode : public InputReceiver,
         return;
       }
 
-      case ControlChar::kCtrlV:
+      case ControlChar::CtrlV:
         if (old_literal) {
           DLOG(INFO) << "Inserting literal CTRL_V";
           WriteLineBuffer(buffers_, {22});
@@ -575,7 +575,7 @@ class InsertMode : public InputReceiver,
         }
         break;
 
-      case ControlChar::kCtrlK: {
+      case ControlChar::CtrlK: {
         ResetScrollBehavior();
         StartNewInsertion();
 
@@ -586,7 +586,7 @@ class InsertMode : public InputReceiver,
                       .modifiers =
                           {.structure = Structure::kLine,
                            .paste_buffer_behavior =
-                               Modifiers::PasteBufferBehavior::kDoNothing,
+                               Modifiers::PasteBufferBehavior::DoNothing,
                            .boundary_begin = Modifiers::CURRENT_POSITION,
                            .boundary_end = Modifiers::LIMIT_CURRENT},
                       .initiator = transformation::Delete::Initiator::kUser})
@@ -805,7 +805,7 @@ class InsertMode : public InputReceiver,
           stack.push_back(transformation::Delete{
               .modifiers = {.direction = direction,
                             .paste_buffer_behavior =
-                                Modifiers::PasteBufferBehavior::kDoNothing},
+                                Modifiers::PasteBufferBehavior::DoNothing},
               .initiator = transformation::Delete::Initiator::kUser});
           switch (options.editor_state.modifiers().insertion) {
             case Modifiers::ModifyMode::kShift:

@@ -81,7 +81,7 @@ transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
       .modifiers = {.direction = Direction::Backwards,
                     .repetitions = characters.read(),
                     .paste_buffer_behavior =
-                        Modifiers::PasteBufferBehavior::kDoNothing},
+                        Modifiers::PasteBufferBehavior::DoNothing},
       .initiator = transformation::Delete::Initiator::kInternal};
 }
 

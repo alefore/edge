@@ -558,7 +558,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
     buffer.ApplyToCursors(transformation::Delete{
         .modifiers = {.structure = Structure::kLine,
                       .paste_buffer_behavior =
-                          Modifiers::PasteBufferBehavior::kDoNothing,
+                          Modifiers::PasteBufferBehavior::DoNothing,
                       .boundary_begin = Modifiers::LIMIT_CURRENT,
                       .boundary_end = Modifiers::LIMIT_CURRENT},
         .initiator = transformation::Delete::Initiator::kInternal});
@@ -773,7 +773,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                             .modifiers =
                                 {.structure = Structure::kLine,
                                  .paste_buffer_behavior =
-                                     Modifiers::PasteBufferBehavior::kDoNothing,
+                                     Modifiers::PasteBufferBehavior::DoNothing,
                                  .boundary_begin = Modifiers::LIMIT_CURRENT,
                                  .boundary_end = Modifiers::LIMIT_CURRENT},
                             .initiator =

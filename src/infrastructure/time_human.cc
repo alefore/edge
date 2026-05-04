@@ -11,7 +11,7 @@ using afc::language::lazy_string::SingleLine;
 
 namespace afc::infrastructure {
 namespace {
-enum class NanosecondsBehavior { kIgnore, kAppend };
+enum class NanosecondsBehavior { Ignore, Append };
 language::ValueOrError<NonEmptySingleLine> strftime(
     const struct timespec& time, const char* spec,
     NanosecondsBehavior nanoseconds_behavior) {
@@ -22,10 +22,10 @@ language::ValueOrError<NonEmptySingleLine> strftime(
   size_t len = strftime(buffer, sizeof(buffer), spec, &tm_value);
   if (len == 0) return Error{LazyString{L"strftime failed"}};
   switch (nanoseconds_behavior) {
-    case NanosecondsBehavior::kAppend:
+    case NanosecondsBehavior::Append:
       snprintf(buffer + len, sizeof(buffer) - len, ".%09ld", time.tv_nsec);
       break;
-    case NanosecondsBehavior::kIgnore:
+    case NanosecondsBehavior::Ignore:
       break;
     default:
       LOG(FATAL) << "Invalid value for nanoseconds_behavior.";
@@ -36,10 +36,10 @@ language::ValueOrError<NonEmptySingleLine> strftime(
 }  // namespace
 
 language::ValueOrError<NonEmptySingleLine> HumanReadableTime(const Time& time) {
-  return strftime(time, "%Y-%m-%d %T %z", NanosecondsBehavior::kAppend);
+  return strftime(time, "%Y-%m-%d %T %z", NanosecondsBehavior::Append);
 }
 
 language::ValueOrError<NonEmptySingleLine> HumanReadableDate(const Time& time) {
-  return strftime(time, "%Y-%m-%d", NanosecondsBehavior::kIgnore);
+  return strftime(time, "%Y-%m-%d", NanosecondsBehavior::Ignore);
 }
 }  // namespace afc::infrastructure

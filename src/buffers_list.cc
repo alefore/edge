@@ -702,11 +702,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
               progress = SingleLine::Char<L'!'>();
             } else if (buffer.ShouldDisplayProgress()) {
               progress = ProgressString(buffer.Read(buffer_variables::progress),
-                                        OverflowBehavior::kModulo)
+                                        OverflowBehavior::Modulo)
                              .read();
             } else {
               progress = ProgressStringFillUp(buffer.lines_size().read(),
-                                              OverflowBehavior::kModulo)
+                                              OverflowBehavior::Modulo)
                              .read();
               progress_modifier.insert(LineModifier::Dim);
             }

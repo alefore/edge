@@ -21,7 +21,7 @@ namespace afc::editor {
 
 class OpenBuffer;
 
-enum class OverflowBehavior { kModulo, kMaximum };
+enum class OverflowBehavior { Modulo, Maximum };
 language::lazy_string::NonEmptySingleLine ProgressString(
     size_t counter, OverflowBehavior overflow_behavior);
 language::lazy_string::NonEmptySingleLine ProgressStringFillUp(

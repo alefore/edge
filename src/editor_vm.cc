@@ -154,37 +154,37 @@ gc::Root<Environment> BuildEditorEnvironment(
           NonEmptySingleLine{SingleLine{LazyString{L"terminal_backspace"}}}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
-          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kBackspace}))));
+          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::Backspace}))));
   value.Define(
       Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"terminal_control_a"}}}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
-          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlA}))));
+          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::CtrlA}))));
   value.Define(
       Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"terminal_control_e"}}}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
-          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlE}))));
+          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::CtrlE}))));
   value.Define(
       Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"terminal_control_d"}}}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
-          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlD}))));
+          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::CtrlD}))));
   value.Define(
       Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"terminal_control_k"}}}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
-          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlK}))));
+          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::CtrlK}))));
   value.Define(
       Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"terminal_control_u"}}}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
-          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlU}))));
+          MakeNonNullShared<PV>(MakeProtected(V{ControlChar::CtrlU}))));
 
   gc::Root<ObjectType> editor_type = ObjectType::New(
       pool, VMTypeMapper<editor::EditorState>::object_type_name);

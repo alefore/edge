@@ -69,7 +69,7 @@ int main(int, char** argv) {
   auto editor_state =
       EditorState::New(CommandLineValues(), audio_player.value());
   SendInput(&editor_state.value(), L"i");
-  editor_state->ProcessInput({ControlChar::kEscape});
+  editor_state->ProcessInput({ControlChar::Escape});
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {
     LOG(INFO) << "Iteration: " << i;
     if (NextRandom() % 3 == 0) {
@@ -102,7 +102,7 @@ int main(int, char** argv) {
         auto s = strings[NextRandom() % strings.size()];
         SendInput(&editor_state.value(), L"i" + s);
         VLOG(5) << "String was: [" << s << "]";
-        editor_state->ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::Escape});
       } break;
 
       case 5:
@@ -144,10 +144,10 @@ int main(int, char** argv) {
         VLOG(5) << "Command: i BACKSPACES: " << times;
         SendInput(&editor_state.value(), L"i");
         for (int j = 0; j < times; j++) {
-          editor_state->ProcessInput({ControlChar::kBackspace});
+          editor_state->ProcessInput({ControlChar::Backspace});
         }
         VLOG(5) << "Escape.";
-        editor_state->ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::Escape});
       } break;
 
       case 14:
@@ -182,14 +182,14 @@ int main(int, char** argv) {
         break;
 
       case 21:
-        editor_state->ProcessInput({ControlChar::kEscape});
-        editor_state->ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::Escape});
+        editor_state->ProcessInput({ControlChar::Escape});
         SendInput(&editor_state.value(), L"afdate\n");
         break;
 
       case 22:
-        editor_state->ProcessInput({ControlChar::kEscape});
-        editor_state->ProcessInput({ControlChar::kEscape});
+        editor_state->ProcessInput({ControlChar::Escape});
+        editor_state->ProcessInput({ControlChar::Escape});
         SendInput(&editor_state.value(), L"afcat\n");
         break;
 

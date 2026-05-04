@@ -64,15 +64,15 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
       output_line.modifiers();
 
   switch (overlay.behavior) {
-    case VisualOverlay::Behavior::kReplace:
+    case VisualOverlay::Behavior::Replace:
       modifiers.erase(modifiers.lower_bound(column),
                       modifiers.lower_bound(column + length));
       modifiers.insert({column, overlay.modifiers});
       modifiers.insert({column + length, {}});
       break;
 
-    case VisualOverlay::Behavior::kToggle:
-    case VisualOverlay::Behavior::kOn:
+    case VisualOverlay::Behavior::Toggle:
+    case VisualOverlay::Behavior::On:
       LineModifierSet last_modifiers;
       if (modifiers.find(column) == modifiers.end()) {
         auto bound = modifiers.lower_bound(column);
@@ -89,15 +89,15 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
            it != modifiers.end() && it->first < column + length; ++it) {
         last_modifiers = it->second;
         for (auto& m : overlay.modifiers) switch (overlay.behavior) {
-            case VisualOverlay::Behavior::kReplace:
+            case VisualOverlay::Behavior::Replace:
               LOG(FATAL) << "Invalid behavior; internal error.";
               break;
 
-            case VisualOverlay::Behavior::kOn:
+            case VisualOverlay::Behavior::On:
               it->second.insert(m);
               break;
 
-            case VisualOverlay::Behavior::kToggle:
+            case VisualOverlay::Behavior::Toggle:
               ToggleModifier(m, it->second);
           }
       }

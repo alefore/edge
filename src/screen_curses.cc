@@ -170,35 +170,35 @@ std::optional<ExtendedChar> ReadChar(std::mbstate_t* mbstate) {
     }
     switch (output) {
       case 127:
-        return ControlChar::kBackspace;
+        return ControlChar::Backspace;
 
       case 1:
-        return ControlChar::kCtrlA;
+        return ControlChar::CtrlA;
 
       case 4:
-        return ControlChar::kCtrlD;
+        return ControlChar::CtrlD;
 
       case 5:
-        return ControlChar::kCtrlE;
+        return ControlChar::CtrlE;
 
       case 0x0b:
-        return ControlChar::kCtrlK;
+        return ControlChar::CtrlK;
 
       case 0x0c:
-        return ControlChar::kCtrlL;
+        return ControlChar::CtrlL;
 
       case 21:
-        return ControlChar::kCtrlU;
+        return ControlChar::CtrlU;
 
       case 22:
-        return ControlChar::kCtrlV;
+        return ControlChar::CtrlV;
 
       case 27: {
         int next = getch();
         // cerr << "Read next: " << next << "\n";
         switch (next) {
           case -1:
-            return ControlChar::kEscape;
+            return ControlChar::Escape;
 
           case '[': {
             int next2 = getch();
@@ -206,25 +206,25 @@ std::optional<ExtendedChar> ReadChar(std::mbstate_t* mbstate) {
             switch (next2) {
               case 51:
                 getch();
-                return ControlChar::kDelete;
+                return ControlChar::Delete;
               case 53:
                 getch();
-                return ControlChar::kPageUp;
+                return ControlChar::PageUp;
               case 54:
                 getch();
-                return ControlChar::kPageDown;
+                return ControlChar::PageDown;
               case 'A':
-                return ControlChar::kUpArrow;
+                return ControlChar::UpArrow;
               case 'B':
-                return ControlChar::kDownArrow;
+                return ControlChar::DownArrow;
               case 'C':
-                return ControlChar::kRightArrow;
+                return ControlChar::RightArrow;
               case 'D':
-                return ControlChar::kLeftArrow;
+                return ControlChar::LeftArrow;
               case 'F':
-                return ControlChar::kEnd;
+                return ControlChar::End;
               case 'H':
-                return ControlChar::kHome;
+                return ControlChar::Home;
             }
           }
             return -1;
@@ -232,7 +232,7 @@ std::optional<ExtendedChar> ReadChar(std::mbstate_t* mbstate) {
         // std::cerr << "Unget: " << next << "\n";
         ungetch(next);
       }
-        return ControlChar::kEscape;
+        return ControlChar::Escape;
       default:
         return output;
     }

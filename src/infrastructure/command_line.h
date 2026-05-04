@@ -50,7 +50,7 @@ namespace afc::command_line_arguments {
 template <typename ParsedValues>
 class Handler;
 
-enum class TestsBehavior { kRunAndExit, kListAndExit, kIgnore };
+enum class TestsBehavior { RunAndExit, ListAndExit, Ignore };
 
 struct FlagName
     : public language::GhostType<FlagName,
@@ -75,7 +75,7 @@ struct StandardArguments {
   // Input parameter.
   std::vector<infrastructure::Path> config_paths;
 
-  TestsBehavior tests_behavior = TestsBehavior::kIgnore;
+  TestsBehavior tests_behavior = TestsBehavior::Ignore;
   // If non-empty, tests given will be run despite the value of
   // `tests_behavior`.
   std::vector<language::lazy_string::LazyString> tests_filter;
@@ -98,7 +98,7 @@ template <typename ParsedValues>
 class Handler {
  public:
   using Callback = std::function<void(ParsingData<ParsedValues>*)>;
-  enum class VariableType { kRequired, kOptional, kNone };
+  enum class VariableType { Required, Optional, None };
 
   static std::vector<Handler<ParsedValues>> StandardHandlers() {
     using command_line_arguments::FlagName;
@@ -118,9 +118,9 @@ class Handler {
                  [](language::lazy_string::LazyString input)
                      -> language::ValueOrError<TestsBehavior> {
                    if (input == language::lazy_string::LazyString{L"run"})
-                     return TestsBehavior::kRunAndExit;
+                     return TestsBehavior::RunAndExit;
                    if (input == language::lazy_string::LazyString{L"list"})
-                     return TestsBehavior::kListAndExit;
+                     return TestsBehavior::ListAndExit;
                    return language::MakeUnexpected(language::Error{
                        language::lazy_string::LazyString{
                            L"Invalid value (valid values are `run` and "
@@ -245,7 +245,7 @@ class Handler {
 
   void Execute(ParsingData<ParsedValues>* data) const {
     switch (type_) {
-      case VariableType::kNone:
+      case VariableType::None:
         if (data->current_value.has_value()) {
           std::cerr << data->output.binary_name << ": " << data->current_flag
                     << ": Flag does not accept arguments: " << name_ << ": "
@@ -254,7 +254,7 @@ class Handler {
         }
         return delegate_(data);
 
-      case VariableType::kRequired:
+      case VariableType::Required:
         if (data->current_value.has_value()) {
           // Okay.
         } else if (data->input.empty()) {
@@ -268,7 +268,7 @@ class Handler {
         }
         // Fallthrough.
 
-      case VariableType::kOptional:
+      case VariableType::Optional:
         if (data->current_value.has_value())
           data->current_value = transform_(data->current_value.value());
         return delegate_(data);
@@ -276,14 +276,14 @@ class Handler {
   }
 
   Handler<ParsedValues>& Require(std::wstring name, std::wstring description) {
-    type_ = VariableType::kRequired;
+    type_ = VariableType::Required;
     name_ = name;
     argument_description_ = description;
     return *this;
   }
 
   Handler<ParsedValues>& Accept(std::wstring name, std::wstring description) {
-    type_ = VariableType::kOptional;
+    type_ = VariableType::Optional;
     name_ = name;
     argument_description_ = description;
     return *this;
@@ -335,15 +335,15 @@ class Handler {
         prefix = L", ";
       }
       switch (handler->argument_type()) {
-        case VariableType::kRequired:
+        case VariableType::Required:
           line += L" <" + handler->argument() + L">";
           break;
 
-        case VariableType::kOptional:
+        case VariableType::Optional:
           line += L"[=" + handler->argument() + L"]";
           break;
 
-        case VariableType::kNone:
+        case VariableType::None:
           break;
       }
       initial_table.push_back(line);
@@ -373,7 +373,7 @@ class Handler {
   FlagShortHelp short_help_;
   language::lazy_string::LazyString help_;
 
-  VariableType type_ = VariableType::kNone;
+  VariableType type_ = VariableType::None;
   std::wstring name_;
   std::wstring argument_description_;
   std::function<language::lazy_string::LazyString(

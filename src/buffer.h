@@ -495,7 +495,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   const language::text::LineColumn position() const;
   void set_position(const language::text::LineColumn& position);
 
-  enum class RemoteURLBehavior { kIgnore, kLaunchBrowser };
+  enum class RemoteURLBehavior { Ignore, LaunchBrowser };
   futures::ValueOrError<std::optional<language::gc::Root<OpenBuffer>>>
   OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior);
 

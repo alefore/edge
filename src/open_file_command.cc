@@ -175,10 +175,10 @@ Line GetInitialPromptValue(std::optional<unsigned int> repetitions,
       if (split.size() <= repetitions.value()) return;
       std::optional<Path> output_path;
       switch (path->GetRootType()) {
-        case Path::RootType::kAbsolute:
+        case Path::RootType::Absolute:
           output_path = Path::Root();
           break;
-        case Path::RootType::kRelative:
+        case Path::RootType::Relative:
           break;
       }
       for (size_t i = 0; i < repetitions.value(); i++) {

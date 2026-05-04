@@ -63,8 +63,8 @@ class FileDescriptorReader {
 
   const language::NonNull<std::shared_ptr<const Options>> options_;
 
-  enum State { kReading, kProcessing };
-  State state_ = State::kReading;
+  enum class State { Reading, Processing };
+  State state_ = State::Reading;
 
   // We read directly into low_buffer_ and then drain from that into
   // options_.buffer. It's possible that not all bytes read can be converted

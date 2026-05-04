@@ -246,9 +246,9 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
     NonNull<std::shared_ptr<WorkQueue>> parent_work_queue,
     NonNull<std::shared_ptr<std::optional<struct timespec>>>
         next_scheduled_execution) {
-  if (editor.exit_value().has_value()) return Observers::State::kExpired;
+  if (editor.exit_value().has_value()) return Observers::State::Expired;
   auto work_queue = work_queue_weak.lock();
-  if (work_queue == nullptr) return Observers::State::kExpired;
+  if (work_queue == nullptr) return Observers::State::Expired;
   if (auto next = work_queue->NextExecution();
       next.has_value() && next != next_scheduled_execution.value()) {
     next_scheduled_execution.value() = next;
@@ -262,7 +262,7 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
               editor, work_queue, parent_work_queue, next_scheduled_execution);
         }});
   }
-  return Observers::State::kAlive;
+  return Observers::State::Alive;
 }
 }  // namespace
 
@@ -889,7 +889,7 @@ void OpenBuffer::Initialize() {
         buffer_variables::log_view})
     variables_.string_variables.ObserveValue(v).Add([this] {
       UpdateTreeParser();
-      return Observers::State::kAlive;
+      return Observers::State::Alive;
     });
   UpdateTreeParser();
 
@@ -957,7 +957,7 @@ void OpenBuffer::AppendLines(
     log_model_.Add(LockAndVisitCallback(
         [](gc::Root<OpenBuffer> root_this) {
           std::shared_ptr<LogModel> model = root_this->log_model_.Get();
-          if (model == nullptr) return Observers::State::kAlive;
+          if (model == nullptr) return Observers::State::Alive;
           LineSequence contents = root_this->contents().snapshot();
           VisitOptional(
               [&](LogTypeName name) {
@@ -971,9 +971,9 @@ void OpenBuffer::AppendLines(
                   LineColumn{std::min(LineNumber{} + kLineActivationThreshold,
                                       contents.EndLine()),
                              std::numeric_limits<ColumnNumber>::max()}})));
-          return Observers::State::kExpired;
+          return Observers::State::Expired;
         },
-        []() { return Observers::State::kExpired; }, WeakPtrFromThis()));
+        []() { return Observers::State::Expired; }, WeakPtrFromThis()));
   }
 
   if (Read(buffer_variables::contains_line_marks)) {
@@ -1187,7 +1187,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                                                 : LazyString{L"not modified"}),
           AbsolutePath::New(Read(buffer_variables::path))));
 
-  if (file_path.GetRootType() != Path::RootType::kAbsolute) {
+  if (file_path.GetRootType() != Path::RootType::Absolute) {
     return Error{
         LazyString{L"Unable to persist buffer without absolute path: "} +
         file_path.read()};
@@ -2180,7 +2180,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                  return url.GetLocalFilePath();
                }) |
                SkipErrors | std::views::filter([](Path path) {
-                 return path.GetRootType() != Path::RootType::kAbsolute;
+                 return path.GetRootType() != Path::RootType::Absolute;
                }) |
                std::views::transform([search_path](Path path) {
                  return URL::FromPath(Path::Join(search_path, path));
@@ -2222,9 +2222,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      if (url.schema().value_or(URL::Schema::kFile) !=
                          URL::Schema::kFile) {
                        switch (remote_url_behavior) {
-                         case RemoteURLBehavior::kIgnore:
+                         case RemoteURLBehavior::Ignore:
                            break;
-                         case RemoteURLBehavior::kLaunchBrowser:
+                         case RemoteURLBehavior::LaunchBrowser:
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
                                editor.status().SetExpiringInformationText(
@@ -2350,7 +2350,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
   if (ShouldDisplayProgress()) {
     output.insert(
         {BufferFlagKey{ProgressString(Read(buffer_variables::progress),
-                                      OverflowBehavior::kModulo)
+                                      OverflowBehavior::Modulo)
                            .read()},
          BufferFlagValue{}});
   }
@@ -2502,7 +2502,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 }
 
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
-  buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
+  buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::Ignore)
       .Transform(LockAndVisitCallback(
           [](std::optional<gc::Root<OpenBuffer>> result,
              gc::Root<OpenBuffer> locked_buffer) {
@@ -2779,7 +2779,7 @@ void OpenBuffer::OnCursorMove() {
                  VisualOverlay{.content = ColumnNumberDelta(
                                    range.end().column - range.begin().column),
                                .modifiers = {LineModifier::Underline},
-                               .behavior = VisualOverlay::Behavior::kOn}});
+                               .behavior = VisualOverlay::Behavior::On}});
           }
         },
         [] {});

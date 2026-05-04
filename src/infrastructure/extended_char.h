@@ -9,24 +9,24 @@
 
 namespace afc::infrastructure {
 enum class ControlChar {
-  kEscape,
-  kDownArrow,
-  kUpArrow,
-  kLeftArrow,
-  kRightArrow,
-  kBackspace,
-  kPageDown,
-  kPageUp,
-  kCtrlL,
-  kCtrlV,
-  kCtrlU,
-  kCtrlK,
-  kCtrlD,
-  kCtrlA,
-  kCtrlE,
-  kDelete,
-  kHome,
-  kEnd
+  Escape,
+  DownArrow,
+  UpArrow,
+  LeftArrow,
+  RightArrow,
+  Backspace,
+  PageDown,
+  PageUp,
+  CtrlL,
+  CtrlV,
+  CtrlU,
+  CtrlK,
+  CtrlD,
+  CtrlA,
+  CtrlE,
+  Delete,
+  Home,
+  End
 };
 
 // Represents either a regular wchar_t, or a special control character.

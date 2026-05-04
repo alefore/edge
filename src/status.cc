@@ -52,10 +52,10 @@ NonEmptySingleLine Braille(size_t counter) {
 size_t HandleOverflow(size_t counter, OverflowBehavior overflow_behavior,
                       size_t largest_value) {
   switch (overflow_behavior) {
-    case OverflowBehavior::kModulo:
+    case OverflowBehavior::Modulo:
       counter = counter % largest_value;
       break;
-    case OverflowBehavior::kMaximum:
+    case OverflowBehavior::Maximum:
       counter = std::min(counter, largest_value);
       break;
   }

@@ -68,7 +68,7 @@ class CommandArgumentMode : public EditorMode {
   void ProcessInput(infrastructure::ExtendedChar c) override {
     options_.undo().Transform([this, c](language::EmptyValue) {
       if (c == infrastructure::ExtendedChar(
-                   infrastructure::ControlChar::kBackspace)) {
+                   infrastructure::ControlChar::Backspace)) {
         if (!argument_string_.empty()) {
           argument_string_.pop_back();
         }
@@ -85,7 +85,7 @@ class CommandArgumentMode : public EditorMode {
         return Transform(CommandArgumentModeApplyMode::kPreview, argument);
       }
       return (c == infrastructure::ExtendedChar(
-                       infrastructure::ControlChar::kEscape)
+                       infrastructure::ControlChar::Escape)
                   ? futures::Value<language::EmptyValue>(language::EmptyValue{})
                   : Transform(CommandArgumentModeApplyMode::kFinal, argument))
           .Transform(

@@ -36,15 +36,15 @@ void HonorStandardArguments(const StandardArguments& arguments) {
     exit(0);
   }
   switch (arguments.tests_behavior) {
-    case TestsBehavior::kRunAndExit:
+    case TestsBehavior::RunAndExit:
       tests::Run(container::MaterializeVector(
           arguments.tests_filter |
           std::views::transform(&LazyString::ToString)));
       exit(0);
-    case TestsBehavior::kListAndExit:
+    case TestsBehavior::ListAndExit:
       tests::List();
       exit(0);
-    case TestsBehavior::kIgnore:
+    case TestsBehavior::Ignore:
       break;
   }
 }

@@ -38,7 +38,7 @@ struct timespec FileDescriptorReader::last_input_received() const {
 
 void FileDescriptorReader::Register(
     infrastructure::execution::IterationHandler& handler) {
-  if (state_ == State::kProcessing) return;
+  if (state_ == State::Processing) return;
   handler.AddHandler(fd(), POLLIN | POLLPRI, [this](int) {
     LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
               << options_->name;
@@ -101,11 +101,11 @@ void FileDescriptorReader::Register(
     }
 
     clock_gettime(0, &last_input_received_);
-    state_ = State::kProcessing;
+    state_ = State::Processing;
     options_->receive_data(std::move(buffer_wrapper))
         .Transform([this](EmptyValue) {
-          CHECK(state_ == State::kProcessing);
-          state_ = State::kReading;
+          CHECK(state_ == State::Processing);
+          state_ = State::Reading;
           return EmptyValue{};
         });
   });

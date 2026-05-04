@@ -80,7 +80,7 @@ std::optional<LazyString> PathComponent::extension() const {
 Path::Path(PathComponent path_component) : Path(path_component.read()) {}
 
 /* static */ Path Path::Join(Path a, Path b) {
-  if (b.GetRootType() == Path::RootType::kAbsolute ||
+  if (b.GetRootType() == Path::RootType::Absolute ||
       a == ValueOrDie(Path::New(LazyString{L"."})) ||
       a == ValueOrDie(Path::New(LazyString{L"./"})))
     return b;
@@ -161,8 +161,8 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
 bool Path::IsRoot() const { return read() == LazyString{L"/"}; }
 
 Path::RootType Path::GetRootType() const {
-  return read().get(ColumnNumber{}) == L'/' ? Path::RootType::kAbsolute
-                                            : Path::RootType::kRelative;
+  return read().get(ColumnNumber{}) == L'/' ? Path::RootType::Absolute
+                                            : Path::RootType::Relative;
 }
 
 ValueOrError<AbsolutePath> Path::Resolve() const {

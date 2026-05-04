@@ -36,7 +36,7 @@ class AssignExpression : public Expression {
   struct ConstructorAccessTag {};
 
  public:
-  enum class AssignmentType { kDefine, kAssign };
+  enum class AssignmentType { Define, Assign };
 
  private:
   const AssignmentType assignment_type_;
@@ -82,7 +82,7 @@ class AssignExpression : public Expression {
             case EvaluationOutput::OutputType::Continue:
               DVLOG(3) << "Setting value for: " << symbol;
               DVLOG(4) << "Value: " << value_output.value.ptr().value();
-              if (assignment_type == AssignmentType::kDefine) {
+              if (assignment_type == AssignmentType::Define) {
                 trampoline.environment()->Define(symbol, value_output.value);
               } else {
                 trampoline.environment()->Assign(symbol, value_output.value);
@@ -200,7 +200,7 @@ ValueOrError<gc::Root<Expression>> NewDefineExpression(
               ToQuotedSingleLine(final_type) + LazyString{L". Value types: "} +
               TypesToString(value->Types()) + LazyString{L"."}});
         return AssignExpression::New(
-            AssignExpression::AssignmentType::kDefine, std::move(symbol),
+            AssignExpression::AssignmentType::Define, std::move(symbol),
             PurityType{.writes_local_variables = true}, std::move(value));
       },
       [&](Error error) -> RootExpressionOrError {
@@ -239,12 +239,12 @@ ValueOrError<gc::Root<Expression>> NewAssignExpression(
       [&pool, &value, &symbol](const Environment::LookupResult& lookup_result)
           -> RootExpressionOrError {
         return AssignExpression::New(
-            AssignExpression::AssignmentType::kAssign, symbol,
+            AssignExpression::AssignmentType::Assign, symbol,
             std::invoke([&lookup_result] {
               switch (lookup_result.scope) {
-                case Environment::LookupResult::VariableScope::kLocal:
+                case Environment::LookupResult::VariableScope::Local:
                   return PurityType{.writes_local_variables = true};
-                case Environment::LookupResult::VariableScope::kGlobal:
+                case Environment::LookupResult::VariableScope::Global:
                   return PurityType{.writes_external_outputs = true};
               }
               LOG(FATAL) << "Invalid scope.";

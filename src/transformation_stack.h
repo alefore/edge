@@ -21,21 +21,21 @@ class ShellCommand
 struct Stack {
   using value_type = Variant;
 
-  enum PostTransformationBehavior {
-    kNone,
-    kDeleteRegion,
-    kCopyRegion,
-    kCommandSystem,
-    kCommandCpp,
-    kCapitalsSwitch,
+  enum class PostTransformationBehavior {
+    None,
+    DeleteRegion,
+    CopyRegion,
+    CommandSystem,
+    CommandCpp,
+    CapitalsSwitch,
     // If the region is non-empty, remove the cursors of the current document
     // and add a cursor in every line that intersects with the range.
-    kCursorOnEachLine,
+    CursorOnEachLine,
   };
 
   std::list<Variant> stack;
   PostTransformationBehavior post_transformation_behavior =
-      PostTransformationBehavior::kNone;
+      PostTransformationBehavior::None;
 
   // Used if post_transformation_behavior is kCommandSystem.
   std::optional<ShellCommand> shell = std::nullopt;

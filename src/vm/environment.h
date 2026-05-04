@@ -108,7 +108,7 @@ class Environment {
   void DefineType(language::gc::Ptr<ObjectType> value);
 
   struct LookupResult {
-    enum class VariableScope { kLocal, kGlobal };
+    enum class VariableScope { Local, Global };
     VariableScope scope;
     Type type;
     std::variant<UninitializedValue, language::gc::Root<Value>> value;

@@ -36,9 +36,9 @@ void Observers::Notify() {
       bool expired_observers = false;
       for (auto& o : observers) {
         switch (o()) {
-          case State::kAlive:
+          case State::Alive:
             break;
-          case State::kExpired:
+          case State::Expired:
             o = nullptr;
             expired_observers = true;
         }
@@ -85,8 +85,8 @@ bool observers_test_registration = tests::Register(
               if (runs_top == 0)
                 observers.Add(Observers::Once([&] { runs_bottom++; }));
               runs_top++;
-              return runs_top == 2 ? Observers::State::kExpired
-                                   : Observers::State::kAlive;
+              return runs_top == 2 ? Observers::State::Expired
+                                   : Observers::State::Alive;
             });
             observers.Notify();
             CHECK_EQ(runs_top, 1);
@@ -113,7 +113,7 @@ bool observers_test_registration = tests::Register(
             observers.Notify();
             CHECK_EQ(runs_bottom, 0);
           }
-          return Observers::State::kAlive;
+          return Observers::State::Alive;
         });
         CHECK_EQ(runs_top, 0);
         observers.Notify();

@@ -48,10 +48,10 @@ std::ostream& operator<<(std::ostream& os, const Modifiers& m) {
   }
   os << "][paste_buffer_behavior: ";
   switch (m.paste_buffer_behavior) {
-    case Modifiers::PasteBufferBehavior::kDeleteInto:
+    case Modifiers::PasteBufferBehavior::DeleteInto:
       os << "kDeleteInto";
       break;
-    case Modifiers::PasteBufferBehavior::kDoNothing:
+    case Modifiers::PasteBufferBehavior::DoNothing:
       os << "kDoNothing";
       break;
   }
@@ -127,8 +127,8 @@ void Modifiers::Register(language::gc::Pool& pool,
                          bool paste_buffer_behavior) {
                         output->paste_buffer_behavior =
                             paste_buffer_behavior
-                                ? Modifiers::PasteBufferBehavior::kDeleteInto
-                                : Modifiers::PasteBufferBehavior::kDoNothing;
+                                ? Modifiers::PasteBufferBehavior::DeleteInto
+                                : Modifiers::PasteBufferBehavior::DoNothing;
                         return output;
                       })
           .ptr());

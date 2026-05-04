@@ -64,71 +64,71 @@ LineBuilder DescribeSequence(const std::vector<ExtendedChar>& input) {
             },
             [&](ControlChar control) {
               switch (control) {
-                case ControlChar::kEscape:
+                case ControlChar::Escape:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"Esc"),
                                       std::nullopt);
                   break;
-                case ControlChar::kDownArrow:
+                case ControlChar::DownArrow:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"↓"), std::nullopt);
                   break;
-                case ControlChar::kUpArrow:
+                case ControlChar::UpArrow:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"↑"), std::nullopt);
                   break;
-                case ControlChar::kLeftArrow:
+                case ControlChar::LeftArrow:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"←"), std::nullopt);
                   break;
-                case ControlChar::kRightArrow:
+                case ControlChar::RightArrow:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"→"), std::nullopt);
                   break;
-                case ControlChar::kBackspace:
+                case ControlChar::Backspace:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"← Backspace"),
                                       std::nullopt);
                   break;
-                case ControlChar::kPageDown:
+                case ControlChar::PageDown:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"PgDn"),
                                       std::nullopt);
                   break;
-                case ControlChar::kPageUp:
+                case ControlChar::PageUp:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"PgUp"),
                                       std::nullopt);
                   break;
-                case ControlChar::kHome:
+                case ControlChar::Home:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"Home"),
                                       std::nullopt);
                   break;
-                case ControlChar::kEnd:
+                case ControlChar::End:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"End"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlA:
+                case ControlChar::CtrlA:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^a"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlD:
+                case ControlChar::CtrlD:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^d"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlE:
+                case ControlChar::CtrlE:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^e"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlK:
+                case ControlChar::CtrlK:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^k"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlL:
+                case ControlChar::CtrlL:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^l"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlU:
+                case ControlChar::CtrlU:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^u"),
                                       std::nullopt);
                   break;
-                case ControlChar::kCtrlV:
+                case ControlChar::CtrlV:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"^v"),
                                       std::nullopt);
                   break;
-                case ControlChar::kDelete:
+                case ControlChar::Delete:
                   output.AppendString(SINGLE_LINE_CONSTANT(L"Delete"),
                                       std::nullopt);
                   break;
@@ -396,19 +396,19 @@ class HelpCommand : public Command {
                        h.aliases()[0].GetSingleLine(),
                    output);
       switch (h.argument_type()) {
-        case Handler<CommandLineValues>::VariableType::kRequired:
+        case Handler<CommandLineValues>::VariableType::Required:
           output.push_back(L"Required argument: " + h.argument() + L": " +
                            h.argument_description());
           output.push_back(L"");
           break;
 
-        case Handler<CommandLineValues>::VariableType::kOptional:
+        case Handler<CommandLineValues>::VariableType::Optional:
           output.push_back(L"Optional argument: " + h.argument() + L": " +
                            h.argument_description());
           output.push_back(L"");
           break;
 
-        case Handler<CommandLineValues>::VariableType::kNone:
+        case Handler<CommandLineValues>::VariableType::None:
           break;
       }
       output.append_back(LineSequence::BreakLines(h.help()));

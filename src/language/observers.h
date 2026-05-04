@@ -15,8 +15,7 @@ class Observable {
  public:
   virtual ~Observable() {}
 
-  // TODO(trivial, 2026-05-02): Get rid of the `k` prefix.
-  enum class State { kExpired, kAlive };
+  enum class State { Expired, Alive };
   using Observer = std::move_only_function<State()>;
 
   // Why const? Because adding an observer doesn't modify the observable object.
@@ -46,16 +45,16 @@ class Observers : public Observable {
   static Observer LockingObserver(std::weak_ptr<P> data, Callable callable) {
     return [data, callable] {
       auto shared_data = data.lock();
-      if (shared_data == nullptr) return State::kExpired;
+      if (shared_data == nullptr) return State::Expired;
       callable(*shared_data);
-      return State::kAlive;
+      return State::Alive;
     };
   }
 
   static Observer Once(OnceOnlyFunction<void()> observer) {
     return [observer = std::move(observer)] mutable {
       std::move(observer)();
-      return State::kExpired;
+      return State::Expired;
     };
   }
 
@@ -111,7 +110,7 @@ class ObservableValue : public Observable {
 
   // Adds a callback that will be updated whenever the value changes.
   void Add(Observers::Observer observer) const override {
-    if (observer() == State::kAlive) data_->observers.Add(std::move(observer));
+    if (observer() == State::Alive) data_->observers.Add(std::move(observer));
   }
 
   // The future returned ignores previous calls to Set (i.e., only gets notified

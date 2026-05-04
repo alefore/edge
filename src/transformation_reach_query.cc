@@ -187,7 +187,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
               .content = line.Substring(match.second.column, kQueryLength),
               .modifiers = {LineModifier::Underline},
               .behavior =
-                  infrastructure::screen::VisualOverlay::Behavior::kToggle}));
+                  infrastructure::screen::VisualOverlay::Behavior::Toggle}));
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
           infrastructure::screen::VisualOverlay{
@@ -196,7 +196,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
               .modifiers =
                   LineModifierSet{LineModifier::Reverse, LineModifier::White},
               .behavior =
-                  infrastructure::screen::VisualOverlay::Behavior::kToggle}));
+                  infrastructure::screen::VisualOverlay::Behavior::Toggle}));
     }
   }
   return Output(VisualOverlay{.visual_overlay_map = std::move(overlays)});

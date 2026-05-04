@@ -69,18 +69,18 @@ struct NavigateOptions {
 
 // TODO(easy): Support toggling multiple_cursors.
 struct NavigateOperation {
-  enum class Type { kForward, kBackward, kNumber };
+  enum class Type { Forward, Backward, Number };
   Type type;
   size_t number = 0;
 };
 
 LineBuilder DescribeForStatus(const NavigateOperation& operation) {
   switch (operation.type) {
-    case NavigateOperation::Type::kForward:
+    case NavigateOperation::Type::Forward:
       return LineBuilder{SingleLine{LazyString{L"⮞"}}};
-    case NavigateOperation::Type::kBackward:
+    case NavigateOperation::Type::Backward:
       return LineBuilder{SingleLine{LazyString{L"⮜"}}};
-    case NavigateOperation::Type::kNumber:
+    case NavigateOperation::Type::Number:
       return LineBuilder{
           SingleLine{LazyString{std::to_wstring(operation.number + 1)}}};
     default:
@@ -96,37 +96,36 @@ struct NavigateState {
 
 bool CharConsumer(ExtendedChar input, NavigateState state) {
   return std::visit(
-      overload{[](ControlChar) { return false; },
-               [&](wchar_t c) {
-                 switch (c) {
-                   case 'l':
-                     state.operations.push_back(
-                         {NavigateOperation::Type::kForward});
-                     return true;
+      overload{
+          [](ControlChar) { return false; },
+          [&](wchar_t c) {
+            switch (c) {
+              case 'l':
+                state.operations.push_back({NavigateOperation::Type::Forward});
+                return true;
 
-                   case 'h':
-                     state.operations.push_back(
-                         {NavigateOperation::Type::kBackward});
-                     return true;
+              case 'h':
+                state.operations.push_back({NavigateOperation::Type::Backward});
+                return true;
 
-                   case L'1':
-                   case L'2':
-                   case L'3':
-                   case L'4':
-                   case L'5':
-                   case L'6':
-                   case L'7':
-                   case L'8':
-                   case L'9':
-                     state.operations.push_back(
-                         {.type = NavigateOperation::Type::kNumber,
-                          .number = static_cast<size_t>(c) - L'1'});
-                     return true;
+              case L'1':
+              case L'2':
+              case L'3':
+              case L'4':
+              case L'5':
+              case L'6':
+              case L'7':
+              case L'8':
+              case L'9':
+                state.operations.push_back(
+                    {.type = NavigateOperation::Type::Number,
+                     .number = static_cast<size_t>(c) - L'1'});
+                return true;
 
-                   default:
-                     return false;
-                 }
-               }},
+              default:
+                return false;
+            }
+          }},
       input);
 }
 
@@ -138,7 +137,7 @@ SearchRange GetRange(const NavigateState& navigate_state,
   size_t index = range.MidPoint();
   for (auto& operation : navigate_state.operations) {
     switch (operation.type) {
-      case NavigateOperation::Type::kForward:
+      case NavigateOperation::Type::Forward:
         if (range.size() > 1) {
           range = SearchRange(index, range.end());
           index = range.MidPoint();
@@ -148,7 +147,7 @@ SearchRange GetRange(const NavigateState& navigate_state,
         }
         break;
 
-      case NavigateOperation::Type::kBackward:
+      case NavigateOperation::Type::Backward:
         if (range.size() > 1) {
           range = SearchRange(range.begin(), index);
           index = range.MidPoint();
@@ -158,7 +157,7 @@ SearchRange GetRange(const NavigateState& navigate_state,
         }
         break;
 
-      case NavigateOperation::Type::kNumber: {
+      case NavigateOperation::Type::Number: {
         double slice_width = std::max(1.0, range.size() / 9.0);
         double overlap = slice_width / 2;
         double new_begin =
@@ -198,8 +197,7 @@ class NavigateTransformation : public CompositeTransformation {
 
     if (input.mode == transformation::Input::Mode::kPreview) {
       std::vector<NavigateOperation::Type> directions = {
-          NavigateOperation::Type::kForward,
-          NavigateOperation::Type::kBackward};
+          NavigateOperation::Type::Forward, NavigateOperation::Type::Backward};
       for (auto& direction : directions) {
         auto state_copy = state_;
         state_copy.operations.push_back(NavigateOperation{direction});
@@ -215,7 +213,7 @@ class NavigateTransformation : public CompositeTransformation {
 
         output.Push(transformation::Delete{
             .modifiers = {.paste_buffer_behavior =
-                              Modifiers::PasteBufferBehavior::kDoNothing},
+                              Modifiers::PasteBufferBehavior::DoNothing},
             .mode = transformation::Input::Mode::kPreview,
             .initiator = transformation::Delete::Initiator::kInternal});
       }
@@ -245,7 +243,7 @@ class NavigateTransformation : public CompositeTransformation {
         .modifiers = {.structure = Structure::kLine,
                       .direction = direction,
                       .paste_buffer_behavior =
-                          Modifiers::PasteBufferBehavior::kDoNothing},
+                          Modifiers::PasteBufferBehavior::DoNothing},
         .line_end_behavior = transformation::Delete::LineEndBehavior::kStop,
         .preview_modifiers = {LineModifier::Dim},
         .mode = transformation::Input::Mode::kPreview,

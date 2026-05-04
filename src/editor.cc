@@ -304,7 +304,7 @@ EditorState::EditorState(
       thread_pool_(std::move(thread_pool)) {
   work_queue()->OnSchedule().Add([shared_data = shared_data_] {
     NotifyInternalEvent(shared_data.value());
-    return Observers::State::kAlive;
+    return Observers::State::Alive;
   });
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
@@ -323,7 +323,7 @@ EditorState::EditorState(
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
     audio_player_.SetVolume(infrastructure::audio::Volume(
         std::max(0.0, std::min(1.0, Read(editor_variables::volume)))));
-    return Observers::State::kAlive;
+    return Observers::State::Alive;
   });
 
   ReclaimAndSchedule(execution_context().pool(), work_queue().value(),

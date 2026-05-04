@@ -168,7 +168,7 @@ futures::Value<EmptyValue> ApplyStackDirectly(
 void FlattenInto(std::list<Variant>& output, Variant& input) {
   if (Stack* input_stack = std::get_if<Stack>(&input);
       input_stack != nullptr && (input_stack->post_transformation_behavior ==
-                                     Stack::PostTransformationBehavior::kNone ||
+                                     Stack::PostTransformationBehavior::None ||
                                  input_stack->stack.empty())) {
     for (auto& sub_input : input_stack->stack) {
       FlattenInto(output, sub_input);
@@ -181,7 +181,7 @@ void FlattenInto(std::list<Variant>& output, Variant& input) {
 
 Variant OptimizeBase(Stack stack) {
   if (stack.post_transformation_behavior !=
-      Stack::PostTransformationBehavior::kNone)
+      Stack::PostTransformationBehavior::None)
     return stack;
   for (auto& t : stack.stack) {
     t = Optimize(std::move(t));
@@ -347,7 +347,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             .range = range,
             .initiator = transformation::Delete::Initiator::kInternal};
         switch (copy->post_transformation_behavior) {
-          case Stack::PostTransformationBehavior::kNone: {
+          case Stack::PostTransformationBehavior::None: {
             LineSequence contents = input.adapter.contents().ViewRange(range);
             input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
@@ -367,17 +367,17 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   return std::move(output.value());
                 });
           }
-          case Stack::PostTransformationBehavior::kDeleteRegion:
+          case Stack::PostTransformationBehavior::DeleteRegion:
             delete_transformation.initiator =
                 transformation::Delete::Initiator::kUser;
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin()));
-          case Stack::PostTransformationBehavior::kCopyRegion:
+          case Stack::PostTransformationBehavior::CopyRegion:
             delete_transformation.modifiers.text_delete_behavior =
                 Modifiers::TextDeleteBehavior::kKeep;
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin()));
-          case Stack::PostTransformationBehavior::kCommandSystem: {
+          case Stack::PostTransformationBehavior::CommandSystem: {
             if (input.mode == Input::Mode::kPreview) {
               delete_transformation.preview_modifiers = {
                   LineModifier::Green, LineModifier::Underline};
@@ -410,9 +410,9 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   return std::move(output.value());
                 });
           }
-          case Stack::PostTransformationBehavior::kCommandCpp:
+          case Stack::PostTransformationBehavior::CommandCpp:
             return HandleCommandCpp(std::move(input), delete_transformation);
-          case Stack::PostTransformationBehavior::kCapitalsSwitch: {
+          case Stack::PostTransformationBehavior::CapitalsSwitch: {
             NonNull<std::shared_ptr<SwitchCaseTransformation>> transformation;
             std::vector<ModifiersAndComposite> transformations;
             if (range.lines() > LineNumberDelta(1))
@@ -441,7 +441,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   return std::move(output.value());
                 });
           }
-          case Stack::PostTransformationBehavior::kCursorOnEachLine: {
+          case Stack::PostTransformationBehavior::CursorOnEachLine: {
             if (input.mode == Input::Mode::kPreview) {
               return std::move(output.value());
             }

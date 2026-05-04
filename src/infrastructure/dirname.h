@@ -87,7 +87,7 @@ class Path : public language::GhostType<Path, language::lazy_string::LazyString,
   language::ValueOrError<std::list<PathComponent>> DirectorySplit() const;
   bool IsRoot() const;
 
-  enum class RootType { kAbsolute, kRelative };
+  enum class RootType { Absolute, Relative };
   RootType GetRootType() const;
 
   language::ValueOrError<AbsolutePath> Resolve() const;

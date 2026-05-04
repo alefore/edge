@@ -21,8 +21,8 @@ struct VisualOverlay {
 
   LineModifierSet modifiers;
 
-  enum class Behavior { kReplace, kToggle, kOn };
-  Behavior behavior = Behavior::kReplace;
+  enum class Behavior { Replace, Toggle, On };
+  Behavior behavior = Behavior::Replace;
 
   bool operator==(const VisualOverlay& other) const {
     return content == other.content && modifiers == other.modifiers;

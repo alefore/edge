@@ -246,7 +246,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                bool executed = false;
                LOG(INFO) << "Adding handler.";
                editor->default_commands()->Add(
-                   {L'A', ControlChar::kPageDown},
+                   {L'A', ControlChar::PageDown},
                    LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
                                    [&executed]() {
@@ -257,7 +257,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                    editor->execution_context()->environment());
                CHECK(!executed);
                LOG(INFO) << "Feeding.";
-               editor->ProcessInput({L'A', ControlChar::kPageDown});
+               editor->ProcessInput({L'A', ControlChar::PageDown});
                CHECK(executed);
              }},
     });
