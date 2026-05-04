@@ -109,11 +109,11 @@ class DiffParser : public LineOrientedTreeParser {
     result->Push(FILE_LINE, path_start.ToDelta(),
                  {LineModifier::Bold,
                   c == '+' ? LineModifier::Green : LineModifier::Red},
-                 {ParseTreeProperty::Link()});
+                 {ParseTreePropertyName::Link()});
     seek.ToEndOfLine();
     result->PushAndPop(result->position().column - path_start,
                        {LineModifier::Underline},
-                       {ParseTreeProperty::LinkTarget()});
+                       {ParseTreePropertyName::LinkTarget()});
     result->PopBack();
     return true;
   }

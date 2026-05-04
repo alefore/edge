@@ -51,12 +51,12 @@ inline std::ostream& operator<<(std::ostream& os,
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
     infrastructure::screen::LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreeProperty> properties);
+    std::unordered_set<ParseTreePropertyName> properties);
 
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
     infrastructure::screen::LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreeProperty> properties,
+    std::unordered_set<ParseTreePropertyName> properties,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state);
 
 struct NestedExpressionSyntax {
@@ -71,14 +71,14 @@ struct NestedExpressionSyntax {
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
     infrastructure::screen::LineModifierSet string_modifiers,
-    std::unordered_set<ParseTreeProperty> properties,
+    std::unordered_set<ParseTreePropertyName> properties,
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state);
 
 // `result` should be *immediately after* the initial digit.
 void ParseNumber(ParseData* result,
                  infrastructure::screen::LineModifierSet number_modifiers,
-                 std::unordered_set<ParseTreeProperty> properties);
+                 std::unordered_set<ParseTreePropertyName> properties);
 
 class LineOrientedTreeParser : public TreeParser {
  public:

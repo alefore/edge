@@ -115,49 +115,49 @@ namespace afc::editor {
   return *output;
 }
 
-/*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::Link() {
   static const auto* output =
-      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link")};
+      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link")};
   return *output;
 }
 
-/*static*/ const ParseTreeProperty& ParseTreeProperty::LinkTarget() {
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::LinkTarget() {
   static const auto* output =
-      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link_target")};
+      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"link_target")};
   return *output;
 }
 
-/*static*/ const ParseTreeProperty& ParseTreeProperty::TableCell(size_t id) {
-  static const std::vector<ParseTreeProperty>* values = [] {
-    auto output = new std::vector<ParseTreeProperty>();
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::TableCell(size_t id) {
+  static const std::vector<ParseTreePropertyName>* values = [] {
+    auto output = new std::vector<ParseTreePropertyName>();
     for (int i = 0; i < 32; i++)
       output->push_back(
-          ParseTreeProperty(NON_EMPTY_SINGLE_LINE_CONSTANT(L"table_cell_") +
+          ParseTreePropertyName(NON_EMPTY_SINGLE_LINE_CONSTANT(L"table_cell_") +
                             NonEmptySingleLine(i)));
     return output;
   }();
   if (id < values->size()) return values->at(id);
   // TODO(easy, 2023-09-16): Would be good to be able to support this better.
-  static const ParseTreeProperty output{
+  static const ParseTreePropertyName output{
       NON_EMPTY_SINGLE_LINE_CONSTANT(L"table_cell_infty")};
   return output;
 }
 
-/*static*/ const ParseTreeProperty& ParseTreeProperty::CellContent() {
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::CellContent() {
   static const auto* output =
-      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cell_content")};
+      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cell_content")};
   return *output;
 }
 
-/*static*/ const ParseTreeProperty& ParseTreeProperty::StringValue() {
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::StringValue() {
   static const auto* output =
-      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"string_value")};
+      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"string_value")};
   return *output;
 }
 
-/*static*/ const ParseTreeProperty& ParseTreeProperty::NumberValue() {
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::NumberValue() {
   static const auto* output =
-      new ParseTreeProperty{NON_EMPTY_SINGLE_LINE_CONSTANT(L"number_value")};
+      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"number_value")};
   return *output;
 }
 
@@ -236,11 +236,11 @@ size_t ParseTree::hash() const {
 }
 
 void ParseTree::set_properties(
-    std::unordered_set<ParseTreeProperty> properties) {
+    std::unordered_set<ParseTreePropertyName> properties) {
   properties_ = std::move(properties);
 }
 
-const std::unordered_set<ParseTreeProperty>& ParseTree::properties() const {
+const std::unordered_set<ParseTreePropertyName>& ParseTree::properties() const {
   return properties_;
 }
 
@@ -507,7 +507,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                 MakeProtected(container::MaterializeSet(
                     tree->properties() |
                     std::views::transform(
-                        [](const ParseTreeProperty& property) {
+                        [](const ParseTreePropertyName& property) {
                           return ToLazyString(property);
                         }))));
           })
@@ -530,7 +530,7 @@ auto FirstOrError(R&& r, E&& error) {
 
 ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
                                  const LineSequence& contents) {
-  if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
+  if (tree.properties().find(ParseTreePropertyName::LinkTarget()) !=
       tree.properties().end())
     return URL::New(NonEmptySingleLine::New(
         SingleLine::New(contents.ViewRange(tree.range()).ToLazyString())));

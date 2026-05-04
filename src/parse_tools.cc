@@ -53,7 +53,7 @@ void ParseData::PopBack() {
 
 void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
                      LineModifierSet modifiers,
-                     std::unordered_set<ParseTreeProperty> properties) {
+                     std::unordered_set<ParseTreePropertyName> properties) {
   CHECK_GE(position_.column.ToDelta(), rewind_column);
 
   parse_results_.states_stack.push_back(nested_state);
@@ -65,7 +65,7 @@ void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
 
 void ParseData::PushAndPop(ColumnNumberDelta rewind_column,
                            LineModifierSet modifiers,
-                           std::unordered_set<ParseTreeProperty> properties) {
+                           std::unordered_set<ParseTreePropertyName> properties) {
   size_t ignored_state = 0;
   Push(ignored_state, rewind_column, std::move(modifiers),
        std::move(properties));

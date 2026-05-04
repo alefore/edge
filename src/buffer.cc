@@ -2129,7 +2129,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
   ParseTree::Route route = FindRouteToPosition(tree.value(), adjusted_position);
   for (const ParseTree* subtree : MapRoute(tree.value(), route))
-    if (subtree->properties().contains(ParseTreeProperty::Link()))
+    if (subtree->properties().contains(ParseTreePropertyName::Link()))
       if (ValueOrError<URL> target =
               FindLinkTarget(*subtree, buffer.contents().snapshot());
           HasValue(target)) {

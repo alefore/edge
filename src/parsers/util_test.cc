@@ -35,7 +35,7 @@ using ::operator<<;
 tests::Test TestParseQuotedString(
     const std::wstring& name, const std::wstring& input_string,
     wchar_t quote_char, const LineModifierSet& kContentModifiers,
-    const std::unordered_set<ParseTreeProperty>& kContentProperties,
+    const std::unordered_set<ParseTreePropertyName>& kContentProperties,
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState initial_state,
     ParseQuotedStringState expected_state, ParseTree expected_tree) {
@@ -80,7 +80,7 @@ tests::Test TestParseQuotedString(
 }
 
 ParseTree NewTree(Range range, LineModifierSet modifiers,
-                  std::unordered_set<ParseTreeProperty> properties,
+                  std::unordered_set<ParseTreePropertyName> properties,
                   std::vector<ParseTree> children) {
   ParseTree output(range);
   output.set_modifiers(modifiers);
@@ -98,7 +98,7 @@ ParseTree ContainerTree(std::vector<ParseTree> children) {
 // This version assumes a single line (LineNumber{1}).
 ParseTree NewTree(ColumnNumber begin, SingleLine contents,
                   LineModifierSet modifiers,
-                  std::unordered_set<ParseTreeProperty> properties,
+                  std::unordered_set<ParseTreePropertyName> properties,
                   std::vector<ParseTree> children) {
   return NewTree(Range(LineColumn(LineNumber{1}, begin),
                        LineColumn(LineNumber{1}, begin + contents.size())),
@@ -131,8 +131,8 @@ static const NonEmptySingleLine kNestedSyntaxPrefix =
 static const NonEmptySingleLine kNestedSyntaxSuffix =
     NON_EMPTY_SINGLE_LINE_CONSTANT(L"}");
 static const LineModifierSet kContentModifiers = {LineModifier::Bold};
-static const std::unordered_set<ParseTreeProperty> kContentProperties = {
-    ParseTreeProperty::StringValue()};
+static const std::unordered_set<ParseTreePropertyName> kContentProperties = {
+    ParseTreePropertyName::StringValue()};
 LineModifierSet kNestedPrefixSuffixModifiers = {LineModifier::Dim};
 LineModifierSet kNestedContentModifiers = {LineModifier::Green};
 

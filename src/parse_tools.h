@@ -13,7 +13,7 @@ namespace afc::editor {
 struct ActionPush {
   language::lazy_string::ColumnNumber column;
   infrastructure::screen::LineModifierSet modifiers;
-  std::unordered_set<ParseTreeProperty> properties;
+  std::unordered_set<ParseTreePropertyName> properties;
 };
 
 struct ActionPop {
@@ -75,11 +75,11 @@ class ParseData {
   void Push(size_t nested_state,
             language::lazy_string::ColumnNumberDelta rewind_column,
             infrastructure::screen::LineModifierSet modifiers,
-            std::unordered_set<ParseTreeProperty> properties);
+            std::unordered_set<ParseTreePropertyName> properties);
 
   void PushAndPop(language::lazy_string::ColumnNumberDelta rewind_column,
                   infrastructure::screen::LineModifierSet modifiers,
-                  std::unordered_set<ParseTreeProperty> properties = {});
+                  std::unordered_set<ParseTreePropertyName> properties = {});
 
  private:
   const language::text::LineSequence& buffer_;

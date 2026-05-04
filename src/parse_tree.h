@@ -40,20 +40,20 @@ class ParserId
   static const ParserId& Log();
 };
 
-class ParseTreeProperty
-    : public language::GhostType<ParseTreeProperty,
+class ParseTreePropertyName
+    : public language::GhostType<ParseTreePropertyName,
                                  language::lazy_string::NonEmptySingleLine> {
   using GhostType::GhostType;
 
  public:
-  static const ParseTreeProperty& Link();
-  static const ParseTreeProperty& LinkTarget();
+  static const ParseTreePropertyName& Link();
+  static const ParseTreePropertyName& LinkTarget();
 
-  static const ParseTreeProperty& TableCell(size_t id);
-  static const ParseTreeProperty& CellContent();
+  static const ParseTreePropertyName& TableCell(size_t id);
+  static const ParseTreePropertyName& CellContent();
 
-  static const ParseTreeProperty& StringValue();
-  static const ParseTreeProperty& NumberValue();
+  static const ParseTreePropertyName& StringValue();
+  static const ParseTreePropertyName& NumberValue();
 };
 
 class ParseTree {
@@ -92,8 +92,8 @@ class ParseTree {
 
   size_t hash() const;
 
-  void set_properties(std::unordered_set<ParseTreeProperty> properties);
-  const std::unordered_set<ParseTreeProperty>& properties() const;
+  void set_properties(std::unordered_set<ParseTreePropertyName> properties);
+  const std::unordered_set<ParseTreePropertyName>& properties() const;
 
   bool operator==(const ParseTree& other) const;
 
@@ -108,7 +108,7 @@ class ParseTree {
   language::text::Range range_;
   size_t depth_ = 0;
   infrastructure::screen::LineModifierSet modifiers_;
-  std::unordered_set<ParseTreeProperty> properties_;
+  std::unordered_set<ParseTreePropertyName> properties_;
 };
 
 // Returns a copy of tree that only includes children that cross line

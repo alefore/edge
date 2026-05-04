@@ -56,20 +56,20 @@ class CsvParser : public LineOrientedTreeParser {
       case L'\"':
         seek.Once();
         ParseQuotedString(result, L'"', modifiers,
-                          {ParseTreeProperty::TableCell(csv_column),
-                           ParseTreeProperty::StringValue()});
+                          {ParseTreePropertyName::TableCell(csv_column),
+                           ParseTreePropertyName::StringValue()});
         break;
       default:
         if (isdigit(seek.read())) {
           seek.Once();
           ParseNumber(result, modifiers,
-                      {ParseTreeProperty::TableCell(csv_column)});
+                      {ParseTreePropertyName::TableCell(csv_column)});
         } else {
           ColumnNumber start = result->position().column;
           seek.UntilCurrentCharNotIn({L','});
           result->PushAndPop(result->position().column - start, modifiers,
-                             {ParseTreeProperty::TableCell(csv_column),
-                              ParseTreeProperty::NumberValue()});
+                             {ParseTreePropertyName::TableCell(csv_column),
+                              ParseTreePropertyName::NumberValue()});
         }
     }
     SkipSpaces(result);
