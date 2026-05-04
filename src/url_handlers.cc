@@ -55,7 +55,8 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleFileURL(
 
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleVmURL(
     EditorState& editor, ExecutionContext& execution_context, const URL& url) {
-  SingleLine code = url.StripSchema();
+  VLOG(6) << "Checking VM URL: " << url;
+  SingleLine code = url.StripScheme();
   editor.work_queue()->DeleteLater(
       AddSeconds(Now(), 1.0),
       editor.status().SetExpiringInformationText(
@@ -63,6 +64,7 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleVmURL(
   DECLARE_OR_RETURN(
       gc::Root<ExecutionContext::CompilationResult> compilation_result,
       execution_context.CompileString(ToLazyString(code)));
+  VLOG(7) << "Evaluating VM URL: " << code;
   return compilation_result->evaluate().Transform(
       [](gc::Root<vm::Value>)
           -> ValueOrError<std::optional<gc::Root<OpenBuffer>>> {
@@ -74,10 +76,10 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
     EditorState& editor, ExecutionContext& execution_context,
     RemoteURLBehavior remote_url_behavior, const URL& url) {
   VLOG(5) << "Checking URL: " << url;
-  const URL::Schema schema = url.schema().value_or(URL::Schema::File);
-  switch (schema) {
-    case URL::Schema::Http:
-    case URL::Schema::Https:
+  const URL::Scheme scheme = url.scheme().value_or(URL::Scheme::File);
+  switch (scheme) {
+    case URL::Scheme::Http:
+    case URL::Scheme::Https:
       switch (remote_url_behavior) {
         case RemoteURLBehavior::Ignore:
           break;
@@ -96,12 +98,12 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
                       });
       }
       return std::nullopt;
-    case URL::Schema::File:
+    case URL::Scheme::File:
       return HandleFileURL(editor, url);
-    case URL::Schema::Vm:
+    case URL::Scheme::Vm:
       return HandleVmURL(editor, execution_context, url);
   }
-  LOG(FATAL) << "Invalid schema.";
+  LOG(FATAL) << "Invalid scheme.";
   std::unreachable();
 }
 }  // namespace afc::editor

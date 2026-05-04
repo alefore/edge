@@ -18,11 +18,11 @@ class URL
 
   static URL FromPath(infrastructure::Path path);
 
-  enum class Schema { File, Http, Https, Vm };
-  std::optional<Schema> schema() const;
+  enum class Scheme { File, Http, Https, Vm };
+  std::optional<Scheme> scheme() const;
 
   language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;
-  language::lazy_string::SingleLine StripSchema() const;
+  language::lazy_string::SingleLine StripScheme() const;
 };
 
 // If `url` is a local file, returns a vector with variations adding all the

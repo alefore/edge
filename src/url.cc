@@ -34,41 +34,41 @@ URL URL::FromPath(Path path) {
              vm::EscapedString(path.read()).URLRepresentation()};
 }
 
-std::optional<URL::Schema> URL::schema() const {
+std::optional<URL::Scheme> URL::scheme() const {
   std::optional<ColumnNumber> colon = FindFirstOf(read(), {L':'});
   if (colon == std::nullopt) return std::nullopt;
   SingleLine candidate = read().Substring(ColumnNumber{}, colon->ToDelta());
-  static const std::unordered_map<SingleLine, std::optional<Schema>> schemes = {
-      {SINGLE_LINE_CONSTANT(L"file"), Schema::File},
-      {SINGLE_LINE_CONSTANT(L"http"), Schema::Http},
-      {SINGLE_LINE_CONSTANT(L"https"), Schema::Https},
-      {SINGLE_LINE_CONSTANT(L"vm"), Schema::Vm}};
-  return GetValueOrDefault(schemes, candidate, std::optional<Schema>{});
+  static const std::unordered_map<SingleLine, std::optional<Scheme>> schemes = {
+      {SINGLE_LINE_CONSTANT(L"file"), Scheme::File},
+      {SINGLE_LINE_CONSTANT(L"http"), Scheme::Http},
+      {SINGLE_LINE_CONSTANT(L"https"), Scheme::Https},
+      {SINGLE_LINE_CONSTANT(L"vm"), Scheme::Vm}};
+  return GetValueOrDefault(schemes, candidate, std::optional<Scheme>{});
 }
 
 namespace {
-const bool schema_tests_registration = tests::Register(
-    L"URL::Schema",
+const bool scheme_tests_registration = tests::Register(
+    L"URL::Scheme",
     {{.name = L"URLFromPath",
       .callback =
           [] {
             CHECK(
                 URL::FromPath(ValueOrDie(Path::New(LazyString{L"foo/bar/hey"})))
-                    .schema() == URL::Schema::File);
+                    .scheme() == URL::Scheme::File);
           }},
      {.name = L"URLFromPathWithNewlineAndSpace",
       .callback =
           [] {
             const Path path{LazyString{L"fo o/bar\nhey"}};
             URL url = URL::FromPath(path);
-            CHECK(url.schema() == URL::Schema::File);
+            CHECK(url.scheme() == URL::Scheme::File);
             CHECK_EQ(ValueOrDie(url.GetLocalFilePath()), path);
           }},
      {.name = L"URLRelative",
       .callback =
           [] {
             CHECK(!URL(NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"foo/bar/hey")})
-                       .schema()
+                       .scheme()
                        .has_value());
           }},
      {.name = L"URLVm",
@@ -76,22 +76,22 @@ const bool schema_tests_registration = tests::Register(
           [] {
             CHECK(URL(NonEmptySingleLine(
                           SINGLE_LINE_CONSTANT(L"vm:buffer.Close();")))
-                      .schema() == URL::Schema::Vm);
+                      .scheme() == URL::Scheme::Vm);
           }},
      {.name = L"URLStringFile", .callback = [] {
         CHECK(URL(NonEmptySingleLine(SINGLE_LINE_CONSTANT(L"file:foo/bar/hey")))
-                  .schema() == URL::Schema::File);
+                  .scheme() == URL::Scheme::File);
       }}});
 }  // namespace
 
 ValueOrError<Path> URL::GetLocalFilePath() const {
-  std::optional<Schema> s = schema();
+  std::optional<Scheme> s = scheme();
   if (!s.has_value()) {
     DECLARE_OR_RETURN(vm::EscapedString escaped_string,
                       vm::EscapedString::ParseURL(read().read()));
     return Path::New(escaped_string.OriginalString());
   }
-  if (s != Schema::File) return Error{LazyString{L"Schema isn't file."}};
+  if (s != Scheme::File) return Error{LazyString{L"Scheme isn't file."}};
   ASSIGN_OR_RETURN(vm::EscapedString url_input,
                    vm::EscapedString::ParseURL(
                        read().Substring(ColumnNumber{sizeof("file:") - 1})));
@@ -125,7 +125,7 @@ const bool get_local_file_path_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-SingleLine URL::StripSchema() const {
+SingleLine URL::StripScheme() const {
   NonEmptySingleLine str = read();
   return FindFirstOf(str, {L':'})
       .transform([&](ColumnNumber colon) {
@@ -135,14 +135,14 @@ SingleLine URL::StripSchema() const {
 }
 
 namespace {
-const bool strip_schema_tests_registration = tests::Register(
-    L"URL::StripSchema",
+const bool strip_scheme_tests_registration = tests::Register(
+    L"URL::StripScheme",
     {
-        {.name = L"NoSchema",
+        {.name = L"NoScheme",
          .callback =
              [] {
                Path input = ValueOrDie(Path::New(L"foo/bar/hey"));
-               CHECK_EQ(URL::FromPath(input).StripSchema(),
+               CHECK_EQ(URL::FromPath(input).StripScheme(),
                         ToLazyString(input));
              }},
         {.name = L"Https",
@@ -150,7 +150,7 @@ const bool strip_schema_tests_registration = tests::Register(
              [] {
                CHECK_EQ(
                    URL(NON_EMPTY_SINGLE_LINE_CONSTANT(L"http://foo/bar?yeah"))
-                       .StripSchema(),
+                       .StripScheme(),
                    SINGLE_LINE_CONSTANT(L"//foo/bar?yeah"));
              }},
         {.name = L"Vm",
@@ -158,7 +158,7 @@ const bool strip_schema_tests_registration = tests::Register(
              [] {
                CHECK_EQ(
                    URL(NON_EMPTY_SINGLE_LINE_CONSTANT(L"vm:buffer.Close();"))
-                       .StripSchema(),
+                       .StripScheme(),
                    SINGLE_LINE_CONSTANT(L"buffer.Close();"));
              }},
     });
