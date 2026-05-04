@@ -18,7 +18,7 @@ class URL
 
   static URL FromPath(infrastructure::Path path);
 
-  enum class Schema { kFile, kHttp, kHttps };
+  enum class Schema { File, Http, Https, Vm };
   std::optional<Schema> schema() const;
 
   language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;

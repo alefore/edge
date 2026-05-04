@@ -38,9 +38,10 @@ std::optional<URL::Schema> URL::schema() const {
   if (colon == std::nullopt) return std::nullopt;
   SingleLine candidate = read().Substring(ColumnNumber{}, colon->ToDelta());
   static const std::unordered_map<SingleLine, std::optional<Schema>> schemes = {
-      {SINGLE_LINE_CONSTANT(L"file"), Schema::kFile},
-      {SINGLE_LINE_CONSTANT(L"http"), Schema::kHttp},
-      {SINGLE_LINE_CONSTANT(L"https"), Schema::kHttps}};
+      {SINGLE_LINE_CONSTANT(L"file"), Schema::File},
+      {SINGLE_LINE_CONSTANT(L"http"), Schema::Http},
+      {SINGLE_LINE_CONSTANT(L"https"), Schema::Https},
+      {SINGLE_LINE_CONSTANT(L"vm"), Schema::Vm}};
   return GetValueOrDefault(schemes, candidate, std::optional<Schema>{});
 }
 
@@ -52,14 +53,14 @@ const bool schema_tests_registration = tests::Register(
           [] {
             CHECK(
                 URL::FromPath(ValueOrDie(Path::New(LazyString{L"foo/bar/hey"})))
-                    .schema() == URL::Schema::kFile);
+                    .schema() == URL::Schema::File);
           }},
      {.name = L"URLFromPathWithNewlineAndSpace",
       .callback =
           [] {
             const Path path{LazyString{L"fo o/bar\nhey"}};
             URL url = URL::FromPath(path);
-            CHECK(url.schema() == URL::Schema::kFile);
+            CHECK(url.schema() == URL::Schema::File);
             CHECK_EQ(ValueOrDie(url.GetLocalFilePath()), path);
           }},
      {.name = L"URLRelative",
@@ -69,9 +70,16 @@ const bool schema_tests_registration = tests::Register(
                        .schema()
                        .has_value());
           }},
+     {.name = L"URLVm",
+      .callback =
+          [] {
+            CHECK(URL(NonEmptySingleLine(
+                          SINGLE_LINE_CONSTANT(L"vm:buffer.Close();")))
+                      .schema() == URL::Schema::Vm);
+          }},
      {.name = L"URLStringFile", .callback = [] {
         CHECK(URL(NonEmptySingleLine(SINGLE_LINE_CONSTANT(L"file:foo/bar/hey")))
-                  .schema() == URL::Schema::kFile);
+                  .schema() == URL::Schema::File);
       }}});
 }  // namespace
 
@@ -82,7 +90,7 @@ ValueOrError<Path> URL::GetLocalFilePath() const {
                       vm::EscapedString::ParseURL(read().read()));
     return Path::New(escaped_string.OriginalString());
   }
-  if (s != Schema::kFile) return Error{LazyString{L"Schema isn't file."}};
+  if (s != Schema::File) return Error{LazyString{L"Schema isn't file."}};
   ASSIGN_OR_RETURN(vm::EscapedString url_input,
                    vm::EscapedString::ParseURL(
                        read().Substring(ColumnNumber{sizeof("file:") - 1})));

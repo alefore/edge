@@ -2219,8 +2219,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                    [&](gc::Root<OpenBuffer> buffer) -> futures::Value<ICC> {
                      auto& editor = buffer->editor();
                      VLOG(5) << "Checking URL: " << url;
-                     if (url.schema().value_or(URL::Schema::kFile) !=
-                         URL::Schema::kFile) {
+                     if (url.schema().value_or(URL::Schema::File) !=
+                         URL::Schema::File) {
                        switch (remote_url_behavior) {
                          case RemoteURLBehavior::Ignore:
                            break;
