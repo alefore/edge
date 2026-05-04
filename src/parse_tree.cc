@@ -23,6 +23,7 @@ using afc::concurrent::Protected;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::compute_hash;
+using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::hash_combine;
 using afc::language::MakeHashableIteratorRange;
@@ -127,13 +128,14 @@ namespace afc::editor {
   return *output;
 }
 
-/*static*/ const ParseTreePropertyName& ParseTreePropertyName::TableCell(size_t id) {
+/*static*/ const ParseTreePropertyName& ParseTreePropertyName::TableCell(
+    size_t id) {
   static const std::vector<ParseTreePropertyName>* values = [] {
     auto output = new std::vector<ParseTreePropertyName>();
     for (int i = 0; i < 32; i++)
       output->push_back(
           ParseTreePropertyName(NON_EMPTY_SINGLE_LINE_CONSTANT(L"table_cell_") +
-                            NonEmptySingleLine(i)));
+                                NonEmptySingleLine(i)));
     return output;
   }();
   if (id < values->size()) return values->at(id);
@@ -144,20 +146,20 @@ namespace afc::editor {
 }
 
 /*static*/ const ParseTreePropertyName& ParseTreePropertyName::CellContent() {
-  static const auto* output =
-      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cell_content")};
+  static const auto* output = new ParseTreePropertyName{
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"cell_content")};
   return *output;
 }
 
 /*static*/ const ParseTreePropertyName& ParseTreePropertyName::StringValue() {
-  static const auto* output =
-      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"string_value")};
+  static const auto* output = new ParseTreePropertyName{
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"string_value")};
   return *output;
 }
 
 /*static*/ const ParseTreePropertyName& ParseTreePropertyName::NumberValue() {
-  static const auto* output =
-      new ParseTreePropertyName{NON_EMPTY_SINGLE_LINE_CONSTANT(L"number_value")};
+  static const auto* output = new ParseTreePropertyName{
+      NON_EMPTY_SINGLE_LINE_CONSTANT(L"number_value")};
   return *output;
 }
 
@@ -242,6 +244,12 @@ void ParseTree::set_properties(
 
 const std::unordered_set<ParseTreePropertyName>& ParseTree::properties() const {
   return properties_;
+}
+
+std::optional<EmptyValue> ParseTree::get_property_value(
+    const ParseTreePropertyName& name) const {
+  return properties_.contains(name) ? EmptyValue{}
+                                    : std::optional<EmptyValue>();
 }
 
 bool ParseTree::operator==(const ParseTree& other) const {

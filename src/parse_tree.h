@@ -58,6 +58,21 @@ class ParseTreePropertyName
 
 class ParseTree {
  public:
+  // TODO(P2, 2026-05-04, log): Convert to an actual map.
+  using PropertyMap = std::unordered_set<ParseTreePropertyName>;
+
+ private:
+  std::vector<ParseTree> children_;
+
+  // The xor of the hashes of all children (including their positions).
+  size_t children_hashes_ = 0;
+
+  language::text::Range range_;
+  size_t depth_ = 0;
+  infrastructure::screen::LineModifierSet modifiers_;
+  PropertyMap properties_;
+
+ public:
   // The empty route just means "stop at the root". Otherwise, it means to go
   // down to the Nth children at each step N.
   using Route = std::vector<size_t>;
@@ -92,23 +107,16 @@ class ParseTree {
 
   size_t hash() const;
 
-  void set_properties(std::unordered_set<ParseTreePropertyName> properties);
-  const std::unordered_set<ParseTreePropertyName>& properties() const;
+  void set_properties(PropertyMap properties);
+  const PropertyMap& properties() const;
+  // TODO(P2, 2026-05-04, log): Return an optional<vm::Value>.
+  std::optional<language::EmptyValue> get_property_value(
+      const ParseTreePropertyName&) const;
 
   bool operator==(const ParseTree& other) const;
 
  private:
   void XorChildHash(size_t position);
-
-  std::vector<ParseTree> children_;
-
-  // The xor of the hashes of all children (including their positions).
-  size_t children_hashes_ = 0;
-
-  language::text::Range range_;
-  size_t depth_ = 0;
-  infrastructure::screen::LineModifierSet modifiers_;
-  std::unordered_set<ParseTreePropertyName> properties_;
 };
 
 // Returns a copy of tree that only includes children that cross line
