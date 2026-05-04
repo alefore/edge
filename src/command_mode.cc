@@ -323,8 +323,7 @@ class ActivateLink : public Command {
                   editor_state_.status().Reset();
                   buffer.ptr()->status().Reset();
                   editor_state_.set_current_buffer(
-                      target_link.value(),
-                      CommandArgumentModeApplyMode::Final);
+                      target_link.value(), CommandArgumentModeApplyMode::Final);
                   std::optional<LineColumn> target_position =
                       outgoing_link.line_column;
                   if (target_position.has_value())
@@ -338,8 +337,7 @@ class ActivateLink : public Command {
 
           buffer.ptr()->MaybeAdjustPositionCol();
           buffer.ptr()
-              ->OpenBufferForCurrentPosition(
-                  OpenBuffer::RemoteURLBehavior::LaunchBrowser)
+              ->OpenBufferForCurrentPosition(RemoteURLBehavior::LaunchBrowser)
               .Transform(
                   [&editor_state = editor_state_](
                       std::optional<gc::Root<OpenBuffer>> optional_target) {
@@ -672,8 +670,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                  {operation::CommandReachLine{
                      .repetitions = operation::CommandArgumentRepetitions(1)}})
                  .ptr());
-  for (ExtendedChar x :
-       std::vector<ExtendedChar>({L'k', ControlChar::UpArrow}))
+  for (ExtendedChar x : std::vector<ExtendedChar>({L'k', ControlChar::UpArrow}))
     commands.Add(
         {x}, operation::NewTopLevelCommand(
                  L"up", LazyString{L"moves up one line"},

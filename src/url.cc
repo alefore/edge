@@ -18,6 +18,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -122,6 +123,45 @@ const bool get_local_file_path_tests_registration = tests::Register(
                 URL(SINGLE_LINE_CONSTANT(L"file:") + input).GetLocalFilePath()),
             ValueOrDie(Path::New(ToLazyString(input))));
       }}});
+}  // namespace
+
+SingleLine URL::StripSchema() const {
+  NonEmptySingleLine str = read();
+  return FindFirstOf(str, {L':'})
+      .transform([&](ColumnNumber colon) {
+        return str.Substring(colon + ColumnNumberDelta{1});
+      })
+      .value_or(str);
+}
+
+namespace {
+const bool strip_schema_tests_registration = tests::Register(
+    L"URL::StripSchema",
+    {
+        {.name = L"NoSchema",
+         .callback =
+             [] {
+               Path input = ValueOrDie(Path::New(L"foo/bar/hey"));
+               CHECK_EQ(URL::FromPath(input).StripSchema(),
+                        ToLazyString(input));
+             }},
+        {.name = L"Https",
+         .callback =
+             [] {
+               CHECK_EQ(
+                   URL(NON_EMPTY_SINGLE_LINE_CONSTANT(L"http://foo/bar?yeah"))
+                       .StripSchema(),
+                   SINGLE_LINE_CONSTANT(L"//foo/bar?yeah"));
+             }},
+        {.name = L"Vm",
+         .callback =
+             [] {
+               CHECK_EQ(
+                   URL(NON_EMPTY_SINGLE_LINE_CONSTANT(L"vm:buffer.Close();"))
+                       .StripSchema(),
+                   SINGLE_LINE_CONSTANT(L"buffer.Close();"));
+             }},
+    });
 }  // namespace
 
 std::vector<URL> GetLocalFileURLsWithExtensions(

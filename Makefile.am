@@ -411,6 +411,8 @@ src/undo_state.cc \
 src/undo_state.h \
 src/url.cc \
 src/url.h \
+src/url_handlers.cc \
+src/url_handlers.h \
 src/variables.h \
 src/vm/container.h \
 src/vm/optional.h \

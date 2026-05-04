@@ -2189,6 +2189,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       std::back_inserter(urls));
   return urls;
 }
+
 }  // namespace
 
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
@@ -2209,92 +2210,35 @@ OpenBuffer::OpenBufferForCurrentPosition(
   NonNull<std::shared_ptr<Data>> data =
       MakeNonNullShared<Data>(Data{.source = WeakPtrFromThis()});
 
-  using ICC = futures::IterationControlCommand;
   return futures::ForEach(
              MakeNonNullShared<std::vector<URL>>(
                  GetURLsForCurrentPosition(*this)),
-             [adjusted_position, data, remote_url_behavior](const URL& url) {
-               return VisitPointer(
-                   data->source.Lock(),
-                   [&](gc::Root<OpenBuffer> buffer) -> futures::Value<ICC> {
-                     auto& editor = buffer->editor();
-                     VLOG(5) << "Checking URL: " << url;
-                     if (url.schema().value_or(URL::Schema::File) !=
-                         URL::Schema::File) {
-                       switch (remote_url_behavior) {
-                         case RemoteURLBehavior::Ignore:
-                           break;
-                         case RemoteURLBehavior::LaunchBrowser:
-                           editor.work_queue()->DeleteLater(
-                               AddSeconds(Now(), 1.0),
-                               editor.status().SetExpiringInformationText(
-                                   LineBuilder{SINGLE_LINE_CONSTANT(L"Open: ") +
-                                               url.read()}
-                                       .Build()));
-                           ForkCommand(
-                               editor,
-                               ForkCommandOptions{
-                                   .command =
-                                       LazyString{L"xdg-open "} +
-                                       vm::EscapedString(ToLazyString(url))
-                                           .ShellEscapedRepresentation(),
-                                   .insertion_type =
-                                       BuffersList::AddBufferType::Ignore,
-                               });
-                       }
-                       return ICC::Stop;
-                     }
-                     DECLARE_OR_RETURN_OTHER(Path path, url.GetLocalFilePath(),
-                                             ICC::Continue);
-                     // Converting it to SingleLine (rather than LazyString) is
-                     // suboptimal: it would be good, in theory, to support
-                     // paths that have a \n in them. However,
-                     // OpenFilesOptions::path_pattern is a SingleLine. It
-                     // probably doesn't matter in practice since the URLs come
-                     // from lines in the buffer.
-                     DECLARE_OR_RETURN_OTHER(
-                         SingleLine path_str,
-                         SingleLine::New(ToLazyString(std::move(path))),
-                         ICC::Continue);
-                     TRACK_OPERATION(OpenBuffer_OpenBufferForCurrentPosition);
-                     VLOG(4) << "Calling open file: " << path_str;
-                     return OpenFiles(
-                                OpenFilesOptions{
-                                    .editor = editor,
-                                    .match_limit = 1,
-                                    .not_found_handler = OpenFilesOptions::
-                                        NotFoundHandler::Ignore,
-                                    .path_pattern = std::move(path_str),
-                                    .open_file_position_suffix_mode =
-                                        open_file_position::SuffixMode::Allow,
-                                    .insertion_type =
-                                        BuffersList::AddBufferType::Ignore,
-                                    .special_file_filter =
-                                        FilePredictorOptions::Filter::Exclude})
-                         .Transform(
-                             [data](std::vector<gc::Root<OpenBuffer>> buffers)
-                                 -> futures::ValueOrError<ICC> {
-                               if (buffers.empty()) return ICC::Continue;
-                               data->output = buffers[0];
-                               return ICC::Stop;
-                             })
-                         .ConsumeErrors([adjusted_position, data](Error) {
-                           return VisitPointer(
-                               data->source.Lock(),
-                               [&](gc::Root<OpenBuffer> locked_buffer) {
-                                 if (adjusted_position !=
-                                     locked_buffer->contents().AdjustLineColumn(
-                                         locked_buffer->position())) {
-                                   data->output = Error{LazyString{
-                                       L"Computation was cancelled."}};
-                                   return ICC::Stop;
-                                 }
-                                 return ICC::Continue;
-                               },
-                               [] { return ICC::Stop; });
-                         });
-                   },
-                   [] { return ICC::Stop; });
+             [&editor = editor(), adjusted_position, data, remote_url_behavior,
+              execution_context =
+                  execution_context().ToRoot()](const URL& url) {
+               return HandleURL(editor, execution_context.ptr().value(),
+                                remote_url_behavior, url)
+                   .Transform(
+                       [data](std::optional<gc::Root<OpenBuffer>> buffer)
+                           -> futures::ValueOrError<IterationControlCommand> {
+                         if (buffer) data->output = buffer;
+                         return IterationControlCommand::Stop;
+                       })
+                   .ConsumeErrors([adjusted_position, data](Error) {
+                     return VisitPointer(
+                         data->source.Lock(),
+                         [&](gc::Root<OpenBuffer> locked_buffer) {
+                           if (adjusted_position !=
+                               locked_buffer->contents().AdjustLineColumn(
+                                   locked_buffer->position())) {
+                             data->output = Error{
+                                 LazyString{L"Computation was cancelled."}};
+                             return IterationControlCommand::Stop;
+                           }
+                           return IterationControlCommand::Continue;
+                         },
+                         [] { return IterationControlCommand::Stop; });
+                   });
              })
       .Transform(
           [data](EmptyValue)
@@ -2502,7 +2446,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 }
 
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
-  buffer->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::Ignore)
+  buffer->OpenBufferForCurrentPosition(RemoteURLBehavior::Ignore)
       .Transform(LockAndVisitCallback(
           [](std::optional<gc::Root<OpenBuffer>> result,
              gc::Root<OpenBuffer> locked_buffer) {

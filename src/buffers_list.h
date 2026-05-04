@@ -12,6 +12,7 @@
 
 namespace afc::editor {
 class BufferRegistry;
+class BufferWidget;
 
 // Divides the screen vertically into two sections: at the top, displays a
 // numbered list of buffers; at the bottom, displays a given widget.

@@ -258,6 +258,8 @@ cc_binary(
         "undo_state.h",
         "url.cc",
         "url.h",
+        "url_handlers.cc",
+        "url_handlers.h",
         "variables.h",
         "widget.h",
         "widget_list.cc",

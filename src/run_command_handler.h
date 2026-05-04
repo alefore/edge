@@ -22,6 +22,8 @@ class CppString;
 namespace afc::editor {
 class EditorState;
 
+// TODO(P0, 2026-05-04): This is getting fucking annoying. Either rename this to
+// RunCommandOptions or move this to `src/fork_command.h`.
 struct ForkCommandOptions {
   static void Register(language::gc::Pool& pool, vm::Environment& environment);
 

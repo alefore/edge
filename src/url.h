@@ -22,6 +22,7 @@ class URL
   std::optional<Schema> schema() const;
 
   language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;
+  language::lazy_string::SingleLine StripSchema() const;
 };
 
 // If `url` is a local file, returns a vector with variations adding all the
