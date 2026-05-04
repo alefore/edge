@@ -238,7 +238,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
                            ->Undo(UndoState::ApplyOptions::Mode::kOnlyOne,
                                   UndoState::ApplyOptions::RedoMode::kIgnore)
                            .Transform([](auto) {
-                             return futures::IterationControlCommand::kContinue;
+                             return futures::IterationControlCommand::Continue;
                            });
                      })
               .Transform([](auto) { return EmptyValue(); });

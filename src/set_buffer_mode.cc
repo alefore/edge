@@ -420,11 +420,11 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                               if (results.size() > 0) {
                                 new_state->indices.push_back(index);
                               }
-                              return Success(Control::kContinue);
+                              return Success(Control::Continue);
                             })
                             .ConsumeErrors([new_state](Error error) {
                               new_state->pattern_error = std::move(error);
-                              return Control::kStop;
+                              return Control::Stop;
                             }));
                   }
                   return futures::ForEachWithCopy(

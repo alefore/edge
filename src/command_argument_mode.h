@@ -153,7 +153,7 @@ void SetOptionsForBufferTransformation(
           ->Undo(UndoState::ApplyOptions::Mode::kOnlyOne,
                  UndoState::ApplyOptions::RedoMode::kIgnore)
           .Transform([](language::EmptyValue) {
-            return futures::IterationControlCommand::kContinue;
+            return futures::IterationControlCommand::Continue;
           });
     });
   };
@@ -174,7 +174,7 @@ void SetOptionsForBufferTransformation(
                                    ? transformation::Input::Mode::kPreview
                                    : transformation::Input::Mode::kFinal)
               .Transform([](auto) {
-                return futures::IterationControlCommand::kContinue;
+                return futures::IterationControlCommand::Continue;
               });
         });
   };

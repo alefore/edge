@@ -159,8 +159,8 @@ futures::Value<EmptyValue> ApplyStackDirectly(
             .Transform([output](Result result) {
               output->MergeFrom(std::move(result));
               return output->success
-                         ? futures::IterationControlCommand::kContinue
-                         : futures::IterationControlCommand::kStop;
+                         ? futures::IterationControlCommand::Continue
+                         : futures::IterationControlCommand::Stop;
             });
       });
 }

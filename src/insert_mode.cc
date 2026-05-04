@@ -784,9 +784,9 @@ class InsertMode : public InputReceiver,
          callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
           return buffer_ptr->fd() == nullptr
                      ? callable(buffer_ptr.value()).Transform([](EmptyValue) {
-                         return futures::IterationControlCommand::kContinue;
+                         return futures::IterationControlCommand::Continue;
                        })
-                     : futures::IterationControlCommand::kContinue;
+                     : futures::IterationControlCommand::Continue;
         });
   }
 

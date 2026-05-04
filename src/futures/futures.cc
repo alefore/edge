@@ -195,14 +195,14 @@ const bool futures_loop_tests_registration = tests::Register(
                         std::views::iota(0, 1000000) |
                         std::ranges::to<std::vector>()),
                     [](int) -> futures::Value<IterationControlCommand> {
-                      return IterationControlCommand::kContinue;
+                      return IterationControlCommand::Continue;
                     });
           }},
      {.name = L"While", .callback = [] {
         size_t count = 0;
         While([&count] -> futures::Value<IterationControlCommand> {
-          return count++ < 1e6 ? IterationControlCommand::kContinue
-                               : IterationControlCommand::kStop;
+          return count++ < 1e6 ? IterationControlCommand::Continue
+                               : IterationControlCommand::Stop;
         });
       }}});
 

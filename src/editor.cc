@@ -314,10 +314,10 @@ EditorState::EditorState(
         .Transform(
             [](gc::Root<vm::Value>)
                 -> futures::ValueOrError<futures::IterationControlCommand> {
-              return futures::IterationControlCommand::kContinue;
+              return futures::IterationControlCommand::Continue;
             })
         .ConsumeErrors(
-            [](Error) { return futures::IterationControlCommand::kContinue; });
+            [](Error) { return futures::IterationControlCommand::Continue; });
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
@@ -521,7 +521,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(
       MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(buffers),
       [callback](const gc::Root<OpenBuffer>& buffer) {
         return callback(buffer.ptr().value()).Transform([](EmptyValue) {
-          return futures::IterationControlCommand::kContinue;
+          return futures::IterationControlCommand::Continue;
         });
       });
 }

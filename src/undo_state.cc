@@ -88,7 +88,7 @@ futures::Value<EmptyValue> UndoState::Apply(ApplyOptions apply_options) {
             (data->options.direction == Direction::kForwards
                  ? undo_stack_.empty()
                  : redo_stack_.empty())) {
-          return IterationControlCommand::kStop;
+          return IterationControlCommand::Stop;
         }
 
         NonNull<std::shared_ptr<transformation::Stack>> value = [&] {
@@ -129,7 +129,7 @@ futures::Value<EmptyValue> UndoState::Apply(ApplyOptions apply_options) {
                   }
                   break;
               }
-              return IterationControlCommand::kContinue;
+              return IterationControlCommand::Continue;
             });
         ;
       });

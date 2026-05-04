@@ -47,7 +47,7 @@ struct Future;
 template <typename Type>
 class Value;
 
-enum class IterationControlCommand { kContinue, kStop };
+enum class IterationControlCommand { Continue, Stop };
 
 enum class ErrorHandling { Enable, Disable };
 
@@ -320,7 +320,7 @@ Value<language::EmptyValue> While(Callable callable) {
         std::move(current_value)
             .SetConsumer([loop_state,
                           self](IterationControlCommand value) mutable {
-              if (value == IterationControlCommand::kStop) {
+              if (value == IterationControlCommand::Stop) {
                 std::move(loop_state->final_consumer)(language::EmptyValue{});
               } else {
                 self(self);
@@ -329,7 +329,7 @@ Value<language::EmptyValue> While(Callable callable) {
         return;
       }
       IterationControlCommand result = current_value.Get().value();
-      if (result == IterationControlCommand::kStop) {
+      if (result == IterationControlCommand::Stop) {
         std::move(loop_state->final_consumer)(language::EmptyValue{});
         return;
       }
@@ -355,7 +355,7 @@ futures::Value<language::EmptyValue> ForEach(Iterator begin, Iterator end,
   auto current = language::MakeNonNullShared<Iterator>(begin);
   return While(
       [current, end, callable]() -> futures::Value<IterationControlCommand> {
-        if (current.value() == end) return IterationControlCommand::kStop;
+        if (current.value() == end) return IterationControlCommand::Stop;
         return callable(*(current.value()++));
       });
 }
@@ -445,7 +445,7 @@ futures::Value<std::vector<Value>> UnwrapVectorFuture(
                                 .template Transform<ErrorHandling::Disable>(
                                     [output](Value item) {
                                       output->push_back(std::move(item));
-                                      return IterationControlCommand::kContinue;
+                                      return IterationControlCommand::Continue;
                                     });
                           })
       .Transform([output](language::EmptyValue) mutable {

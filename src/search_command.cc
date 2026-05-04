@@ -306,13 +306,13 @@ class SearchCommand : public Command {
                                         SINGLE_LINE_CONSTANT(L"on")}}});
                             }
                             if (line.size().IsZero()) {
-                              return Control::kContinue;
+                              return Control::Continue;
                             }
                             auto search_options = BuildPromptSearchOptions(
                                 line, buffer, abort_value);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
-                              return Control::kContinue;
+                              return Control::Continue;
                             }
                             search_options->progress_channel =
                                 std::move(progress_channel);
@@ -352,13 +352,13 @@ class SearchCommand : public Command {
                                                             kFull},
                                       results.value());
                                   return abort_value.has_value()
-                                             ? Control::kStop
-                                             : Control::kContinue;
+                                             ? Control::Stop
+                                             : Control::Continue;
                                 })
                                 .ConsumeErrors([results](Error error)
                                                    -> futures::Value<Control> {
                                   results.value() = error;
-                                  return Control::kStop;
+                                  return Control::Stop;
                                 });
                           })
                    .Transform([results, line](EmptyValue) {

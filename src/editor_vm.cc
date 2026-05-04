@@ -375,7 +375,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                         })),
                 [](futures::Value<EmptyValue>& future) {
                   return std::move(future).Transform([](EmptyValue) {
-                    return futures::IterationControlCommand::kContinue;
+                    return futures::IterationControlCommand::Continue;
                   });
                 });
           })

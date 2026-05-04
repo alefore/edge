@@ -312,11 +312,11 @@ void DefineSortLinesByKey(
                                                 get_key(output.ptr().value()));
                                data->keys.insert(
                                    {line.contents().read(), key_value});
-                               return ICC::kContinue;
+                               return ICC::Continue;
                              })
                              .ConsumeErrors([data](Error error_input) {
                                data->possible_error = error_input;
-                               return ICC::kStop;
+                               return ICC::Stop;
                              });
                        })
                 .Transform([data, boundaries](EmptyValue)
@@ -354,7 +354,7 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
            .callback = callback,
            .contents = contents});
   return futures::While([data]() -> futures::Value<ICC> {
-           if (data->line > data->contents.EndLine()) return ICC::kStop;
+           if (data->line > data->contents.EndLine()) return ICC::Stop;
            std::vector<language::gc::Root<vm::Value>> args{
                vm::Value::NewNumber(
                    data->trampoline.pool(),
@@ -367,11 +367,11 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
                ->RunFunction(std::move(args), data->trampoline)
                .Transform(
                    [data](gc::Root<vm::Value>) -> futures::ValueOrError<ICC> {
-                     return ICC::kContinue;
+                     return ICC::Continue;
                    })
                .ConsumeErrors([data](Error error) -> futures::Value<ICC> {
                  data->output = error;
-                 return ICC::kStop;
+                 return ICC::Stop;
                });
          })
       .Transform([data](EmptyValue) { return data->output; });

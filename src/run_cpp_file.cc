@@ -72,18 +72,18 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
             [buffer, total = editor_state.repetitions(),
              adjusted_input = resolved_path.path, index,
              possible_error] -> futures::Value<IterationControlCommand> {
-              if (index.value() >= total) return IterationControlCommand::kStop;
+              if (index.value() >= total) return IterationControlCommand::Stop;
               ++index.value();
               return buffer->ptr()
                   ->execution_context()
                   ->EvaluateFile(adjusted_input)
                   .Transform([](gc::Root<vm::Value>)
                                  -> ValueOrError<IterationControlCommand> {
-                    return IterationControlCommand::kContinue;
+                    return IterationControlCommand::Continue;
                   })
                   .ConsumeErrors([possible_error](Error error) {
                     possible_error.value() = std::move(error);
-                    return IterationControlCommand::kStop;
+                    return IterationControlCommand::Stop;
                   });
             });
       })

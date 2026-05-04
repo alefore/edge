@@ -37,7 +37,7 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
              [data, input]() mutable
                  -> futures::Value<futures::IterationControlCommand> {
                if (data->index == data->options.repetitions)
-                 return futures::IterationControlCommand::kStop;
+                 return futures::IterationControlCommand::Stop;
                data->index++;
                return Apply(*data->options.transformation,
                             input.NewChild(data->output->position))
@@ -45,8 +45,8 @@ futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {
                      bool made_progress = result.made_progress;
                      data->output->MergeFrom(std::move(result));
                      return made_progress && data->output->success
-                                ? futures::IterationControlCommand::kContinue
-                                : futures::IterationControlCommand::kStop;
+                                ? futures::IterationControlCommand::Continue
+                                : futures::IterationControlCommand::Stop;
                    });
              })
       .Transform([data](EmptyValue) { return std::move(*data->output); });

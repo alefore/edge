@@ -416,10 +416,10 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                   .Transform(
                       [](gc::Root<Value>)
                           -> futures::ValueOrError<IterationControlCommand> {
-                        return IterationControlCommand::kContinue;
+                        return IterationControlCommand::Continue;
                       })
                   .ConsumeErrors(
-                      [](Error) { return IterationControlCommand::kContinue; });
+                      [](Error) { return IterationControlCommand::Continue; });
             });
         LoadModelFromPaths(editor(), Read(buffer_variables::log_model_paths))
             .Transform(LockAndVisitCallback(
@@ -1212,23 +1212,23 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                        [path, error](struct stat stat_buffer)
                            -> futures::ValueOrError<IterationControlCommand> {
                          if (S_ISDIR(stat_buffer.st_mode))
-                           return IterationControlCommand::kContinue;
+                           return IterationControlCommand::Continue;
                          *error = Error{
                              LazyString{
                                  L"Oops, exists, but is not a directory: "} +
                              path->read()};
-                         return IterationControlCommand::kStop;
+                         return IterationControlCommand::Stop;
                        })
                    .ConsumeErrors([file_system_driver, path, error](Error) {
                      return file_system_driver->Mkdir(*path, 0700)
                          .Transform(
                              [](EmptyValue) -> futures::ValueOrError<
                                                 IterationControlCommand> {
-                               return IterationControlCommand::kContinue;
+                               return IterationControlCommand::Continue;
                              })
                          .ConsumeErrors([path, error](Error mkdir_error) {
                            *error = mkdir_error;
-                           return IterationControlCommand::kStop;
+                           return IterationControlCommand::Stop;
                          });
                    });
              })
@@ -2242,10 +2242,10 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                        BuffersList::AddBufferType::Ignore,
                                });
                        }
-                       return ICC::kStop;
+                       return ICC::Stop;
                      }
                      DECLARE_OR_RETURN_OTHER(Path path, url.GetLocalFilePath(),
-                                             ICC::kContinue);
+                                             ICC::Continue);
                      // Converting it to SingleLine (rather than LazyString) is
                      // suboptimal: it would be good, in theory, to support
                      // paths that have a \n in them. However,
@@ -2255,7 +2255,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      DECLARE_OR_RETURN_OTHER(
                          SingleLine path_str,
                          SingleLine::New(ToLazyString(std::move(path))),
-                         ICC::kContinue);
+                         ICC::Continue);
                      TRACK_OPERATION(OpenBuffer_OpenBufferForCurrentPosition);
                      VLOG(4) << "Calling open file: " << path_str;
                      return OpenFiles(
@@ -2274,9 +2274,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          .Transform(
                              [data](std::vector<gc::Root<OpenBuffer>> buffers)
                                  -> futures::ValueOrError<ICC> {
-                               if (buffers.empty()) return ICC ::kContinue;
+                               if (buffers.empty()) return ICC::Continue;
                                data->output = buffers[0];
-                               return ICC::kStop;
+                               return ICC::Stop;
                              })
                          .ConsumeErrors([adjusted_position, data](Error) {
                            return VisitPointer(
@@ -2287,14 +2287,14 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                          locked_buffer->position())) {
                                    data->output = Error{LazyString{
                                        L"Computation was cancelled."}};
-                                   return ICC::kStop;
+                                   return ICC::Stop;
                                  }
-                                 return ICC::kContinue;
+                                 return ICC::Continue;
                                },
-                               [] { return ICC::kStop; });
+                               [] { return ICC::Stop; });
                          });
                    },
-                   [] { return ICC::kStop; });
+                   [] { return ICC::Stop; });
              })
       .Transform(
           [data](EmptyValue)
