@@ -143,10 +143,10 @@ PossibleError FinishClassDeclaration(
                                -> language::ValueOrError<gc::Root<Value>> {
                   trampoline.SetEnvironment(original_environment);
                   switch (constructor_evaluation.type) {
-                    case EvaluationOutput::OutputType::kReturn:
+                    case EvaluationOutput::OutputType::Return:
                       return Error{LazyString{
                           L"Unexpected: return (inside class declaration)."}};
-                    case EvaluationOutput::OutputType::kContinue:
+                    case EvaluationOutput::OutputType::Continue:
                       return Success(Value::NewObject(
                           trampoline.pool(),
                           std::get<types::ObjectName>(class_type),

@@ -142,7 +142,7 @@ class FunctionCall : public Expression {
         .Transform([&trampoline,
                     args_root = args_.ToRoot()](EvaluationOutput callback)
                        -> futures::ValueOrError<EvaluationOutput> {
-          if (callback.type == EvaluationOutput::OutputType::kReturn)
+          if (callback.type == EvaluationOutput::OutputType::Return)
             return callback;
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
           DVLOG(6) << "Is function: " << callback.value->IsFunction();
@@ -190,10 +190,10 @@ class FunctionCall : public Expression {
                        -> futures::ValueOrError<EvaluationOutput> {
           DVLOG(7) << "Got evaluation output.";
           switch (value.type) {
-            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::Return:
               DVLOG(5) << "Received return value.";
               return value;
-            case EvaluationOutput::OutputType::kContinue:
+            case EvaluationOutput::OutputType::Continue:
               DVLOG(5) << "Received results of parameter " << values->size() + 1
                        << " (of " << args->size()
                        << "): " << value.value.ptr().value();
@@ -338,9 +338,9 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
                         &pool = trampoline.pool()](EvaluationOutput output)
                            -> ValueOrError<EvaluationOutput> {
               switch (output.type) {
-                case EvaluationOutput::OutputType::kReturn:
+                case EvaluationOutput::OutputType::Return:
                   return Success(std::move(output));
-                case EvaluationOutput::OutputType::kContinue:
+                case EvaluationOutput::OutputType::Continue:
                   const types::Function& function_type =
                       std::get<types::Function>(type);
                   return Success(EvaluationOutput::New(Value::NewFunction(

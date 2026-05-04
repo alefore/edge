@@ -68,9 +68,9 @@ class LogicalExpression : public Expression {
                     expr_b_root = expr_b_.ToRoot()](EvaluationOutput a_output)
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (a_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::Return:
               return a_output;
-            case EvaluationOutput::OutputType::kContinue:
+            case EvaluationOutput::OutputType::Continue:
               return a_output.value.ptr()->get_bool() == identity
                          ? trampoline.Bounce(expr_b_root.ptr(), type)
                          : a_output;

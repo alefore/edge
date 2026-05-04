@@ -65,9 +65,9 @@ class IfExpression : public Expression {
                     &trampoline](EvaluationOutput cond_output)
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (cond_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::Return:
               return cond_output;
-            case EvaluationOutput::OutputType::kContinue:
+            case EvaluationOutput::OutputType::Continue:
               return trampoline.Bounce(cond_output.value.ptr()->get_bool()
                                            ? true_case.ptr()
                                            : false_case.ptr(),

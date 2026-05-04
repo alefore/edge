@@ -61,9 +61,9 @@ class AppendExpression : public Expression {
             [&trampoline, e1_root = e1_.ToRoot()](EvaluationOutput e0_output)
                 -> futures::ValueOrError<EvaluationOutput> {
               switch (e0_output.type) {
-                case EvaluationOutput::OutputType::kReturn:
+                case EvaluationOutput::OutputType::Return:
                   return e0_output;
-                case EvaluationOutput::OutputType::kContinue:
+                case EvaluationOutput::OutputType::Continue:
                   return trampoline.Bounce(e1_root.ptr(), e1_root->Types()[0]);
               }
               LOG(FATAL) << "Unhandled OutputType case.";

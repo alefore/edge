@@ -71,10 +71,10 @@ class WhileExpression : public Expression {
                     &trampoline](EvaluationOutput condition_output)
                        -> futures::ValueOrError<EvaluationOutput> {
           switch (condition_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::Return:
               return condition_output;
 
-            case EvaluationOutput::OutputType::kContinue:
+            case EvaluationOutput::OutputType::Continue:
               if (!condition_output.value.ptr()->get_bool()) {
                 DVLOG(3) << "Iteration is done.";
                 return EvaluationOutput::New(Value::NewVoid(trampoline.pool()));
@@ -86,10 +86,10 @@ class WhileExpression : public Expression {
                               &trampoline](EvaluationOutput body_output)
                                  -> futures::ValueOrError<EvaluationOutput> {
                     switch (body_output.type) {
-                      case EvaluationOutput::OutputType::kReturn:
+                      case EvaluationOutput::OutputType::Return:
                         return body_output;
                         break;
-                      case EvaluationOutput::OutputType::kContinue:
+                      case EvaluationOutput::OutputType::Continue:
                         return Iterate(trampoline, std::move(condition),
                                        std::move(body));
                     }

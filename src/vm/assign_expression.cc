@@ -77,9 +77,9 @@ class AssignExpression : public Expression {
                         assignment_type_](EvaluationOutput value_output)
                        -> language::ValueOrError<EvaluationOutput> {
           switch (value_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::Return:
               return Success(std::move(value_output));
-            case EvaluationOutput::OutputType::kContinue:
+            case EvaluationOutput::OutputType::Continue:
               DVLOG(3) << "Setting value for: " << symbol;
               DVLOG(4) << "Value: " << value_output.value.ptr().value();
               if (assignment_type == AssignmentType::kDefine) {
@@ -134,9 +134,9 @@ class StackFrameAssign : public Expression {
         .Transform([&trampoline, index = index_](EvaluationOutput value_output)
                        -> language::ValueOrError<EvaluationOutput> {
           switch (value_output.type) {
-            case EvaluationOutput::OutputType::kReturn:
+            case EvaluationOutput::OutputType::Return:
               return Success(std::move(value_output));
-            case EvaluationOutput::OutputType::kContinue:
+            case EvaluationOutput::OutputType::Continue:
               trampoline.stack().set_in_current_frame(index,
                                                       value_output.value.ptr());
               return Success(

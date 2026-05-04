@@ -120,7 +120,7 @@ class Expression {
 };
 
 struct EvaluationOutput {
-  enum class OutputType { kReturn, kContinue };
+  enum class OutputType { Return, Continue };
 
   static EvaluationOutput New(language::gc::Root<Value> value) {
     return EvaluationOutput{.value = std::move(value)};
@@ -128,11 +128,11 @@ struct EvaluationOutput {
 
   static EvaluationOutput Return(language::gc::Root<Value> value) {
     return EvaluationOutput{.value = std::move(value),
-                            .type = OutputType::kReturn};
+                            .type = OutputType::Return};
   }
 
   language::gc::Root<Value> value;
-  OutputType type = OutputType::kContinue;
+  OutputType type = OutputType::Continue;
 };
 
 // Combine the return types of two sub-expressions (see Expression::ReturnType).
