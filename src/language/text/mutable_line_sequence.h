@@ -91,9 +91,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   enum class ObserverBehavior { Show, Hide };
 
-  void insert_line(
-      language::text::LineNumber line_position, value_type line,
-      ObserverBehavior observer_behavior = ObserverBehavior::Show);
+  void insert_line(language::text::LineNumber line_position, value_type line,
+                   ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
@@ -176,6 +175,16 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void push_back(std::wstring str);
   void push_back(value_type line,
                  ObserverBehavior observer_behavior = ObserverBehavior::Show);
+
+  template <std::ranges::range R>
+    requires(!std::ranges::random_access_range<R>)
+  void append_back(
+      R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::Show) {
+    // The underlying `Lines` implementation (ConstTree) requires the range to
+    // support random access, so we materialize it to a std::vector.
+    return append_back(std::forward<R>(lines) | std::ranges::to<std::vector>(),
+                       observer_behavior);
+  }
 
   template <std::ranges::range R>
   void append_back(
