@@ -2132,8 +2132,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     if (subtree->get_property_value(ParseTreePropertyName::Link()).has_value())
       if (ValueOrError<URL> target =
               FindLinkTarget(*subtree, buffer.contents().snapshot());
-          HasValue(target)) {
-        initial_url = ValueOrDie(std::move(target));
+          target) {
+        initial_url = std::move(target).value();
         break;
       }
 
@@ -2216,6 +2216,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
              [&editor = editor(), adjusted_position, data, remote_url_behavior,
               execution_context =
                   execution_context().ToRoot()](const URL& url) {
+               LOG(INFO) << "Opening URL: " << url;
                return HandleURL(editor, execution_context.ptr().value(),
                                 remote_url_behavior, url)
                    .Transform(
