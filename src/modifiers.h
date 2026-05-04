@@ -34,8 +34,8 @@ struct Modifiers {
   std::wstring Serialize() const;
 
   enum class Strength {
-    kNormal,
-    kStrong,
+    Normal,
+    Strong,
   };
 
   // Specifies what happens to characters near the cursor when a modification
@@ -44,11 +44,11 @@ struct Modifiers {
     // Default.  Characters move. In an insertion, they just move to the right,
     // to make space (in the file) for the newly inserted contents. In a
     // deletion, they get "consumed" (destroyed).
-    kShift,
+    Shift,
     // Characters never move. Characters at the right of an insertion will get
     // overwritten. For a deletion, characters just get blanked (set to space),
     // but not actually deleted.
-    kOverwrite
+    Overwrite
   };
 
   // Sets the modifiers to their default values, including resetting any form
@@ -56,7 +56,7 @@ struct Modifiers {
   void ResetHard() {
     structure = Structure::kChar;
     default_direction = Direction::Forwards;
-    default_insertion = ModifyMode::kShift;
+    default_insertion = ModifyMode::Shift;
     ResetSoft();
   }
 
@@ -65,7 +65,7 @@ struct Modifiers {
   void ResetSoft() {
     ResetStructure();
     ResetDirection();
-    strength = Strength::kNormal;
+    strength = Strength::Normal;
     ResetInsertion();
     ResetRepetitions();
   }
@@ -86,13 +86,13 @@ struct Modifiers {
   Structure structure = Structure::kChar;
   bool sticky_structure = false;
 
-  Strength strength = Strength::kNormal;
+  Strength strength = Strength::Normal;
 
   Direction direction = Direction::Forwards;
   Direction default_direction = Direction::Forwards;
 
-  ModifyMode insertion = ModifyMode::kShift;
-  ModifyMode default_insertion = ModifyMode::kShift;
+  ModifyMode insertion = ModifyMode::Shift;
+  ModifyMode default_insertion = ModifyMode::Shift;
 
   std::optional<size_t> repetitions = std::nullopt;
 

@@ -481,14 +481,14 @@ std::optional<gc::Root<OpenBuffer>> EditorState::current_buffer() const {
 }
 
 std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
-  if (status().GetType() == Status::Type::kPrompt) {
+  if (status().GetType() == Status::Type::Prompt) {
     return {status().prompt_buffer().value()};
   } else if (Read(editor_variables::multiple_buffers)) {
     return buffer_registry_->LockListedBuffers(
         [](std::vector<gc::Root<OpenBuffer>> buffers) { return buffers; });
   } else if (std::optional<gc::Root<OpenBuffer>> buffer = current_buffer();
              buffer.has_value()) {
-    if (buffer->ptr()->status().GetType() == Status::Type::kPrompt) {
+    if (buffer->ptr()->status().GetType() == Status::Type::Prompt) {
       buffer = buffer->ptr()->status().prompt_buffer()->ptr().ToRoot();
     }
     return {buffer.value()};

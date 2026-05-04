@@ -43,7 +43,7 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
       .modifiers = {.repetitions = repetitions,
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::DoNothing},
-      .initiator = transformation::Delete::Initiator::kInternal};
+      .initiator = transformation::Delete::Initiator::Internal};
 }
 
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
@@ -74,7 +74,7 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 
   futures::Value<NonNull<std::shared_ptr<transformation::Result>>>
       delayed_shared_result = result;
-  if (options.modifiers.insertion == Modifiers::ModifyMode::kOverwrite) {
+  if (options.modifiers.insertion == Modifiers::ModifyMode::Overwrite) {
     transformation::Delete delete_options =
         GetCharactersDeleteOptions(chars_inserted);
     delete_options.line_end_behavior =

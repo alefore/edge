@@ -192,7 +192,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   if (options.modifiers.text_delete_behavior ==
           Modifiers::TextDeleteBehavior::kDelete &&
       input.mode == Input::Mode::kFinal &&
-      options.initiator == Delete::Initiator::kUser) {
+      options.initiator == Delete::Initiator::User) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
     HandleLineDeletion(range, input.adapter, input.buffer);
   }
@@ -231,10 +231,9 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         output->MergeFrom(std::move(result));
         transformation::Insert insert_options{
             .contents_to_insert = delete_buffer.ptr()->contents().snapshot(),
-            .final_position =
-                options.modifiers.direction == Direction::Forwards
-                    ? Insert::FinalPosition::kEnd
-                    : Insert::FinalPosition::kStart};
+            .final_position = options.modifiers.direction == Direction::Forwards
+                                  ? Insert::FinalPosition::kEnd
+                                  : Insert::FinalPosition::kStart};
         output->undo_stack->push_front(insert_options);
         output->undo_stack->push_front(
             transformation::SetPosition(range.begin()));

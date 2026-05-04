@@ -546,7 +546,7 @@ class ForkEditorCommand : public Command {
     CHECK(prompt_state.context_command_callback.has_value());
     EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
-    CHECK(editor.status().GetType() == Status::Type::kPrompt);
+    CHECK(editor.status().GetType() == Status::Type::Prompt);
     gc::Root<vm::Expression> context_command_expression = vm::NewFunctionCall(
         vm::NewConstantExpression(prompt_state.context_command_callback->ptr())
             .ptr(),

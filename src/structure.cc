@@ -162,9 +162,9 @@ StructureSearchQuery GetStructureSearchQuery(Structure structure) {
   switch (structure) {
     case Structure::kWord:
     case Structure::kSymbol:
-      return StructureSearchQuery::kRegion;
+      return StructureSearchQuery::Region;
     default:
-      return StructureSearchQuery::kPrompt;
+      return StructureSearchQuery::Prompt;
   }
 }
 
@@ -175,9 +175,9 @@ StructureSearchRange GetStructureSearchRange(Structure structure) {
     case Structure::kCursor:
     case Structure::kSentence:
     case Structure::kParagraph:
-      return StructureSearchRange::kRegion;
+      return StructureSearchRange::Region;
     default:
-      return StructureSearchRange::kBuffer;
+      return StructureSearchRange::Buffer;
   }
 }
 

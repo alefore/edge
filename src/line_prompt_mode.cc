@@ -292,7 +292,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   EditorState& editor_state() const { return options_.editor_state; }
 
   // The prompt has disappeared.
-  bool IsGone() const { return status().GetType() != Status::Type::kPrompt; }
+  bool IsGone() const { return status().GetType() != Status::Type::Prompt; }
 
   Status& status() const { return status_; }
 
@@ -388,7 +388,7 @@ class StatusVersionAdapter {
 
   template <typename T>
   void SetStatusValue(VersionPropertyKey key, T value) {
-    CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt);
+    CHECK(prompt_state_->status().GetType() == Status::Type::Prompt);
     status_version_->SetValue(key, value);
   }
 
@@ -427,7 +427,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
   auto abort_notification_value = abort_notification_->listenable_value();
 
   if (options().colorize_options_provider == nullptr ||
-      status().GetType() != Status::Type::kPrompt)
+      status().GetType() != Status::Type::Prompt)
     return EmptyValue{};
 
   auto status_value_viewer = MakeNonNullShared<StatusVersionAdapter>(
@@ -476,7 +476,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
         original_input_(std::move(original_input)),
         prompt_state_(std::move(prompt_state)),
         previous_context_(prompt_state_->status().context()) {
-    CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt ||
+    CHECK(prompt_state_->status().GetType() == Status::Type::Prompt ||
           prompt_state_->IsGone());
   }
 
@@ -561,7 +561,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
                           Modifiers::PasteBufferBehavior::DoNothing,
                       .boundary_begin = Modifiers::LIMIT_CURRENT,
                       .boundary_end = Modifiers::LIMIT_CURRENT},
-        .initiator = transformation::Delete::Initiator::kInternal});
+        .initiator = transformation::Delete::Initiator::Internal});
 
     buffer.ApplyToCursors(transformation::Insert{
         .contents_to_insert = std::move(contents_to_insert)});
@@ -777,7 +777,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                                  .boundary_begin = Modifiers::LIMIT_CURRENT,
                                  .boundary_end = Modifiers::LIMIT_CURRENT},
                             .initiator =
-                                transformation::Delete::Initiator::kInternal});
+                                transformation::Delete::Initiator::Internal});
 
                     // TODO(easy, 2024-09-17): Change common_prefix to be
                     // SingleLine, avoid wrapping it here.
@@ -832,9 +832,9 @@ void Prompt(PromptOptions options) {
       MakeNonNullUnique<DelayInputReceiver>(
           std::invoke([insertion = editor_state.modifiers().insertion] {
             switch (insertion) {
-              case Modifiers::ModifyMode::kShift:
+              case Modifiers::ModifyMode::Shift:
                 return EditorMode::CursorMode::kInserting;
-              case Modifiers::ModifyMode::kOverwrite:
+              case Modifiers::ModifyMode::Overwrite:
                 return EditorMode::CursorMode::kOverwriting;
             }
             LOG(FATAL) << "Invalid insertion mode.";

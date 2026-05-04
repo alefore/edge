@@ -44,7 +44,7 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
         .modifiers = {.repetitions = (line->EndColumn() - column).read(),
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::DoNothing},
-        .initiator = transformation::Delete::Initiator::kInternal});
+        .initiator = transformation::Delete::Initiator::Internal});
     return output;
   }
 };

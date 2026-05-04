@@ -9,7 +9,7 @@
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 
-namespace afc ::editor {
+namespace afc::editor {
 class DeleteOptions;
 class Transformation;
 class OpenBuffer;
@@ -55,15 +55,15 @@ enum class StructureSpaceBehavior {
 StructureSpaceBehavior GetStructureSpaceBehavior(Structure structure);
 
 enum class StructureSearchQuery {
-  kPrompt,  // Prompt the user for the search string.
-  kRegion,  // The current region is the query to search for.
+  Prompt,  // Prompt the user for the search string.
+  Region,  // The current region is the query to search for.
 };
 
 StructureSearchQuery GetStructureSearchQuery(Structure structure);
 
 enum class StructureSearchRange {
-  kBuffer,  // The search should go over the entire buffer.
-  kRegion,  // The search should be constrained to the current region.
+  Buffer,  // The search should go over the entire buffer.
+  Region,  // The search should be constrained to the current region.
 };
 
 StructureSearchRange GetStructureSearchRange(Structure structure);

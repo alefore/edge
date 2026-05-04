@@ -215,7 +215,7 @@ class NavigateTransformation : public CompositeTransformation {
             .modifiers = {.paste_buffer_behavior =
                               Modifiers::PasteBufferBehavior::DoNothing},
             .mode = transformation::Input::Mode::kPreview,
-            .initiator = transformation::Delete::Initiator::kInternal});
+            .initiator = transformation::Delete::Initiator::Internal});
       }
 
       DeleteExterior(range.begin(), Direction::Backwards, input.position,
@@ -247,7 +247,7 @@ class NavigateTransformation : public CompositeTransformation {
         .line_end_behavior = transformation::Delete::LineEndBehavior::kStop,
         .preview_modifiers = {LineModifier::Dim},
         .mode = transformation::Input::Mode::kPreview,
-        .initiator = transformation::Delete::Initiator::kInternal});
+        .initiator = transformation::Delete::Initiator::Internal});
   }
 
   LineColumn WriteIndex(LineColumn position, size_t index) const {

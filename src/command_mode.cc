@@ -177,15 +177,15 @@ class InsertionModifierCommand : public Command {
   }
 
   void ProcessInput(ExtendedChar) override {
-    if (editor_state_.insertion_modifier() == Modifiers::ModifyMode::kShift) {
-      editor_state_.set_insertion_modifier(Modifiers::ModifyMode::kOverwrite);
+    if (editor_state_.insertion_modifier() == Modifiers::ModifyMode::Shift) {
+      editor_state_.set_insertion_modifier(Modifiers::ModifyMode::Overwrite);
     } else if (editor_state_.default_insertion_modifier() ==
-               Modifiers::ModifyMode::kShift) {
+               Modifiers::ModifyMode::Shift) {
       editor_state_.set_default_insertion_modifier(
-          Modifiers::ModifyMode::kOverwrite);
+          Modifiers::ModifyMode::Overwrite);
     } else {
       editor_state_.set_default_insertion_modifier(
-          Modifiers::ModifyMode::kShift);
+          Modifiers::ModifyMode::Shift);
       editor_state_.ResetInsertionModifier();
     }
   }
@@ -250,11 +250,11 @@ class SetStrengthCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     Modifiers modifiers(editor_state_.modifiers());
     switch (modifiers.strength) {
-      case Modifiers::Strength::kNormal:
-        modifiers.strength = Modifiers::Strength::kStrong;
+      case Modifiers::Strength::Normal:
+        modifiers.strength = Modifiers::Strength::Strong;
         break;
-      case Modifiers::Strength::kStrong:
-        modifiers.strength = Modifiers::Strength::kNormal;
+      case Modifiers::Strength::Strong:
+        modifiers.strength = Modifiers::Strength::Normal;
         break;
     }
     editor_state_.set_modifiers(modifiers);
@@ -580,7 +580,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                                [] {
                                  Modifiers output;
                                  output.insertion =
-                                     Modifiers::ModifyMode::kOverwrite;
+                                     Modifiers::ModifyMode::Overwrite;
                                  return output;
                                }()))
                            .ptr());

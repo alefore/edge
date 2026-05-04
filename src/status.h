@@ -40,7 +40,7 @@ class Status {
   Status(Status&&) = default;
   void CopyFrom(const Status& status);
 
-  enum class Type { kWarning, kInformation, kPrompt };
+  enum class Type { Warning, Information, Prompt };
   Type GetType() const;
 
   void set_prompt(language::text::Line text,
@@ -54,9 +54,9 @@ class Status {
 
   std::optional<language::gc::Root<OpenBuffer>> prompt_buffer() const;
 
-  // Returns nullptr if the status type isn't kPrompt.
+  // Returns nullptr if the status type isn't Prompt.
   concurrent::VersionPropertyReceiver* prompt_extra_information();
-  // Returns nullptr if the status type isn't kPrompt.
+  // Returns nullptr if the status type isn't Prompt.
   const concurrent::VersionPropertyReceiver* prompt_extra_information() const;
 
   language::text::Line prompt_extra_information_line() const;
@@ -117,7 +117,7 @@ class Status {
   struct Data {
     const struct timespec creation_time = infrastructure::Now();
 
-    const Type type = Type::kInformation;
+    const Type type = Type::Information;
     // This has to be NonNull<std::shared<Protected<...>>> so that it can be
     // shared (internally) with StatusExpirationControl.
     language::NonNull<
@@ -132,7 +132,7 @@ class Status {
     // prompt or possible completions.
     std::optional<language::gc::Root<OpenBuffer>> context = std::nullopt;
 
-    // Should only be used when type is Type::kPrompt.
+    // Should only be used when type is Type::Prompt.
     std::unique_ptr<concurrent::VersionPropertyReceiver> extra_information =
         nullptr;
   };

@@ -127,7 +127,7 @@ Status::Type Status::GetType() const {
 void Status::set_prompt(Line text, gc::Root<OpenBuffer> buffer) {
   data_.lock([&](NonNull<std::shared_ptr<Data>>& data) {
     data = MakeNonNullShared<Data>(
-        Data{.type = Status::Type::kPrompt,
+        Data{.type = Status::Type::Prompt,
              .text = MakeNonNullShared<Protected<Line>>(std::move(text)),
              .prompt_buffer = std::move(buffer),
              .extra_information = std::make_unique<VersionPropertyReceiver>()});
@@ -218,7 +218,7 @@ void Status::SetInformationText(Line text) {
       return;
     }
     data = MakeNonNullShared<Data>(
-        Data{.type = Type::kInformation,
+        Data{.type = Type::Information,
              .text = MakeNonNullShared<Protected<Line>>(std::move(text))});
   });
 }
@@ -264,7 +264,7 @@ void Status::Set(Error error) {
     text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
                       LineModifierSet({LineModifier::Red, LineModifier::Bold}));
     data = MakeNonNullShared<Data>(Data{
-        .type = Type::kWarning,
+        .type = Type::Warning,
         .text = MakeNonNullShared<Protected<Line>>(std::move(text).Build())});
   });
 }
@@ -333,6 +333,6 @@ const Line& Status::text() const {
 
 void Status::DataValidator::operator()(
     const language::NonNull<std::shared_ptr<Status::Data>>& data) const {
-  CHECK((data->prompt_buffer.has_value()) == (data->type == Type::kPrompt));
+  CHECK((data->prompt_buffer.has_value()) == (data->type == Type::Prompt));
 }
 }  // namespace afc::editor

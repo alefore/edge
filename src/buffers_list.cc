@@ -302,7 +302,7 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
                                    const OpenBuffer& buffer,
                                    FilterResult filter_result) {
   LineModifierSet output;
-  if (buffer.status().GetType() == Status::Type::kWarning) {
+  if (buffer.status().GetType() == Status::Type::Warning) {
     output.insert(LineModifier::Red);
     const double kSecondsWarningHighlight = 5;
     if (GetElapsedSecondsSince(buffer.status().last_change_time()) <

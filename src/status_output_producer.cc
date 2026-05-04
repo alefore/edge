@@ -72,7 +72,7 @@ SingleLine GetBufferContext(const OpenBuffer& buffer) {
 LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   LineBuilder output;
   if (options.buffer != nullptr &&
-      options.status.GetType() != Status::Type::kWarning) {
+      options.status.GetType() != Status::Type::Warning) {
     if (options.buffer->current_position_line() >
         options.buffer->contents().EndLine()) {
       output.AppendString(SingleLine::Char<L'🚀'>());
@@ -131,16 +131,16 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (options.modifiers.default_insertion ==
-        Modifiers::ModifyMode::kOverwrite) {
+        Modifiers::ModifyMode::Overwrite) {
       flags.insert({BufferFlagKey{SINGLE_LINE_CONSTANT(L"OVERWRITE")},
                     BufferFlagValue{}});
     } else if (options.modifiers.insertion ==
-               Modifiers::ModifyMode::kOverwrite) {
+               Modifiers::ModifyMode::Overwrite) {
       flags.insert({BufferFlagKey{SINGLE_LINE_CONSTANT(L"overwrite")},
                     BufferFlagValue{}});
     }
 
-    if (options.modifiers.strength == Modifiers::Strength::kStrong) {
+    if (options.modifiers.strength == Modifiers::Strength::Strong) {
       flags.insert(
           {BufferFlagKey{SINGLE_LINE_CONSTANT(L"💪")}, BufferFlagValue{}});
     }
@@ -262,7 +262,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   TRACK_OPERATION(StatusOutputProducer_StatusOutput);
 
   const LineNumberDelta info_lines =
-      options.status.GetType() == Status::Type::kPrompt ||
+      options.status.GetType() == Status::Type::Prompt ||
               !options.status.text().empty() || options.buffer != nullptr
           ? LineNumberDelta(1)
           : LineNumberDelta();

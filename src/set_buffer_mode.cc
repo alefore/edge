@@ -44,7 +44,7 @@ struct Operation {
     kNumber,
     kFilter,
     // Toggle WarningFilter: Only select buffers that have a warning status.
-    kWarningFilter,
+    WarningFilter,
     // Toggle Search filter: Only select buffers that match a given regular
     // expression.
     kSearch,
@@ -78,8 +78,7 @@ bool CharConsumer(ExtendedChar c, Data& data) {
               [&](wchar_t regular_c) {
                 switch (regular_c) {
                   case L'!':
-                    data.operations.push_back(
-                        {Operation::Type::kWarningFilter});
+                    data.operations.push_back({Operation::Type::WarningFilter});
                     return true;
 
                   case L'l':
@@ -201,7 +200,7 @@ Line BuildStatus(const Data& data) {
                               LineModifierSet{LineModifier::Yellow});
         }
         break;
-      case Operation::Type::kWarningFilter:
+      case Operation::Type::WarningFilter:
         output.AppendString(SINGLE_LINE_CONSTANT(L" !"),
                             LineModifierSet{LineModifier::Red});
         break;
@@ -236,7 +235,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
   bool warning_filter_enabled = false;
   for (const auto& operation : data.operations) {
-    if (operation.type == Operation::Type::kWarningFilter) {
+    if (operation.type == Operation::Type::WarningFilter) {
       warning_filter_enabled = !warning_filter_enabled;
     }
   }
@@ -246,7 +245,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     for (auto& index : initial_indices) {
       if (gc::Root<OpenBuffer> buffer =
               editor.buffer_registry().GetListedBuffer(index);
-          buffer.ptr()->status().GetType() == Status::Type::kWarning) {
+          buffer.ptr()->status().GetType() == Status::Type::Warning) {
         new_indices.push_back(index);
       }
     }
@@ -386,7 +385,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                 });
         break;
 
-      case Operation::Type::kWarningFilter:
+      case Operation::Type::WarningFilter:
         break;  // Already handled.
 
       case Operation::Type::kSearch: {

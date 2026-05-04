@@ -46,7 +46,7 @@ LineWithCursor::Generator::Vector GetLines(
     std::optional<gc::Root<OpenBuffer>> current_buffer, const Screen& screen) {
   LineColumnDelta screen_size = screen.size();
   LineWithCursor::Generator::Vector status_lines =
-      (editor_status.GetType() == Status::Type::kPrompt ||
+      (editor_status.GetType() == Status::Type::Prompt ||
        editor_status.context().has_value())
           ? StatusOutput({.status = editor_status,
                           .buffer = nullptr,
@@ -58,15 +58,15 @@ LineWithCursor::Generator::Vector GetLines(
       buffers_list.GetLines(Widget::OutputProducerOptions{
           .size = LineColumnDelta(screen_size.line, screen_size.column),
           .main_cursor_display =
-              (editor_status.GetType() == Status::Type::kPrompt ||
+              (editor_status.GetType() == Status::Type::Prompt ||
                (current_buffer.has_value() &&
                 current_buffer->ptr()->status().GetType() ==
-                    Status::Type::kPrompt))
+                    Status::Type::Prompt))
                   ? Widget::OutputProducerOptions::MainCursorDisplay::kInactive
                   : Widget::OutputProducerOptions::MainCursorDisplay::kActive});
   CHECK_EQ(output.size(), screen_size.line);
 
-  (editor_status.GetType() == Status::Type::kPrompt ? output : status_lines)
+  (editor_status.GetType() == Status::Type::Prompt ? output : status_lines)
       .RemoveCursor();
 
   if (!status_lines.lines.empty()) {
@@ -104,9 +104,9 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   for (LineNumber line; line.ToDelta() < screen_size.line; ++line)
     WriteLine(screen, line, lines.lines[line.read()]);
 
-  if (editor_state.status().GetType() == Status::Type::kPrompt ||
+  if (editor_state.status().GetType() == Status::Type::Prompt ||
       (buffer.has_value() &&
-       buffer->ptr()->status().GetType() == Status::Type::kPrompt) ||
+       buffer->ptr()->status().GetType() == Status::Type::Prompt) ||
       (buffer.has_value() &&
        !buffer->ptr()->Read(buffer_variables::atomic_lines) &&
        cursor_position_.has_value())) {

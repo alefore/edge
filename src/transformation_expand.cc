@@ -82,7 +82,7 @@ transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
                     .repetitions = characters.read(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::DoNothing},
-      .initiator = transformation::Delete::Initiator::kInternal};
+      .initiator = transformation::Delete::Initiator::Internal};
 }
 
 class PredictorTransformation : public CompositeTransformation {

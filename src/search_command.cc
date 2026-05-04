@@ -220,7 +220,7 @@ class SearchCommand : public Command {
 
   void ProcessInput(ExtendedChar) override {
     if (GetStructureSearchQuery(editor_state_.structure()) ==
-        StructureSearchQuery::kRegion) {
+        StructureSearchQuery::Region) {
       editor_state_
           .ForEachActiveBuffer([&editor_state =
                                     editor_state_](OpenBuffer& buffer) {
@@ -400,7 +400,7 @@ class SearchCommand : public Command {
     SearchOptions search_options{.search_query = std::move(input)};
 
     if (GetStructureSearchRange(editor.structure()) ==
-        StructureSearchRange::kBuffer) {
+        StructureSearchRange::Buffer) {
       search_options.starting_position = buffer.position();
     } else {
       Range range =

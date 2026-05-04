@@ -336,7 +336,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
             << buffer.Read(buffer_variables::name);
   LineWithCursor::Generator::Vector status_lines;
   if (!buffer.Read(buffer_variables::flow_mode) ||
-      buffer.status().GetType() == Status::Type::kPrompt)
+      buffer.status().GetType() == Status::Type::Prompt)
     switch (input.status_behavior) {
       case BufferOutputProducerInput::StatusBehavior::Show:
         status_lines =
@@ -440,7 +440,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   if (!status_lines.size().IsZero()) {
-    (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
+    (buffer.status().GetType() == Status::Type::Prompt ? output.lines
                                                         : status_lines)
         .RemoveCursor();
     output.lines.Append(std::move(status_lines));

@@ -31,7 +31,7 @@ class QuitCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     LOG(INFO) << "Triggering termination with value: " << exit_value_;
     editor_state_.Terminate(
-        editor_state_.modifiers().strength <= Modifiers::Strength::kNormal
+        editor_state_.modifiers().strength <= Modifiers::Strength::Normal
             ? EditorState::TerminationType::kWhenClean
             : EditorState::TerminationType::kIgnoringErrors,
         exit_value_);

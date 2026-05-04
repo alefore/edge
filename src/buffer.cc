@@ -452,7 +452,7 @@ EditorState& OpenBuffer::editor() const { return options_.editor; }
 Status& OpenBuffer::status() const { return status_.value(); }
 
 PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
-  if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
+  if (options_.editor.modifiers().strength > Modifiers::Strength::Normal) {
     return EmptyValue{};
   }
   if (child_pid_.has_value() && !Read(buffer_variables::term_on_close))
@@ -470,7 +470,7 @@ OpenBuffer::PrepareToClose() {
       IsUnableToPrepareToClose(),
       [&](EmptyValue) {
         return (options_.editor.modifiers().strength ==
-                        Modifiers::Strength::kNormal
+                        Modifiers::Strength::Normal
                     ? PersistState()
                     : futures::IgnoreErrors(PersistState()))
             .Transform([root_this = RootFromThis()](EmptyValue)
@@ -500,7 +500,7 @@ OpenBuffer::PrepareToClose() {
                   return std::move(future.value);
                 }
                 CHECK(root_this->options_.editor.modifiers().strength >
-                      Modifiers::Strength::kNormal);
+                      Modifiers::Strength::Normal);
               }
               if (!root_this->dirty() ||
                   root_this->Read(buffer_variables::allow_dirty_delete))

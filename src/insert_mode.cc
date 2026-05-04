@@ -589,7 +589,7 @@ class InsertMode : public InputReceiver,
                                Modifiers::PasteBufferBehavior::DoNothing,
                            .boundary_begin = Modifiers::CURRENT_POSITION,
                            .boundary_end = Modifiers::LIMIT_CURRENT},
-                      .initiator = transformation::Delete::Initiator::kUser})
+                      .initiator = transformation::Delete::Initiator::User})
                   .Transform(ModifyHandler<EmptyValue>(options.modify_handler,
                                                        buffer));
             });
@@ -756,9 +756,9 @@ class InsertMode : public InputReceiver,
 
   CursorMode cursor_mode() const override {
     switch (options_.editor_state.modifiers().insertion) {
-      case Modifiers::ModifyMode::kShift:
+      case Modifiers::ModifyMode::Shift:
         return CursorMode::kInserting;
-      case Modifiers::ModifyMode::kOverwrite:
+      case Modifiers::ModifyMode::Overwrite:
         return CursorMode::kOverwriting;
     }
     LOG(FATAL) << "Invalid cursor mode.";
@@ -806,11 +806,11 @@ class InsertMode : public InputReceiver,
               .modifiers = {.direction = direction,
                             .paste_buffer_behavior =
                                 Modifiers::PasteBufferBehavior::DoNothing},
-              .initiator = transformation::Delete::Initiator::kUser});
+              .initiator = transformation::Delete::Initiator::User});
           switch (options.editor_state.modifiers().insertion) {
-            case Modifiers::ModifyMode::kShift:
+            case Modifiers::ModifyMode::Shift:
               break;
-            case Modifiers::ModifyMode::kOverwrite:
+            case Modifiers::ModifyMode::Overwrite:
               stack.push_back(transformation::Insert{
                   .contents_to_insert = LineSequence::WithLine(
                       Line{SingleLine{LazyString{L" "}}}),
@@ -996,7 +996,7 @@ class InsertMode : public InputReceiver,
                                        position.column - ColumnNumberDelta(1)),
                             ColumnNumberDelta(1))
                       .read(),
-              .initiator = transformation::Delete::Initiator::kInternal});
+              .initiator = transformation::Delete::Initiator::Internal});
           stack.push_back(transformation::SetPosition(position.column));
           return buffer_root->ApplyToCursors(std::move(stack));
         });
@@ -1023,7 +1023,7 @@ class InsertMode : public InputReceiver,
                 transformation::Stack stack;
                 stack.push_back(transformation::Delete{
                     .range = token_range.read(),
-                    .initiator = transformation::Delete::Initiator::kInternal});
+                    .initiator = transformation::Delete::Initiator::Internal});
                 const ColumnNumberDelta completion_text_size = value.size();
                 stack.push_back(transformation::Insert{
                     .contents_to_insert =

@@ -345,7 +345,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                            ? Direction::Forwards
                                            : Direction::Backwards},
             .range = range,
-            .initiator = transformation::Delete::Initiator::kInternal};
+            .initiator = transformation::Delete::Initiator::Internal};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::None: {
             LineSequence contents = input.adapter.contents().ViewRange(range);
@@ -369,7 +369,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           }
           case Stack::PostTransformationBehavior::DeleteRegion:
             delete_transformation.initiator =
-                transformation::Delete::Initiator::kUser;
+                transformation::Delete::Initiator::User;
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::CopyRegion:
