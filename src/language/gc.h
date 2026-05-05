@@ -129,7 +129,6 @@ class Pool;
 // `std::weak_ptr<>` references. By clearing up the `expand_callback`, we
 // effectively allow objects to be deleted.
 class ObjectMetadata {
- private:
   friend Pool;
 
   using ExpandCallback = std::function<
@@ -185,6 +184,10 @@ class ObjectMetadata {
   struct Data {
     ExpandCallback expand_callback;
     ExpandState expand_state = ExpandState::kUnreached;
+
+    // Returns true if the object had not been reached before in the current GC
+    // cycle (if any), and thus an actual `Expand` operation is necessary).
+    bool MarkReached();
   };
 
   // `container_bag_registration_` is used to eagerly remove this object from
@@ -348,9 +351,6 @@ class Pool {
       const concurrent::Operation& operation,
       const std::list<ObjectMetadataBag>& roots_list,
       concurrent::Bag<ObjectExpandVector>& schedule);
-
-  static bool IsExpandAlreadyScheduled(
-      const language::NonNull<std::shared_ptr<ObjectMetadata>>& object);
 
   // Recursively expand all objects in `data.expansion_schedule`. May stop early
   // if the timeout is reached.

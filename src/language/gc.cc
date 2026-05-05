@@ -347,7 +347,7 @@ bool Pool::Eden::IsEmpty() const {
                 root_weak,
                 [&local_expand_vector](
                     NonNull<std::shared_ptr<ObjectMetadata>> obj) {
-                  if (!IsExpandAlreadyScheduled(obj))
+                  if (obj->data_.lock()->MarkReached())
                     local_expand_vector.push_back(std::move(obj));
                 },
                 [] { LOG(FATAL) << "Root was dead. Should never happen."; });
@@ -356,20 +356,17 @@ bool Pool::Eden::IsEmpty() const {
         });
 }
 
-/* static */ bool Pool::IsExpandAlreadyScheduled(
-    const NonNull<std::shared_ptr<ObjectMetadata>>& object) {
-  return object->data_.lock([](ObjectMetadata::Data& data) {
-    switch (data.expand_state) {
-      case ObjectMetadata::ExpandState::Done:
-      case ObjectMetadata::ExpandState::kScheduled:
-        return true;
-      case ObjectMetadata::ExpandState::kUnreached:
-        data.expand_state = ObjectMetadata::ExpandState::kScheduled;
-        return false;
-    }
-    LOG(FATAL) << "Invalid state";
-    return false;
-  });
+bool ObjectMetadata::Data::MarkReached() {
+  switch (expand_state) {
+    case ObjectMetadata::ExpandState::kDone:
+    case ObjectMetadata::ExpandState::kScheduled:
+      return false;
+    case ObjectMetadata::ExpandState::kUnreached:
+      expand_state = ObjectMetadata::ExpandState::kScheduled;
+      return true;
+  }
+  LOG(FATAL) << "Invalid state";
+  std::unreachable();
 }
 
 /* static */
@@ -417,7 +414,10 @@ void Pool::Expand(const Operation& parallel_operation,
         VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
                  << expansion.size();
 
-        EraseIf(expansion, IsExpandAlreadyScheduled);
+        EraseIf(expansion,
+                [](NonNull<std::shared_ptr<ObjectMetadata>> candidate) {
+                  return !candidate->data_.lock()->MarkReached();
+                });
         if (!expansion.empty()) shard.push_back(std::move(expansion));
       }
     }
@@ -514,7 +514,7 @@ void Pool::AddToEdenExpandList(
     language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata) {
   eden_.lock([&](Eden& eden) {
     if (eden.expansion_schedule.has_value() &&
-        !IsExpandAlreadyScheduled(object_metadata))
+        object_metadata->data_.lock()->MarkReached())
       eden.expansion_schedule->push_back(std::move(object_metadata));
   });
 }
