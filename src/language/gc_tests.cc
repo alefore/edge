@@ -667,6 +667,56 @@ bool concurrency_tests = tests::Register(
 
                CHECK(&ptr.value() == value);
              }},
+        {.name = L"DeadlockEdenData",
+         .callback =
+             [] {
+               struct DeadlockContainer {
+                 Ptr<Node> child_node;
+                 mutable std::atomic<bool> gc_holding_data_lock{false};
+                 mutable std::atomic<bool> mutator_at_eden_gate{false};
+
+                 explicit DeadlockContainer(Ptr<Node> n) : child_node(n) {}
+
+                 std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand()
+                     const {
+                   LOG(INFO) << "Expand execution begins.";
+                   gc_holding_data_lock = true;
+                   while (!mutator_at_eden_gate)
+                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                   LOG(INFO) << "Triggering deadlock.";
+                   gc::Ptr<Node> trigger = child_node;  // Deadlock.
+                   return {trigger.object_metadata()};
+                 }
+               };
+
+               Pool pool(Pool::Options{
+                   .collect_duration_threshold = infrastructure::Duration{0.01},
+                   .max_bag_shards = 2});
+
+               gc::Root<DeadlockContainer> container_root =
+                   pool.NewRoot(MakeNonNullUnique<DeadlockContainer>(
+                       pool.NewRoot(MakeNonNullUnique<Node>()).ptr()));
+               gc::Ptr<DeadlockContainer> mutator_ptr = container_root.ptr();
+
+               std::thread gc_thread([&pool] {
+                 LOG(INFO) << "GC thread starting...";
+                 pool.FullCollect();
+                 LOG(INFO)
+                     << "GC thread finished (should not happen in deadlock)";
+               });
+
+               LOG(INFO) << "Waiting for gc_holding_data_lock.";
+               while (!container_root->gc_holding_data_lock)
+                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+               LOG(INFO)
+                   << "Mutator thread attempting to lock eden_ then data_...";
+               container_root->mutator_at_eden_gate = true;
+               gc::Ptr<DeadlockContainer> deadlock = mutator_ptr;  // Deadlock!
+
+               LOG(INFO) << "Joining thread.";
+               if (gc_thread.joinable()) gc_thread.join();
+             }},
     });
 }  // namespace
 }  // namespace afc::language::gc

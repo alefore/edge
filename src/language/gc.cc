@@ -358,7 +358,7 @@ bool Pool::Eden::IsEmpty() const {
 
 bool ObjectMetadata::Data::MarkReached() {
   switch (expand_state) {
-    case ObjectMetadata::ExpandState::kDone:
+    case ObjectMetadata::ExpandState::Done:
     case ObjectMetadata::ExpandState::kScheduled:
       return false;
     case ObjectMetadata::ExpandState::kUnreached:
@@ -375,54 +375,55 @@ void Pool::Expand(const Operation& parallel_operation,
                   const std::optional<CountDownTimer>& count_down_timer) {
   VLOG(3) << "Starting recursive expand (schedule: " << schedule.size() << ")";
 
-  schedule.ForEachShard(parallel_operation, [&count_down_timer](
-                                                std::list<ObjectExpandVector>&
-                                                    shard) {
-    TRACK_OPERATION(gc_Pool_Expand_shard);
-    size_t vectors = 0;
-    while (!shard.empty() &&
-           !(count_down_timer.has_value() && count_down_timer->IsDone())) {
-      ++vectors;
-      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
-          std::move(shard.back());
-      shard.pop_back();
-      for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : elements) {
-        TRACK_OPERATION(gc_Pool_Expand_Step);
-        VLOG(10) << "Considering obj: " << obj.get_shared();
-        std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> expansion =
-            obj->data_.lock(
-                [&](ObjectMetadata::Data& object_data)
-                    -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
+  schedule.ForEachShard(
+      parallel_operation,
+      [&count_down_timer](std::list<ObjectExpandVector>& shard) {
+        TRACK_OPERATION(gc_Pool_Expand_shard);
+        size_t vectors = 0;
+        while (!shard.empty() &&
+               !(count_down_timer.has_value() && count_down_timer->IsDone())) {
+          ++vectors;
+          std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
+              std::move(shard.back());
+          shard.pop_back();
+          for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : elements) {
+            TRACK_OPERATION(gc_Pool_Expand_Step);
+            VLOG(10) << "Considering obj: " << obj.get_shared();
+            using ExpansionVector =
+                std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>;
+            const std::function<ExpansionVector()> expand_callback =
+                obj->data_.lock([&](ObjectMetadata::Data& object_data)
+                                    -> std::function<ExpansionVector()> {
                   CHECK(object_data.expand_callback != nullptr);
                   switch (object_data.expand_state) {
                     case ObjectMetadata::ExpandState::Done:
-                      return {};
+                      return nullptr;
                     case ObjectMetadata::ExpandState::kScheduled: {
                       object_data.expand_state =
                           ObjectMetadata::ExpandState::Done;
                       TRACK_OPERATION(gc_Pool_Expand_Step_call);
-                      auto values = object_data.expand_callback();
-                      for (auto& v : values) CHECK(v.get_shared() != nullptr);
-                      return values;
+                      return object_data.expand_callback;
                     }
                     case ObjectMetadata::ExpandState::kUnreached:
                       LOG(FATAL) << "Invalid state.";
                   }
                   LOG(FATAL) << "Invalid state.";
-                  return {};
+                  std::unreachable();
                 });
-        VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
-                 << expansion.size();
+            if (!expand_callback) continue;
+            ExpansionVector expansion = expand_callback();
+            VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
+                     << expansion.size();
 
-        EraseIf(expansion,
-                [](NonNull<std::shared_ptr<ObjectMetadata>> candidate) {
-                  return !candidate->data_.lock()->MarkReached();
-                });
-        if (!expansion.empty()) shard.push_back(std::move(expansion));
-      }
-    }
-    VLOG(6) << "Shard expanded: " << vectors;
-  });
+            EraseIf(expansion,
+                    [](NonNull<std::shared_ptr<ObjectMetadata>> candidate) {
+                      return !candidate->data_.lock()->MarkReached();
+                    });
+            if (!expansion.empty()) shard.push_back(std::move(expansion));
+          }
+        }
+        VLOG(6) << "Shard expanded: " << vectors;
+      });
 }
 
 void Pool::RemoveUnreachable(const Operation& parallel_operation,
