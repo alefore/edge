@@ -76,7 +76,6 @@ extern "C" {
 
 namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
-namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
@@ -126,6 +125,7 @@ using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::WeakPtrLockingObserver;
 using afc::language::WrapAsLazyValue;
+using afc::language::container::head_to_optional;
 using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -2124,37 +2124,38 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   LineColumn adjusted_position =
       buffer.contents().AdjustLineColumn(buffer.position());
   LOG(INFO) << "Lookup URL at: " << adjusted_position;
-  std::optional<URL> initial_url;
+  const std::optional<URL> initial_url =
+      std::invoke([&] -> std::optional<URL> {
+        NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
+        return MapRoute(tree.value(),
+                        FindRouteToPosition(tree.value(), adjusted_position)) |
+               std::views::filter([](const ParseTree* subtree) {
+                 return subtree
+                     ->get_property_value(ParseTreePropertyName::Link())
+                     .has_value();
+               }) |
+               std::views::transform([&](const ParseTree* subtree) {
+                 return FindLinkTarget(*subtree, buffer.contents().snapshot());
+               }) |
+               SkipErrors | head_to_optional;
+      }).or_else([&] -> std::optional<URL> {
+        LazyString line = GetCurrentToken(
+            {.contents = buffer.contents().snapshot(),
+             .line_column = adjusted_position,
+             .token_characters = MaterializeUnorderedSet(
+                 buffer.Read(buffer_variables::path_characters))});
 
-  NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
-  ParseTree::Route route = FindRouteToPosition(tree.value(), adjusted_position);
-  for (const ParseTree* subtree : MapRoute(tree.value(), route))
-    if (subtree->get_property_value(ParseTreePropertyName::Link()).has_value())
-      if (ValueOrError<URL> target =
-              FindLinkTarget(*subtree, buffer.contents().snapshot());
-          target) {
-        initial_url = std::move(target).value();
-        break;
-      }
+        // If there are only slashes, colons or dots ... it's probably not very
+        // useful to show the contents of this path.
+        return FindFirstOf(line,
+                           buffer.Read(buffer_variables::path_characters) |
+                               std::ranges::to<std::unordered_set>())
+            .and_then(
+                [&line](ColumnNumber) { return OptionalFrom(Path::New(line)); })
+            .transform([](Path path) { return URL::FromPath(path); });
+      });
 
-  if (!initial_url.has_value()) {
-    LazyString line =
-        GetCurrentToken({.contents = buffer.contents().snapshot(),
-                         .line_column = adjusted_position,
-                         .token_characters = MaterializeUnorderedSet(
-                             buffer.Read(buffer_variables::path_characters))});
-
-    if (FindLastNotOf(line, {L'/', L'.', L':'}) == std::nullopt) {
-      // If there are only slashes, colons or dots, it's probably not very
-      // useful to show the contents of this path.
-      return {};
-    }
-
-    if (auto path = Path::New(line); path)
-      initial_url = URL::FromPath(std::move(path).value());
-    else
-      return {};
-  }
+  if (!initial_url) return {};
 
   std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(
       LineSequence::BreakLines(
