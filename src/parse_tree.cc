@@ -513,12 +513,12 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
             return MakeNonNullShared<Protected<std::set<LazyString>>>(
-                MakeProtected(container::MaterializeSet(
-                    tree->properties() | std::views::keys |
-                    std::views::transform(
-                        [](const ParseTreePropertyName& property) {
-                          return ToLazyString(property);
-                        }))));
+                MakeProtected(tree->properties() | std::views::keys |
+                              std::views::transform(
+                                  [](const ParseTreePropertyName& property) {
+                                    return ToLazyString(property);
+                                  }) |
+                              std::ranges::to<std::set>()));
           })
           .ptr());
 

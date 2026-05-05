@@ -612,11 +612,11 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     std::set<gc::Root<OpenBuffer>> pending_buffers = {};
   };
 
-  auto data =
-      MakeNonNullShared<Data>(Data{.termination_type = termination_type,
-                                   .exit_value = exit_value,
-                                   .pending_buffers = container::MaterializeSet(
-                                       buffer_registry().buffers())});
+  auto data = MakeNonNullShared<Data>(
+      Data{.termination_type = termination_type,
+           .exit_value = exit_value,
+           .pending_buffers =
+               buffer_registry().buffers() | std::ranges::to<std::set>()});
   CHECK_EQ(buffer_registry().buffers().size(), data->pending_buffers.size());
   for (const gc::Root<OpenBuffer>& buffer : buffer_registry().buffers()) {
     LOG(INFO) << "Preparing to close: " << buffer->name() << " @ "

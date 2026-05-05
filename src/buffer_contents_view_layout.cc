@@ -153,8 +153,8 @@ BufferContentsViewLayout::Line RangeToLine(
       .has_active_cursor = active_position.has_value() &&
                            line == active_position->line &&
                            contains_cursor(active_position->column),
-      .current_cursors = container::MaterializeSet(
-          cursors | std::views::filter(contains_cursor))};
+      .current_cursors = cursors | std::views::filter(contains_cursor) |
+                         std::ranges::to<std::set>()};
 }
 
 const bool get_screen_line_tests_registration = tests::Register(

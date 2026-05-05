@@ -270,26 +270,27 @@ LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
 
 std::set<Range> ExpandSections(LineNumber end_line,
                                const std::set<Range> sections) {
-  return container::MaterializeSet(
-      sections | std::views::transform([&](Range section) {
-        static const auto kMargin = LineNumberDelta(1);
-        return Range(
-            LineColumn(section.begin().line.MinusHandlingOverflow(kMargin)),
-            LineColumn(std::min(end_line + LineNumberDelta(1),
-                                section.end().line + kMargin)));
-      }));
+  return sections | std::views::transform([&](Range section) {
+           static const auto kMargin = LineNumberDelta(1);
+           return Range(
+               LineColumn(section.begin().line.MinusHandlingOverflow(kMargin)),
+               LineColumn(std::min(end_line + LineNumberDelta(1),
+                                   section.end().line + kMargin)));
+         }) |
+         std::ranges::to<std::set>();
 }
 
 LineWithCursor::Generator::Vector ViewMultipleCursors(
     const OpenBuffer& buffer,
     const Widget::OutputProducerOptions& output_producer_options,
     const BufferContentsViewLayout::Input& buffer_contents_window_input) {
-  std::set<Range> sections = container::MaterializeSet(
+  std::set<Range> sections =
       buffer.active_cursors() | std::views::transform([&buffer](auto& cursor) {
         return Range(LineColumn(std::min(buffer.EndLine(), cursor.line)),
                      LineColumn(std::min(buffer.EndLine(),
                                          cursor.line + LineNumberDelta(1))));
-      }));
+      }) |
+      std::ranges::to<std::set>();
 
   bool first_run = true;
   while (first_run || SumSectionsLines(sections) <

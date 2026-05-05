@@ -190,7 +190,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                [](LazyString input)
                    -> ValueOrError<std::optional<BenchmarkName>> {
                  std::set<BenchmarkName> benchmarks =
-                     container::MaterializeSet(tests::BenchmarkNames());
+                     tests::BenchmarkNames() | std::ranges::to<std::set>();
                  DECLARE_OR_RETURN(BenchmarkName benchmark,
                                    BenchmarkName::New(NonEmptySingleLine::New(
                                        SingleLine::New(input))));

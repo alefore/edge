@@ -137,11 +137,6 @@ auto MaterializeVector(R&& view) {
   return result;
 }
 
-auto MaterializeSet(auto&& view) {
-  return Materialize<std::set<std::decay_t<decltype(*view.begin())>>>(
-      std::move(view));
-}
-
 auto MaterializeUnorderedSet(auto&& view) {
   return Materialize<std::unordered_set<std::decay_t<decltype(*view.begin())>>>(
       std::move(view));

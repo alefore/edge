@@ -140,7 +140,7 @@ LineMarks::GetExpiredMarksForTargetBuffer(
 }
 
 std::set<BufferName> LineMarks::GetMarkTargets() const {
-  return container::MaterializeSet(marks_by_target | std::views::keys);
+  return marks_by_target | std::views::keys | std::ranges::to<std::set>();
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {

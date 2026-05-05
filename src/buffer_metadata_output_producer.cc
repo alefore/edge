@@ -867,8 +867,9 @@ ColumnsVector::Column BufferMetadataOutput(
              b.box.size);
   }
 
-  std::set<LineNumber> lines_referenced = container::MaterializeSet(
-      boxes | std::views::transform([](auto& b) { return b.box.reference; }));
+  std::set<LineNumber> lines_referenced =
+      boxes | std::views::transform([](auto& b) { return b.box.reference; }) |
+      std::ranges::to<std::set>();
 
   std::vector<LineBuilder> prefix_lines =
       ComputePrefixLines(screen_size, boxes);
