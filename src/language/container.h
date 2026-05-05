@@ -238,6 +238,21 @@ auto CollectExpected(R&& r) {
   return result ? ReturnType{std::move(result.value())}
                 : ReturnType{language::MergeErrors(result.error(), L", ")};
 }
+
+struct head_to_optional_fn
+    : std::ranges::range_adaptor_closure<head_to_optional_fn> {
+  template <std::ranges::input_range R>
+  constexpr auto operator()(R&& r) const
+      -> std::optional<std::ranges::range_value_t<R>> {
+    if (auto it = std::ranges::begin(r); it != std::ranges::end(r)) return *it;
+    return std::nullopt;
+  }
+};
+
+// Given a view of R, returns:
+// * If the view is empty: std::nullopt
+// * If the view is non-empty: std::optional<R> with the first element
+inline constexpr head_to_optional_fn head_to_optional;
 }  // namespace container
 }  // namespace afc::language
 #endif
