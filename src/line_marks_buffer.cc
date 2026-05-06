@@ -94,12 +94,13 @@ futures::Value<PossibleError> GenerateContents(const EditorState& editor,
   output.push_back(L"");
 
   const LineMarks& marks = editor.line_marks();
-  // TODO(P2, trivial, 2026-04-25): Use ranges::for_each.
-  for (const LineSequence& buffer_data :
-       marks.GetMarkTargets() |
-           std::views::transform(std::bind_front(
-               ShowMarksForBuffer, std::ref(editor), std::ref(marks))))
-    output.insert(output.EndLine(), std::move(buffer_data), std::nullopt);
+  std::ranges::for_each(
+      marks.GetMarkTargets() |
+          std::views::transform(std::bind_front(
+              ShowMarksForBuffer, std::ref(editor), std::ref(marks))),
+      [](const LineSequence& buffer_data) {
+        output.insert(output.EndLine(), std::move(buffer_data), std::nullopt);
+      });
   buffer.InsertInPosition(output.snapshot(), buffer.contents().range().end(),
                           std::nullopt);
   return EmptyValue{};
