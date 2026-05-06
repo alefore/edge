@@ -49,6 +49,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
+using afc::language::text::LineModifiedState;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineRange;
@@ -427,11 +428,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         info_char, info_char_modifier,
         LineBuilder{OpenBuffer::FlagsToString(target_buffer->Flags())}.Build(),
         MetadataLine::Type::Flags});
-#if 0
-  } else if (contents.modified()) {
-    info_char_modifier = Style{.foreground_color=Color::Green};
+  } else if (contents.modified_state() == LineModifiedState::Dirty) {
+    info_char_modifier = Style{.foreground_color = Color::Green};
     info_char = L'•';
-#endif
   } else {
     info_char_modifier = Style{.attributes = StyleAttribute::Dim};
   }

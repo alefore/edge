@@ -44,6 +44,8 @@ struct OutgoingLink {
 
 class LineBuilder;
 
+enum class LineModifiedState { Dirty, Clean };
+
 // This class is thread-safe.
 class Line {
  public:
@@ -86,6 +88,8 @@ class Line {
 
   const ValueOrError<vm::EscapedMap>& escaped_map() const;
 
+  LineModifiedState modified_state() const;
+
   Line& operator=(const Line&) = default;
   bool operator==(const Line& a) const;
   std::strong_ordering operator<=>(const Line& other) const;
@@ -118,6 +122,8 @@ class Line {
           return MakeUnexpected(
               Error{lazy_string::LazyString{L"No escaped map supplier."}});
         }};
+
+    LineModifiedState modified_state = LineModifiedState::Clean;
   };
 
   friend class LineBuilder;

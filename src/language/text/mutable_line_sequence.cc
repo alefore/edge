@@ -204,6 +204,7 @@ void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
   const LineColumn position = LineColumn(
       std::min(line, EndLine()), at(std::min(line, EndLine())).EndColumn());
   TransformLine(position.line, [&](LineBuilder& options) {
+    options.set_modified_state(LineModifiedState::Dirty);
     options.Append(LineBuilder(std::move(line_to_append)));
   });
   switch (observer_behavior) {
@@ -244,6 +245,7 @@ bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
 void MutableLineSequence::SplitLine(LineColumn position) {
   LineBuilder builder(at(position.line));
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
+  builder.set_modified_state(LineModifiedState::Dirty);
   insert_line(position.line + LineNumberDelta(1), std::move(builder).Build(),
               ObserverBehavior::Hide);
   observer_->SplitLine(position);
