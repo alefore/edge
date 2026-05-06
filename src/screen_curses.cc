@@ -51,6 +51,8 @@ class ColorRegistry {
     if (auto it = pair_cache_.find(key); it != pair_cache_.end())
       return it->second;
 
+    LOG(INFO) << "Reserving pair for " << foreground_index << ", "
+              << background_index << ": " << next_pair_id_;
     int id = next_pair_id_++;
     init_pair(id, foreground_index, background_index);
     pair_cache_[key] = id;
