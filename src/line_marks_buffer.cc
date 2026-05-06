@@ -98,7 +98,7 @@ futures::Value<PossibleError> GenerateContents(const EditorState& editor,
       marks.GetMarkTargets() |
           std::views::transform(std::bind_front(
               ShowMarksForBuffer, std::ref(editor), std::ref(marks))),
-      [](const LineSequence& buffer_data) {
+      [&output](const LineSequence& buffer_data) {
         output.insert(output.EndLine(), std::move(buffer_data), std::nullopt);
       });
   buffer.InsertInPosition(output.snapshot(), buffer.contents().range().end(),
