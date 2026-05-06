@@ -315,44 +315,46 @@ NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg&&... arg) {
 
 template <typename T, typename Callable, typename NullCallable>
 decltype(std::declval<Callable>()(std::declval<NonNull<T>>())) VisitPointer(
-    T t, Callable callable, NullCallable null_callable) {
+    T t, Callable&& callable, NullCallable&& null_callable) {
   // Most of the time the non-null case returns a more generic type (typically a
   // ValueOrError vs an Error), so we assume that VisitPointer will return the
   // type of the `callable` (and let the return value of `null_callable` be
   // converted).
-  if (t == nullptr) {
-    return null_callable();
+  if (!t) {
+    return std::forward<NullCallable>(null_callable)();
   } else {
-    return callable(NonNull<T>::Unsafe(std::move(t)));
+    return std::forward<Callable>(callable)(NonNull<T>::Unsafe(std::move(t)));
   }
 }
 
 template <typename T, typename Callable, typename NullCallable>
-auto VisitPointer(std::weak_ptr<T> t, Callable callable,
-                  NullCallable null_callable) {
-  return VisitPointer(t.lock(), std::move(callable), std::move(null_callable));
+auto VisitPointer(std::weak_ptr<T> t, Callable&& callable,
+                  NullCallable&& null_callable) {
+  return VisitPointer(t.lock(), std::forward<Callable>(callable),
+                      std::forward<NullCallable>(null_callable));
 }
 
 // TODO(2026-05-02, easy): Put the value *first*. That yields a much more
 // natural order of arguments.
 template <typename T, typename Callable, typename NullCallable>
 decltype(std::declval<Callable>()(std::declval<T>())) VisitOptional(
-    Callable callable, NullCallable null_callable, std::optional<T> t) {
+    Callable&& callable, NullCallable&& null_callable, std::optional<T> t) {
   // Most of the time the non-null case returns a more generic type (typically a
   // ValueOrError vs an Error), so we assume that VisitPointer will return the
   // type of the `callable` (and let the return value of `null_callable` be
   // converted).
   if (t.has_value()) {
-    return callable(std::move(t.value()));
+    return std::forward<Callable>(callable)(std::move(t.value()));
   } else {
-    return null_callable();
+    return std::forward<NullCallable>(null_callable)();
   }
 }
 
 template <typename T, typename Callable, typename NullCallable>
 decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
-    std::optional<T> t, Callable callable, NullCallable null_callable) {
-  return VisitOptional(callable, null_callable, t);
+    std::optional<T> t, Callable&& callable, NullCallable&& null_callable) {
+  return VisitOptional(std::forward<Callable>(callable),
+                       std::forward<NullCallable>(null_callable), t);
 }
 
 template <typename Overloads>
