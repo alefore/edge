@@ -263,6 +263,13 @@ std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
   return LogView{.name = log_view_name, .expressions = std::move(expressions)};
 }
 
+std::expected<LogEntryValueType, Error> ParseValueType(SingleLine input) {
+  input = LowerCase(input);
+  if (input.empty()) return LogEntryValueType::String;
+  if (input == SingleLine{L"path"}) return LogEntryValueType::Path;
+  return Error{LazyString{L"Unknown value type: "} + input};
+}
+
 std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
   if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
 
@@ -281,23 +288,38 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
         return DispatchLine(
             {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"group"),
               [&entries](NonEmptySingleLine value) -> PossibleError {
+                // Value looks like this: 0 src_path path
+                // group_id entry_name [entry_type]
                 std::optional<ColumnNumber> group_id_end =
                     FindFirstOf(value, Space);
+                std::optional<ColumnNumber> entry_name_end =
+                    group_id_end.transform([&value](ColumnNumber pos) {
+                      return FindFirstOf(value, Space,
+                                         pos + ColumnNumberDelta{1})
+                          .value_or(ColumnNumber{} + value.size());
+                    });
                 std::optional<SingleLine> entry_name_str =
                     group_id_end.transform([&](ColumnNumber pos) {
-                      return Trim(value.Substring(pos), Space);
+                      return Trim(
+                          value.Substring(pos, entry_name_end.value() - pos),
+                          Space);
                     });
                 if (!entry_name_str) return Error{L"Expected: entry name."};
                 DECLARE_OR_RETURN(Identifier entry_name_identifier,
                                   Identifier::New(NonEmptySingleLine::New(
                                       entry_name_str.value())));
+                DECLARE_OR_RETURN(
+                    LogEntryValueType value_type,
+                    ParseValueType(
+                        Trim(value.Substring(entry_name_end.value()), Space)));
                 return Visit(
                     AsInt(ToLazyString(value.Substring(
                         ColumnNumber{}, group_id_end->ToDelta()))),
                     [&](int group_id) -> PossibleError {
                       entries.push_back(LogEntryConfiguration{
                           .name = LogEntryName{entry_name_identifier},
-                          .capturing_group = LogCapturingGroup{group_id}});
+                          .capturing_group = LogCapturingGroup{group_id},
+                          .value_type = value_type});
                       return EmptyValue{};
                     },
                     [](Error error) -> PossibleError {

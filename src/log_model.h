@@ -30,9 +30,12 @@ class LogCapturingGroup
   using GhostType::GhostType;
 };
 
+enum class LogEntryValueType { String, Path };
+
 struct LogEntryConfiguration {
   LogEntryName name;
   std::optional<LogCapturingGroup> capturing_group;
+  LogEntryValueType value_type;
 };
 
 struct LogEntryValue {
@@ -143,9 +146,8 @@ class CompiledLogView {
  public:
   CompiledLogView(LogEvaluator& log_evaluator_, const LogView& log_view);
 
-  std::expected<
-      std::unordered_map<LogEntryName, infrastructure::screen::Style>,
-      language::Error>
+  std::expected<std::unordered_map<LogEntryName, infrastructure::screen::Style>,
+                language::Error>
   Evaluate(std::unordered_set<LogEntryName> names,
            const LogLine& log_line) const;
 };
