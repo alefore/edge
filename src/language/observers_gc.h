@@ -9,11 +9,11 @@ namespace afc::language {
 template <typename P, typename Callable>
 static Observers::Observer WeakPtrLockingObserver(
     Callable callable, language::gc::WeakPtr<P> data) {
-  return [data, callable] {
+  return [data, callable = std::move(callable)] mutable {
     return VisitPointer(
         data.Lock(),
-        [callable](language::gc::Root<P> root) {
-          return callable(root.ptr().value());
+        [callable = std::move(callable)](language::gc::Root<P> root) mutable {
+          return std::move(callable)(root.ptr().value());
         },
         [] { return Observers::State::Expired; });
   };
