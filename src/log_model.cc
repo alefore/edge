@@ -100,7 +100,8 @@ std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
                 .value = LazyString{matches[index].str()},
                 .position = ColumnNumber{static_cast<size_t>(
                     std::distance(line_str.cbegin(), matches[index].first))},
-                .size = ColumnNumberDelta{matches[index].length()}};
+                .size = ColumnNumberDelta{matches[index].length()},
+                .value_type = configuration.value_type};
           }) |
           SkipErrors | std::ranges::to<std::vector>()};
 }

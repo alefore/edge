@@ -43,6 +43,7 @@ struct LogEntryValue {
   std::variant<language::lazy_string::LazyString> value;
   language::lazy_string::ColumnNumber position;
   language::lazy_string::ColumnNumberDelta size;
+  LogEntryValueType value_type;
 };
 
 struct LogLine {
