@@ -899,7 +899,8 @@ ColumnsVector::Column BufferMetadataOutput(
         NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(
         lines_referenced.contains(i)
-            ? ColumnsVector::Padding{.modifiers = {Color::Yellow},
+            ? ColumnsVector::Padding{.style = Style{.foreground_color =
+                                                        Color::Yellow},
                                      .head = SINGLE_LINE_CONSTANT(L"  ←"),
                                      .body = SingleLine::Char<L'-'>()}
             : std::optional<ColumnsVector::Padding>{});

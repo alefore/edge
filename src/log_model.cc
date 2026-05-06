@@ -269,7 +269,7 @@ CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
                                     std::ranges::fold_left(
                                         output_vector, Style{},
                                         [](Style aggregator, Style element) {
-                                          aggregator.merge(element);
+                                          aggregator.Merge(element);
                                           return aggregator;
                                         })};
                  }))

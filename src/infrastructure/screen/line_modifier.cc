@@ -61,7 +61,7 @@ bool Style::empty() const {
          attributes == StyleAttribute::None;
 }
 
-void Style::merge(const Style& overlay) {
+void Style::Merge(const Style& overlay) {
   if (overlay.foreground_color) foreground_color = overlay.foreground_color;
   if (overlay.background_color) background_color = overlay.background_color;
   attributes =

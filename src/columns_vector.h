@@ -15,8 +15,7 @@ struct ColumnsVector {
   // is shorter than its width. In this case, the padding will be a subset of
   // `head` followed by repetitions of `body`.
   struct Padding {
-    // TODO(2026-05-06, trivial, P2): Rename to `style`.
-    infrastructure::screen::Style modifiers = {};
+    infrastructure::screen::Style style = infrastructure::screen::Style{};
     language::lazy_string::SingleLine head;
     language::lazy_string::SingleLine body;
   };

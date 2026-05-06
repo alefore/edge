@@ -90,7 +90,7 @@ struct Style {
   static std::expected<Style, language::Error> FromString(
       language::lazy_string::NonEmptySingleLine name);
 
-  void merge(const Style& overlay);
+  void Merge(const Style& overlay);
 
   // Returns a few simple styles by name.
   // XXXX Used to be LineModifiers

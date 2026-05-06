@@ -17,7 +17,8 @@
 #include "src/tests/tests.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::compute_hash;
 using afc::language::MakeHashableIteratorRange;
 using afc::language::MakeNonNullShared;
@@ -63,7 +64,7 @@ LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
   while (contents.size() < size)
     contents = std::move(contents).Append(padding.body);
   options.AppendString(std::move(contents).Substring(ColumnNumber(), size),
-                       padding.modifiers);
+                       padding.style);
   return options;
 }
 }  // namespace
@@ -226,7 +227,6 @@ const bool buffer_tests_registration = tests::Register(
                                 LineNumberDelta(10)),
             .padding = {std::vector<std::optional<ColumnsVector::Padding>>(
                 5, ColumnsVector::Padding{
-                       .modifiers = {},
                        .head = SingleLine(),
                        .body = SingleLine::FromConstant<kFoo>()})}});
         LineWithCursor::Generator::Vector output =

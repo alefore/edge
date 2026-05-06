@@ -117,7 +117,7 @@ void GetSyntaxModifiersForLine(LineRange range, const ParseTree& tree,
   };
 
   PushCurrentModifiers(tree.range().end());
-  child_modifiers.merge(tree.modifiers());
+  child_modifiers.Merge(tree.modifiers());
   PushCurrentModifiers(std::max(range.read().begin(), tree.range().begin()));
 
   const auto& children = tree.children();
@@ -135,12 +135,11 @@ void GetSyntaxModifiersForLine(LineRange range, const ParseTree& tree,
 
 Style MergeSets(const Style& parent, const Style& child) {
   Style output = parent;
-  output.merge(child);
+  output.Merge(child);
   if (parent.foreground_color == child.foreground_color &&
       parent.foreground_color.has_value())
-    output.foreground_color = output.foreground_color.value() == Color::White
-                                  ? Color::Cyan
-                                  : Color::White;
+    output.foreground_color =
+        output.foreground_color == Color::White ? Color::Cyan : Color::White;
   return output;
 }
 

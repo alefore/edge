@@ -451,7 +451,7 @@ LineBuilder& LineBuilder::SetAllModifiers(Style value) {
 }
 
 LineBuilder& LineBuilder::insert_end_of_line_modifiers(Style values) {
-  data_.end_of_line_modifiers.merge(values);
+  data_.end_of_line_modifiers.Merge(values);
   return *this;
 }
 
@@ -486,7 +486,7 @@ void LineBuilder::InsertModifier(language::lazy_string::ColumnNumber position,
 
 void LineBuilder::InsertModifiers(language::lazy_string::ColumnNumber position,
                                   const Style& modifiers) {
-  data_.modifiers[position].merge(modifiers);
+  data_.modifiers[position].Merge(modifiers);
 }
 
 void LineBuilder::set_modifiers(language::lazy_string::ColumnNumber position,

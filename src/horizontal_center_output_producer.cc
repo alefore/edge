@@ -34,7 +34,7 @@ LineWithCursor::Generator::Vector CenterOutput(
       .padding =
           padding_modifiers |
           std::views::transform([](Style style) -> std::optional<V::Padding> {
-            return V::Padding{.modifiers = style,
+            return V::Padding{.style = style,
                               .head = SingleLine{},
                               .body = SingleLine::Char<L'█'>()};
           }) |
