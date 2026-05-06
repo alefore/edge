@@ -7,6 +7,7 @@
 #include "src/editor.h"
 #include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/infrastructure/screen/line_modifier_vm.h"
 #include "src/infrastructure/screen/screen.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
@@ -100,8 +101,8 @@ class ScreenVm : public Screen {
                LazyString{L");"};
   }
 
-  void SetModifier(Style style) override {
-    buffer_ += LazyString{L"screen.SetModifier(\""} + style.ToString() +
+  void SetStyle(Style style) override {
+    buffer_ += LazyString{L"screen.SetStyle(\""} + style.ToString() +
                LazyString{L"\");"};
   }
 
@@ -218,13 +219,11 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"SetModifier"}}}},
-      vm::NewCallback(
-          pool, kPurityTypeUnknown,
-          [](NonNull<std::shared_ptr<Screen>> screen, LazyString str) {
-            if (auto value = Style::FromString(str); value)
-              screen->SetModifier(value.value());
-          })
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"SetStyle"}}}},
+      vm::NewCallback(pool, kPurityTypeUnknown,
+                      [](NonNull<std::shared_ptr<Screen>> screen, Style style) {
+                        screen->SetStyle(style);
+                      })
           .ptr());
 
   screen_type.ptr()->AddField(

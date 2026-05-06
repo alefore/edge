@@ -53,8 +53,7 @@ class Screen {
   virtual void Move(language::text::LineColumn position) = 0;
   virtual void WriteString(const language::lazy_string::LazyString& str) = 0;
 
-  // TODO(2026-05-06, trivial, P2): Rename to `SetStyle`.
-  virtual void SetModifier(Style style) = 0;
+  virtual void SetStyle(Style style) = 0;
 
   virtual language::text::LineColumnDelta size() const = 0;
 };

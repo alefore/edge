@@ -99,7 +99,7 @@ class ScreenCurses : public Screen {
     addwstr(s.ToString().c_str());
   }
 
-  void SetModifier(Style style) override {
+  void SetStyle(Style style) override {
     attr_t n_attrs = A_NORMAL;
 
     if (has_attribute(style.attributes, StyleAttribute::Bold))
