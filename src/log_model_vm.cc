@@ -31,6 +31,18 @@ const Identifier& kOpenLogLineIdentifier() {
 }
 
 namespace {
+SingleLine ToString(LogEntryValueType value_type) {
+  switch (value_type) {
+    using enum LogEntryValueType;
+    case Path:
+      return SINGLE_LINE_CONSTANT(L"(path)");
+    case String:
+      return SINGLE_LINE_CONSTANT(L"");
+  }
+  LOG(FATAL) << "Invalid value_type.";
+  std::unreachable();
+}
+
 futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
                                                OpenBuffer& target) {
   LOG(INFO) << "Generate Contents for Log Line View";
@@ -47,6 +59,7 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
             MutableLineSequence section = MutableLineSequence::WithLine(
                 Line{SINGLE_LINE_CONSTANT(L"## ") +
                      language::lazy_string::ToSingleLine(data.first)});
+
             if (data.second.size() == 1)
               // TODO(2026-05-05, log, P2): Avoid std::get, don't assume that
               // value is a variant; that couples us too tightly with
@@ -55,7 +68,8 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
                   Line(SINGLE_LINE_CONSTANT(L"Value: ") +
                        LineSequence::BreakLines(
                            std::get<LazyString>(data.second.front().value))
-                           .FoldLines()));
+                           .FoldLines() +
+                       ToString(data.second.front().value_type)));
             section.push_back(L"");
             return std::move(section).snapshot();
           }) |
