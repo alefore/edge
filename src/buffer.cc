@@ -791,8 +791,22 @@ void OpenBuffer::UpdateTreeParser() {
       (Read(buffer_variables::log_type).empty() ||
        Read(buffer_variables::tree_parser) != SINGLE_LINE_CONSTANT(L"log"))
           ? Error{LazyString{L"Not loaded."}}
-          : LoadModelFromPaths(editor(),
-                               Read(buffer_variables::log_model_paths)),
+          : std::invoke([&] -> futures::ValueOrError<LogModel> {
+              futures::Future<LogModel> log_model_future;
+              log_model_.Add(WeakPtrLockingObserver(
+                  [consumer = std::move(log_model_future.consumer)](
+                      OpenBuffer& buffer) mutable {
+                    return VisitPointer(
+                        buffer.log_model_.Get(),
+                        [&](NonNull<std::shared_ptr<LogModel>> output) {
+                          std::move(consumer)(output.value());
+                          return Observers::State::Expired;
+                        },
+                        [] { return Observers::State::Alive; });
+                  },
+                  WeakPtrFromThis()));
+              return std::move(log_model_future.value);
+            }),
       std::move(dictionary_future))
       .Transform([root_this = RootFromThis()](
                      std::tuple<ValueOrError<LogModel>, SortedLineSequence>
@@ -956,16 +970,16 @@ void OpenBuffer::AppendLines(
   static const LineNumberDelta kLineActivationThreshold{8};
   if (start_new_section < kLineActivationThreshold &&
       contents_.EndLine() > LineNumber{} + kLineActivationThreshold) {
-    log_model_.Add(LockAndVisitCallback(
-        [](gc::Root<OpenBuffer> root_this) {
-          std::shared_ptr<LogModel> model = root_this->log_model_.Get();
+    log_model_.Add(WeakPtrLockingObserver(
+        [](OpenBuffer& buffer) {
+          std::shared_ptr<LogModel> model = buffer.log_model_.Get();
           if (model == nullptr) return Observers::State::Alive;
-          LineSequence contents = root_this->contents().snapshot();
+          LineSequence contents = buffer.contents().snapshot();
           VisitOptional(
               [&](LogTypeName name) {
                 LOG(INFO) << "Detected log type: " << name;
-                root_this->Set(buffer_variables::log_type, ToLazyString(name));
-                root_this->Set(buffer_variables::tree_parser, L"log");
+                buffer.Set(buffer_variables::log_type, ToLazyString(name));
+                buffer.Set(buffer_variables::tree_parser, L"log");
               },
               [] {},
               model->InferLogType(contents.ViewRange(Range{
@@ -975,7 +989,7 @@ void OpenBuffer::AppendLines(
                              std::numeric_limits<ColumnNumber>::max()}})));
           return Observers::State::Expired;
         },
-        []() { return Observers::State::Expired; }, WeakPtrFromThis()));
+        WeakPtrFromThis()));
   }
 
   if (Read(buffer_variables::contains_line_marks)) {
