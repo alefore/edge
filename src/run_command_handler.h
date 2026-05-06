@@ -52,11 +52,11 @@ struct RunCommandOptions {
       ExistingBufferBehavior::Reuse;
 };
 
-language::gc::Root<Command> NewForkCommand(EditorState& editor_state);
+language::gc::Root<Command> NewRunCommandCommand(EditorState& editor_state);
 
 class OpenBuffer;
 
-language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
+language::gc::Root<OpenBuffer> RunCommand(EditorState& editor_state,
                                            const RunCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(

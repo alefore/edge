@@ -144,7 +144,7 @@ editor.AddBinding("ss", "Run a shell in the directory of the current buffer.",
                       }
                       options.set_insertion_type("visit");
                       options.set_name("💻 shell");
-                      editor.ForkCommand(options).SetStatus("Children path: " +
+                      editor.RunCommand(options).SetStatus("Children path: " +
                                                             path);
                     });
                   });
@@ -177,7 +177,7 @@ void BackupDiff() {
     options.set_command("diff -Naur " + buffer.path().shell_escape() + " " +
                         buffer.state_directory().shell_escape() + "/backup");
     options.set_insertion_type("visit");
-    editor.ForkCommand(options);
+    editor.RunCommand(options);
   });
 }
 

@@ -53,7 +53,7 @@ string NextEmpty() {
   options.set_command(
       "find -size 0b -name '???.md' -printf '%f\n' | sort | head -1");
   options.set_insertion_type("ignore");
-  auto buffer = editor.ForkCommand(options);
+  auto buffer = editor.RunCommand(options);
   buffer.WaitForEndOfFile();
   return buffer.line(0);
 }
@@ -63,7 +63,7 @@ Buffer RunCommand(string name, string command, string insertion_type) {
   options.set_command(command);
   options.set_insertion_type(insertion_type);
   options.set_name("zk: " + name);
-  return editor.ForkCommand(options);
+  return editor.RunCommand(options);
 }
 
 Buffer Search(string query, string insertion_type) {

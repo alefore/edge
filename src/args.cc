@@ -89,7 +89,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"The `--run` command-line argument must be followed by a string "
               L"with a VM command to run.\n\n"
               L"Example:\n\n"
-              L"    edge --run 'string flags = \"-R\"; editor.ForkCommand(\"ls "
+              L"    edge --run 'string flags = \"-R\"; editor.RunCommand(\"ls "
               L"\" + "
               L"flags, true);'\n\n"})
           .Require(L"vmcmd", L"VM command to run")
@@ -308,7 +308,7 @@ LazyString CommandsToRun(CommandLineValues args) {
         LazyString{L");\noptions.set_insertion_type(\""} +
         LazyString{args.background ? L"skip" : L"search_or_create"} +
         LazyString{L"\");\n"} +
-        LazyString{L"buffers_to_watch.push_back(editor.ForkCommand(options));"};
+        LazyString{L"buffers_to_watch.push_back(editor.RunCommand(options));"};
     start_shell = false;
   }
   switch (args.view_mode) {
@@ -344,7 +344,7 @@ LazyString CommandsToRun(CommandLineValues args) {
         L"options.set_command(\"sh -l\");\n"
         L"options.set_insertion_type(\"search_or_create\");\n"
         L"options.set_name(\"💻shell\");\n"
-        L"editor.ForkCommand(options);"};
+        L"editor.RunCommand(options);"};
     commands_to_run += kDefaultCommandsToRun;
   }
   return commands_to_run;

@@ -436,11 +436,11 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"ForkCommand"}}}},
+      Identifier{NonEmptySingleLine{SingleLine{LazyString{L"RunCommand"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg,
                          NonNull<std::shared_ptr<RunCommandOptions>> options) {
-                        return ForkCommand(editor_arg, options.value());
+                        return RunCommand(editor_arg, options.value());
                       })
           .ptr());
 

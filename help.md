@@ -409,7 +409,7 @@ The following are all variables defined in the environment associated with your 
 * `CurrentBuffer`                           `function<Buffer()>`
 * `Exit`                                    `function<void(int)>`
 * `FindBoundariesLine`                      `function<void(LineColumn, LineColumn, SetLineColumn, SetLineColumn)>`
-* `ForkCommand`                             `function<Buffer(string, bool)>`
+* `RunCommand`                             `function<Buffer(string, bool)>`
 * `Line`                                    `function<string()>`
 * `LineColumn`                              `function<LineColumn(int, int)>`
 * `Modifiers`                               `function<Modifiers()>`
@@ -858,7 +858,7 @@ The `--run` command-line argument must be followed by a string with a VM command
 
 Example:
 
-    edge --run 'string flags = "-R"; ForkCommand("ls " + flags, true);'
+    edge --run 'string flags = "-R"; RunCommand("ls " + flags, true);'
 
 
 

@@ -51,7 +51,7 @@ void Pandoc(string launch_browser) {
       command += "; xdg-open file:///tmp/output.html";
     options.set_command(command);
     options.set_insertion_type("ignore");
-    editor.ForkCommand(options);
+    editor.RunCommand(options);
   });
 }
 

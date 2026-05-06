@@ -3,5 +3,5 @@ void GitCommitAll(string message) {
   options.set_command("git commit -a" +
                       (message.empty() ? "" : " -m " + message.shell_escape()));
   options.set_insertion_type("visit");
-  editor.ForkCommand(options);
+  editor.RunCommand(options);
 }

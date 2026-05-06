@@ -564,7 +564,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           })
           .ptr());
 
-  commands.Add({L'a', L'f'}, NewForkCommand(editor_state).ptr());
+  commands.Add({L'a', L'f'}, NewRunCommandCommand(editor_state).ptr());
 
   commands.Add({L'a', L'm'}, NewLineMarksBufferCommand(editor_state).ptr());
 

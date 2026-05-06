@@ -90,7 +90,7 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
               editor.status().SetExpiringInformationText(
                   LineBuilder{SINGLE_LINE_CONSTANT(L"Open: ") + url.read()}
                       .Build()));
-          ForkCommand(editor,
+          RunCommand(editor,
                       RunCommandOptions{
                           .command = LazyString{L"xdg-open "} +
                                      vm::EscapedString(ToLazyString(url))

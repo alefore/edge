@@ -377,7 +377,7 @@ void RunCommand(const CommandBufferName& name,
     return;
   }
 
-  ForkCommand(editor_state,
+  RunCommand(editor_state,
               RunCommandOptions{
                   .command = input,
                   .name = name,
@@ -580,7 +580,7 @@ class ForkEditorCommand : public Command {
           options.command = base_command;
           options.name = BufferName{LazyString{L"- preview: "} + base_command};
           options.insertion_type = BuffersList::AddBufferType::Ignore;
-          gc::Root<OpenBuffer> help_buffer_root = ForkCommand(editor, options);
+          gc::Root<OpenBuffer> help_buffer_root = RunCommand(editor, options);
           OpenBuffer& help_buffer = help_buffer_root.ptr().value();
           help_buffer.Set(buffer_variables::follow_end_of_file, false);
           help_buffer.Set(buffer_variables::show_in_buffers_list, false);
@@ -670,7 +670,7 @@ void RunCommandOptions::Register(gc::Pool& pool,
   environment.DefineType(fork_command_options.ptr());
 }
 
-gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
+gc::Root<OpenBuffer> RunCommand(EditorState& editor_state,
                                  const RunCommandOptions& options) {
   BufferName name = options.name.value_or(CommandBufferName{options.command});
   if (options.existing_buffer_behavior ==
@@ -708,7 +708,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   return buffer;
 }
 
-gc::Root<Command> NewForkCommand(EditorState& editor_state) {
+gc::Root<Command> NewRunCommandCommand(EditorState& editor_state) {
   return editor_state.gc_pool().NewRoot(
       MakeNonNullUnique<ForkEditorCommand>(editor_state));
 }

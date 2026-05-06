@@ -398,7 +398,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                contents.ToLazyString())
                 .Transform([buffer_root = input.buffer.RootFromThis(), copy,
                             output](Path tmp_path) {
-                  ForkCommand(
+                  RunCommand(
                       buffer_root->editor(),
                       RunCommandOptions{
                           .command = copy->shell.has_value()

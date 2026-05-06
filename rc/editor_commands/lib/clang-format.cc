@@ -18,7 +18,7 @@ void ClangFormatOnSave() {
                       "\", false); original_buffer.Reload(); "
                       "original_buffer.SetStatus(\"clang-reformat 🗸\");'");
   options.set_insertion_type("ignore");
-  Buffer clang_buffer = editor.ForkCommand(options);
+  Buffer clang_buffer = editor.RunCommand(options);
 
   // We deliberately wait, in case other hooks want to execute further commands
   // on the file: we'd like those commands to get the updated (reformatted)
@@ -66,7 +66,7 @@ if (reformat_command != "") {
       "'\", false).SetWarningStatus(\"clang-format: File is not properly "
       "formatted.\");'");
   options.set_insertion_type("ignore");
-  editor.ForkCommand(options);
+  editor.RunCommand(options);
 }
 if (reformat_command_in_place != "") {
   ClangFormatToggle();

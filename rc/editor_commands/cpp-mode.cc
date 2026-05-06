@@ -21,7 +21,7 @@ void build() {
       "exit $STATUS;" + "fi");
   options.set_insertion_type("only_list");
   options.set_name("build: " + cpp_build_command);
-  Buffer build_buffer = editor.ForkCommand(options);
+  Buffer build_buffer = editor.RunCommand(options);
   SetAsCompiler(build_buffer);
 }
 

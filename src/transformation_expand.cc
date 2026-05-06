@@ -211,7 +211,7 @@ class ExternalCompletion : public CompositeTransformation {
                        GetContents(input.buffer))
         .Transform([buffer_root = input.buffer.RootFromThis(), command_path,
                     trigger = trigger_](Path data_path) {
-          return ForkCommand(
+          return RunCommand(
                      buffer_root->editor(),
                      RunCommandOptions{
                          .command = ToLazyString(command_path) +
