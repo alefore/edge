@@ -69,8 +69,8 @@ struct LineWithCursor {
     std::optional<language::lazy_string::ColumnNumber> active_cursor_column =
         std::nullopt;
     std::set<language::lazy_string::ColumnNumber> inactive_cursor_columns = {};
-    infrastructure::screen::LineModifierSet modifiers_main_cursor = {};
-    infrastructure::screen::LineModifierSet modifiers_inactive_cursors = {};
+    infrastructure::screen::Style modifiers_main_cursor = {};
+    infrastructure::screen::Style modifiers_inactive_cursors = {};
   };
   static LineWithCursor View(const ViewOptions& options);
 

@@ -15,8 +15,9 @@
 
 namespace container = afc::language::container;
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -126,8 +127,8 @@ class MarkdownParser : public LineOrientedTreeParser {
             result->PushAndPop(length,
                                dictionary_.lines().range().empty() ||
                                        dictionary_.contains(LowerCase(str))
-                                   ? LineModifierSet{}
-                                   : LineModifierSet{LineModifier::Red});
+                                   ? Style{}
+                                   : Style{Color::Red});
           } else {
             seek.Once();
           }
@@ -145,7 +146,8 @@ class MarkdownParser : public LineOrientedTreeParser {
         LINK, ColumnNumberDelta(), {},
         ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}}});
     result->seek().Once();
-    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::Cyan}, {});
+    result->Push(LINK_TEXT, ColumnNumberDelta(),
+                 Style{.foreground_color = Color::Cyan}, {});
   }
 
   void HandleCloseLink(ParseData* result) {
@@ -160,7 +162,8 @@ class MarkdownParser : public LineOrientedTreeParser {
     while (seek.read() == L' ') seek.Once();
     if (seek.read() == L'(') {
       seek.Once();
-      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::Underline},
+      result->Push(LINK_URL, ColumnNumberDelta(),
+                   Style{.attributes = StyleAttribute::Underline},
                    ParseTree::PropertyMap{
                        {ParseTreePropertyName::LinkTarget(), LazyString{}}});
     } else {
@@ -194,25 +197,28 @@ class MarkdownParser : public LineOrientedTreeParser {
       HandleNormalLine(result);
       return;
     }
-    LineModifierSet modifiers;
+    Style modifiers;
     switch (spaces_prefix / 2) {
       case 0:
-        modifiers = {LineModifier::Bold, LineModifier::Cyan};
+        modifiers = Style{.foreground_color = Color::Cyan,
+                          .attributes = StyleAttribute::Bold};
         break;
       case 1:
-        modifiers = {LineModifier::Bold, LineModifier::Yellow};
+        modifiers = Style{.foreground_color = Color::Yellow,
+                          .attributes = StyleAttribute::Bold};
         break;
       case 2:
-        modifiers = {LineModifier::Bold, LineModifier::Green};
+        modifiers = Style{.foreground_color = Color::Green,
+                          .attributes = StyleAttribute::Bold};
         break;
       case 3:
-        modifiers = {LineModifier::Cyan};
+        modifiers = Style{.foreground_color = Color::Cyan};
         break;
       case 4:
-        modifiers = {LineModifier::Yellow};
+        modifiers = Style{.foreground_color = Color::Yellow};
         break;
       case 5:
-        modifiers = {LineModifier::Green};
+        modifiers = Style{.foreground_color = Color::Green};
         break;
     }
     result->PushAndPop(ColumnNumberDelta(1), modifiers);
@@ -226,7 +232,8 @@ class MarkdownParser : public LineOrientedTreeParser {
     if (result->state() == CODE) {
       result->PopBack();
     } else {
-      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::Cyan}, {});
+      result->Push(CODE, ColumnNumberDelta(1),
+                   Style{.foreground_color = Color::Cyan}, {});
     }
   }
 
@@ -239,12 +246,14 @@ class MarkdownParser : public LineOrientedTreeParser {
       if (result->state() == STRONG) {
         result->PopBack();
       } else if (seek.read() != L' ' && seek.read() != L'\n') {
-        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::Bold}, {});
+        result->Push(STRONG, ColumnNumberDelta(2),
+                     Style{.attributes = StyleAttribute::Bold}, {});
       }
     } else if (result->state() == EM) {
       result->PopBack();
     } else if (seek.read() != L' ' && seek.read() != L'\n') {
-      result->Push(EM, ColumnNumberDelta(1), {LineModifier::Italic}, {});
+      result->Push(EM, ColumnNumberDelta(1),
+                   Style{.attributes = StyleAttribute::Italic}, {});
     }
   }
 
@@ -268,11 +277,15 @@ class MarkdownParser : public LineOrientedTreeParser {
       result->PopBack();
     }
 
-    static const auto modifiers_by_depth = new std::vector<LineModifierSet>(
-        {{LineModifier::Reverse, LineModifier::Underline, LineModifier::White},
-         {LineModifier::Cyan, LineModifier::Reverse, LineModifier::Underline},
-         {LineModifier::Bold, LineModifier::Underline},
-         {LineModifier::Bold}});
+    static const auto modifiers_by_depth = new std::vector<Style>(
+        {Style{
+             .foreground_color = Color::White,
+             .attributes = StyleAttribute::Reverse | StyleAttribute::Underline},
+         Style{
+             .foreground_color = Color::Cyan,
+             .attributes = StyleAttribute::Reverse | StyleAttribute::Underline},
+         Style{.attributes = StyleAttribute::Bold | StyleAttribute::Underline},
+         Style{.attributes = StyleAttribute::Bold}});
 
     if (depth <= 5) {
       result->Push(DepthToState(depth), ColumnNumberDelta(0), {}, {});
@@ -321,9 +334,9 @@ class MarkdownParser : public LineOrientedTreeParser {
     }
   }
 
-  void AdvanceLine(ParseData* result, LineModifierSet modifiers) {
+  void AdvanceLine(ParseData* result, Style modifiers) {
     result->seek().ToEndOfLine();
-    result->PushAndPop(result->position().column.ToDelta(), {modifiers});
+    result->PushAndPop(result->position().column.ToDelta(), modifiers);
   }
 };
 }  // namespace

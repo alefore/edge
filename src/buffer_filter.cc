@@ -18,8 +18,9 @@ namespace container = afc::language::container;
 
 using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
 using afc::language::overload;
@@ -273,7 +274,7 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
   VLOG(6) << "Producing output: " << line;
   LineBuilder options;
   ColumnNumber position;
-  auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
+  auto push_to_position = [&](ColumnNumber end, Style modifiers) {
     if (end <= position) return;
     VLOG(8) << "Adding substring with modifiers: " << position << ", "
             << modifiers;
@@ -406,7 +407,8 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
                             std::views::transform([](const Token& token) {
                               VLOG(6) << "Add token BOLD: " << token;
                               return TokenAndModifiers{
-                                  token, LineModifierSet{LineModifier::Cyan}};
+                                  token,
+                                  Style{.foreground_color = Color::Cyan}};
                             }))),
                     .data = LineSequence::BreakLines(data.OriginalString())};
               }) |
@@ -486,7 +488,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview{SingleLine{LazyString{L"foo\\"}}};
                expected_preview.AppendString(
                    SingleLine{LazyString{L"nbar"}},
-                   LineModifierSet{LineModifier::Cyan});
+                   Style{.foreground_color = Color::Cyan});
                expected_preview.AppendString(SingleLine{LazyString{L"do"}});
 
                CHECK_EQ(
@@ -558,7 +560,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview;
                expected_preview.AppendString(
                    SingleLine{LazyString{L"ls"}},
-                   LineModifierSet{LineModifier::Cyan});
+                   Style{.foreground_color = Color::Cyan});
                expected_preview.AppendString(SingleLine{LazyString{L"\\n"}});
 
                CHECK_EQ(output.matches[0],

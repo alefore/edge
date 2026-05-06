@@ -4,8 +4,10 @@
 
 #include "src/language/hash.h"
 
-namespace afc::editor::flags {
+using afc::infrastructure::screen::Color;
 using afc::language::compute_hash;
+
+namespace afc::editor::flags {
 
 std::vector<Color> GenerateFlags(const std::vector<InputKey>& spec,
                                  const std::vector<Color>& colors,

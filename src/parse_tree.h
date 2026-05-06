@@ -69,7 +69,7 @@ class ParseTree {
 
   language::text::Range range_;
   size_t depth_ = 0;
-  infrastructure::screen::LineModifierSet modifiers_;
+  infrastructure::screen::Style modifiers_;
   PropertyMap properties_;
 
  public:
@@ -87,9 +87,8 @@ class ParseTree {
 
   size_t depth() const;
 
-  const infrastructure::screen::LineModifierSet& modifiers() const;
-  void set_modifiers(infrastructure::screen::LineModifierSet modifiers);
-  void InsertModifier(infrastructure::screen::LineModifier modifier);
+  const infrastructure::screen::Style& modifiers() const;
+  void set_modifiers(infrastructure::screen::Style modifiers);
 
   const std::vector<ParseTree>& children() const;
 

@@ -26,8 +26,9 @@ namespace container = afc::language::container;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EraseIf;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -56,8 +57,7 @@ namespace afc::editor {
 namespace {
 ValueOrError<LineBuilder> GetOutputComponents(
     const std::list<PathComponent>& components, ColumnNumberDelta columns,
-    const LineModifierSet& modifiers, const LineModifierSet& bold,
-    const LineModifierSet& dim) {
+    const Style& modifiers, const Style& bold, const Style& dim) {
   if (components.empty()) return Error{LazyString{L"Empty components"}};
 
   std::list<LineBuilder> output_items;
@@ -72,8 +72,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
   for (const PathComponent& path_full : components | std::views::reverse) {
     if (columns.IsZero() && reserved.IsZero()) break;
     LineBuilder current_output;
-    auto Add = [&current_output, &columns](SingleLine s,
-                                           const LineModifierSet& m) {
+    auto Add = [&current_output, &columns](SingleLine s, const Style& m) {
       CHECK_LE(s.size(), columns);
       current_output.AppendString(s, m);
       columns -= s.size();
@@ -157,7 +156,7 @@ SingleLine GetOutputComponentsForTesting(std::wstring path,
           GetOutputComponents(
               ValueOrDie(
                   ValueOrDie(Path::New(LazyString{path})).DirectorySplit()),
-              columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
+              columns, Style{}, Style{}, Style{}))
           .Build()
           .contents();
   LOG(INFO) << "GetOutputComponentsForTesting: " << path << " -> " << output;
@@ -298,44 +297,43 @@ struct BuffersListOptions {
 
 enum class FilterResult { Excluded, Included };
 
-LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
-                                   const OpenBuffer& buffer,
-                                   FilterResult filter_result) {
-  LineModifierSet output;
+Style GetNumberModifiers(const BuffersListOptions& options,
+                         const OpenBuffer& buffer, FilterResult filter_result) {
+  Style output;
   if (buffer.status().GetType() == Status::Type::Warning) {
-    output.insert(LineModifier::Red);
+    output.foreground_color = Color::Red;
     const double kSecondsWarningHighlight = 5;
     if (GetElapsedSecondsSince(buffer.status().last_change_time()) <
         kSecondsWarningHighlight) {
-      output.insert(LineModifier::Reverse);
+      output.attributes |= StyleAttribute::Reverse;
     }
   } else if (filter_result == FilterResult::Excluded) {
-    output.insert(LineModifier::Dim);
+    output.attributes |= StyleAttribute::Dim;
   } else if (buffer.child_pid().has_value()) {
-    output.insert(LineModifier::Yellow);
+    output.foreground_color = Color::Yellow;
   } else if (buffer.child_exit_status().has_value()) {
     auto status = buffer.child_exit_status().value();
     if (!WIFEXITED(status)) {
-      output.insert(LineModifier::Red);
-      output.insert(LineModifier::Bold);
+      output.foreground_color = Color::Red;
+      output.attributes |= StyleAttribute::Bold;
     } else if (WEXITSTATUS(status) == 0) {
-      output.insert(LineModifier::Green);
+      output.foreground_color = Color::Green;
     } else {
-      output.insert(LineModifier::Red);
+      output.foreground_color = Color::Red;
     }
     if (GetElapsedSecondsSince(buffer.time_last_exit()) < 5.0) {
-      output.insert({LineModifier::Reverse});
+      output.attributes |= StyleAttribute::Reverse;
     }
   } else {
     if (buffer.dirty()) {
-      output.insert(LineModifier::Italic);
+      output.attributes |= StyleAttribute::Italic;
     }
-    output.insert(LineModifier::Cyan);
+    output.foreground_color = Color::Cyan;
   }
   if (options.active_buffer.has_value() &&
       &buffer == &options.active_buffer.value().ptr().value()) {
-    output.insert(LineModifier::Bold);
-    output.insert(LineModifier::Reverse);
+    output.attributes |= StyleAttribute::Bold;
+    output.attributes |= StyleAttribute::Reverse;
   }
   return output;
 }
@@ -458,37 +456,37 @@ LineBuilder GetBufferContents(const LineSequence& contents,
   line_without_suffix.DeleteSuffix(ColumnNumber() + columns);
   output.Append(std::move(line_without_suffix));
   output.ClearModifiers();
-  output.InsertModifier(ColumnNumber{}, LineModifier::Dim);
+  output.InsertModifiers(ColumnNumber{},
+                         Style{.attributes = StyleAttribute::Dim});
   return output;
 }
 
 LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
                                    SingleLine buffer_name,
                                    const LineSequence& contents,
-                                   LineColumn position,
-                                   LineModifierSet modifiers,
+                                   LineColumn position, Style modifiers,
                                    SelectionState selection_state,
                                    const std::list<PathComponent>& components) {
-  std::optional<LineModifierSet> modifiers_override;
+  std::optional<Style> modifiers_override;
 
-  LineModifierSet dim = modifiers;
-  dim.insert(LineModifier::Dim);
+  Style dim = modifiers;
+  dim.attributes |= StyleAttribute::Dim;
 
-  LineModifierSet bold = modifiers;
+  Style bold = modifiers;
 
   switch (selection_state) {
     case SelectionState::ExcludedByFilter:
-      modifiers.insert(LineModifier::Dim);
-      bold.insert(LineModifier::Dim);
+      modifiers.attributes |= StyleAttribute::Dim;
+      bold.attributes |= StyleAttribute::Dim;
       break;
     case SelectionState::ReceivingInput:
-      modifiers.insert(LineModifier::Reverse);
-      modifiers.insert(LineModifier::Cyan);
+      modifiers.attributes |= StyleAttribute::Reverse;
+      modifiers.foreground_color = Color::Cyan;
       bold = dim = modifiers;
-      bold.insert(LineModifier::Bold);
+      bold.attributes |= StyleAttribute::Bold;
       break;
     case SelectionState::Idle:
-      bold.insert(LineModifier::Bold);
+      bold.attributes |= StyleAttribute::Bold;
       break;
   }
 
@@ -527,8 +525,7 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
         {.name = L"LongExtension", .callback = [] {
            GetBufferVisibleString(
                ColumnNumberDelta(48), SINGLE_LINE_CONSTANT(L"name_irrelevant"),
-               LineSequence(), LineColumn{}, LineModifierSet{},
-               SelectionState::Idle,
+               LineSequence(), LineColumn{}, Style{}, SelectionState::Idle,
                ValueOrDie(
                    ValueOrDie(Path::New(LazyString{
                                   L"edge-clang/edge/src/args.cc/.edge_state"}))
@@ -667,11 +664,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             line_options_output.AppendString(
                 SingleLine::Padding(start.ToDelta() -
                                     line_options_output.contents().size()),
-                LineModifierSet());
+                Style());
 
             if (j > 0) {
               start += kSeparator.size();
-              line_options_output.AppendString(kSeparator, LineModifierSet());
+              line_options_output.AppendString(kSeparator, Style());
             }
 
             FilterResult filter_result =
@@ -694,10 +691,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                      start.ToDelta() + prefix_width - kProgressWidth);
 
             SingleLine progress;
-            LineModifierSet progress_modifier;
+            Style progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
               progress = SingleLine::Char<L'!'>();
-              progress_modifier.insert(LineModifier::Red);
+              progress_modifier.foreground_color = Color::Red;
             } else if (!buffer.GetExpiredLineMarks().empty()) {
               progress = SingleLine::Char<L'!'>();
             } else if (buffer.ShouldDisplayProgress()) {
@@ -708,7 +705,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
               progress = ProgressStringFillUp(buffer.lines_size().read(),
                                               OverflowBehavior::Modulo)
                              .read();
-              progress_modifier.insert(LineModifier::Dim);
+              progress_modifier.attributes |= StyleAttribute::Dim;
             }
             // If we ever make ProgressString return more than a single
             // character, we'll have to adjust this.
@@ -717,7 +714,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
                   progress, filter_result == FilterResult::Excluded
-                                ? LineModifierSet{LineModifier::Dim}
+                                ? Style{.attributes = StyleAttribute::Dim}
                                 : progress_modifier);
 
             CHECK_EQ(line_options_output.contents().size(),
@@ -746,8 +743,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                       buffer_variables::buffers_list_preview_follows_cursor)
                       ? buffer.position()
                       : LineColumn{},
-                  buffer.dirty() ? LineModifierSet{LineModifier::Italic}
-                                 : LineModifierSet{},
+                  Style{.attributes = buffer.dirty() ? StyleAttribute::Italic
+                                                     : StyleAttribute::None},
                   selection_state, path_components[index + j]);
               CHECK_LE(visible_string.size(), columns_width[j]);
               line_options_output.Append(std::move(visible_string));

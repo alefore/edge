@@ -36,7 +36,7 @@ class RegularFileAdapter : public FileAdapter {
 
   futures::Value<language::EmptyValue> ReceiveInput(
       language::lazy_string::LazyString str,
-      const infrastructure::screen::LineModifierSet& modifiers) override;
+      const infrastructure::screen::Style& modifiers) override;
 
   bool WriteSignal(infrastructure::UnixSignal signal) override;
 };

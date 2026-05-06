@@ -37,7 +37,7 @@ class FileAdapter {
   virtual void SetPositionToZero() = 0;
   virtual futures::Value<language::EmptyValue> ReceiveInput(
       language::lazy_string::LazyString str,
-      const infrastructure::screen::LineModifierSet& modifiers) = 0;
+      const infrastructure::screen::Style& modifiers) = 0;
 
   virtual bool WriteSignal(infrastructure::UnixSignal signal) = 0;
 };

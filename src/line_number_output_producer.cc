@@ -21,8 +21,9 @@
 #include "src/language/wstring.h"
 #include "src/widget.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::CaptureAndHash;
 using afc::language::HashableContainer;
 using afc::language::MakeNonNullShared;
@@ -45,15 +46,16 @@ namespace editor {
   return kColon + ColumnNumberDelta(to_wstring(lines_size).size());
 }
 
-LineModifierSet LineModifiers(const BufferContentsViewLayout::Line& line,
-                              const OpenBuffer& buffer) {
+Style LineModifiers(const BufferContentsViewLayout::Line& line,
+                    const OpenBuffer& buffer) {
   if (line.current_cursors.empty()) {
-    return {LineModifier::Dim};
+    return Style{.attributes = StyleAttribute::Dim};
   } else if (line.has_active_cursor ||
              buffer.Read(buffer_variables::multiple_cursors)) {
-    return {LineModifier::Cyan, LineModifier::Bold};
+    return Style{.foreground_color = Color::Cyan,
+                 .attributes = StyleAttribute::Bold};
   } else {
-    return {LineModifier::Blue};
+    return Style{.foreground_color = Color::Blue};
   }
 }
 
@@ -71,8 +73,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
     }
 
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
-        [](LineRange range, ColumnNumberDelta width,
-           HashableContainer<LineModifierSet> modifiers) {
+        [](LineRange range, ColumnNumberDelta width, Style modifiers) {
           SingleLine number = range.begin_column().IsZero()
                                   ? SingleLine{LazyString{to_wstring(
                                         range.line() + LineNumberDelta(1))}}
@@ -82,12 +83,10 @@ LineWithCursor::Generator::Vector LineNumberOutput(
               SingleLine::Padding(width - ColumnNumberDelta(number.size() + 1));
           LineBuilder line_options;
           line_options.AppendString(padding + number + SingleLine::Char<L':'>(),
-                                    modifiers.container);
+                                    modifiers);
           return LineWithCursor{.line = std::move(line_options).Build()};
         },
-        screen_line.range, output.width,
-        HashableContainer<LineModifierSet>(
-            LineModifiers(screen_line, buffer)))));
+        screen_line.range, output.width, LineModifiers(screen_line, buffer))));
   }
   return output;
 }

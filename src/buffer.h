@@ -278,7 +278,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   language::text::LineColumn InsertInPosition(
       const language::text::LineSequence& contents_to_insert,
       const language::text::LineColumn& position,
-      const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
+      const std::optional<infrastructure::screen::Style>& modifiers);
 
   // If the current cursor is in a valid line (i.e., it isn't past the last
   // line), adjusts the column to not be beyond the length of the line.

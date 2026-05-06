@@ -11,8 +11,9 @@
 
 namespace afc::editor::parsers {
 namespace {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::StyleAttribute;
+using infrastructure::screen::Color;
+using infrastructure::screen::Style;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
@@ -49,12 +50,12 @@ class CsvParser : public LineOrientedTreeParser {
   }
 
   void ParseRow(ParseData* result, size_t csv_column) {
-    static const std::vector<LineModifier> csv_column_colors = {
-        LineModifier::Cyan, LineModifier::Yellow, LineModifier::Green,
-        LineModifier::Blue, LineModifier::Magenta};
+    static const std::vector<Color> csv_column_colors = {
+        Color::Cyan, Color::Yellow, Color::Green, Color::Blue, Color::Magenta};
     result->Push(CSV_CELL, ColumnNumberDelta(), {}, {});
-    LineModifierSet modifiers = {
-        csv_column_colors[csv_column % csv_column_colors.size()]};
+    Style modifiers{
+        .foreground_color =
+            csv_column_colors[csv_column % csv_column_colors.size()]};
     auto seek = result->seek();
     SkipSpaces(result);
     switch (seek.read()) {
@@ -88,7 +89,7 @@ class CsvParser : public LineOrientedTreeParser {
       seek.Once();
       SkipSpaces(result);
       result->PushAndPop(ColumnNumberDelta(1),
-                         LineModifierSet{LineModifier::Dim});
+                         Style{.attributes = StyleAttribute::Dim});
     }
     result->PopBack();  // CSV_CELL.
   }

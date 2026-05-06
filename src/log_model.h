@@ -144,7 +144,7 @@ class CompiledLogView {
   CompiledLogView(LogEvaluator& log_evaluator_, const LogView& log_view);
 
   std::expected<
-      std::unordered_map<LogEntryName, infrastructure::screen::LineModifierSet>,
+      std::unordered_map<LogEntryName, infrastructure::screen::Style>,
       language::Error>
   Evaluate(std::unordered_set<LogEntryName> names,
            const LogLine& log_line) const;

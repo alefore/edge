@@ -13,9 +13,12 @@
 
 namespace gc = afc::language::gc;
 
-using afc::infrastructure::screen::ModifierFromString;
-using afc::infrastructure::screen::ModifierToString;
+using afc::infrastructure::screen::ColorToString;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::vm::Environment;
@@ -24,32 +27,35 @@ namespace afc {
 namespace vm {
 template <>
 const types::ObjectName
-    VMTypeMapper<infrastructure::screen::LineModifier>::object_type_name =
-        types::ObjectName{IDENTIFIER_CONSTANT(L"LineModifier")};
+    VMTypeMapper<infrastructure::screen::Color>::object_type_name =
+        types::ObjectName{IDENTIFIER_CONSTANT(L"Color")};
 
 template <>
-const types::ObjectName VMTypeMapper<
-    language::NonNull<std::shared_ptr<concurrent::Protected<std::set<
-        afc::infrastructure::screen::LineModifier>>>>>::object_type_name =
-    types::ObjectName{IDENTIFIER_CONSTANT(L"SetLineModifier")};
+const types::ObjectName
+    VMTypeMapper<infrastructure::screen::StyleAttribute>::object_type_name =
+        types::ObjectName{IDENTIFIER_CONSTANT(L"StyleAttribute")};
 
-/* static */ std::expected<infrastructure::screen::LineModifier, Error>
-VMTypeMapper<infrastructure::screen::LineModifier>::get(Value& value) {
-  return NonEmptySingleLine::New(SingleLine::New(value.get_string()))
-      .and_then([](NonEmptySingleLine value_str) {
-        return ModifierFromString(std::move(value_str));
-      });
+template <>
+const types::ObjectName VMTypeMapper<Style>::object_type_name =
+    types::ObjectName{IDENTIFIER_CONSTANT(L"Style")};
+
+/* static */ Style VMTypeMapper<Style>::get(Value& value) {
+  return value.get_user_value<Style>(object_type_name).value();
 }
 
 /* static */ language::gc::Root<Value>
-VMTypeMapper<infrastructure::screen::LineModifier>::New(
-    language::gc::Pool& pool, infrastructure::screen::LineModifier value) {
-  return Value::NewString(pool, ToLazyString(ModifierToString(value)));
+VMTypeMapper<infrastructure::screen::Color>::New(
+    language::gc::Pool& pool, infrastructure::screen::Color value) {
+  return Value::NewString(pool, ToLazyString(ColorToString(value)));
+}
+
+/* static */ language::gc::Root<Value> VMTypeMapper<Style>::New(
+    language::gc::Pool& pool, Style value) {
+  return Value::NewObject(pool, object_type_name,
+                          MakeNonNullShared<Style>(value));
 }
 }  // namespace vm
 namespace infrastructure::screen {
-void RegisterLineModifier(gc::Pool& pool, Environment& environment) {
-  vm::container::Export<std::set<LineModifier>>(pool, environment);
-}
+void RegisterLineModifier(gc::Pool&, Environment&) {}
 }  // namespace infrastructure::screen
 }  // namespace afc

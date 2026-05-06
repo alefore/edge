@@ -30,8 +30,9 @@ namespace gc = afc::language::gc;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -101,27 +102,27 @@ ColorizePromptOptions DrawPath(
       context_buffer);
 
   ForEachColumn(line, [&](ColumnNumber column, wchar_t c) {
-    LineModifierSet modifiers;
+    Style modifiers;
     switch (c) {
       case L'/':
       case L'.':
-        modifiers.insert(LineModifier::Dim);
+        modifiers.attributes |= StyleAttribute::Dim;
         break;
       default:
         if (column.ToDelta() >=
             results.predictor_output.longest_directory_match) {
           if (results.predictor_output.found_exact_match) {
-            modifiers.insert(LineModifier::Bold);
+            modifiers.attributes |= StyleAttribute::Bold;
           }
           if (results.matches == 0 &&
               column.ToDelta() >= results.predictor_output.longest_prefix) {
-            modifiers.insert(LineModifier::Red);
+            modifiers.foreground_color = Color::Red;
           } else if (results.matches == 1) {
-            modifiers.insert(LineModifier::Green);
+            modifiers.foreground_color = Color::Green;
           } else if (results.common_prefix.has_value() &&
                      line.size() < ColumnNumberDelta(
                                        results.common_prefix.value().size())) {
-            modifiers.insert(LineModifier::Yellow);
+            modifiers.foreground_color = Color::Yellow;
           }
         }
     }

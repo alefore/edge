@@ -15,11 +15,11 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::concurrent::Protected;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::HashToModifiers;
 using afc::infrastructure::screen::HashToModifiersBold;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifiers;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -148,28 +148,20 @@ LogEvaluator::LogEvaluator(LogType log_type)
       environment_(Environment::New(vm::NewDefaultEnvironment(pool_).ptr())),
       log_type_(std::move(log_type)) {
   TRACK_OPERATION(LogEvaluator_PrepareEnvironment);
-  // TODO(2026-04-30, P2, easy): Expose the LineModifierSet to vm.
-  using Mapper = vm::VMTypeMapper<
-      NonNull<std::shared_ptr<Protected<std::set<LineModifier>>>>>;
   std::ranges::for_each(
-      LineModifiers(), [&](std::pair<NonEmptySingleLine, LineModifier> data) {
+      Style::Names(), [&](std::pair<NonEmptySingleLine, Style> data) {
         VisitValue(Identifier::New(LowerCase(data.first)), [&](Identifier id) {
           VLOG(5) << "Define: " << id << ": " << data.first;
           environment_->Define(
-              id,
-              Mapper::New(pool_,
-                          MakeNonNullShared<Protected<std::set<LineModifier>>>(
-                              std::set<LineModifier>{data.second})));
+              id, vm::VMTypeMapper<Style>::New(pool_, Style{data.second}));
         });
       });
   infrastructure::screen::RegisterLineModifier(pool_, environment_.value());
   environment_->Define(
       IDENTIFIER_CONSTANT(L"log_type"),
       vm::Value::NewString(pool_, ToLazyString(log_type_.name())));
-  environment_->Define(
-      IDENTIFIER_CONSTANT(L"default"),
-      Mapper::New(pool_,
-                  MakeNonNullShared<Protected<std::set<LineModifier>>>()));
+  environment_->Define(IDENTIFIER_CONSTANT(L"default"),
+                       vm::VMTypeMapper<Style>::New(pool_, Style{}));
   VLOG(2) << "Defining entries for all LogEntryName instances.";
   std::ranges::for_each(log_type_.entry_names(), [&](const LogEntryName& name) {
     // TODO(2026-04-30, P1): Don't assume string type.
@@ -178,10 +170,8 @@ LogEvaluator::LogEvaluator(LogType log_type)
   environment_->Define(
       IDENTIFIER_CONSTANT(L"hash"),
       vm::NewCallback(pool_, vm::kPurityTypePure, [](LazyString input) {
-        return MakeNonNullShared<Protected<std::set<LineModifier>>>(
-            HashToModifiers(std::hash<LazyString>{}(input),
-                            HashToModifiersBold::Never) |
-            std::ranges::to<std::set>());
+        return HashToModifiers(std::hash<LazyString>{}(input),
+                               HashToModifiersBold::Never);
       }));
 }
 
@@ -243,7 +233,7 @@ CompiledLogView::CompiledLogView(LogEvaluator& log_evaluator,
               }) |
           SkipErrors | std::ranges::to<std::unordered_map>()) {}
 
-std::expected<std::unordered_map<LogEntryName, LineModifierSet>, Error>
+std::expected<std::unordered_map<LogEntryName, Style>, Error>
 CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
                           const LogLine& log_line) const {
   LogLineEvaluator log_line_evaluator = log_evaluator_.Enter(log_line);
@@ -251,38 +241,37 @@ CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
              names |
              std::views::transform(
                  [&](LogEntryName name)
-                     -> std::expected<std::pair<LogEntryName, LineModifierSet>,
-                                      Error> {
+                     -> std::expected<std::pair<LogEntryName, Style>, Error> {
                    auto data = compiled_expressions_.find(name);
                    if (data == compiled_expressions_.end())
-                     return std::pair{name, LineModifierSet{}};
+                     return std::pair{name, Style{}};
 
                    DECLARE_OR_RETURN(
-                       std::vector<std::set<LineModifier>> output_vector,
+                       std::vector<Style> output_vector,
                        CollectExpected(
                            data->second |
-                           std::views::transform(
-                               [&](gc::Root<Expression> expr)
-                                   -> std::expected<std::set<LineModifier>,
-                                                    Error> {
-                                 TRACK_OPERATION(CompiledLogView_Evaluate_vm);
-                                 DECLARE_OR_RETURN(
-                                     gc::Root<vm::Value> value,
-                                     log_line_evaluator.Evaluate(expr.ptr()));
-                                 using Mapper =
-                                     vm::VMTypeMapper<NonNull<std::shared_ptr<
-                                         Protected<std::set<LineModifier>>>>>;
-                                 if (!value->IsObjectType(
-                                         Mapper::object_type_name))
-                                   return Error{
-                                       LazyString{L"Value has wrong type: "} +
-                                       vm::ToQuotedSingleLine(value->type())};
-                                 TRACK_OPERATION(CompiledLogView_Extract);
-                                 return *Mapper::get(value.value())->lock();
-                               })));
+                           std::views::transform([&](gc::Root<Expression> expr)
+                                                     -> std::expected<Style,
+                                                                      Error> {
+                             TRACK_OPERATION(CompiledLogView_Evaluate_vm);
+                             DECLARE_OR_RETURN(
+                                 gc::Root<vm::Value> value,
+                                 log_line_evaluator.Evaluate(expr.ptr()));
+                             if (!value->IsObjectType(
+                                     vm::VMTypeMapper<Style>::object_type_name))
+                               return Error{
+                                   LazyString{L"Value has wrong type: "} +
+                                   vm::ToQuotedSingleLine(value->type())};
+                             TRACK_OPERATION(CompiledLogView_Extract);
+                             return vm::VMTypeMapper<Style>::get(value.value());
+                           })));
                    return std::pair{name,
-                                    output_vector | std::views::join |
-                                        std::ranges::to<LineModifierSet>()};
+                                    std::ranges::fold_left(
+                                        output_vector, Style{},
+                                        [](Style aggregator, Style element) {
+                                          aggregator.merge(element);
+                                          return aggregator;
+                                        })};
                  }))
       .transform([](auto values) {
         return values | std::ranges::to<std::unordered_map>();

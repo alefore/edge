@@ -36,8 +36,9 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlayMap;
 using afc::language::EmptyValue;
 using afc::language::FromByteString;
@@ -67,19 +68,20 @@ using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
                    LineBuilder& output) {
-  output.AppendString(name.read(), LineModifierSet{LineModifier::Cyan});
+  output.AppendString(name.read(), Style{Color::Cyan});
   output.AppendString(SingleLine::Char<L'('>(),
-                      LineModifierSet{LineModifier::Dim});
+                      Style{.attributes = StyleAttribute::Dim});
   SingleLine separator;
   std::ranges::for_each(
       arguments | std::views::filter(std::not_fn(&SingleLine::empty)),
       [&](const SingleLine& a) {
-        output.AppendString(separator, LineModifierSet{LineModifier::Dim});
+        output.AppendString(separator,
+                            Style{.attributes = StyleAttribute::Dim});
         output.AppendString(a, std::nullopt);
         separator = SINGLE_LINE_CONSTANT(L", ");
       });
   output.AppendString(SingleLine::Char<L')'>(),
-                      LineModifierSet{LineModifier::Dim});
+                      Style{.attributes = StyleAttribute::Dim});
 }
 
 NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
@@ -927,7 +929,7 @@ class OperationMode : public EditorMode {
     LineBuilder output;
     AppendStatus(state_.top_command(), output);
     output.AppendString(SingleLine::Char<L':'>(),
-                        LineModifierSet{LineModifier::Dim});
+                        Style{.attributes = StyleAttribute::Dim});
     state_.AppendStatusString(output);
     AppendStatusForCommandsAvailable(output);
     editor_state_.status().SetInformationText(std::move(output).Build());
@@ -1248,40 +1250,40 @@ class OperationMode : public EditorMode {
   static void AppendStatus(TopCommand top_command, LineBuilder& output) {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::None:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"🦋 Move"),
-            LineModifierSet{LineModifier::Bold, LineModifier::Cyan});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"🦋 Move"),
+                            Style{.foreground_color = Color::Cyan,
+                                  .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::DeleteRegion:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"✂️  Delete"),
-            LineModifierSet{LineModifier::Bold, LineModifier::BgRed});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"✂️  Delete"),
+                            Style{.background_color = Color::Red,
+                                  .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CopyRegion:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"📋 Copy"),
-            LineModifierSet{LineModifier::Bold, LineModifier::Yellow});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"📋 Copy"),
+                            Style{.foreground_color = Color::Yellow,
+                                  .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandSystem:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"🐚 System"),
-            LineModifierSet{LineModifier::Bold, LineModifier::Green});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"🐚 System"),
+                            Style{.foreground_color = Color::Green,
+                                  .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandCpp:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
-            LineModifierSet{LineModifier::Bold, LineModifier::Green,
-                            LineModifier::Underline});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
+                            Style{.foreground_color = Color::Green,
+                                  .attributes = StyleAttribute::Bold |
+                                                StyleAttribute::Underline});
         return;
       case transformation::Stack::PostTransformationBehavior::CapitalsSwitch:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"🔠 Aa"),
-            LineModifierSet{LineModifier::Bold, LineModifier::Magenta});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"🔠 Aa"),
+                            Style{.foreground_color = Color::Magenta,
+                                  .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CursorOnEachLine:
-        output.AppendString(
-            SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
-            LineModifierSet{LineModifier::Bold, LineModifier::Magenta});
+        output.AppendString(SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
+                            Style{.foreground_color = Color::Magenta,
+                                  .attributes = StyleAttribute::Bold});
         return;
     }
     LOG(FATAL) << "Invalid post transformation "

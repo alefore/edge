@@ -19,7 +19,7 @@ struct VisualOverlay {
                language::lazy_string::ColumnNumberDelta>
       content = language::lazy_string::ColumnNumberDelta(1);
 
-  LineModifierSet modifiers;
+  Style modifiers;
 
   enum class Behavior { Replace, Toggle, On };
   Behavior behavior = Behavior::Replace;

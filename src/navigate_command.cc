@@ -22,7 +22,8 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -245,7 +246,7 @@ class NavigateTransformation : public CompositeTransformation {
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::DoNothing},
         .line_end_behavior = transformation::Delete::LineEndBehavior::Stop,
-        .preview_modifiers = {LineModifier::Dim},
+        .preview_modifiers = Style{.attributes = StyleAttribute::Dim},
         .mode = transformation::Input::Mode::Preview,
         .initiator = transformation::Delete::Initiator::Internal});
   }

@@ -14,7 +14,7 @@ namespace afc::editor {
 LineWithCursor::Generator::Vector CenterOutput(
     LineWithCursor::Generator::Vector lines,
     language::lazy_string::ColumnNumberDelta width,
-    std::vector<infrastructure::screen::LineModifier> padding_modifiers);
+    std::vector<infrastructure::screen::Style> padding_modifiers);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_HORIZONTAL_CENTER_OUTPUT_PRODUCER_H__

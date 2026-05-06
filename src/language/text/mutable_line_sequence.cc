@@ -13,7 +13,8 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -75,15 +76,15 @@ NonNull<std::unique_ptr<MutableLineSequence>> MutableLineSequence::copy()
 
 void MutableLineSequence::insert(
     LineNumber position_line, const LineSequence& source,
-    const std::optional<LineModifierSet>& optional_modifiers) {
+    const std::optional<Style>& optional_modifiers) {
   CHECK_LE(position_line, EndLine());
   auto prefix = Lines::Prefix(lines_.get_shared(), position_line.read());
   auto suffix = Lines::Suffix(lines_.get_shared(), position_line.read());
   VisitOptional(
-      [&prefix, &source](LineModifierSet modifiers) {
+      [&prefix, &source](Style modifiers) {
         source.ForEach([&](const Line& line) {
           VLOG(6) << "Insert line: " << line.EndColumn()
-                  << " modifiers: " << modifiers.size();
+                  << " modifiers: " << modifiers;
           LineBuilder builder(line);
           builder.SetAllModifiers(modifiers);
           prefix =
@@ -181,9 +182,9 @@ void MutableLineSequence::DeleteToLineEnd(LineColumn position,
 }
 
 void MutableLineSequence::SetCharacter(LineColumn position, int c,
-                                       LineModifierSet modifiers) {
+                                       Style modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
-          << " with modifiers: " << modifiers.size();
+          << " with modifiers: " << modifiers;
   TransformLine(position.line, [&](LineBuilder& options) {
     options.SetCharacter(position.column, c, modifiers);
   });

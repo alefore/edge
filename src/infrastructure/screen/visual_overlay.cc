@@ -60,7 +60,7 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
   if ((column + length).ToDelta() > output_line.contents().size())
     length = output_line.contents().size() - column.ToDelta();
 
-  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers =
+  std::map<language::lazy_string::ColumnNumber, Style> modifiers =
       output_line.modifiers();
 
   switch (overlay.behavior) {
@@ -73,7 +73,7 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
 
     case VisualOverlay::Behavior::Toggle:
     case VisualOverlay::Behavior::On:
-      LineModifierSet last_modifiers;
+      Style last_modifiers;
       if (modifiers.find(column) == modifiers.end()) {
         auto bound = modifiers.lower_bound(column);
         if (bound == modifiers.begin())
@@ -88,18 +88,20 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
       for (auto it = modifiers.find(column);
            it != modifiers.end() && it->first < column + length; ++it) {
         last_modifiers = it->second;
-        for (auto& m : overlay.modifiers) switch (overlay.behavior) {
-            case VisualOverlay::Behavior::Replace:
-              LOG(FATAL) << "Invalid behavior; internal error.";
-              break;
+        if (overlay.modifiers.foreground_color)
+          it->second.foreground_color = overlay.modifiers.foreground_color;
+        switch (overlay.behavior) {
+          case VisualOverlay::Behavior::Replace:
+            LOG(FATAL) << "Invalid behavior; internal error.";
+            break;
 
-            case VisualOverlay::Behavior::On:
-              it->second.insert(m);
-              break;
+          case VisualOverlay::Behavior::On:
+            it->second.attributes |= overlay.modifiers.attributes;
+            break;
 
-            case VisualOverlay::Behavior::Toggle:
-              ToggleModifier(m, it->second);
-          }
+          case VisualOverlay::Behavior::Toggle:
+            it->second.attributes ^= overlay.modifiers.attributes;
+        }
       }
       if (column.ToDelta() + length == output_line.contents().size())
         output_line.insert_end_of_line_modifiers(last_modifiers);

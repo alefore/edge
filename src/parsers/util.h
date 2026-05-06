@@ -50,34 +50,34 @@ inline std::ostream& operator<<(std::ostream& os,
 
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
-    infrastructure::screen::LineModifierSet string_modifiers,
+    infrastructure::screen::Style string_modifiers,
     ParseTree::PropertyMap properties);
 
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
-    infrastructure::screen::LineModifierSet string_modifiers,
+    infrastructure::screen::Style string_modifiers,
     ParseTree::PropertyMap properties,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state);
 
 struct NestedExpressionSyntax {
   language::lazy_string::NonEmptySingleLine prefix;
   language::lazy_string::NonEmptySingleLine suffix;
-  infrastructure::screen::LineModifierSet prefix_suffix_modifiers;
+  infrastructure::screen::Style prefix_suffix_modifiers;
   // Applied to the string between (excluding) prefix and suffix.
-  infrastructure::screen::LineModifierSet modifiers;
+  infrastructure::screen::Style modifiers;
 };
 
 // `result` should be *immediately after* the initial `quote_char` string.
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
-    infrastructure::screen::LineModifierSet string_modifiers,
+    infrastructure::screen::Style string_modifiers,
     ParseTree::PropertyMap properties,
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state);
 
 // `result` should be *immediately after* the initial digit.
 void ParseNumber(ParseData* result,
-                 infrastructure::screen::LineModifierSet number_modifiers,
+                 infrastructure::screen::Style number_modifiers,
                  ParseTree::PropertyMap properties);
 
 class LineOrientedTreeParser : public TreeParser {

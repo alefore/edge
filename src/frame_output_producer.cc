@@ -10,8 +10,9 @@
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_builder.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -22,15 +23,16 @@ using afc::language::text::LineBuilder;
 namespace afc::editor {
 
 Line FrameLine(FrameOutputProducerOptions options) {
-  LineModifierSet line_modifiers =
+  Style line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::Inactive
-          ? LineModifierSet({LineModifier::Dim})
-          : LineModifierSet({LineModifier::Bold, LineModifier::Cyan});
-  LineModifierSet title_modifiers =
+          ? Style{.attributes = StyleAttribute::Dim}
+          : Style{.foreground_color = Color::Cyan,
+                  .attributes = StyleAttribute::Bold};
+  Style title_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::Active
-          ? LineModifierSet(
-                {LineModifier::Bold, LineModifier::Cyan, LineModifier::Reverse})
-          : LineModifierSet();
+          ? Style{.foreground_color = Color::Cyan,
+                  .attributes = StyleAttribute::Bold | StyleAttribute::Reverse}
+          : Style();
   LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
   output.AppendString(SingleLine::Padding<L'─'>(ColumnNumberDelta{2}),
@@ -44,10 +46,10 @@ Line FrameLine(FrameOutputProducerOptions options) {
                         line_modifiers);
     // Add 1 because that matches what the repetitions do. Humans
     // typically start counting from 1.
-    output.AppendString(
-        SingleLine{LazyString{
-            std::to_wstring(1 + options.position_in_parent.value())}},
-        LineModifierSet{LineModifier::Bold, LineModifier::Cyan});
+    output.AppendString(SingleLine{LazyString{std::to_wstring(
+                            1 + options.position_in_parent.value())}},
+                        Style{.foreground_color = Color::Cyan,
+                              .attributes = StyleAttribute::Bold});
     output.AppendString(SingleLine::Char<L')'>(), line_modifiers);
   }
 

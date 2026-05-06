@@ -11,8 +11,9 @@
 
 namespace afc::editor::parsers {
 namespace {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::StyleAttribute;
+using infrastructure::screen::Color;
+using infrastructure::screen::Style;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
@@ -37,23 +38,25 @@ class DiffParser : public LineOrientedTreeParser {
       case L'+':
         if (result->state() == HEADERS || result->state() == DEFAULT) {
           if (!HandlePath(result))
-            AdvanceLine(result, {LineModifier::Bold, LineModifier::Green});
+            AdvanceLine(result, Style{.foreground_color = Color::Green,
+                                      .attributes = StyleAttribute::Bold});
           return;
         }
         // Fall through.
       case L'>':
-        InContents(result, {LineModifier::Green});
+        InContents(result, {Color::Green});
         return;
 
       case L'-':
         if (result->state() == HEADERS || result->state() == DEFAULT) {
           if (!HandlePath(result))
-            AdvanceLine(result, {LineModifier::Bold, LineModifier::Red});
+            AdvanceLine(result, Style{.foreground_color = Color::Red,
+                                      .attributes = StyleAttribute::Bold});
           return;
         }
         // Fall through.
       case L'<':
-        InContents(result, {LineModifier::Red});
+        InContents(result, {Color::Red});
         return;
 
       case L'@':
@@ -64,7 +67,7 @@ class DiffParser : public LineOrientedTreeParser {
           result->PopBack();
         }
         result->Push(SECTION, ColumnNumberDelta(), {}, {});
-        AdvanceLine(result, {LineModifier::Cyan});
+        AdvanceLine(result, {Color::Cyan});
         return;
 
       default:
@@ -80,7 +83,7 @@ class DiffParser : public LineOrientedTreeParser {
           }
           result->Push(HEADERS, ColumnNumberDelta(), {}, {});
         }
-        AdvanceLine(result, {LineModifier::Bold});
+        AdvanceLine(result, Style{.attributes = StyleAttribute::Bold});
         return;
     }
   }
@@ -109,26 +112,29 @@ class DiffParser : public LineOrientedTreeParser {
     VLOG(7) << "Found link starting at: " << path_start;
     result->Push(
         FILE_LINE, path_start.ToDelta(),
-        {LineModifier::Bold,
-         c == '+' ? LineModifier::Green : LineModifier::Red},
+        Style{
+            .foreground_color = c == '+' ? Color::Green : Color::Red,
+            .attributes = StyleAttribute::Bold,
+        },
         ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}}});
     seek.ToEndOfLine();
     result->PushAndPop(
-        result->position().column - path_start, {LineModifier::Underline},
+        result->position().column - path_start,
+        Style{.attributes = StyleAttribute::Underline},
         ParseTree::PropertyMap{
             {ParseTreePropertyName::LinkTarget(), LazyString{}}});
     result->PopBack();
     return true;
   }
 
-  void AdvanceLine(ParseData* result, LineModifierSet modifiers) {
+  void AdvanceLine(ParseData* result, Style modifiers) {
     auto original_column = result->position().column;
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column - original_column,
                        {modifiers});
   }
 
-  void InContents(ParseData* result, LineModifierSet modifiers) {
+  void InContents(ParseData* result, Style modifiers) {
     if (result->state() != CONTENTS) {
       result->Push(CONTENTS, ColumnNumberDelta(), {}, {});
     }

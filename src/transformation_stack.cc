@@ -21,8 +21,9 @@ namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -84,12 +85,13 @@ futures::Value<PossibleError> PreviewCppExpression(
                    })
                    .ConsumeErrors([&buffer](Error error) {
                      LineBuilder builder;
-                     builder.AppendString(SINGLE_LINE_CONSTANT(L"💣 E:"),
-                                          LineModifierSet{LineModifier::BgRed});
+                     builder.AppendString(
+                         SINGLE_LINE_CONSTANT(L"💣 E:"),
+                         Style{.background_color = Color::Red});
                      builder.AppendString(SINGLE_LINE_CONSTANT(L" "));
                      builder.AppendString(
                          LineSequence::BreakLines(error.read()).FoldLines(),
-                         LineModifierSet{LineModifier::Red});
+                         Style{Color::Red});
                      buffer.status().SetInformationText(
                          std::move(builder).Build());
                      return EmptyValue{};
@@ -103,12 +105,14 @@ futures::Value<Result> HandleCommandCpp(Input input,
   if (input.mode == Input::Mode::Preview) {
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
-    delete_transformation->preview_modifiers = {LineModifier::Green,
-                                                LineModifier::Underline};
+    delete_transformation->preview_modifiers =
+        Style{.foreground_color = Color::Green,
+              .attributes = StyleAttribute::Underline};
     return PreviewCppExpression(input.buffer, contents)
         .ConsumeErrors([input, delete_transformation](Error error) {
-          delete_transformation->preview_modifiers = {LineModifier::Red,
-                                                      LineModifier::Underline};
+          delete_transformation->preview_modifiers =
+              Style{.foreground_color = Color::Red,
+                    .attributes = StyleAttribute::Underline};
           input.adapter.AddError(error);
           return EmptyValue{};
         })
@@ -379,8 +383,9 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                          input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::CommandSystem: {
             if (input.mode == Input::Mode::Preview) {
-              delete_transformation.preview_modifiers = {
-                  LineModifier::Green, LineModifier::Underline};
+              delete_transformation.preview_modifiers =
+                  Style{.foreground_color = Color::Green,
+                        .attributes = StyleAttribute::Underline};
               return Apply(delete_transformation,
                            input.NewChild(range.begin()));
             }

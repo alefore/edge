@@ -35,7 +35,7 @@ struct Insert {
   // Ignored if `position` is set.
   FinalPosition final_position = FinalPosition::End;
 
-  std::optional<infrastructure::screen::LineModifierSet> modifiers_set =
+  std::optional<infrastructure::screen::Style> modifiers_set =
       std::nullopt;
 
   // If not present, will insert wherever the cursor is. If present, inserts the

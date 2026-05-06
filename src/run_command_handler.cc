@@ -46,8 +46,8 @@ using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::ProcessId;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -481,7 +481,7 @@ class ForkEditorCommand : public Command {
         prompt.AppendString(LineSequence::BreakLines(path.read()).FoldLines());
       });
       prompt.AppendString(SINGLE_LINE_CONSTANT(L"$ "),
-                          LineModifierSet{LineModifier::Green});
+                          Style{Color::Green});
       Prompt(PromptOptions{
           .editor_state = editor_state_,
           .prompt = std::move(prompt).Build(),

@@ -16,8 +16,9 @@
 
 using afc::concurrent::Protected;
 using afc::concurrent::VersionPropertyReceiver;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -164,8 +165,8 @@ const VersionPropertyReceiver* Status::prompt_extra_information() const {
 }
 
 Line Status::prompt_extra_information_line() const {
-  static const auto dim = LineModifierSet{LineModifier::Dim};
-  static const auto empty = LineModifierSet{};
+  static const auto dim = Style{.attributes = StyleAttribute::Dim};
+  static const auto empty = Style{};
 
   const VersionPropertyReceiver* const receiver = prompt_extra_information();
   if (receiver == nullptr) return LineBuilder().Build();
@@ -262,7 +263,8 @@ void Status::Set(Error error) {
     }
     LineBuilder text;
     text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
-                      LineModifierSet({LineModifier::Red, LineModifier::Bold}));
+                      Style{.foreground_color = Color::Red,
+                            .attributes = StyleAttribute::Bold});
     data = MakeNonNullShared<Data>(Data{
         .type = Type::Warning,
         .text = MakeNonNullShared<Protected<Line>>(std::move(text).Build())});
@@ -311,16 +313,16 @@ void Status::Bell() {
         output.Append(std::move(previous));
       }
 
-      static const std::vector<LineModifier> colors = {
-          LineModifier::Red,  LineModifier::Green,  LineModifier::Blue,
-          LineModifier::Cyan, LineModifier::Yellow, LineModifier::Magenta,
-          LineModifier::White};
-      static const std::vector<LineModifier> effects = {
-          LineModifier::Bold, LineModifier::Italic, LineModifier::Reverse};
+      static const std::vector<Color> colors = {
+          Color::Red,    Color::Green,   Color::Blue, Color::Cyan,
+          Color::Yellow, Color::Magenta, Color::White};
+      static const std::vector<StyleAttribute> effects = {
+          StyleAttribute::Bold, StyleAttribute::Italic,
+          StyleAttribute::Reverse};
       output.AppendString(
           SingleLine::Char<L' '>() + notes.at(rand() % notes.size()),
-          LineModifierSet{colors.at(rand() % colors.size()),
-                          effects.at(rand() % effects.size())});
+          Style{.foreground_color = colors.at(rand() % colors.size()),
+                .attributes = effects.at(rand() % effects.size())});
       text = std::move(output).Build();
     });
   });

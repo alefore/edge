@@ -25,7 +25,7 @@ struct Input {
     virtual language::text::LineColumn InsertInPosition(
         const language::text::LineSequence& contents_to_insert,
         const language::text::LineColumn& input_position,
-        const std::optional<infrastructure::screen::LineModifierSet>&
+        const std::optional<infrastructure::screen::Style>&
             modifiers) = 0;
     virtual void AddError(language::Error) = 0;
     virtual void AddFragment(language::text::LineSequence contents) = 0;

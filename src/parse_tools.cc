@@ -1,6 +1,6 @@
 #include "src/parse_tools.h"
 
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::text::LineColumn;
@@ -52,7 +52,7 @@ void ParseData::PopBack() {
 }
 
 void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
-                     LineModifierSet modifiers,
+                     Style modifiers,
                      ParseTree::PropertyMap properties) {
   CHECK_GE(position_.column.ToDelta(), rewind_column);
 
@@ -64,7 +64,7 @@ void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
 }
 
 void ParseData::PushAndPop(ColumnNumberDelta rewind_column,
-                           LineModifierSet modifiers,
+                           Style modifiers,
                            ParseTree::PropertyMap properties) {
   size_t ignored_state = 0;
   Push(ignored_state, rewind_column, std::move(modifiers),

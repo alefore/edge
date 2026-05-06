@@ -30,8 +30,9 @@
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::HasValue;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -56,14 +57,14 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-LineWithCursor ProducerForString(SingleLine src, LineModifierSet modifiers) {
+LineWithCursor ProducerForString(SingleLine src, Style modifiers) {
   LineBuilder options;
   options.AppendString(std::move(src), std::move(modifiers));
   return LineWithCursor{.line = std::move(options).Build()};
 }
 
 LineWithCursor::Generator::Vector AddLeftFrame(
-    LineWithCursor::Generator::Vector lines, LineModifierSet modifiers) {
+    LineWithCursor::Generator::Vector lines, Style modifiers) {
   if (lines.size().IsZero()) return {};
 
   ColumnsVector columns_vector{.index_active = 1};
@@ -141,7 +142,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
           LineWithCursor output = original_generator();
           LineBuilder line_options;
           line_options.AppendString(output.line.contents(),
-                                    LineModifierSet{LineModifier::Dim});
+                                    Style{.attributes = StyleAttribute::Dim});
           output.line = std::move(line_options).Build();
           return output;
         }};
@@ -434,8 +435,11 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     input.buffer_display_data.AddDisplayWidth(output.lines.width);
   output.lines.width = std::max(output.lines.width,
                                 input.buffer_display_data.max_display_width());
-  output.lines = CenterOutput(std::move(output.lines), total_size.column,
-                              GetBufferFlag(buffer));
+  output.lines = CenterOutput(
+      std::move(output.lines), total_size.column,
+      GetBufferFlag(buffer) | std::views::transform([](Color color) {
+        return Style{.foreground_color = color};
+      }) | std::ranges::to<std::vector>());
   output.lines = CenterVertically(std::move(output.lines), status_lines.size(),
                                   total_size.line, input.buffer_display_data);
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
@@ -508,9 +512,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
           if (add_left_frame) {
             output.lines = AddLeftFrame(
                 std::move(output.lines),
-                options_.is_active
-                    ? LineModifierSet{LineModifier::Bold, LineModifier::Cyan}
-                    : LineModifierSet{LineModifier::Dim});
+                options_.is_active ? Style{.foreground_color = Color::Cyan,
+                                           .attributes = StyleAttribute::Bold}
+                                   : Style{.attributes = StyleAttribute::Dim});
           }
           frame_lines.Append(std::move(output.lines));
           output.lines = std::move(frame_lines);

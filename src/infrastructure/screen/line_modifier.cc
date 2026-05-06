@@ -5,78 +5,192 @@
 #include <ostream>
 
 #include "src/language/container.h"
+#include "src/language/hash.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/wstring.h"
 
+using afc::language::compute_hash;
 using afc::language::Error;
 using afc::language::FromByteString;
+using afc::language::lazy_string::Concatenate;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::SingleLine;
 
 namespace afc::infrastructure::screen {
-const std::unordered_map<NonEmptySingleLine, LineModifier>& LineModifiers() {
-  static const std::unordered_map<NonEmptySingleLine, LineModifier> values = {
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RESET"), LineModifier::Reset},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BOLD"), LineModifier::Bold},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"ITALIC"), LineModifier::Italic},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"DIM"), LineModifier::Dim},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"UNDERLINE"), LineModifier::Underline},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"REVERSE"), LineModifier::Reverse},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), LineModifier::Black},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), LineModifier::Red},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), LineModifier::Green},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), LineModifier::Blue},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), LineModifier::Cyan},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), LineModifier::Yellow},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), LineModifier::Magenta},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BG_RED"), LineModifier::BgRed}};
+namespace {
+const std::unordered_map<NonEmptySingleLine, Color>& ColorNames() {
+  static const std::unordered_map<NonEmptySingleLine, Color> values = {
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), Color::Black},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), Color::Red},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), Color::Green},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), Color::Blue},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), Color::Cyan},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), Color::Yellow},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), Color::Magenta},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"WHITE"), Color::White}};
+  return values;
+}
+}  // namespace
+
+std::expected<Color, language::Error> ColorFromString(
+    const NonEmptySingleLine& name) {
+  if (auto it = ColorNames().find(name); it != ColorNames().end())
+    return it->second;
+  return Error{LazyString{L"Unknown color: "} + name};
+}
+
+NonEmptySingleLine ColorToString(Color color) {
+  static const std::unordered_map<Color, NonEmptySingleLine> values =
+      std::views::zip(ColorNames() | std::views::values,
+                      ColorNames() | std::views::keys) |
+      std::ranges::to<std::unordered_map>();
+  auto it = values.find(color);
+  CHECK(it != values.end()) << "Invalid color.";
+  return it->second;
+}
+
+std::ostream& operator<<(std::ostream& os, const Color& s) {
+  os << ColorToString(s);
+  return os;
+}
+
+bool Style::empty() const {
+  return foreground_color == std::nullopt && background_color == std::nullopt &&
+         attributes == StyleAttribute::None;
+}
+
+void Style::merge(const Style& overlay) {
+  if (overlay.foreground_color) foreground_color = overlay.foreground_color;
+  if (overlay.background_color) background_color = overlay.background_color;
+  attributes =
+      static_cast<StyleAttribute>(static_cast<uint16_t>(attributes) |
+                                  static_cast<uint16_t>(overlay.attributes));
+}
+
+bool operator==(const Style& a, const Style& b) {
+  // We deliberately let std::optional<Color> fields stay optional (an
+  // alternative implementation could always convert them to their default
+  // values: White for foreground, Black for background). We are effectively
+  // comparing "deltas" rather than final styles.
+  return a.foreground_color == b.foreground_color &&
+         a.background_color == b.background_color &&
+         a.attributes == b.attributes;
+}
+
+/* static */
+const std::unordered_map<NonEmptySingleLine, Style>& Style::Names() {
+  static const std::unordered_map<NonEmptySingleLine, Style> values = {
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BOLD"),
+       Style{.attributes = StyleAttribute::Bold}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"ITALIC"),
+       Style{.attributes = StyleAttribute::Italic}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"DIM"),
+       Style{.attributes = StyleAttribute::Dim}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"UNDERLINE"),
+       Style{.attributes = StyleAttribute::Underline}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"REVERSE"),
+       Style{.attributes = StyleAttribute::Reverse}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"),
+       Style{.foreground_color = Color::Black}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"),
+       Style{.foreground_color = Color::Red}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"),
+       Style{.foreground_color = Color::Green}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"),
+       Style{.foreground_color = Color::Blue}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"),
+       Style{.foreground_color = Color::Cyan}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"),
+       Style{.foreground_color = Color::Yellow}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"),
+       Style{.foreground_color = Color::Magenta}},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BG_RED"),
+       Style{.background_color = Color::Red}}};
   return values;
 }
 
-NonEmptySingleLine ModifierToString(LineModifier modifier) {
-  static const std::unordered_map<LineModifier, NonEmptySingleLine> values =
-      LineModifiers() |
-      std::views::transform(
-          [](const std::pair<NonEmptySingleLine, LineModifier> data) {
-            return std::make_pair(data.second, data.first);
-          }) |
+NonEmptySingleLine Style::ToString() const {
+  static const std::unordered_map<Style, NonEmptySingleLine> values =
+      std::views::zip(Style::Names() | std::views::values,
+                      Style::Names() | std::views::keys) |
       std::ranges::to<std::unordered_map>();
-  return GetValueOrDie(values, modifier);
+  // TODO(2026-05-05, P0, style): GetValueOrDie is very questionable here.
+  return GetValueOrDie(values, *this);
 }
 
-std::expected<LineModifier, Error> ModifierFromString(
-    NonEmptySingleLine modifier) {
-  const std::unordered_map<NonEmptySingleLine, LineModifier>& values =
-      LineModifiers();
+/* static */
+std::expected<Style, Error> Style::FromString(NonEmptySingleLine modifier) {
+  const std::unordered_map<NonEmptySingleLine, Style>& values = Style::Names();
   if (auto it = values.find(modifier); it != values.end()) return it->second;
   return Error{LazyString{L"Unknown modifier: "} + modifier};
 }
 
-void ToggleModifier(LineModifier m, LineModifierSet& output) {
+#if 0
+// XXXX delete
+void ToggleModifier(Style m, Style& output) {
   if (auto results = output.insert(m); !results.second)
     output.erase(results.first);
 }
+#endif
 
-std::ostream& operator<<(std::ostream& os, const LineModifierSet& s) {
+NonEmptySingleLine StyleAttributeToString(StyleAttribute attribute) {
+  static const std::vector<std::pair<StyleAttribute, NonEmptySingleLine>>
+      names = {
+          {StyleAttribute::Bold, NON_EMPTY_SINGLE_LINE_CONSTANT(L"Bold")},
+          {StyleAttribute::Italic, NON_EMPTY_SINGLE_LINE_CONSTANT(L"Italic")},
+          {StyleAttribute::Dim, NON_EMPTY_SINGLE_LINE_CONSTANT(L"Dim")},
+          {StyleAttribute::Underline,
+           NON_EMPTY_SINGLE_LINE_CONSTANT(L"Underline")},
+          {StyleAttribute::Reverse, NON_EMPTY_SINGLE_LINE_CONSTANT(L"Reverse")},
+          {StyleAttribute::Blink, NON_EMPTY_SINGLE_LINE_CONSTANT(L"Blink")},
+      };
+
+  return NonEmptySingleLine::New(
+             Concatenate(
+                 names |
+                 std::views::filter(
+                     [attribute](
+                         std::pair<StyleAttribute, NonEmptySingleLine> data) {
+                       return has_attribute(attribute, data.first);
+                     }) |
+                 std::views::transform(
+                     [](std::pair<StyleAttribute, NonEmptySingleLine> data) {
+                       return data.second;
+                     }) |
+                 Intersperse(NON_EMPTY_SINGLE_LINE_CONSTANT(L"+"))))
+      .value_or(NON_EMPTY_SINGLE_LINE_CONSTANT(L"None"));
+}
+
+std::ostream& operator<<(std::ostream& os, const Style& s) {
   std::string separator;
-  os << "{";
-  for (const auto& m : s) {
-    os << separator << ModifierToString(m);
-    separator = ", ";
-  }
+  os << "{Style";
+  if (s.foreground_color)
+    os << " foreground: " << ColorToString(s.foreground_color.value());
+  if (s.background_color)
+    os << " background: " << ColorToString(s.background_color.value());
+  if (s.attributes != StyleAttribute::None)
+    os << " attributes: " << StyleAttributeToString(s.attributes);
   os << "}";
   return os;
 }
 
-LineModifierSet HashToModifiers(int hash_value,
-                                HashToModifiersBold bold_behavior) {
-  LineModifierSet output;
-  static std::vector<LineModifier> modifiers = {
-      LineModifier::Cyan, LineModifier::Yellow, LineModifier::Red,
-      LineModifier::Blue, LineModifier::Green,  LineModifier::Magenta};
-  output.insert(modifiers[hash_value % modifiers.size()]);
+Style HashToModifiers(int hash_value, HashToModifiersBold bold_behavior) {
+  static std::vector<Color> colors = {Color::Cyan,  Color::Yellow,
+                                      Color::Red,   Color::Blue,
+                                      Color::Green, Color::Magenta};
+  Style output{.foreground_color = colors[hash_value % colors.size()]};
   if (bold_behavior == HashToModifiersBold::Sometimes &&
-      ((hash_value / modifiers.size()) % 2) == 0)
-    output.insert(LineModifier::Bold);
+      ((hash_value / colors.size()) % 2) == 0)
+    output.attributes |= StyleAttribute::Bold;
   return output;
 }
 }  // namespace afc::infrastructure::screen
+namespace std {
+std::size_t hash<afc::infrastructure::screen::Style>::operator()(
+    const afc::infrastructure::screen::Style& style) const {
+  return compute_hash(style.foreground_color, style.background_color,
+                      style.attributes);
+}
+}  // namespace std

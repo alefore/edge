@@ -21,9 +21,9 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::ModifierFromString;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Screen;
+using afc::infrastructure::screen::Style;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
@@ -100,9 +100,9 @@ class ScreenVm : public Screen {
                LazyString{L");"};
   }
 
-  void SetModifier(LineModifier modifier) override {
-    buffer_ += LazyString{L"screen.SetModifier(\""} +
-               ModifierToString(modifier) + LazyString{L"\");"};
+  void SetModifier(Style style) override {
+    buffer_ += LazyString{L"screen.SetModifier(\""} + style.ToString() +
+               LazyString{L"\");"};
   }
 
   LineColumnDelta size() const override { return size_; }
@@ -222,7 +222,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen, LazyString str) {
-            if (auto value = ModifierFromString(str); value)
+            if (auto value = Style::FromString(str); value)
               screen->SetModifier(value.value());
           })
           .ptr());

@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
@@ -21,15 +22,11 @@ struct InputValue
                                  language::lazy_string::LazyString> {
   using GhostType::GhostType;
 };
-struct Color
-    : public language::GhostType<Color,
-                                 language::lazy_string::NonEmptySingleLine> {
-  using GhostType::GhostType;
-};
 
-std::vector<Color> GenerateFlags(const std::vector<InputKey>& spec,
-                                 const std::vector<Color>& colors,
-                                 std::map<InputKey, InputValue> inputs);
+std::vector<infrastructure::screen::Color> GenerateFlags(
+    const std::vector<InputKey>& spec,
+    const std::vector<infrastructure::screen::Color>& colors,
+    std::map<InputKey, InputValue> inputs);
 
 }  // namespace afc::editor::flags
 

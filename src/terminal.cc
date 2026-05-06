@@ -20,9 +20,10 @@ namespace gc = afc::language::gc;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Screen;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::IgnoreErrors;
 using afc::language::NonNull;
 using afc::language::overload;
@@ -119,11 +120,8 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   screen.Flush();
 }
 
-void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
-  screen.SetModifier(LineModifier::Reset);
-  for (const auto& m : modifiers) {
-    screen.SetModifier(m);
-  }
+void FlushModifiers(Screen& screen, const Style& modifiers) {
+  screen.SetModifier(modifiers);
 }
 
 void Terminal::WriteLine(Screen& screen, LineNumber line,
@@ -172,11 +170,9 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   ColumnNumber input_column;
   ColumnNumber output_column;
 
-  functions.push_back(
-      [](Screen& screen) { screen.SetModifier(LineModifier::Reset); });
+  functions.push_back([](Screen& screen) { screen.SetModifier(Style{}); });
 
-  std::map<ColumnNumber, LineModifierSet> modifiers =
-      line_with_cursor.line.modifiers();
+  std::map<ColumnNumber, Style> modifiers = line_with_cursor.line.modifiers();
   auto modifiers_it = modifiers.lower_bound(input_column);
 
   while (input_column < line_with_cursor.line.EndColumn() &&
@@ -212,7 +208,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
     if (modifiers_it != modifiers.end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
-        LineModifierSet modifiers_set = modifiers_it->second;
+        Style modifiers_set = modifiers_it->second;
         functions.push_back([modifiers_set](Screen& screen) {
           FlushModifiers(screen, modifiers_set);
         });

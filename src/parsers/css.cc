@@ -20,8 +20,11 @@ using afc::editor::parsers::MultipleLinesSupport;
 using afc::editor::parsers::NestedExpressionSyntax;
 using afc::editor::parsers::ParseQuotedString;
 using afc::editor::parsers::ParseQuotedStringState;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::HashToModifiers;
+using afc::infrastructure::screen::HashToModifiersBold;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -205,32 +208,15 @@ const std::set<State> PropertiesValueStates() {
   return output;
 }
 
-static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::BgRed, LineModifier::Bold});
+static const Style BAD_PARSE_MODIFIERS =
+    Style{.background_color = Color::Red, .attributes = StyleAttribute::Bold};
 
-static const LineModifierSet RECOGNIZED_RULE_MODIFIERS =
-    LineModifierSet({LineModifier::Magenta, LineModifier::Bold});
+static const Style RECOGNIZED_RULE_MODIFIERS = Style{
+    .foreground_color = Color::Magenta, .attributes = StyleAttribute::Bold};
 
-static const LineModifierSet VALID_BORDER_STYLE_VALUE_MODIFIERS =
-    LineModifierSet({LineModifier::Green});
+static const Style VALID_BORDER_STYLE_VALUE_MODIFIERS = Style({Color::Green});
 
-static const LineModifierSet VALID_DISPLAY_VALUE_MODIFIERS =
-    LineModifierSet({LineModifier::Green});
-
-enum class HashToModifiersBold { kSometimes, kNever };
-LineModifierSet HashToModifiers(int nesting,
-                                HashToModifiersBold bold_behavior) {
-  LineModifierSet output;
-  static std::vector<LineModifier> modifiers = {
-      LineModifier::Cyan, LineModifier::Yellow, LineModifier::Red,
-      LineModifier::Blue, LineModifier::Green,  LineModifier::Magenta,
-      LineModifier::White};
-  output.insert(modifiers[nesting % modifiers.size()]);
-  if (bold_behavior == HashToModifiersBold::kSometimes &&
-      ((nesting / modifiers.size()) % 2) == 0)
-    output.insert(LineModifier::Bold);
-  return output;
-}
+static const Style VALID_DISPLAY_VALUE_MODIFIERS = Style({Color::Green});
 
 class CssTreeParser : public parsers::LineOrientedTreeParser {
   const ParserId parser_id_;
@@ -294,7 +280,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
       return;
     }
 
-    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim});
+    result->PushAndPop(ColumnNumberDelta(1),
+                       Style{.attributes = StyleAttribute::Dim});
     if (auto it = PropertiesByPostNameState().find(State(result->state()));
         it != PropertiesByPostNameState().end()) {
       result->SetState(it->second.value_state);
@@ -313,7 +300,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
   // `char_set`.
   void ParseWordLikeToken(ParseData* result,
                           const std::unordered_set<wchar_t>& char_set,
-                          LineModifierSet modifiers) {
+                          Style modifiers) {
     CHECK_GT(result->position().column, ColumnNumber{});
     LineColumn original_word_start = result->position() - ColumnNumberDelta{1};
 
@@ -338,15 +325,15 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     if (c == L'/') {
       if (seek.read() == L'*') {
         seek.Once();
-        result->Push(IN_MULTI_LINE_COMMENT, ColumnNumberDelta(2),
-                     {LineModifier::Blue}, {});
+        result->Push(IN_MULTI_LINE_COMMENT, ColumnNumberDelta(2), {Color::Blue},
+                     {});
       } else
         result->PushAndPop(ColumnNumberDelta(1), {});
       return;
     }
 
     if (c == L'\'' || c == L'"') {
-      if (ParseQuotedString(result, c, {LineModifier::Yellow}, {}, std::nullopt,
+      if (ParseQuotedString(result, c, {Color::Yellow}, {}, std::nullopt,
                             MultipleLinesSupport::kAccept,
                             parsers::CurrentState::kStart) !=
           ParseQuotedStringState::Done) {
@@ -366,8 +353,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
 
     if (c == L'}') {
       if (result->parse_results().states_stack.size() > 1) {
-        LineModifierSet modifiers = HashToModifiers(
-            result->AddAndGetNesting(), HashToModifiersBold::kSometimes);
+        Style modifiers = HashToModifiers(result->AddAndGetNesting(),
+                                          HashToModifiersBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
@@ -400,7 +387,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                                   L"#"
                                   L"*"});
         if (css_selector_chars.contains(c)) {
-          ParseWordLikeToken(result, css_selector_chars, {LineModifier::Cyan});
+          ParseWordLikeToken(result, css_selector_chars,
+                             Style{.foreground_color = Color::Cyan});
           return;
         }
         break;
@@ -413,7 +401,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {LineModifier::Yellow}, {});
+      parsers::ParseNumber(result, {Color::Yellow}, {});
       return;
     }
   }
@@ -426,7 +414,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (c == L';') {
-      result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim});
+      result->PushAndPop(ColumnNumberDelta(1),
+                         Style{.attributes = StyleAttribute::Dim});
       // After a semicolon, we expect a new property.
       result->SetState(IN_DECLARATION_BLOCK_EXPECT_PROPERTY);
       return;
@@ -456,7 +445,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->PushAndPop(length, RECOGNIZED_RULE_MODIFIERS);
         result->SetState(it->second.post_name_state);
       } else {
-        result->PushAndPop(length, {LineModifier::White});
+        result->PushAndPop(length, {Color::White});
         result->SetState(IN_DECLARATION_BLOCK_EXPECT_COLON);
       }
       return;
@@ -479,7 +468,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     if (result->state() == INVALID_PROPERTY_VALUE) {
       result->PushAndPop(length, BAD_PARSE_MODIFIERS);
     } else {  // IN_DECLARATION_BLOCK_EXPECT_VALUE
-      result->PushAndPop(length, {LineModifier::White});
+      result->PushAndPop(length, {Color::White});
     }
   }
   void ParseMultiLineComment(ParseData* result) {
@@ -494,12 +483,12 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->PopBack();
         result->PushAndPop(
             result->position().column - start_column_for_highlight,
-            {LineModifier::Blue});
+            {Color::Blue});
         return;
       }
     }
     result->PushAndPop(result->position().column - start_column_for_highlight,
-                       {LineModifier::Blue});
+                       {Color::Blue});
   }
 
   void ParseMultipleLineString(ParseData* result) {
@@ -508,13 +497,12 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                       original_state != IN_MULTIPLE_LINE_STRING_DOUBLE_QUOTE)
         << "Invalid state for multi-line string continuation.";
 
-    if (ParseQuotedString(result,
-                          original_state == IN_MULTIPLE_LINE_STRING_SINGLE_QUOTE
-                              ? L'\''
-                              : L'"',
-                          {LineModifier::Yellow}, {}, std::nullopt,
-                          MultipleLinesSupport::kAccept,
-                          CurrentState::kContinuationInDefault) ==
+    if (ParseQuotedString(
+            result,
+            original_state == IN_MULTIPLE_LINE_STRING_SINGLE_QUOTE ? L'\''
+                                                                   : L'"',
+            {Color::Yellow}, {}, std::nullopt, MultipleLinesSupport::kAccept,
+            CurrentState::kContinuationInDefault) ==
         ParseQuotedStringState::Done)
       return;
     result->SetState(original_state);

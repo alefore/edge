@@ -7,7 +7,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 
 namespace afc::editor {
-std::vector<infrastructure::screen::LineModifier> GetBufferFlag(
+std::vector<infrastructure::screen::Color> GetBufferFlag(
     const OpenBuffer& buffer);
 }  // namespace afc::editor
 

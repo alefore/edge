@@ -11,8 +11,8 @@
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -34,11 +34,11 @@ void CheckSingleton(C const container, V value) {
 void TestLineDeleteCharacters() {
   // Preparation.
   LineBuilder builder{SingleLine{LazyString{L"alejo"}}};
-  builder.InsertModifier(ColumnNumber(0), LineModifier::Red);
-  builder.InsertModifier(ColumnNumber(1), LineModifier::Green);
-  builder.InsertModifier(ColumnNumber(2), LineModifier::Blue);
-  builder.InsertModifier(ColumnNumber(3), LineModifier::Bold);
-  builder.InsertModifier(ColumnNumber(4), LineModifier::Dim);
+  builder.InsertModifier(ColumnNumber(0), Color::Red);
+  builder.InsertModifier(ColumnNumber(1), Color::Green);
+  builder.InsertModifier(ColumnNumber(2), Color::Blue);
+  builder.InsertModifier(ColumnNumber(3), StyleAttribute::Bold);
+  builder.InsertModifier(ColumnNumber(4), StyleAttribute::Dim);
   Line line = builder.Copy().Build();
 
   {
@@ -47,9 +47,9 @@ void TestLineDeleteCharacters() {
     CHECK_EQ(line_copy.Copy().Build().contents().ToBytes(), "al");
     CHECK_EQ(line_copy.modifiers_size(), 2ul);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
-                   LineModifier::Red);
+                   Color::Red);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(1)),
-                   LineModifier::Green);
+                   Color::Green);
   }
 
   {
@@ -58,58 +58,58 @@ void TestLineDeleteCharacters() {
     CHECK_EQ(line_copy.Copy().Build().contents().ToBytes(), "ajo");
     CHECK_EQ(line_copy.modifiers_size(), 3ul);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
-                   LineModifier::Red);
+                   Color::Red);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(1)),
-                   LineModifier::Bold);
+                   StyleAttribute::Bold);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(2)),
-                   LineModifier::Dim);
+                   StyleAttribute::Dim);
   }
 
   // Original isn't modified.
   CHECK_EQ(line.EndColumn(), ColumnNumber(5));
   CHECK_EQ(line.modifiers().size(), 5ul);
-  CheckSingleton(line.modifiers().at(ColumnNumber(0)), LineModifier::Red);
-  CheckSingleton(line.modifiers().at(ColumnNumber(1)), LineModifier::Green);
-  CheckSingleton(line.modifiers().at(ColumnNumber(2)), LineModifier::Blue);
-  CheckSingleton(line.modifiers().at(ColumnNumber(3)), LineModifier::Bold);
-  CheckSingleton(line.modifiers().at(ColumnNumber(4)), LineModifier::Dim);
+  CheckSingleton(line.modifiers().at(ColumnNumber(0)), Color::Red);
+  CheckSingleton(line.modifiers().at(ColumnNumber(1)), Color::Green);
+  CheckSingleton(line.modifiers().at(ColumnNumber(2)), Color::Blue);
+  CheckSingleton(line.modifiers().at(ColumnNumber(3)), StyleAttribute::Bold);
+  CheckSingleton(line.modifiers().at(ColumnNumber(4)), StyleAttribute::Dim);
 }
 
 void TestLineAppend() {
   LineBuilder line{SingleLine{LazyString{L"abc"}}};
-  line.modifiers().at(ColumnNumber(1)).insert(LineModifier::Red);
+  line.modifiers().at(ColumnNumber(1)).insert(Color::Red);
   line.modifiers().at(ColumnNumber(2));
 
   LineBuilder suffix{SingleLine{LazyString{L"def"}}};
-  suffix.InsertModifier(ColumnNumber(1), LineModifier::Bold);
+  suffix.InsertModifier(ColumnNumber(1), StyleAttribute::Bold);
   suffix.set_modifiers(ColumnNumber(2), {});
   line.Append(std::move(suffix));
 
   CHECK_EQ(line.modifiers().size(), 4ul);
   CHECK(line.modifiers().at(ColumnNumber(1)) ==
-        LineModifierSet({LineModifier::Red}));
-  CHECK(line.modifiers().at(ColumnNumber(2)) == LineModifierSet());
+        Style({Color::Red}));
+  CHECK(line.modifiers().at(ColumnNumber(2)) == Style());
   CHECK(line.modifiers().at(ColumnNumber(4)) ==
-        LineModifierSet({LineModifier::Bold}));
-  CHECK(line.modifiers().at(ColumnNumber(5)) == LineModifierSet());
+        Style({StyleAttribute::Bold}));
+  CHECK(line.modifiers().at(ColumnNumber(5)) == Style());
 }
 
 void TestLineAppendEmpty() {
   LineBuilder line{SingleLine{LazyString{L"abc"}}};
-  line.InsertModifier(ColumnNumber(0), LineModifier::Red);
+  line.InsertModifier(ColumnNumber(0), Color::Red);
 
   line.Append(LineBuilder());
 
   CHECK_EQ(line.modifiers_size(), 1ul);
   CHECK(line.modifiers().at(ColumnNumber(0)) ==
-        LineModifierSet({LineModifier::Red}));
+        Style({Color::Red}));
 
   line.Append(LineBuilder{SingleLine{LazyString{L"def"}}});
 
   CHECK_EQ(line.modifiers_size(), 2ul);
   CHECK(line.modifiers().at(ColumnNumber(0)) ==
-        LineModifierSet({LineModifier::Red}));
-  CHECK(line.modifiers().at(ColumnNumber(3)) == LineModifierSet());
+        Style({Color::Red}));
+  CHECK(line.modifiers().at(ColumnNumber(3)) == Style());
   CHECK_EQ(line.modifiers_size(), 2ul);
 }
 }  // namespace

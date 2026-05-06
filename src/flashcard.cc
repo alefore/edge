@@ -38,8 +38,9 @@ using afc::infrastructure::HumanReadableDate;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::GetValueOrNullOpt;
@@ -195,9 +196,9 @@ LineSequence PrepareCardContents(LineSequence original, SingleLine answer,
     // This is quite inefficient… maybe we should optimize it.
     for (ColumnNumber index; index.ToDelta() < input.size(); ++index) {
       if (StartsWith(input.Substring(index), answer)) {
-        output.AppendString(
-            answer_cover,
-            LineModifierSet{LineModifier::Cyan, LineModifier::Reverse});
+        output.AppendString(answer_cover,
+                            Style{.foreground_color = Color::Cyan,
+                                  .attributes = StyleAttribute::Reverse});
         index += answer.size();
       } else
         output.AppendCharacter(input.get(index), {});

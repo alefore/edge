@@ -25,7 +25,7 @@ struct TokenAndModifiers {
   // corresponding portion from `line` will be used.
   language::lazy_string::Token token;
   // Set of modifiers to apply.
-  infrastructure::screen::LineModifierSet modifiers;
+  infrastructure::screen::Style modifiers;
 };
 
 language::text::Line ColorizeLine(language::lazy_string::LazyString line,

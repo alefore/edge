@@ -69,15 +69,14 @@ class Line {
   std::wstring ToString() const { return contents().read().ToString(); }
 
   const language::LazyValue<LineMetadataMap>& metadata() const;
-  const std::map<lazy_string::ColumnNumber,
-                 afc::infrastructure::screen::LineModifierSet>&
+  const std::map<lazy_string::ColumnNumber, afc::infrastructure::screen::Style>&
   modifiers() const;
 
   // Returns the modifiers that should be applied at a given column.
-  afc::infrastructure::screen::LineModifierSet modifiers_at_position(
+  afc::infrastructure::screen::Style modifiers_at_position(
       lazy_string::ColumnNumber column) const;
 
-  afc::infrastructure::screen::LineModifierSet end_of_line_modifiers() const;
+  afc::infrastructure::screen::Style end_of_line_modifiers() const;
 
   std::function<void()> explicit_delete_observer() const;
 
@@ -96,11 +95,8 @@ class Line {
     lazy_string::SingleLine contents = lazy_string::SingleLine{};
 
     // Columns without an entry here reuse the last present value. If no
-    // previous value, assume afc::infrastructure::screen::LineModifierSet().
-    // There's no need to include RESET: it is assumed implicitly. In other
-    // words, modifiers don't carry over past an entry.
-    std::map<lazy_string::ColumnNumber,
-             afc::infrastructure::screen::LineModifierSet>
+    // previous value, assume afc::infrastructure::screen::Style{}.
+    std::map<lazy_string::ColumnNumber, afc::infrastructure::screen::Style>
         modifiers = {};
 
     // The semantics of this is that any characters at the end of the line
@@ -110,7 +106,7 @@ class Line {
     // If two lines are concatenated, the end of line modifiers of the first
     // line is entirely ignored; it doesn't affect the first characters from the
     // second line.
-    afc::infrastructure::screen::LineModifierSet end_of_line_modifiers = {};
+    afc::infrastructure::screen::Style end_of_line_modifiers = {};
 
     language::LazyValue<LineMetadataMap> metadata =
         language::WrapAsLazyValue(LineMetadataMap{});

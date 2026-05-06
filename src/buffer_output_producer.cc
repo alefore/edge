@@ -24,8 +24,9 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlay;
 using afc::infrastructure::screen::VisualOverlayKey;
 using afc::infrastructure::screen::VisualOverlayMap;
@@ -69,15 +70,11 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
       std::nullopt, [generator]() {
         auto output = generator.generate();
         LineBuilder line_options(output.line);
-        std::map<language::lazy_string::ColumnNumber, LineModifierSet>
-            new_modifiers;
+        std::map<language::lazy_string::ColumnNumber, Style> new_modifiers;
         new_modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers()) {
-          auto it = m.second.insert(LineModifier::Reverse);
-          if (!it.second) {
-            m.second.erase(it.first);
-          }
           new_modifiers[m.first] = m.second;
+          new_modifiers[m.first].attributes ^= StyleAttribute::Reverse;
         }
         line_options.set_modifiers(std::move(new_modifiers));
         output.line = std::move(line_options).Build();
@@ -91,11 +88,11 @@ LineWithCursor::Generator ParseTreeHighlighter(
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
         LineBuilder line_options(output.line);
-        std::map<language::lazy_string::ColumnNumber, LineModifierSet>
-            modifiers = line_options.modifiers();
+        std::map<language::lazy_string::ColumnNumber, Style> modifiers =
+            line_options.modifiers();
         modifiers.erase(modifiers.lower_bound(begin),
                         modifiers.lower_bound(end));
-        modifiers[begin] = {LineModifier::Blue};
+        modifiers[begin] = {Color::Blue};
         line_options.set_modifiers(std::move(modifiers));
         output.line = std::move(line_options).Build();
         return output;
@@ -107,9 +104,9 @@ LineWithCursor::Generator ParseTreeHighlighter(
 // If range.begin().column is non-zero, the columns in the output will have
 // already subtracted it. In other words, the columns in the output are
 // relative to range.begin().column, rather than absolute.
-void GetSyntaxModifiersForLine(
-    LineRange range, const ParseTree& tree, LineModifierSet child_modifiers,
-    std::map<ColumnNumber, LineModifierSet>& output) {
+void GetSyntaxModifiersForLine(LineRange range, const ParseTree& tree,
+                               Style child_modifiers,
+                               std::map<ColumnNumber, Style>& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
   if (range.read().Intersection(tree.range()).empty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
@@ -120,7 +117,7 @@ void GetSyntaxModifiersForLine(
   };
 
   PushCurrentModifiers(tree.range().end());
-  child_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
+  child_modifiers.merge(tree.modifiers());
   PushCurrentModifiers(std::max(range.read().begin(), tree.range().begin()));
 
   const auto& children = tree.children();
@@ -136,37 +133,26 @@ void GetSyntaxModifiersForLine(
   }
 }
 
-std::optional<LineModifier> GetColor(const LineModifierSet& input) {
-  if (input.find(LineModifier::White) != input.end())
-    return LineModifier::White;
-  return std::nullopt;
-}
-
-void ChangeColor(LineModifierSet& modifiers, LineModifier color) {
-  EraseOrDie(modifiers, color);
-  modifiers.insert(color == LineModifier::White ? LineModifier::Cyan
-                                                : LineModifier::White);
-}
-
-LineModifierSet MergeSets(const LineModifierSet& parent,
-                          const LineModifierSet& child) {
-  if (parent.empty()) return child;
-  LineModifierSet output = parent;
-  if (std::optional<LineModifier> parent_color = GetColor(parent);
-      parent_color.has_value() && parent_color == GetColor(child))
-    ChangeColor(output, parent_color.value());
+Style MergeSets(const Style& parent, const Style& child) {
+  Style output = parent;
+  output.merge(child);
+  if (parent.foreground_color == child.foreground_color &&
+      parent.foreground_color.has_value())
+    output.foreground_color = output.foreground_color.value() == Color::White
+                                  ? Color::Cyan
+                                  : Color::White;
   return output;
 }
 
-std::map<ColumnNumber, LineModifierSet> MergeModifiers(
-    const std::map<ColumnNumber, LineModifierSet>& parent_modifiers,
-    const std::map<ColumnNumber, LineModifierSet>& child_modifiers,
+std::map<ColumnNumber, Style> MergeModifiers(
+    const std::map<ColumnNumber, Style>& parent_modifiers,
+    const std::map<ColumnNumber, Style>& child_modifiers,
     ColumnNumber end_column) {
-  std::map<ColumnNumber, LineModifierSet> output;
+  std::map<ColumnNumber, Style> output;
   auto parent_it = parent_modifiers.begin();
   auto child_it = child_modifiers.begin();
-  LineModifierSet current_parent_modifiers;
-  LineModifierSet current_child_modifiers;
+  Style current_parent_modifiers;
+  Style current_child_modifiers;
   while ((child_it != child_modifiers.end() && child_it->first <= end_column) ||
          parent_it != parent_modifiers.end()) {
     ColumnNumber position;
@@ -210,7 +196,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     LineWithCursor input = generator.generate();
     LineBuilder options(input.line);
 
-    std::map<ColumnNumber, LineModifierSet> child_modifiers;
+    std::map<ColumnNumber, Style> child_modifiers;
     GetSyntaxModifiersForLine(range, root.value(), {}, child_modifiers);
     VLOG(8) << "Syntax tokens for " << range << ": " << child_modifiers.size();
 
@@ -261,14 +247,15 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                BufferContentsViewLayout::Line screen_line_inner,
                bool atomic_lines, bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode,
-               std::optional<LineModifier> line_modifier_to_apply) {
+               std::optional<StyleAttribute> style_attribute_to_apply) {
               TRACK_OPERATION(ProduceBufferView_GeneratorBody);
               LineWithCursor::ViewOptions options{
-                  .line = line_modifier_to_apply.has_value()
+                  .line = style_attribute_to_apply.has_value()
                               ? LineBuilder{line_contents_with_hash.value
                                                 ->contents(),
-                                            LineModifierSet{
-                                                line_modifier_to_apply.value()}}
+                                            Style{.attributes =
+                                                      style_attribute_to_apply
+                                                          .value()}}
                                     .Build()
                               : *line_contents_with_hash.value,
                   .initial_column = screen_line_inner.range.begin_column(),
@@ -288,32 +275,31 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     switch (cursor_mode) {
                       case EditorMode::CursorMode::Default:
                         options.modifiers_main_cursor = {
-                            multiple_cursors ? LineModifier::Green
-                                             : LineModifier::White};
+                            multiple_cursors ? Color::Green : Color::White};
                         break;
                       case EditorMode::CursorMode::Inserting:
-                        options.modifiers_main_cursor = {LineModifier::Yellow};
+                        options.modifiers_main_cursor = {Color::Yellow};
                         break;
                       case EditorMode::CursorMode::Overwriting:
-                        options.modifiers_main_cursor = {
-                            LineModifier::Red, LineModifier::Underline};
+                        options.modifiers_main_cursor =
+                            Style{.foreground_color = Color::Red,
+                                  .attributes = StyleAttribute::Underline};
                         break;
                     }
                     options.modifiers_inactive_cursors =
-                        multiple_cursors
-                            ? options.modifiers_main_cursor
-                            : LineModifierSet({LineModifier::Blue});
+                        multiple_cursors ? options.modifiers_main_cursor
+                                         : Style({Color::Blue});
                     // The inactive cursors need the REVERSE modifier to ensure
                     // they get highlighted. The active one doesn't need it,
                     // since the terminal handler actually places the real
                     // cursor in the corresponding position.
-                    options.modifiers_inactive_cursors.insert(
-                        LineModifier::Reverse);
+                    options.modifiers_inactive_cursors.attributes |=
+                        StyleAttribute::Reverse;
                     break;
                   case Widget::OutputProducerOptions::MainCursorDisplay::
                       kInactive:
-                    options.modifiers_main_cursor = {LineModifier::Blue};
-                    options.modifiers_inactive_cursors = {LineModifier::Blue};
+                    options.modifiers_main_cursor = {Color::Blue};
+                    options.modifiers_inactive_cursors = {Color::Blue};
                     break;
                 }
               }
@@ -333,7 +319,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                  : buffer.mode_cursor_mode()),
             buffer.Read(buffer_variables::flow_mode) &&
                     line != buffer.position().line
-                ? std::optional<LineModifier>(LineModifier::Dim)
+                ? std::optional<StyleAttribute>(StyleAttribute::Dim)
                 : std::nullopt));
     generator_track_operation = nullptr;
 

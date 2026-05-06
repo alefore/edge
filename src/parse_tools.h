@@ -12,7 +12,7 @@ namespace afc::editor {
 
 struct ActionPush {
   language::lazy_string::ColumnNumber column;
-  infrastructure::screen::LineModifierSet modifiers;
+  infrastructure::screen::Style modifiers;
   ParseTree::PropertyMap properties;
 };
 
@@ -21,7 +21,7 @@ struct ActionPop {
 };
 
 struct ActionSetFirstChildModifiers {
-  infrastructure::screen::LineModifierSet modifiers;
+  infrastructure::screen::Style modifiers;
 };
 
 using Action =
@@ -65,7 +65,7 @@ class ParseData {
   void SetState(size_t state) { parse_results_.states_stack.back() = state; }
 
   void SetFirstChildModifiers(
-      infrastructure::screen::LineModifierSet modifiers) {
+      infrastructure::screen::Style modifiers) {
     parse_results_.actions.emplace_back(
         ActionSetFirstChildModifiers{.modifiers = modifiers});
   }
@@ -74,11 +74,11 @@ class ParseData {
 
   void Push(size_t nested_state,
             language::lazy_string::ColumnNumberDelta rewind_column,
-            infrastructure::screen::LineModifierSet modifiers,
+            infrastructure::screen::Style modifiers,
             ParseTree::PropertyMap properties);
 
   void PushAndPop(language::lazy_string::ColumnNumberDelta rewind_column,
-                  infrastructure::screen::LineModifierSet modifiers,
+                  infrastructure::screen::Style modifiers,
                   ParseTree::PropertyMap properties = {});
 
  private:

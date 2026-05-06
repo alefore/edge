@@ -20,8 +20,9 @@ namespace gc = afc::language::gc;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
@@ -142,10 +143,10 @@ LineBuilder DescribeSequenceWithQuotes(
     const std::vector<infrastructure::ExtendedChar>& input) {
   LineBuilder output;
   output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
-                      LineModifierSet{LineModifier::Dim});
+                      Style{.attributes = StyleAttribute::Dim});
   output.Append(DescribeSequence(input));
   output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
-                      LineModifierSet{LineModifier::Dim});
+                      Style{.attributes = StyleAttribute::Dim});
   return output;
 }
 

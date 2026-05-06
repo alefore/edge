@@ -7,22 +7,24 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor::transformation {
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::VisualOverlayKey;
+using afc::infrastructure::screen::VisualOverlayMap;
+using afc::infrastructure::screen::VisualOverlayPriority;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::VisualOverlayKey;
-using infrastructure::screen::VisualOverlayMap;
-using infrastructure::screen::VisualOverlayPriority;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineSequence;
-using language::text::Range;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
 
+namespace afc::editor::transformation {
 using ::operator<<;
 
 Bisect::Bisect(Structure structure, std::vector<Direction> directions)
@@ -250,14 +252,16 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
       VisualOverlayMap overlays;
       if (range.value().begin() != center)
         overlays[kPriority][kKey].insert(
-            {range.value().begin(), afc::infrastructure::screen::VisualOverlay{
-                                        .content = SingleLine{LazyString{L"⟦"}},
-                                        .modifiers = {LineModifier::Reverse}}});
+            {range.value().begin(),
+             afc::infrastructure::screen::VisualOverlay{
+                 .content = SingleLine{LazyString{L"⟦"}},
+                 .modifiers = Style{.attributes = StyleAttribute::Reverse}}});
       if (range.value().end() != center)
         overlays[kPriority][kKey].insert(
-            {range.value().end(), afc::infrastructure::screen::VisualOverlay{
-                                      .content = SingleLine{LazyString{L"⟧"}},
-                                      .modifiers = {LineModifier::Reverse}}});
+            {range.value().end(),
+             afc::infrastructure::screen::VisualOverlay{
+                 .content = SingleLine{LazyString{L"⟧"}},
+                 .modifiers = Style{.attributes = StyleAttribute::Reverse}}});
       output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});
       break;
   }

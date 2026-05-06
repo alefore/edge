@@ -10,8 +10,9 @@
 #include "src/path_flags.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::CaptureAndHash;
 using afc::language::GetValueOrDie;
 using afc::language::MakeNonNullShared;
@@ -23,47 +24,33 @@ using afc::language::text::LineBuilder;
 
 namespace afc::editor {
 
-std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
-  using flags::Color;
+std::vector<Color> GetBufferFlag(const OpenBuffer& buffer) {
   using flags::InputKey;
   using flags::InputValue;
   static const InputKey path{NON_EMPTY_SINGLE_LINE_CONSTANT(L"path")};
 
-  static const std::map<Color, LineModifier> modifiers = {
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"red")}, LineModifier::Red},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"green")}, LineModifier::Green},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"blue")}, LineModifier::Blue},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"cyan")}, LineModifier::Cyan},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"yellow")}, LineModifier::Yellow},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"magenta")},
-       LineModifier::Magenta},
-      {Color{NON_EMPTY_SINGLE_LINE_CONSTANT(L"white")}, LineModifier::White}};
-  static const std::vector<Color> color_values = container::MaterializeVector(
-      modifiers | std::views::transform([](auto p) { return p.first; }));
+  static const std::vector<Color> colors = {
+      Color::Red,    Color::Green,   Color::Blue, Color::Cyan,
+      Color::Yellow, Color::Magenta, Color::White};
   std::vector<InputKey> spec = {path, path, path};
-  std::vector<Color> flag = flags::GenerateFlags(
-      spec, color_values,
-      {{path, InputValue{buffer.Read(buffer_variables::path)}}});
-  CHECK_EQ(flag.size(), spec.size());
-  return container::MaterializeVector(flag |
-                                      std::views::transform([](Color color) {
-                                        return GetValueOrDie(modifiers, color);
-                                      }));
+  return flags::GenerateFlags(
+      spec, colors, {{path, InputValue{buffer.Read(buffer_variables::path)}}});
 }
 
 LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
   return LineWithCursor::Generator::Vector{
-      .lines = container::MaterializeVector(
-          GetBufferFlag(buffer) | std::views::transform([](auto modifier) {
-            return LineWithCursor::Generator::New(CaptureAndHash(
-                [](LineModifier m) {
-                  LineBuilder options;
-                  options.AppendString(
-                      SingleLine::Padding<L'█'>(ColumnNumberDelta(80)),
-                      LineModifierSet{m});
-                  return LineWithCursor{.line = std::move(options).Build()};
-                },
-                modifier));
-          }))};
+      .lines = GetBufferFlag(buffer) | std::views::transform([](auto modifier) {
+                 return LineWithCursor::Generator::New(CaptureAndHash(
+                     [](Color m) {
+                       LineBuilder options;
+                       options.AppendString(
+                           SingleLine::Padding<L'█'>(ColumnNumberDelta{80}),
+                           Style{.foreground_color = m});
+                       return LineWithCursor{.line =
+                                                 std::move(options).Build()};
+                     },
+                     modifier));
+               }) |
+               std::ranges::to<std::vector>()};
 }
 }  // namespace afc::editor

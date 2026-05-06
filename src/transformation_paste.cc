@@ -18,8 +18,8 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
@@ -51,12 +51,12 @@ futures::Value<CompositeTransformation::Output> Paste::Apply(
                 .modifiers = {.insertion = input.modifiers.insertion,
                               .repetitions = input.modifiers.repetitions},
                 .modifiers_set =
-                    std::invoke([&input] -> std::optional<LineModifierSet> {
+                    std::invoke([&input] -> std::optional<Style> {
                       switch (input.mode) {
                         case transformation::Input::Mode::Final:
                           return std::nullopt;
                         case transformation::Input::Mode::Preview:
-                          return LineModifierSet{LineModifier::Cyan};
+                          return Style{Color::Cyan};
                       }
                       LOG(FATAL) << "Invalid input mode.";
                       return std::nullopt;

@@ -20,8 +20,9 @@ namespace container = afc::language::container;
 
 using afc::concurrent::MakeProtected;
 using afc::concurrent::Protected;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::compute_hash;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -187,14 +188,10 @@ void ParseTree::set_range(Range range) { range_ = range; }
 
 size_t ParseTree::depth() const { return depth_; }
 
-const LineModifierSet& ParseTree::modifiers() const { return modifiers_; }
+const Style& ParseTree::modifiers() const { return modifiers_; }
 
-void ParseTree::set_modifiers(LineModifierSet modifiers) {
+void ParseTree::set_modifiers(Style modifiers) {
   modifiers_ = std::move(modifiers);
-}
-
-void ParseTree::InsertModifier(LineModifier modifier) {
-  modifiers_.insert(modifier);
 }
 
 const std::vector<ParseTree>& ParseTree::children() const { return children_; }
@@ -221,7 +218,7 @@ void ParseTree::Reset() {
   children_.clear();
   children_hashes_ = 0;
   depth_ = 0;
-  set_modifiers(LineModifierSet());
+  set_modifiers(Style());
 }
 
 void ParseTree::PushChild(ParseTree child) {
@@ -232,7 +229,7 @@ void ParseTree::PushChild(ParseTree child) {
 
 size_t ParseTree::hash() const {
   return language::hash_combine(
-      compute_hash(range_, MakeHashableIteratorRange(modifiers_),
+      compute_hash(range_, modifiers_,
                    MakeHashableIteratorRange(properties_ | std::views::keys),
                    MakeHashableIteratorRange(properties_ | std::views::values)),
       children_hashes_);
@@ -403,7 +400,8 @@ class WordsTreeParser : public TreeParser {
             contents.contents().Substring(begin, column - begin);
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
-        if (Contains(typos_, keyword)) child.InsertModifier(LineModifier::Red);
+        if (Contains(typos_, keyword))
+          child.set_modifiers(Style{.foreground_color = Color::Red});
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));
       }

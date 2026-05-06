@@ -12,8 +12,9 @@
 #include "src/transformation_type.h"
 #include "src/transformation_vm.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -66,10 +67,10 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       .final_position = input.modifiers.direction == Direction::Backwards
                             ? transformation::Insert::FinalPosition::Start
                             : transformation::Insert::FinalPosition::End,
-      .modifiers_set =
-          input.mode == transformation::Input::Mode::Preview
-              ? LineModifierSet({LineModifier::Underline, LineModifier::Blue})
-              : std::optional<LineModifierSet>()});
+      .modifiers_set = input.mode == transformation::Input::Mode::Preview
+                           ? Style{.foreground_color = Color::Blue,
+                                   .attributes = StyleAttribute::Underline}
+                           : std::optional<Style>()});
 
   return output;
 }

@@ -17,7 +17,7 @@
 #include "src/tests/tests.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::compute_hash;
 using afc::language::MakeHashableIteratorRange;
 using afc::language::MakeNonNullShared;
@@ -125,7 +125,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
           std::optional<ColumnNumber> cursor;
           LineBuilder options;
           ColumnNumber initial_column;
-          LineModifierSet current_modifiers;
+          Style current_modifiers;
           // This takes wide characters into account (i.e., it may differ from
           // options.EndColumn() when there are wide characters).
           ColumnNumber columns_shown;

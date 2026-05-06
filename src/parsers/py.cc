@@ -15,10 +15,11 @@
 
 namespace container = afc::language::container;
 
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::HashToModifiers;
 using afc::infrastructure::screen::HashToModifiersBold;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -55,8 +56,8 @@ static const std::unordered_set<wchar_t> identifier_chars =
         L"_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"});
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view{L"1234567890"});
-static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::BgRed, LineModifier::Bold});
+static const Style BAD_PARSE_MODIFIERS =
+    Style{.background_color = Color::Red, .attributes = StyleAttribute::Bold};
 
 static const std::unordered_set<NonEmptySingleLine>
     kPythonBuiltinFunctionsAndTypes =
@@ -182,24 +183,25 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     if (str == SINGLE_LINE_CONSTANT(L"f") && result->seek().read() == L'"') {
       result->seek().Once();
       CHECK(ParseQuotedString(
-                result, L'"', {LineModifier::Yellow}, {},
+                result, L'"', Style{.foreground_color = Color::Yellow}, {},
                 NestedExpressionSyntax{
                     .prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"{"),
                     .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
-                    .prefix_suffix_modifiers = {LineModifier::Dim},
-                    .modifiers = {LineModifier::Green}},
+                    .prefix_suffix_modifiers =
+                        Style{.attributes = StyleAttribute::Dim},
+                    .modifiers = Style{.foreground_color = Color::Green}},
                 MultipleLinesSupport::kReject,
                 CurrentState::kStart) == ParseQuotedStringState::Done);
       return;
     }
 
-    LineModifierSet modifiers;
+    Style modifiers;
     if (Contains(kPythonBuiltinFunctionsAndTypes, str)) {
-      modifiers.insert(LineModifier::Blue);
+      modifiers.foreground_color = Color::Blue;
     } else if (Contains(keywords_, str)) {
-      modifiers.insert(LineModifier::Cyan);
+      modifiers.foreground_color = Color::Cyan;
     } else if (Contains(typos_, str)) {
-      modifiers.insert(LineModifier::Red);
+      modifiers.foreground_color = Color::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
                                   HashToModifiersBold::Never);
@@ -231,7 +233,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       ColumnNumberDelta length =
           result->position().column - decorator_name_start_position.column;
 
-      result->PushAndPop(length + ColumnNumberDelta(1), {LineModifier::Green});
+      result->PushAndPop(length + ColumnNumberDelta(1), {Color::Green});
       return;
     }
 
@@ -240,7 +242,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       result->seek().ToEndOfLine();
       result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
                              original_position.column,
-                         {LineModifier::Blue});
+                         {Color::Blue});
       return;
     }
 
@@ -257,12 +259,12 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
           seek.Once();
           result->Push(c == L'"' ? IN_TRIPLE_DOUBLE_QUOTE_STRING
                                  : IN_TRIPLE_SINGLE_QUOTE_STRING,
-                       ColumnNumberDelta(3), {LineModifier::Yellow}, {});
+                       ColumnNumberDelta(3), {Color::Yellow}, {});
           return;
         }
       }
       result->set_position(position_after_first_quote);
-      ParseQuotedString(result, c, {LineModifier::Yellow}, {});
+      ParseQuotedString(result, c, {Color::Yellow}, {});
       return;
     }
 
@@ -289,8 +291,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
         expected_state = BRACE_DEFAULT;
 
       if (result->state() == expected_state) {
-        LineModifierSet modifiers = HashToModifiers(
-            result->AddAndGetNesting(), HashToModifiersBold::Sometimes);
+        Style modifiers = HashToModifiers(result->AddAndGetNesting(),
+                                          HashToModifiersBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
@@ -301,7 +303,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {LineModifier::Yellow}, {});
+      parsers::ParseNumber(result, {Color::Yellow}, {});
       return;
     }
   }

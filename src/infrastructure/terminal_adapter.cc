@@ -18,8 +18,9 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/tests/fuzz.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -58,10 +59,10 @@ std::optional<LineColumn> TerminalAdapter::position() const {
 void TerminalAdapter::SetPositionToZero() { data_->position = LineColumn(); }
 
 futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
-    LazyString str, const LineModifierSet& initial_modifiers) {
+    LazyString str, const Style& initial_modifiers) {
   data_->position.line =
       std::min(data_->position.line, data_->receiver->contents().EndLine());
-  LineModifierSet modifiers = initial_modifiers;
+  Style modifiers = initial_modifiers;
 
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str;
@@ -85,11 +86,11 @@ futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
       read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
-      VLOG(9) << "Modifiers: " << modifiers.size();
+      VLOG(9) << "Modifiers: " << modifiers;
       CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c
-              << " (modifiers: " << modifiers.size() << ", position "
+              << " (modifiers: " << modifiers << ", position "
               << data_->position << ")";
       if (data_->position.column >=
           ColumnNumber(0) + LastViewSize(data_.value()).column) {
@@ -122,7 +123,7 @@ std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
 }
 
 ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
-    LazyString str, ColumnNumber read_index, LineModifierSet* modifiers) {
+    LazyString str, ColumnNumber read_index, Style* modifiers) {
   if (str.size() <= read_index.ToDelta()) {
     LOG(INFO) << "Unhandled character sequence: " << str.Substring(read_index)
               << ")\n";
@@ -189,47 +190,49 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
 
       case 'm':
         VLOG(9) << "Terminal: m";
-        static const std::unordered_map<std::string, LineModifierSet> on{
-            {"", {}},
-            {"0", {}},
-            {"0;30", {LineModifier::Black}},
-            {"0;31", {LineModifier::Red}},
-            {"0;32", {LineModifier::Green}},
-            {"0;33", {LineModifier::Yellow}},
-            {"0;34", {LineModifier::Blue}},
-            {"0;35", {LineModifier::Magenta}},
-            {"0;36", {LineModifier::Cyan}},
-            {"1", {LineModifier::Bold}},
-            {"1;30", {LineModifier::Bold, LineModifier::Black}},
-            {"1;31", {LineModifier::Bold, LineModifier::Red}},
-            {"1;32", {LineModifier::Bold, LineModifier::Green}},
-            {"1;33", {LineModifier::Bold, LineModifier::Yellow}},
-            {"1;34", {LineModifier::Bold, LineModifier::Blue}},
-            {"1;35", {LineModifier::Bold, LineModifier::Magenta}},
-            {"1;36", {LineModifier::Bold, LineModifier::Cyan}},
+        static const std::unordered_map<std::string, Style> on{
+            {"", Style{}},
+            {"0", Style{}},
+            {"0;30", Style{.foreground_color = Color::Black}},
+            {"0;31", Style{.foreground_color = Color::Red}},
+            {"0;32", Style{.foreground_color = Color::Green}},
+            {"0;33", Style{.foreground_color = Color::Yellow}},
+            {"0;34", Style{.foreground_color = Color::Blue}},
+            {"0;35", Style{.foreground_color = Color::Magenta}},
+            {"0;36", Style{.foreground_color = Color::Cyan}},
+            {"1", Style{.attributes = StyleAttribute::Bold}},
+            {"1;30", Style{.foreground_color = Color::Black,
+                           .attributes = StyleAttribute::Bold}},
+            {"1;31", Style{.foreground_color = Color::Red,
+                           .attributes = StyleAttribute::Bold}},
+            {"1;32", Style{.foreground_color = Color::Green,
+                           .attributes = StyleAttribute::Bold}},
+            {"1;33", Style{.foreground_color = Color::Yellow,
+                           .attributes = StyleAttribute::Bold}},
+            {"1;34", Style{.foreground_color = Color::Blue,
+                           .attributes = StyleAttribute::Bold}},
+            {"1;35", Style{.foreground_color = Color::Magenta,
+                           .attributes = StyleAttribute::Bold}},
+            {"1;36", Style{.foreground_color = Color::Cyan,
+                           .attributes = StyleAttribute::Bold}},
             // TODO(alejo): Support italic (3) on. "23" is Fraktur off, italic
             // off.
-            {"3", {}},
-            {"4", {LineModifier::Underline}},
-            {"30", {LineModifier::Black}},
-            {"31", {LineModifier::Red}},
-            {"32", {LineModifier::Green}},
-            {"33", {LineModifier::Yellow}},
-            {"34", {LineModifier::Blue}},
-            {"35", {LineModifier::Magenta}},
-            {"36", {LineModifier::Cyan}},
+            {"3", Style{}},
+            {"4", Style{.attributes = StyleAttribute::Underline}},
+            {"30", Style{.foreground_color = Color::Black}},
+            {"31", Style{.foreground_color = Color::Red}},
+            {"32", Style{.foreground_color = Color::Green}},
+            {"33", Style{.foreground_color = Color::Yellow}},
+            {"34", Style{.foreground_color = Color::Blue}},
+            {"35", Style{.foreground_color = Color::Magenta}},
+            {"36", Style{.foreground_color = Color::Cyan}},
         };
-        static const std::unordered_map<std::string, LineModifierSet> off{
-            {"24", {LineModifier::Underline}}};
+        static const std::unordered_map<std::string, StyleAttribute> off{
+            {"24", StyleAttribute::Underline}};
         if (auto it_on = on.find(sequence); it_on != on.end()) {
           *modifiers = it_on->second;
         } else if (auto it_off = off.find(sequence); it_off != off.end()) {
-          for (const auto& m : it_off->second) {
-            modifiers->erase(m);
-          }
-        } else if (sequence == "0;36") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::Cyan);
+          modifiers->attributes &= ~it_off->second;
         } else {
           LOG(INFO) << "Unhandled character sequence: (" << sequence;
         }

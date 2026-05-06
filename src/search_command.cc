@@ -21,8 +21,8 @@ using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
 using afc::futures::IterationControlCommand;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -112,21 +112,21 @@ void DoSearch(OpenBuffer& buffer, SearchOptions options) {
 ColorizePromptOptions SearchResultsModifiers(
     const SingleLine& line,
     ValueOrError<SearchResultsSummary> result_or_error) {
-  LineModifierSet modifiers = Visit(
+  Style modifiers = Visit(
       result_or_error,
-      [&](const SearchResultsSummary& result) -> LineModifierSet {
+      [&](const SearchResultsSummary& result) -> Style {
         switch (result.matches) {
           case 0:
             return {};
           case 1:
-            return {LineModifier::Cyan};
+            return {Color::Cyan};
           case 2:
-            return {LineModifier::Yellow};
+            return {Color::Yellow};
           default:
-            return {LineModifier::Green};
+            return {Color::Green};
         }
       },
-      [&](Error) { return LineModifierSet{LineModifier::Red}; });
+      [&](Error) { return Style{Color::Red}; });
 
   return Visit(
       NonEmptySingleLine::New(line),

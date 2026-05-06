@@ -14,8 +14,9 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::compute_hash;
 using afc::language::Error;
 using afc::language::MakeHashableIteratorRange;
@@ -47,11 +48,10 @@ size_t Line::ComputeHash(const Line::Data& data) {
       data.contents,
       MakeHashableIteratorRange(
           data.modifiers.begin(), data.modifiers.end(),
-          [](const std::pair<ColumnNumber, LineModifierSet>& value) {
-            return compute_hash(value.first,
-                                MakeHashableIteratorRange(value.second));
+          [](const std::pair<ColumnNumber, Style>& value) {
+            return compute_hash(value.first, value.second);
           }),
-      MakeHashableIteratorRange(data.end_of_line_modifiers),
+      data.end_of_line_modifiers,
       MakeHashableIteratorRange(
           data.metadata.get().begin(), data.metadata.get().end(),
           [](const std::pair<LineMetadataKey, futures::Progressive<SingleLine>>&
@@ -83,23 +83,22 @@ const LazyValue<LineMetadataMap>& Line::metadata() const {
   return data_->metadata;
 }
 
-const std::map<ColumnNumber, afc::infrastructure::screen::LineModifierSet>&
+const std::map<ColumnNumber, afc::infrastructure::screen::Style>&
 Line::modifiers() const {
   return data_->modifiers;
 }
 
-afc::infrastructure::screen::LineModifierSet Line::modifiers_at_position(
+afc::infrastructure::screen::Style Line::modifiers_at_position(
     ColumnNumber column) const {
-  if (data_->modifiers.empty()) return LineModifierSet{};
+  if (data_->modifiers.empty()) return Style{};
   auto bound = data_->modifiers.lower_bound(column);
   if (bound != data_->modifiers.end() && bound->first == column)
     return bound->second;  // Exact match.
-  if (bound == data_->modifiers.begin()) return LineModifierSet{};
+  if (bound == data_->modifiers.begin()) return Style{};
   return std::prev(bound)->second;
 }
 
-afc::infrastructure::screen::LineModifierSet Line::end_of_line_modifiers()
-    const {
+afc::infrastructure::screen::Style Line::end_of_line_modifiers() const {
   return data_->end_of_line_modifiers;
 }
 
@@ -118,10 +117,8 @@ const ValueOrError<vm::EscapedMap>& Line::escaped_map() const {
 Line::Line(NonNull<std::shared_ptr<const Line::Data>> data)
     : data_(std::move(data)),
       hash_(LazyValue<size_t>{[this] { return ComputeHash(data_.value()); }}) {
-  for (auto& m : data_->modifiers) {
+  for (auto& m : data_->modifiers)
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
-    CHECK(!m.second.contains(LineModifier::Reset));
-  }
 #if 0
   TRACK_OPERATION(Line_ValidateInvariants);
   ForEachColumn(Pointer(data_->contents).Reference(),

@@ -16,22 +16,35 @@ class Pool;
 }
 namespace afc::vm {
 template <>
-struct VMTypeMapper<afc::infrastructure::screen::LineModifier> {
-  static std::expected<afc::infrastructure::screen::LineModifier,
+struct VMTypeMapper<afc::infrastructure::screen::Color> {
+  static std::expected<afc::infrastructure::screen::Color, afc::language::Error>
+  get(Value& value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, afc::infrastructure::screen::Color value);
+  static const types::ObjectName object_type_name;
+};
+
+template <>
+struct VMTypeMapper<afc::infrastructure::screen::StyleAttribute> {
+  static std::expected<afc::infrastructure::screen::StyleAttribute,
                        afc::language::Error>
   get(Value& value);
   static language::gc::Root<Value> New(
       language::gc::Pool& pool,
-      afc::infrastructure::screen::LineModifier value);
+      afc::infrastructure::screen::StyleAttribute value);
   static const types::ObjectName object_type_name;
 };
 
-class Environment;
+// TODO(2026-05-06, P2, trivial): Remove the wrapping. Instead, make Style
+// deeply immutable.
 template <>
-const types::ObjectName VMTypeMapper<
-    language::NonNull<std::shared_ptr<concurrent::Protected<std::set<
-        afc::infrastructure::screen::LineModifier>>>>>::object_type_name;
-
+struct VMTypeMapper<afc::infrastructure::screen::Style> {
+  static afc::infrastructure::screen::Style get(Value& value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, afc::infrastructure::screen::Style value);
+  static const types::ObjectName object_type_name;
+};
+class Environment;
 }  // namespace afc::vm
 namespace afc::infrastructure::screen {
 void RegisterLineModifier(language::gc::Pool& pool,

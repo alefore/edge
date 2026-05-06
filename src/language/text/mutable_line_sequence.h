@@ -130,7 +130,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // modifiers from the source).
   void insert(
       language::text::LineNumber position_line, const LineSequence& source,
-      const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
+      const std::optional<infrastructure::screen::Style>& modifiers);
 
   // Delete characters from position.line in range [position.column,
   // position.column + amount). Amount must not be negative and it must be in a
@@ -152,7 +152,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // case the character will just get appended (extending the line by exactly
   // one character).
   void SetCharacter(language::text::LineColumn position, int c,
-                    infrastructure::screen::LineModifierSet modifiers);
+                    infrastructure::screen::Style modifiers);
 
   void InsertCharacter(language::text::LineColumn position);
   void AppendToLine(

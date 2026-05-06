@@ -24,7 +24,7 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   language::text::LineColumn InsertInPosition(
       const language::text::LineSequence& contents_to_insert,
       const language::text::LineColumn& input_position,
-      const std::optional<infrastructure::screen::LineModifierSet>& modifiers)
+      const std::optional<infrastructure::screen::Style>& modifiers)
       override;
 
   void AddError(language::Error error) override;

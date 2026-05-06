@@ -15,8 +15,9 @@
 #include "src/parse_tree.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -34,7 +35,7 @@ using ::operator<<;
 
 tests::Test TestParseQuotedString(
     const std::wstring& name, const std::wstring& input_string,
-    wchar_t quote_char, const LineModifierSet& kContentModifiers,
+    wchar_t quote_char, const Style& kContentModifiers,
     const ParseTree::PropertyMap& kContentProperties,
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState initial_state,
@@ -79,7 +80,7 @@ tests::Test TestParseQuotedString(
       }};
 }
 
-ParseTree NewTree(Range range, LineModifierSet modifiers,
+ParseTree NewTree(Range range, Style modifiers,
                   ParseTree::PropertyMap properties,
                   std::vector<ParseTree> children) {
   ParseTree output(range);
@@ -96,8 +97,8 @@ ParseTree ContainerTree(std::vector<ParseTree> children) {
 
 // Helper function to create a parse tree node and append it to a parent tree.
 // This version assumes a single line (LineNumber{1}).
-ParseTree NewTree(ColumnNumber begin, SingleLine contents,
-                  LineModifierSet modifiers, ParseTree::PropertyMap properties,
+ParseTree NewTree(ColumnNumber begin, SingleLine contents, Style modifiers,
+                  ParseTree::PropertyMap properties,
                   std::vector<ParseTree> children) {
   return NewTree(Range(LineColumn(LineNumber{1}, begin),
                        LineColumn(LineNumber{1}, begin + contents.size())),
@@ -117,23 +118,23 @@ ParseTree StringParentContinuationTree(std::vector<ParseTree> children) {
 
 ParseTree OpeningQuote() {
   return NewTree(ColumnNumber{0}, SINGLE_LINE_CONSTANT(L"\""),
-                 LineModifierSet{LineModifier::Dim}, {}, {});
+                 Style{.attributes = StyleAttribute::Dim}, {}, {});
 }
 
 ParseTree ClosingQuote(ColumnNumber position) {
   return NewTree(position, SINGLE_LINE_CONSTANT(L"\""),
-                 LineModifierSet{LineModifier::Dim}, {}, {});
+                 Style{.attributes = StyleAttribute::Dim}, {}, {});
 }
 
 static const NonEmptySingleLine kNestedSyntaxPrefix =
     NON_EMPTY_SINGLE_LINE_CONSTANT(L"{");
 static const NonEmptySingleLine kNestedSyntaxSuffix =
     NON_EMPTY_SINGLE_LINE_CONSTANT(L"}");
-static const LineModifierSet kContentModifiers = {LineModifier::Bold};
+static const Style kContentModifiers = {.attributes = StyleAttribute::Bold};
 static const ParseTree::PropertyMap kContentProperties = {
     {ParseTreePropertyName::StringValue(), LazyString{}}};
-LineModifierSet kNestedPrefixSuffixModifiers = {LineModifier::Dim};
-LineModifierSet kNestedContentModifiers = {LineModifier::Green};
+Style kNestedPrefixSuffixModifiers = {.attributes = StyleAttribute::Dim};
+Style kNestedContentModifiers = {Color::Green};
 
 bool parse_quoted_string_tests = afc::tests::Register(
     L"ParseQuotedString",

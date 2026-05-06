@@ -14,8 +14,8 @@
 
 namespace gc = afc::language::gc;
 using afc::concurrent::Protected;
-using afc::infrastructure::screen::LineModifierSet;
-using afc::infrastructure::screen::ModifierFromString;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -63,8 +63,7 @@ class LogTreeParser : public TreeParser {
                 LineRange(LineColumn{i},
                           std::numeric_limits<ColumnNumberDelta>::max())
                     .read());
-            std::expected<std::unordered_map<LogEntryName, LineModifierSet>,
-                          Error>
+            std::expected<std::unordered_map<LogEntryName, Style>, Error>
                 modifiers_map = compiled_log_view.Evaluate(
                     line.values | std::views::transform(&LogEntryValue::name) |
                         std::ranges::to<std::unordered_set>(),

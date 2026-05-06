@@ -28,7 +28,7 @@ class LineBuilder {
   explicit LineBuilder(const Line&);
   explicit LineBuilder(language::lazy_string::SingleLine input_contents);
   LineBuilder(language::lazy_string::SingleLine input_contents,
-              afc::infrastructure::screen::LineModifierSet modifiers);
+              afc::infrastructure::screen::Style modifiers);
   explicit LineBuilder(
       language::lazy_string::NonEmptySingleLine input_contents);
 
@@ -49,17 +49,14 @@ class LineBuilder {
   //
   // `column` may be greater than size(), in which case the character will
   // just get appended (extending the line by exactly one character).
-  void SetCharacter(
-      language::lazy_string::ColumnNumber column, int c,
-      const afc::infrastructure::screen::LineModifierSet& modifiers);
+  void SetCharacter(language::lazy_string::ColumnNumber column, int c,
+                    const afc::infrastructure::screen::Style& modifiers);
 
   void InsertCharacterAtPosition(language::lazy_string::ColumnNumber position);
-  void AppendCharacter(wchar_t c,
-                       afc::infrastructure::screen::LineModifierSet modifier);
+  void AppendCharacter(wchar_t c, afc::infrastructure::screen::Style modifier);
   void AppendString(language::lazy_string::SingleLine suffix);
-  void AppendString(
-      language::lazy_string::SingleLine suffix,
-      std::optional<afc::infrastructure::screen::LineModifierSet> modifier);
+  void AppendString(language::lazy_string::SingleLine suffix,
+                    std::optional<afc::infrastructure::screen::Style> modifier);
 
   // This function has linear complexity on the number of modifiers in `line`
   // and logarithmic on the length of `line` and `this`.
@@ -91,32 +88,33 @@ class LineBuilder {
   // Delete characters from column (included) until the end.
   LineBuilder& DeleteSuffix(language::lazy_string::ColumnNumber column);
 
-  LineBuilder& SetAllModifiers(
-      afc::infrastructure::screen::LineModifierSet value);
+  LineBuilder& SetAllModifiers(afc::infrastructure::screen::Style value);
 
   LineBuilder& insert_end_of_line_modifiers(
-      afc::infrastructure::screen::LineModifierSet values);
+      afc::infrastructure::screen::Style values);
   LineBuilder& set_end_of_line_modifiers(
-      afc::infrastructure::screen::LineModifierSet values);
-  afc::infrastructure::screen::LineModifierSet copy_end_of_line_modifiers()
-      const;
+      afc::infrastructure::screen::Style values);
+  afc::infrastructure::screen::Style copy_end_of_line_modifiers() const;
 
   std::map<language::lazy_string::ColumnNumber,
-           afc::infrastructure::screen::LineModifierSet>
+           afc::infrastructure::screen::Style>
   modifiers() const;
   size_t modifiers_size() const;
   bool modifiers_empty() const;
   std::pair<language::lazy_string::ColumnNumber,
-            afc::infrastructure::screen::LineModifierSet>
+            afc::infrastructure::screen::Style>
   modifiers_last() const;
+#if 0
+  // XXXX
   void InsertModifier(language::lazy_string::ColumnNumber,
                       afc::infrastructure::screen::LineModifier);
+#endif
   void InsertModifiers(language::lazy_string::ColumnNumber,
-                       const afc::infrastructure::screen::LineModifierSet&);
+                       const afc::infrastructure::screen::Style&);
   void set_modifiers(language::lazy_string::ColumnNumber,
-                     afc::infrastructure::screen::LineModifierSet);
+                     afc::infrastructure::screen::Style);
   void set_modifiers(std::map<language::lazy_string::ColumnNumber,
-                              afc::infrastructure::screen::LineModifierSet>
+                              afc::infrastructure::screen::Style>
                          value);
   void ClearModifiers();
 

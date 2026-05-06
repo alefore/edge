@@ -15,8 +15,8 @@
 #include "src/test/line_test.h"
 
 using afc::infrastructure::screen::CursorsTracker;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::lazy_string::ColumnNumber;
@@ -57,14 +57,14 @@ void TestMutableLineSequenceSnapshot() {
 void TestBufferInsertModifiers() {
   MutableLineSequence contents;
   LineBuilder options{SingleLine{LazyString{L"alejo"}}};
-  options.set_modifiers(ColumnNumber(0), LineModifierSet{LineModifier::Cyan});
+  options.set_modifiers(ColumnNumber(0), Style{Color::Cyan});
 
   contents.push_back(options.Copy().Build());  // LineNumber(1).
   contents.push_back(options.Copy().Build());  // LineNumber(2).
-  options.set_modifiers(ColumnNumber(2), {LineModifier::Bold});
+  options.set_modifiers(ColumnNumber(2), {StyleAttribute::Bold});
   contents.push_back(options.Copy().Build());  // LineNumber(3).
   LineBuilder new_line(contents.at(LineNumber(1)));
-  new_line.SetAllModifiers(LineModifierSet({LineModifier::Dim}));
+  new_line.SetAllModifiers(Style({StyleAttribute::Dim}));
   contents.push_back(std::move(new_line).Build());  // LineNumber(4).
 
   for (int i = 0; i < 2; i++) {
@@ -76,7 +76,7 @@ void TestBufferInsertModifiers() {
       auto modifiers_1 = contents.at(LineNumber(1)).modifiers();
       CHECK_EQ(modifiers_1.size(), 1ul);
       CHECK(modifiers_1.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::Cyan}));
+            Style({Color::Cyan}));
     }
 
     {
@@ -84,7 +84,7 @@ void TestBufferInsertModifiers() {
       auto modifiers_2 = contents.at(LineNumber(2)).modifiers();
       CHECK_EQ(modifiers_2.size(), 1ul);
       CHECK(modifiers_2.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::Cyan}));
+            Style({Color::Cyan}));
     }
 
     {
@@ -92,9 +92,9 @@ void TestBufferInsertModifiers() {
       auto modifiers_3 = contents.at(LineNumber(3)).modifiers();
       CHECK_EQ(modifiers_3.size(), 2ul);
       CHECK(modifiers_3.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::Cyan}));
+            Style({Color::Cyan}));
       CHECK(modifiers_3.find(ColumnNumber(2))->second ==
-            LineModifierSet({LineModifier::Bold}));
+            Style({StyleAttribute::Bold}));
     }
 
     {
@@ -102,7 +102,7 @@ void TestBufferInsertModifiers() {
       auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
       CHECK(modifiers_4.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::Dim}));
+            Style({StyleAttribute::Dim}));
     }
 
     // Contents:

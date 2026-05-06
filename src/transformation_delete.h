@@ -22,9 +22,10 @@ struct Delete {
   LineEndBehavior line_end_behavior = LineEndBehavior::Delete;
 
   // When mode is Preview, what colors should the deleted text be previewed in?
-  infrastructure::screen::LineModifierSet preview_modifiers = {
-      infrastructure::screen::LineModifier::Red,
-      infrastructure::screen::LineModifier::Underline};
+  infrastructure::screen::Style preview_modifiers =
+      infrastructure::screen::Style{
+          .foreground_color = infrastructure::screen::Color::Red,
+          .attributes = infrastructure::screen::StyleAttribute::Underline};
 
   // If set, overrides the mode passed when the transformation is executed. This
   // is used by CompositeTransformations that want to effectively erase text

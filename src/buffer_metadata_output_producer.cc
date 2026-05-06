@@ -27,9 +27,10 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::infrastructure::Path;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::CursorsSet;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::CaptureAndHash;
 using afc::language::GhostType;
 using afc::language::IgnoreErrors;
@@ -139,7 +140,7 @@ SingleLine DrawTree(LineNumber line, LineNumberDelta lines_size,
 
 struct MetadataLine {
   wchar_t info_char;
-  LineModifier modifier;
+  Style style;
   Line suffix;
   enum class Type {
     Default,
@@ -158,18 +159,18 @@ ColumnNumberDelta width(const Line& prefix, MetadataLine& line) {
 
 LineWithCursor::Generator NewGenerator(Line input_prefix, MetadataLine line) {
   return LineWithCursor::Generator::New(CaptureAndHash(
-      [](wchar_t info_char, LineModifier modifier, const Line& suffix,
+      [](wchar_t info_char, Style style, const Line& suffix,
          const Line& prefix) {
         LineBuilder options;
         if (prefix.empty()) {
-          options.AppendCharacter(info_char, {modifier});
+          options.AppendCharacter(info_char, style);
         } else {
           options.Append(LineBuilder(std::move(prefix)));
         }
         options.Append(LineBuilder(std::move(suffix)));
         return LineWithCursor{.line = std::move(options).Build()};
       },
-      line.info_char, line.modifier, std::move(line.suffix),
+      line.info_char, line.style, std::move(line.suffix),
       std::move(input_prefix)));
 }
 }  // namespace
@@ -225,14 +226,14 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
 
   SingleLine output_str =
       SingleLine{LazyString{ColumnNumberDelta{1}, L'0' + count}};
-  LineModifierSet modifiers;
+  Style modifiers;
   if (count == kStopCount) {
     output_str = SingleLine::Char<L'+'>();
-    modifiers.insert(LineModifier::Bold);
+    modifiers.attributes |= StyleAttribute::Bold;
   }
   if (range.Contains(*cursors.active())) {
-    modifiers.insert(LineModifier::Bold);
-    modifiers.insert(LineModifier::Cyan);
+    modifiers.attributes |= StyleAttribute::Bold;
+    modifiers.foreground_color = Color::Cyan;
   }
   LineBuilder line_options;
   line_options.AppendString(output_str, modifiers);
@@ -270,7 +271,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       static_cast<double>(initial_line(options).read()) / lines_size.read()));
   Rows end = start + bar_size;
 
-  LineModifierSet modifiers;
+  Style modifiers;
 
   LineBuilder line_options;
   DCHECK_GE(line, initial_line(options));
@@ -318,8 +319,8 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                   LineColumn(LineNumber(initial_line(options) + lines_shown))),
             line, options.buffer.lines_size())
                 .Contains(options.buffer.position())
-            ? LineModifierSet({LineModifier::Yellow})
-            : LineModifierSet({LineModifier::Cyan});
+            ? Style({Color::Yellow})
+            : Style({Color::Cyan});
 
   if (!marks.empty() || !expired_marks.empty()) {
     double buffer_lines_per_row =
@@ -343,7 +344,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
         base_char |= (1 << (row * 2 + 1));
       }
     }
-    if (active_marks) modifiers = {LineModifier::Red};
+    if (active_marks) modifiers = {Color::Red};
   }
 
   CHECK_LT(base_char, chars.size());
@@ -419,7 +420,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       },
       [] {});
   auto info_char = L'•';
-  auto info_char_modifier = LineModifier::Dim;
+  Style info_char_modifier{.attributes = StyleAttribute::Dim};
 
   if (target_buffer.get() != &options.buffer) {
     output.push_back(MetadataLine{
@@ -428,11 +429,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         MetadataLine::Type::Flags});
 #if 0
   } else if (contents.modified()) {
-    info_char_modifier = LineModifier::Green;
+    info_char_modifier = Style{.foreground_color=Color::Green};
     info_char = L'•';
 #endif
   } else {
-    info_char_modifier = LineModifier::Dim;
+    info_char_modifier = Style{.attributes = StyleAttribute::Dim};
   }
 
   if (SingleLine metadata = Concatenate(
@@ -449,7 +450,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
               }) |
           std::views::filter(std::not_fn(&SingleLine::empty)));
       !metadata.empty())
-    output.push_back(MetadataLine{L'>', LineModifier::Green,
+    output.push_back(MetadataLine{L'>', Style{.foreground_color = Color::Green},
                                   LineBuilder{metadata}.Build(),
                                   MetadataLine::Type::LineContents});
 
@@ -468,7 +469,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         options.buffer.editor().buffer_registry().Find(mark.source_buffer);
     output.push_back(MetadataLine{
         output.empty() ? L'!' : L' ',
-        output.empty() ? LineModifier::Red : LineModifier::Dim,
+        output.empty() ? Style{.foreground_color = Color::Red}
+                       : Style{.attributes = StyleAttribute::Dim},
         (source.has_value() &&
          mark.source_line < LineNumber(0) + source->ptr()->contents().size())
             ? source->ptr()->contents().at(mark.source_line)
@@ -498,7 +500,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         !marks_strings.contains(mark_contents.contents())) {
       LineBuilder wrapper{SingleLine{LazyString{L"👻 "}}};
       wrapper.Append(LineBuilder(mark_contents));
-      output.push_back(MetadataLine{'!', LineModifier::Red,
+      output.push_back(MetadataLine{'!', Style{.foreground_color = Color::Red},
                                     std::move(wrapper).Build(),
                                     MetadataLine::Type::Mark});
     }
@@ -529,7 +531,7 @@ std::ostream& operator<<(std::ostream& os, const Box& b) {
 struct BoxWithPosition {
   Box box;
   LineNumber position;
-  LineModifierSet modifiers = {};
+  Style modifiers = {};
 
   bool operator==(const BoxWithPosition& other) const {
     return box == other.box && position == other.position;
@@ -594,11 +596,11 @@ std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
     LineNumber position = std::max(
         LineNumber() + sum_sizes,
         std::min(box.reference, LineNumber() + screen_size - box.size));
-    static const std::vector<LineModifierSet> modifiers = {
-        LineModifierSet{LineModifier::Yellow},
-        LineModifierSet{LineModifier::Cyan},
-        LineModifierSet{LineModifier::Green},
-        LineModifierSet{LineModifier::Blue},
+    static const std::vector<Style> modifiers = {
+        Style{Color::Yellow},
+        Style{Color::Cyan},
+        Style{Color::Green},
+        Style{Color::Blue},
     };
     output.push_front(
         BoxWithPosition{.box = box,
@@ -897,7 +899,7 @@ ColumnsVector::Column BufferMetadataOutput(
         NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(
         lines_referenced.contains(i)
-            ? ColumnsVector::Padding{.modifiers = {LineModifier::Yellow},
+            ? ColumnsVector::Padding{.modifiers = {Color::Yellow},
                                      .head = SINGLE_LINE_CONSTANT(L"  ←"),
                                      .body = SingleLine::Char<L'-'>()}
             : std::optional<ColumnsVector::Padding>{});

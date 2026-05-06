@@ -13,8 +13,9 @@ namespace gc = afc::language::gc;
 using afc::concurrent::ChannelLast;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
@@ -190,31 +191,31 @@ Line BuildStatus(const Data& data) {
         break;
       case Operation::Type::kFilter:
         output.AppendString(SingleLine::Char<L'w'>(),
-                            LineModifierSet{LineModifier::Cyan});
+                            Style{.foreground_color = Color::Cyan});
         output.AppendString(SingleLine::Char<L':'>(),
-                            LineModifierSet{LineModifier::Dim});
+                            Style{.attributes = StyleAttribute::Dim});
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::ReadingFilter) {
           output.AppendString(SingleLine::Char<L'…'>(),
-                              LineModifierSet{LineModifier::Yellow});
+                              Style{.foreground_color = Color::Yellow});
         }
         break;
       case Operation::Type::WarningFilter:
         output.AppendString(SINGLE_LINE_CONSTANT(L" !"),
-                            LineModifierSet{LineModifier::Red});
+                            Style{.foreground_color = Color::Red});
         break;
       case Operation::Type::kSearch:
         output.AppendString(SingleLine::Char<L'/'>(),
-                            LineModifierSet{LineModifier::Green});
+                            Style{.foreground_color = Color::Green});
         output.AppendString(SingleLine::Char<L':'>(),
-                            LineModifierSet{LineModifier::Dim});
+                            Style{.attributes = StyleAttribute::Dim});
 
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::ReadingSearch) {
           output.AppendString(SingleLine::Char<L'…'>(),
-                              LineModifierSet{LineModifier::Yellow});
+                              Style{.foreground_color = Color::Yellow});
         }
         break;
     }

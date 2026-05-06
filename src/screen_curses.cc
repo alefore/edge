@@ -11,8 +11,10 @@ extern "C" {
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Screen;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -23,7 +25,42 @@ using afc::language::text::LineNumberDelta;
 
 namespace afc::editor {
 namespace {
+class ColorRegistry {
+  std::map<std::pair<short, short>, int> pair_cache_;
+  int next_pair_id_ = 1;
+
+  short GetColorIndex(Color c) {
+    const std::array<short, 8> kColorIndices = {
+        COLOR_BLACK,    // 0
+        COLOR_RED,      // 1
+        COLOR_GREEN,    // 2
+        COLOR_YELLOW,   // 3
+        COLOR_BLUE,     // 4
+        COLOR_MAGENTA,  // 5
+        COLOR_CYAN,     // 6
+        COLOR_WHITE     // 7
+    };
+    return kColorIndices[static_cast<size_t>(c)];
+  }
+
+ public:
+  int GetPair(Color foreground, Color background) {
+    short foreground_index = GetColorIndex(foreground);
+    short background_index = GetColorIndex(background);
+    auto key = std::make_pair(foreground_index, background_index);
+    if (auto it = pair_cache_.find(key); it != pair_cache_.end())
+      return it->second;
+
+    int id = next_pair_id_++;
+    init_pair(id, foreground_index, background_index);
+    pair_cache_[key] = id;
+    return id;
+  }
+};
+
 class ScreenCurses : public Screen {
+  ColorRegistry color_registry_;
+
  public:
   ScreenCurses() {
     initscr();
@@ -31,15 +68,6 @@ class ScreenCurses : public Screen {
     nodelay(stdscr, true);
     keypad(stdscr, false);
     start_color();
-    init_pair(1, COLOR_BLACK, COLOR_BLACK);
-    init_pair(2, COLOR_RED, COLOR_BLACK);
-    init_pair(3, COLOR_GREEN, COLOR_BLACK);
-    init_pair(4, COLOR_BLUE, COLOR_BLACK);
-    init_pair(5, COLOR_YELLOW, COLOR_BLACK);
-    init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
-    init_pair(7, COLOR_CYAN, COLOR_BLACK);
-    init_pair(8, COLOR_WHITE, COLOR_RED);
-    init_pair(9, COLOR_WHITE, COLOR_BLACK);
   }
 
   ~ScreenCurses() { endwin(); }
@@ -71,67 +99,23 @@ class ScreenCurses : public Screen {
     addwstr(s.ToString().c_str());
   }
 
-  void SetModifier(LineModifier modifier) override {
-    switch (modifier) {
-      case LineModifier::Reset:
-        attroff(A_BOLD);
-        attroff(A_ITALIC);
-        attroff(A_DIM);
-        attroff(A_UNDERLINE);
-        attroff(A_REVERSE);
-        attroff(COLOR_PAIR(1));
-        attroff(COLOR_PAIR(2));
-        attroff(COLOR_PAIR(3));
-        attroff(COLOR_PAIR(4));
-        attroff(COLOR_PAIR(5));
-        attroff(COLOR_PAIR(6));
-        attroff(COLOR_PAIR(7));
-        attroff(COLOR_PAIR(8));
-        attroff(COLOR_PAIR(9));
-        break;
-      case LineModifier::Bold:
-        attron(A_BOLD);
-        break;
-      case LineModifier::Italic:
-        attron(A_ITALIC);
-        break;
-      case LineModifier::Dim:
-        attron(A_DIM);
-        break;
-      case LineModifier::Underline:
-        attron(A_UNDERLINE);
-        break;
-      case LineModifier::Reverse:
-        attron(A_REVERSE);
-        break;
-      case LineModifier::Black:
-        attron(COLOR_PAIR(1));
-        break;
-      case LineModifier::Red:
-        attron(COLOR_PAIR(2));
-        break;
-      case LineModifier::Green:
-        attron(COLOR_PAIR(3));
-        break;
-      case LineModifier::Blue:
-        attron(COLOR_PAIR(4));
-        break;
-      case LineModifier::Yellow:
-        attron(COLOR_PAIR(5));
-        break;
-      case LineModifier::Magenta:
-        attron(COLOR_PAIR(6));
-        break;
-      case LineModifier::Cyan:
-        attron(COLOR_PAIR(7));
-        break;
-      case LineModifier::BgRed:
-        attron(COLOR_PAIR(8));
-        break;
-      case LineModifier::White:
-        attron(COLOR_PAIR(9));
-        break;
-    }
+  void SetModifier(Style style) override {
+    attr_t n_attrs = A_NORMAL;
+
+    if (has_attribute(style.attributes, StyleAttribute::Bold))
+      n_attrs |= A_BOLD;
+    if (has_attribute(style.attributes, StyleAttribute::Italic))
+      n_attrs |= A_ITALIC;
+    if (has_attribute(style.attributes, StyleAttribute::Underline))
+      n_attrs |= A_UNDERLINE;
+    if (has_attribute(style.attributes, StyleAttribute::Dim)) n_attrs |= A_DIM;
+    if (has_attribute(style.attributes, StyleAttribute::Reverse))
+      n_attrs |= A_REVERSE;
+
+    int pair_id =
+        color_registry_.GetPair(style.foreground_color.value_or(Color::White),
+                                style.background_color.value_or(Color::Black));
+    attr_set(n_attrs, pair_id, nullptr);
   }
 
   LineColumnDelta size() const override {

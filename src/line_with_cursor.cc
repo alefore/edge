@@ -14,7 +14,7 @@
 #include "src/tests/tests.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -155,7 +155,7 @@ LineWithCursor LineWithCursor::View(
       if (!options.modifiers_main_cursor.empty()) {
         line_output.set_modifiers(current_position + ColumnNumberDelta(1),
                                   line_output.modifiers_empty()
-                                      ? LineModifierSet()
+                                      ? Style()
                                       : line_output.modifiers_last().second);
         line_output.InsertModifiers(current_position,
                                     options.modifiers_main_cursor);
@@ -167,7 +167,7 @@ LineWithCursor LineWithCursor::View(
                 *options.inactive_cursor_columns.rbegin() >= input_column)) {
       line_output.set_modifiers(current_position + ColumnNumberDelta(1),
                                 line_output.modifiers_empty()
-                                    ? LineModifierSet()
+                                    ? Style()
                                     : line_output.modifiers_last().second);
       line_output.InsertModifiers(current_position,
                                   options.modifiers_inactive_cursors);
@@ -210,7 +210,7 @@ LineWithCursor LineWithCursor::View(
       input_column == options.line.EndColumn()
           ? options.line.end_of_line_modifiers()
           : (line_output.modifiers_empty()
-                 ? LineModifierSet()
+                 ? Style()
                  : line_output.modifiers_last().second));
   if (!line_with_cursor.cursor.has_value() &&
       options.active_cursor_column.has_value()) {

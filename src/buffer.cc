@@ -93,10 +93,11 @@ using afc::infrastructure::RegularFileAdapter;
 using afc::infrastructure::TerminalAdapter;
 using afc::infrastructure::UnixSignal;
 using afc::infrastructure::UpdateIfMillisecondsHavePassed;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::CursorsTracker;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlay;
 using afc::infrastructure::screen::VisualOverlayKey;
 using afc::infrastructure::screen::VisualOverlayMap;
@@ -1426,11 +1427,11 @@ void OpenBuffer::DeleteRange(const Range& range) {
   }
 }
 
-LineColumn OpenBuffer::InsertInPosition(
-    const LineSequence& contents_to_insert, const LineColumn& input_position,
-    const std::optional<LineModifierSet>& modifiers) {
+LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
+                                        const LineColumn& input_position,
+                                        const std::optional<Style>& modifiers) {
   VLOG(5) << "InsertInPosition: " << input_position << " "
-          << (modifiers.has_value() ? modifiers.value().size() : 1);
+          << modifiers.value_or(Style{});
   auto blocker = cursors_tracker_.DelayTransformations();
   LineColumn position = input_position;
   if (position.line > contents_.EndLine()) {
@@ -1977,7 +1978,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
   });
 
   auto new_reader = [this](std::optional<FileDescriptor> fd,
-                           LazyString name_suffix, LineModifierSet modifiers,
+                           LazyString name_suffix, Style modifiers,
                            std::unique_ptr<FileDescriptorReader>& reader)
       -> futures::Value<EmptyValue> {
     if (fd == std::nullopt) {
@@ -2023,9 +2024,10 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
   };
 
   futures::Value<EmptyValue> end_of_file_future =
-      JoinValues(new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
-                 new_reader(input_error_fd, LazyString{L"stderr"},
-                            {LineModifier::Bold}, fd_error_))
+      JoinValues(
+          new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
+          new_reader(input_error_fd, LazyString{L"stderr"},
+                     Style{.attributes = StyleAttribute::Bold}, fd_error_))
           .Transform([weak_this = WeakPtrFromThis()](
                          std::tuple<EmptyValue, EmptyValue>) {
             return VisitOptional(
@@ -2725,10 +2727,12 @@ void OpenBuffer::OnCursorMove() {
             CHECK(range.IsSingleLine());
             visual_overlay_map_[kPriority][kKey].insert(
                 {range.begin(),
-                 VisualOverlay{.content = ColumnNumberDelta(
-                                   range.end().column - range.begin().column),
-                               .modifiers = {LineModifier::Underline},
-                               .behavior = VisualOverlay::Behavior::On}});
+                 VisualOverlay{
+                     .content = ColumnNumberDelta(range.end().column -
+                                                  range.begin().column),
+                     .modifiers =
+                         Style{.attributes = StyleAttribute::Underline},
+                     .behavior = VisualOverlay::Behavior::On}});
           }
         },
         [] {});

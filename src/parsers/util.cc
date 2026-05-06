@@ -4,8 +4,9 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/functional.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::NonNull;
 using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
@@ -21,8 +22,8 @@ using afc::language::text::Range;
 namespace afc::editor::parsers {
 
 // TODO(easy, 2023-09-16): Reuse these symbosl in cpp_parse_tree.
-static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::BgRed, LineModifier::Bold});
+static const Style BAD_PARSE_MODIFIERS =
+    Style{.background_color = Color::Red, .attributes = StyleAttribute::Bold};
 
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view(L"1234567890."));
@@ -38,7 +39,7 @@ size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {
 
 ParseQuotedStringState ParseQuotedString(
     ParseData* result, wchar_t quote_char,
-    infrastructure::screen::LineModifierSet string_modifiers,
+    infrastructure::screen::Style string_modifiers,
     ParseTree::PropertyMap properties) {
   return ParseQuotedString(result, quote_char, std::move(string_modifiers),
                            std::move(properties), MultipleLinesSupport::kReject,
@@ -46,7 +47,7 @@ ParseQuotedStringState ParseQuotedString(
 }
 
 ParseQuotedStringState ParseQuotedString(
-    ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
+    ParseData* result, wchar_t quote_char, Style string_modifiers,
     ParseTree::PropertyMap properties,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state) {
   return ParseQuotedString(result, quote_char, string_modifiers, properties,
@@ -54,7 +55,7 @@ ParseQuotedStringState ParseQuotedString(
 }
 
 ParseQuotedStringState ParseQuotedString(
-    ParseData* result, wchar_t quote_char, LineModifierSet string_modifiers,
+    ParseData* result, wchar_t quote_char, Style string_modifiers,
     ParseTree::PropertyMap properties,
     std::optional<NestedExpressionSyntax> nested_expression_syntax,
     MultipleLinesSupport multiple_lines_support, CurrentState current_state) {
@@ -99,7 +100,8 @@ ParseQuotedStringState ParseQuotedString(
   result->set_position(original_position);
   if (current_state == CurrentState::kStart) {
     // Open quote.
-    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim}, {});
+    result->PushAndPop(ColumnNumberDelta(1),
+                       Style{.attributes = StyleAttribute::Dim}, {});
 
     // Parent tree: a parent tree containing everything.
     static const size_t kIgnoredState = 0;
@@ -158,13 +160,14 @@ ParseQuotedStringState ParseQuotedString(
 
   // Close quote.
   result->set_position(final_position + ColumnNumberDelta{1});
-  result->PushAndPop(ColumnNumberDelta(1), {LineModifier::Dim}, {});
+  result->PushAndPop(ColumnNumberDelta(1),
+                     Style{.attributes = StyleAttribute::Dim}, {});
 
   // TODO: words_parser_->FindChildren(result->contents(), tree);
   return ParseQuotedStringState::Done;
 }
 
-void ParseNumber(ParseData* result, LineModifierSet number_modifiers,
+void ParseNumber(ParseData* result, Style number_modifiers,
                  ParseTree::PropertyMap properties) {
   CHECK_GE(result->position().column, ColumnNumber(1));
   LineColumn original_position = result->position();

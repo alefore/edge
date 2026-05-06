@@ -20,8 +20,9 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -52,7 +53,7 @@ namespace {
 struct FileEntry {
   LazyString name;
   SingleLine file_type_description;
-  LineModifierSet file_type_modifiers;
+  Style file_type_modifiers;
 };
 
 struct BackgroundReadDirOutput {
@@ -76,27 +77,31 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
 
           struct FileType {
             SingleLine description;
-            LineModifierSet modifiers;
+            Style modifiers;
           };
           static const std::unordered_map<int, FileType> types = {
               {DT_BLK,
                FileType{.description = SingleLine{LazyString{L" (block dev)"}},
-                        .modifiers = {LineModifier::Green}}},
+                        .modifiers = Style{.foreground_color = Color::Green}}},
               {DT_CHR,
                FileType{.description = SingleLine{LazyString{L" (char dev)"}},
-                        .modifiers = {LineModifier::Red}}},
-              {DT_DIR, FileType{.description = SingleLine{LazyString{L"/"}},
-                                .modifiers = {LineModifier::Cyan}}},
+                        .modifiers = Style{.foreground_color = Color::Red}}},
+              {DT_DIR,
+               FileType{.description = SingleLine{LazyString{L"/"}},
+                        .modifiers = Style{.foreground_color = Color::Cyan}}},
               {DT_FIFO,
                FileType{.description = SingleLine{LazyString{L" (named pipe)"}},
-                        .modifiers = {LineModifier::Blue}}},
-              {DT_LNK, FileType{.description = SingleLine{LazyString{L"@"}},
-                                .modifiers = {LineModifier::Italic}}},
+                        .modifiers = Style{.foreground_color = Color::Blue}}},
+              {DT_LNK,
+               FileType{
+                   .description = SingleLine{LazyString{L"@"}},
+                   .modifiers = Style{.attributes = StyleAttribute::Italic}}},
               {DT_REG, FileType{.description = SingleLine{LazyString{L""}},
-                                .modifiers = {}}},
+                                .modifiers = Style{}}},
               {DT_SOCK,
-               FileType{.description = SingleLine{LazyString{L" (unix sock)"}},
-                        .modifiers = {LineModifier::Magenta}}}};
+               FileType{
+                   .description = SingleLine{LazyString{L" (unix sock)"}},
+                   .modifiers = Style{.foreground_color = Color::Magenta}}}};
           FileType file_type = GetValueOrDefault(types, entry->d_type,
                                                  GetValueOrDie(types, DT_REG));
 

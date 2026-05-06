@@ -26,8 +26,9 @@
 #include "src/vm/environment.h"
 #include "src/vm/function_call.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::NonNull;
 using afc::language::VisitOptional;
@@ -244,7 +245,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         insert_options.modifiers_set =
             options.modifiers.text_delete_behavior ==
                     Modifiers::TextDeleteBehavior::kKeep
-                ? LineModifierSet{LineModifier::Underline, LineModifier::Yellow}
+                ? Style{.foreground_color = Color::Yellow,
+                        .attributes = StyleAttribute::Underline}
                 : options.preview_modifiers;
         input.position = range.begin();
         return Apply(std::move(insert_options), input)

@@ -32,8 +32,9 @@ namespace gc = afc::language::gc;
 using afc::concurrent::Protected;
 using afc::concurrent::VersionPropertyKey;
 using afc::futures::DeleteNotification;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -327,7 +328,7 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(EditorState& editor_state,
           [](auto) { return EmptyValue{}; });
 }
 
-void MaybePushTokenAndModifiers(SingleLine line, LineModifierSet modifiers,
+void MaybePushTokenAndModifiers(SingleLine line, Style modifiers,
                                 std::vector<TokenAndModifiers>& output) {
   VisitValue(NonEmptySingleLine::New(line),
              [&output, modifiers](NonEmptySingleLine token_value) {
@@ -345,13 +346,13 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
     DeleteNotification::Value) {
   return VisitOptional(
       [&](gc::Root<OpenBuffer> buffer) {
-        LineModifierSet modifiers;
+        Style modifiers;
         return Visit(
             buffer->execution_context()->CompileString(line.read()),
             [&](gc::Root<ExecutionContext::CompilationResult>
                     compilation_result)
                 -> futures::Value<ColorizePromptOptions> {
-              modifiers.insert(LineModifier::Cyan);
+              modifiers.foreground_color = Color::Cyan;
               progress_channel->Push(ProgressInformation{
                   .values = {
                       {VersionPropertyKey{
@@ -424,8 +425,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
   VisitValue(Parse(editor.gc_pool(), line, environment, search_namespaces),
              [&](ParsedCommand) {
-               MaybePushTokenAndModifiers(
-                   line, LineModifierSet{LineModifier::Cyan}, output->tokens);
+               MaybePushTokenAndModifiers(line, Style{Color::Cyan},
+                                          output->tokens);
              });
 
   using BufferMapper = vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>;

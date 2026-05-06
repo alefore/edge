@@ -3,8 +3,8 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -35,7 +35,7 @@ std::optional<language::text::LineColumn> RegularFileAdapter::position() const {
 void RegularFileAdapter::SetPositionToZero() {}
 
 std::vector<Line> CreateLineInstances(LazyString contents,
-                                      const LineModifierSet& modifiers) {
+                                      const Style& modifiers) {
   TRACK_OPERATION(FileDescriptorReader_CreateLineInstances);
 
   std::vector<Line> lines_to_insert;
@@ -65,7 +65,7 @@ std::vector<Line> CreateLineInstances(LazyString contents,
 }
 
 futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
-    language::lazy_string::LazyString str, const LineModifierSet& modifiers) {
+    language::lazy_string::LazyString str, const Style& modifiers) {
   return options_.thread_pool
       .Run(std::bind_front(CreateLineInstances, std::move(str), modifiers))
       .Transform([options = options_](std::vector<Line> lines) {

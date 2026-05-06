@@ -8,8 +8,9 @@
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/wstring.h"
 
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlayKey;
 using afc::infrastructure::screen::VisualOverlayMap;
 using afc::infrastructure::screen::VisualOverlayPriority;
@@ -185,7 +186,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
           match.second,
           infrastructure::screen::VisualOverlay{
               .content = line.Substring(match.second.column, kQueryLength),
-              .modifiers = {LineModifier::Underline},
+              .modifiers = Style{.attributes = StyleAttribute::Underline},
               .behavior =
                   infrastructure::screen::VisualOverlay::Behavior::Toggle}));
       overlays[kPriority][kKey].insert(std::make_pair(
@@ -193,8 +194,8 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
           infrastructure::screen::VisualOverlay{
               .content =
                   SingleLine{LazyString{ColumnNumberDelta{1}, match.first}},
-              .modifiers =
-                  LineModifierSet{LineModifier::Reverse, LineModifier::White},
+              .modifiers = Style{.foreground_color = Color::White,
+                                 .attributes = StyleAttribute::Reverse},
               .behavior =
                   infrastructure::screen::VisualOverlay::Behavior::Toggle}));
     }

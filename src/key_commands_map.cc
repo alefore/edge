@@ -12,8 +12,9 @@
 #include "src/tests/tests.h"
 
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::LineModifier;
-using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -75,7 +76,7 @@ LineBuilder KeyCommandsMapSequence::SummaryLine() const {
           SingleLine{LazyString{ColumnNumberDelta{1}, *regular_c}};
   return LineBuilder{Concatenate(entries_by_category | std::views::values |
                                  Intersperse(SingleLine::Char<L' '>())),
-                     LineModifierSet{LineModifier::Dim}};
+                     Style{.attributes = StyleAttribute::Dim}};
 }
 
 LineSequence KeyCommandsMapSequence::Help() const {
@@ -101,7 +102,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
         SingleLine{LazyString{longest_category - category_name.size(), L' '}});
     // TODO(easy, 2024-09-19): Avoid having to wrap category_name.
     category_line.AppendString(SingleLine{category_name},
-                               LineModifierSet{LineModifier::Bold});
+                               Style{.attributes = StyleAttribute::Bold});
     category_line.AppendString(SingleLine{LazyString{L":"}});
     // We use an inverted map to group commands with identical descriptions.
     std::map<Description, std::set<ExtendedChar>> inverted_map;
@@ -111,10 +112,9 @@ LineSequence KeyCommandsMapSequence::Help() const {
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
       category_line.AppendString(SingleLine::Char<L' '>());
-      category_line.AppendString(entry.first.read().read(),
-                                 LineModifierSet{LineModifier::Cyan});
+      category_line.AppendString(entry.first.read().read(), Style{Color::Cyan});
       category_line.AppendString(SingleLine::Char<L':'>(),
-                                 LineModifierSet{LineModifier::Dim});
+                                 Style{.attributes = StyleAttribute::Dim});
       for (ExtendedChar c : entry.second)
         category_line.Append(LineBuilder(DescribeSequence({c})));
     }
