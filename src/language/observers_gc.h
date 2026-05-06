@@ -13,8 +13,7 @@ static Observers::Observer WeakPtrLockingObserver(
     return VisitPointer(
         data.Lock(),
         [callable](language::gc::Root<P> root) {
-          callable(root.ptr().value());
-          return Observers::State::Alive;
+          return callable(root.ptr().value());
         },
         [] { return Observers::State::Expired; });
   };

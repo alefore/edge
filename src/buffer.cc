@@ -876,6 +876,7 @@ void OpenBuffer::Initialize() {
       [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
         buffer.work_queue()->Wait(Now());
+        return Observers::State::Alive;
       },
       weak_this));
 
