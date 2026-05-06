@@ -198,16 +198,13 @@ LogLineEvaluator LogEvaluator::Enter(const LogLine& log_line) {
           }) |
       std::ranges::to<std::unordered_map>();
 
-  {
-    // TODO(2026-05-05, P2, trivial): Use TRACK_SCOPE (requires defining it).
-    TRACK_OPERATION(LogEvaluator_PrepareEnvironment);
-    std::ranges::for_each(
-        values, [&](std::pair<LogEntryName, std::vector<LazyString>> entry) {
-          environment_->Assign(entry.first.read(),
-                               vm::Value::NewString(environment_.pool(),
-                                                    Concatenate(entry.second)));
-        });
-  }
+  TRACK_SCOPE(LogEvaluator_PrepareEnvironment)
+  std::ranges::for_each(
+      values, [&](std::pair<LogEntryName, std::vector<LazyString>> entry) {
+        environment_->Assign(entry.first.read(),
+                             vm::Value::NewString(environment_.pool(),
+                                                  Concatenate(entry.second)));
+      });
 
   return LogLineEvaluator(environment_.ptr());
 }

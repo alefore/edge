@@ -80,8 +80,7 @@ class Tracker {
 #define TRACK_OPERATION(tracker_name) \
   auto tracker_name##_call = INLINE_TRACKER(tracker_name)
 
-// TODO(2026-05-05, P2, trivial): Define macro TRACK_SCOPE.
-
+#define TRACK_SCOPE(tracker_name) if (TRACK_OPERATION(tracker_name); true)
 }  // namespace afc::infrastructure
 
 #endif  // __AFC_EDITOR_SRC_TRACKERS_H__
