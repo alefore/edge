@@ -35,8 +35,6 @@ struct VMTypeMapper<afc::infrastructure::screen::StyleAttribute> {
   static const types::ObjectName object_type_name;
 };
 
-// TODO(2026-05-06, P2, trivial): Remove the wrapping. Instead, make Style
-// deeply immutable.
 template <>
 struct VMTypeMapper<afc::infrastructure::screen::Style> {
   static afc::infrastructure::screen::Style get(Value& value);
