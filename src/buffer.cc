@@ -2131,6 +2131,9 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
         NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
         return MapRoute(tree.value(),
                         FindRouteToPosition(tree.value(), adjusted_position)) |
+               // We use std::views::reverse so that the most specific children
+               // take precedence over their parents.
+               std::views::reverse |
                std::views::filter([](const ParseTree* subtree) {
                  return subtree
                      ->get_property_value(ParseTreePropertyName::Link())
