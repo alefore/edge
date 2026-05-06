@@ -127,14 +127,6 @@ std::expected<Style, Error> Style::FromString(NonEmptySingleLine modifier) {
   return Error{LazyString{L"Unknown modifier: "} + modifier};
 }
 
-#if 0
-// XXXX delete
-void ToggleModifier(Style m, Style& output) {
-  if (auto results = output.insert(m); !results.second)
-    output.erase(results.first);
-}
-#endif
-
 NonEmptySingleLine StyleAttributeToString(StyleAttribute attribute) {
   static const std::vector<std::pair<StyleAttribute, NonEmptySingleLine>>
       names = {
