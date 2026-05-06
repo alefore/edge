@@ -16,8 +16,8 @@ namespace container = afc::language::container;
 
 using afc::concurrent::Protected;
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::HashToModifiers;
-using afc::infrastructure::screen::HashToModifiersBold;
+using afc::infrastructure::screen::HashToStyle;
+using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -171,8 +171,8 @@ LogEvaluator::LogEvaluator(LogType log_type)
   environment_->Define(
       IDENTIFIER_CONSTANT(L"hash"),
       vm::NewCallback(pool_, vm::kPurityTypePure, [](LazyString input) {
-        return HashToModifiers(std::hash<LazyString>{}(input),
-                               HashToModifiersBold::Never);
+        return HashToStyle(std::hash<LazyString>{}(input),
+                               HashToStyleBold::Never);
       }));
 }
 

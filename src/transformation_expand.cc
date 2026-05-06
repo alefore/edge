@@ -213,7 +213,7 @@ class ExternalCompletion : public CompositeTransformation {
                     trigger = trigger_](Path data_path) {
           return ForkCommand(
                      buffer_root->editor(),
-                     ForkCommandOptions{
+                     RunCommandOptions{
                          .command = ToLazyString(command_path) +
                                     LazyString{L" "} + ToLazyString(data_path),
                          .environment =
@@ -229,7 +229,7 @@ class ExternalCompletion : public CompositeTransformation {
                                       buffer_root->position().column.read()))},
                              },
                          .insertion_type = BuffersList::AddBufferType::Ignore,
-                         .existing_buffer_behavior = ForkCommandOptions::
+                         .existing_buffer_behavior = RunCommandOptions::
                              ExistingBufferBehavior::Ignore})
               ->WaitForEndOfFile();
         })

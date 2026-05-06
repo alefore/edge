@@ -17,8 +17,8 @@ namespace container = afc::language::container;
 
 using afc::editor::parsers::ParseQuotedString;
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::HashToModifiers;
-using afc::infrastructure::screen::HashToModifiersBold;
+using afc::infrastructure::screen::HashToStyle;
+using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -276,8 +276,8 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     } else if (Contains(typos_, str)) {
       modifiers.foreground_color = Color::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
-                                  HashToModifiersBold::Never);
+      modifiers = HashToStyle(std::hash<SingleLine>{}(str),
+                                  HashToStyleBold::Never);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -392,8 +392,8 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       if ((c == L'}' && state_default == CURLY_BRACKET_DEFAULT) ||
           (c == L']' && state_default == SQUARE_BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
-        auto modifiers = HashToModifiers(result->AddAndGetNesting(),
-                                         HashToModifiersBold::Sometimes);
+        auto modifiers = HashToStyle(result->AddAndGetNesting(),
+                                         HashToStyleBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();

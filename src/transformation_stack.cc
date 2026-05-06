@@ -400,7 +400,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                             output](Path tmp_path) {
                   ForkCommand(
                       buffer_root->editor(),
-                      ForkCommandOptions{
+                      RunCommandOptions{
                           .command = copy->shell.has_value()
                                          ? copy->shell->read() +
                                                LazyString{L" $EDGE_INPUT"}
@@ -410,7 +410,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                               {{L"EDGE_INPUT", ToLazyString(tmp_path)},
                                {L"EDGE_PARENT_BUFFER_PATH",
                                 buffer_root->Read(buffer_variables::path)}},
-                          .existing_buffer_behavior = ForkCommandOptions::
+                          .existing_buffer_behavior = RunCommandOptions::
                               ExistingBufferBehavior::Ignore});
                   return std::move(output.value());
                 });

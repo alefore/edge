@@ -135,7 +135,7 @@ editor.AddBinding("ad", "Buffers: Close the current buffer.", []() -> void {
 editor.AddBinding("ss", "Run a shell in the directory of the current buffer.",
                   []() -> void {
                     editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-                      ForkCommandOptions options;
+                      RunCommandOptions options;
                       options.set_command("sh -l");
                       string path = buffer.path();
                       if (!path.empty()) {
@@ -173,7 +173,7 @@ void Filter(string expr) {
 
 void BackupDiff() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    ForkCommandOptions options;
+    RunCommandOptions options;
     options.set_command("diff -Naur " + buffer.path().shell_escape() + " " +
                         buffer.state_directory().shell_escape() + "/backup");
     options.set_insertion_type("visit");

@@ -9,7 +9,7 @@ void build() {
   buffer.SetStatus("Run: " + cpp_build_command);
 
   string path = buffer.path().shell_escape();
-  ForkCommandOptions options = ForkCommandOptions();
+  RunCommandOptions options = RunCommandOptions();
   options.set_command(
       "if " + cpp_build_command + "; then " +
       "edge --run 'Buffer build_buffer = " +

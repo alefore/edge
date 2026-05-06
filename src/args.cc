@@ -300,7 +300,7 @@ LazyString CommandsToRun(CommandLineValues args) {
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
-        LazyString{L"ForkCommandOptions options = ForkCommandOptions();\n"} +
+        LazyString{L"RunCommandOptions options = RunCommandOptions();\n"} +
         LazyString{L"options.set_command("} +
         EscapedString::FromString(LazyString{command_to_fork})
             .CppRepresentation()
@@ -340,7 +340,7 @@ LazyString CommandsToRun(CommandLineValues args) {
   }
   if (start_shell) {
     static const LazyString kDefaultCommandsToRun{
-        L"ForkCommandOptions options = ForkCommandOptions();\n"
+        L"RunCommandOptions options = RunCommandOptions();\n"
         L"options.set_command(\"sh -l\");\n"
         L"options.set_insertion_type(\"search_or_create\");\n"
         L"options.set_name(\"💻shell\");\n"

@@ -29,19 +29,7 @@ class ColorRegistry {
   std::map<std::pair<short, short>, int> pair_cache_;
   int next_pair_id_ = 1;
 
-  short GetColorIndex(Color c) {
-    const std::array<short, 8> kColorIndices = {
-        COLOR_BLACK,    // 0
-        COLOR_RED,      // 1
-        COLOR_GREEN,    // 2
-        COLOR_YELLOW,   // 3
-        COLOR_BLUE,     // 4
-        COLOR_MAGENTA,  // 5
-        COLOR_CYAN,     // 6
-        COLOR_WHITE     // 7
-    };
-    return kColorIndices[static_cast<size_t>(c)];
-  }
+  short GetColorIndex(Color c) { return static_cast<size_t>(c); }
 
  public:
   int GetPair(Color foreground, Color background) {

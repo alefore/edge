@@ -16,8 +16,8 @@
 namespace container = afc::language::container;
 
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::HashToModifiers;
-using afc::infrastructure::screen::HashToModifiersBold;
+using afc::infrastructure::screen::HashToStyle;
+using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -203,8 +203,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     } else if (Contains(typos_, str)) {
       modifiers.foreground_color = Color::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
-                                  HashToModifiersBold::Never);
+      modifiers = HashToStyle(std::hash<SingleLine>{}(str),
+                                  HashToStyleBold::Never);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -291,8 +291,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
         expected_state = BRACE_DEFAULT;
 
       if (result->state() == expected_state) {
-        Style modifiers = HashToModifiers(result->AddAndGetNesting(),
-                                          HashToModifiersBold::Sometimes);
+        Style modifiers = HashToStyle(result->AddAndGetNesting(),
+                                          HashToStyleBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();

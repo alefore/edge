@@ -35,7 +35,7 @@ SingleLine ToString(LogEntryValueType value_type) {
   switch (value_type) {
     using enum LogEntryValueType;
     case Path:
-      return SINGLE_LINE_CONSTANT(L"(path)");
+      return SINGLE_LINE_CONSTANT(L"path");
     case String:
       return SINGLE_LINE_CONSTANT(L"");
   }
@@ -60,16 +60,23 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
                 Line{SINGLE_LINE_CONSTANT(L"## ") +
                      language::lazy_string::ToSingleLine(data.first)});
 
-            if (data.second.size() == 1)
+            if (data.second.size() == 1) {
               // TODO(2026-05-05, log, P2): Avoid std::get, don't assume that
               // value is a variant; that couples us too tightly with
               // LogEntryValue.
+              SingleLine value_type_description =
+                  ToString(data.second.front().value_type);
+              if (!value_type_description.empty())
+                value_type_description = SINGLE_LINE_CONSTANT(L" (type: ") +
+                                         value_type_description +
+                                         SINGLE_LINE_CONSTANT(L")");
               section.push_back(
                   Line(SINGLE_LINE_CONSTANT(L"Value: ") +
                        LineSequence::BreakLines(
                            std::get<LazyString>(data.second.front().value))
                            .FoldLines() +
-                       ToString(data.second.front().value_type)));
+                       value_type_description));
+            }
             section.push_back(L"");
             return std::move(section).snapshot();
           }) |

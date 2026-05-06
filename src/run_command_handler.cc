@@ -378,7 +378,7 @@ void RunCommand(const CommandBufferName& name,
   }
 
   ForkCommand(editor_state,
-              ForkCommandOptions{
+              RunCommandOptions{
                   .command = input,
                   .name = name,
                   .environment = std::move(environment),
@@ -576,7 +576,7 @@ class ForkEditorCommand : public Command {
           }
 
           prompt_state.base_command = base_command;
-          ForkCommandOptions options;
+          RunCommandOptions options;
           options.command = base_command;
           options.name = BufferName{LazyString{L"- preview: "} + base_command};
           options.insertion_type = BuffersList::AddBufferType::Ignore;
@@ -601,13 +601,13 @@ class ForkEditorCommand : public Command {
 namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<
-    NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::object_type_name =
+    NonNull<std::shared_ptr<editor::RunCommandOptions>>>::object_type_name =
     types::ObjectName{
-        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"ForkCommandOptions")}};
+        Identifier{NON_EMPTY_SINGLE_LINE_CONSTANT(L"RunCommandOptions")}};
 }  // namespace vm
 namespace editor {
 /* static */
-void ForkCommandOptions::Register(gc::Pool& pool,
+void RunCommandOptions::Register(gc::Pool& pool,
                                   vm::Environment& environment) {
   using vm::ObjectType;
   using vm::Value;
@@ -615,25 +615,25 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   gc::Root<ObjectType> fork_command_options = ObjectType::New(
       pool,
       VMTypeMapper<
-          NonNull<std::shared_ptr<ForkCommandOptions>>>::object_type_name);
+          NonNull<std::shared_ptr<RunCommandOptions>>>::object_type_name);
 
   environment.Define(vm::Identifier{NonEmptySingleLine{
-                         SingleLine{LazyString{L"ForkCommandOptions"}}}},
+                         SingleLine{LazyString{L"RunCommandOptions"}}}},
                      NewCallback(pool, vm::kPurityTypePure,
-                                 MakeNonNullShared<ForkCommandOptions>));
+                                 MakeNonNullShared<RunCommandOptions>));
 
   fork_command_options.ptr()->AddField(
       vm::Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"set_command"}}}},
       NewCallback(pool, vm::kPurityTypeUnknown,
-                  [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                  [](NonNull<std::shared_ptr<RunCommandOptions>> options,
                      LazyString value) { options->command = std::move(value); })
           .ptr());
 
   fork_command_options.ptr()->AddField(
       vm::Identifier{NonEmptySingleLine{SingleLine{LazyString{L"set_name"}}}},
       NewCallback(pool, vm::kPurityTypeUnknown,
-                  [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                  [](NonNull<std::shared_ptr<RunCommandOptions>> options,
                      LazyString value) {
                     options->name = CommandBufferName{std::move(value)};
                   })
@@ -644,7 +644,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           NonEmptySingleLine{SingleLine{LazyString{L"set_insertion_type"}}}},
       NewCallback(
           pool, vm::kPurityTypeUnknown,
-          [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+          [](NonNull<std::shared_ptr<RunCommandOptions>> options,
              std::wstring value) {
             if (value == L"visit") {
               options->insertion_type = BuffersList::AddBufferType::Visit;
@@ -660,7 +660,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       vm::Identifier{
           NonEmptySingleLine{SingleLine{LazyString{L"set_children_path"}}}},
       NewCallback(pool, vm::kPurityTypeUnknown,
-                  [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                  [](NonNull<std::shared_ptr<RunCommandOptions>> options,
                      LazyString value) {
                     options->children_path =
                         OptionalFrom(Path::New(std::move(value)));
@@ -671,10 +671,10 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 }
 
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
-                                 const ForkCommandOptions& options) {
+                                 const RunCommandOptions& options) {
   BufferName name = options.name.value_or(CommandBufferName{options.command});
   if (options.existing_buffer_behavior ==
-      ForkCommandOptions::ExistingBufferBehavior::Reuse) {
+      RunCommandOptions::ExistingBufferBehavior::Reuse) {
     if (std::optional<gc::Root<OpenBuffer>> buffer =
             editor_state.buffer_registry().Find(name);
         buffer.has_value()) {

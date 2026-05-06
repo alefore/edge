@@ -21,8 +21,8 @@ using afc::editor::parsers::NestedExpressionSyntax;
 using afc::editor::parsers::ParseQuotedString;
 using afc::editor::parsers::ParseQuotedStringState;
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::HashToModifiers;
-using afc::infrastructure::screen::HashToModifiersBold;
+using afc::infrastructure::screen::HashToStyle;
+using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -353,8 +353,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
 
     if (c == L'}') {
       if (result->parse_results().states_stack.size() > 1) {
-        Style modifiers = HashToModifiers(result->AddAndGetNesting(),
-                                          HashToModifiersBold::Sometimes);
+        Style modifiers = HashToStyle(result->AddAndGetNesting(),
+                                          HashToStyleBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();

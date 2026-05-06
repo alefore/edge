@@ -439,7 +439,7 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"ForkCommand"}}}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg,
-                         NonNull<std::shared_ptr<ForkCommandOptions>> options) {
+                         NonNull<std::shared_ptr<RunCommandOptions>> options) {
                         return ForkCommand(editor_arg, options.value());
                       })
           .ptr());
@@ -604,7 +604,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   RegisterTransformations(pool, value);
   Modifiers::Register(pool, value);
   infrastructure::screen::RegisterLineModifier(pool, value);
-  ForkCommandOptions::Register(pool, value);
+  RunCommandOptions::Register(pool, value);
   RegisterParseTreeFunctions(pool, value);
   RegisterSearchOptionsVm(pool, value);
   language::text::LineColumnRegister(pool, value);

@@ -24,7 +24,7 @@ class EditorState;
 
 // TODO(P0, 2026-05-04): This is getting fucking annoying. Either rename this to
 // RunCommandOptions or move this to `src/fork_command.h`.
-struct ForkCommandOptions {
+struct RunCommandOptions {
   static void Register(language::gc::Pool& pool, vm::Environment& environment);
 
   // The command to run.
@@ -57,7 +57,7 @@ language::gc::Root<Command> NewForkCommand(EditorState& editor_state);
 class OpenBuffer;
 
 language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
-                                           const ForkCommandOptions& options);
+                                           const RunCommandOptions& options);
 
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     EditorState& editor_state, language::lazy_string::SingleLine input);

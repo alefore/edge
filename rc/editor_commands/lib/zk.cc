@@ -49,7 +49,7 @@ string ToMarkdownPath(string path) {
 // Returns the path (ID) of the next available (empty) file. Includes the `.md`
 // extension.
 string NextEmpty() {
-  ForkCommandOptions options;
+  RunCommandOptions options;
   options.set_command(
       "find -size 0b -name '???.md' -printf '%f\n' | sort | head -1");
   options.set_insertion_type("ignore");
@@ -59,7 +59,7 @@ string NextEmpty() {
 }
 
 Buffer RunCommand(string name, string command, string insertion_type) {
-  ForkCommandOptions options;
+  RunCommandOptions options;
   options.set_command(command);
   options.set_insertion_type(insertion_type);
   options.set_name("zk: " + name);
