@@ -248,6 +248,19 @@ struct head_to_optional_fn
 // * If the view is empty: std::nullopt
 // * If the view is non-empty: std::optional<R> with the first element
 inline constexpr head_to_optional_fn head_to_optional;
+
+// 1. Define the closure to make it pipeable
+struct as_range_fn : std::ranges::range_adaptor_closure<as_range_fn> {
+  template <typename T>
+  auto operator()(std::optional<T>& opt) const {
+    // Returns a subrange: 0 elements if empty, 1 if engaged
+    if (!opt) return std::ranges::subrange<T*>(nullptr, nullptr);
+    return std::ranges::subrange<T*>(&*opt, &*opt + 1);
+  }
+};
+
+// 2. Create the global pipeable object
+inline constexpr as_range_fn as_range{};
 }  // namespace container
 }  // namespace afc::language
 #endif
