@@ -347,7 +347,6 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
       GetErrors | std::ranges::to<std::vector>();
   if (patterns.empty()) errors.push_back(Error{L"No pattern specified."});
   if (patterns.size() != 1) {
-    // TODO(2026-04-30, P2, trivial): Show all patterns, maybe.
     errors.push_back(Error{L"Multiple patterns specified."});
   }
   if (!errors.empty()) return MergeErrors(errors, L", ");
