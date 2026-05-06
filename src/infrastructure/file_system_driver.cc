@@ -13,6 +13,7 @@ extern "C" {
 
 #include "src/language/container.h"
 #include "src/language/error/view.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 
@@ -25,7 +26,10 @@ using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::Concatenate;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::ToLazyString;
 using afc::language::view::ExtractErrors;
 
 namespace afc::infrastructure {
@@ -39,17 +43,21 @@ PossibleError FileDescriptorValidator::Validate(const int& fd) {
 }
 
 namespace {
-PossibleError SyscallReturnValue(LazyString description, int return_value) {
+PossibleError SyscallReturnValue(LazyString description, int return_value,
+                                 std::vector<LazyString> args) {
   LOG(INFO) << "Syscall return value: " << description << ": " << return_value;
-  return return_value == -1 ? Error{description + LazyString{L": Failure: "} +
-                                    LazyString{FromByteString(strerror(errno))}}
-                            : Success();
+  return return_value == -1
+             ? Error{description + LazyString{L": Failure: "} +
+                     LazyString{FromByteString(strerror(errno))} +
+                     (args.empty() ? LazyString{} : LazyString{L". Args: "}) +
+                     Concatenate(args | Intersperse(LazyString{L", "}))}
+             : Success();
 }
 
 PossibleError SyscallReturnValue(const Path& path, LazyString description,
                                  int return_value) {
-  return SyscallReturnValue(path.read() + LazyString{L": "} + description,
-                            return_value);
+  return SyscallReturnValue(description, return_value,
+                            std::vector{ToLazyString(path)});
 }
 }  // namespace
 
@@ -96,7 +104,7 @@ futures::Value<ssize_t> FileSystemDriver::Read(FileDescriptor fd, void* buf,
 
 futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
   return thread_pool_.Run([fd] {
-    return SyscallReturnValue(LazyString{L"Close"}, close(fd.read()));
+    return SyscallReturnValue(LazyString{L"Close"}, close(fd.read()), {});
   });
 }
 
@@ -111,14 +119,9 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
   return thread_pool_.Run(
       [path = std::move(path)]() -> language::ValueOrError<struct stat> {
         struct stat output;
-        if (stat(path.ToBytes().c_str(), &output) == -1) {
-          Error error{LazyString{L"Stat failed: `"} + path.read() +
-                      LazyString{L"`: "} +
-                      LazyString{FromByteString(strerror(errno))}};
-          LOG(INFO) << error;
-          return error;
-        }
-        return Success(output);
+        RETURN_IF_ERROR(SyscallReturnValue(
+            path, L"Stat", stat(path.ToBytes().c_str(), &output)));
+        return output;
       });
 }
 
@@ -127,16 +130,16 @@ futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
   return thread_pool_.Run([oldpath, newpath] {
     return SyscallReturnValue(
         LazyString{L"Rename"},
-        rename(oldpath.ToBytes().c_str(), newpath.ToBytes().c_str()));
+        rename(oldpath.ToBytes().c_str(), newpath.ToBytes().c_str()),
+        std::vector{ToLazyString(oldpath), ToLazyString(newpath)});
   });
 }
 
 futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
                                                       mode_t mode) const {
   return thread_pool_.Run([path, mode] {
-    return AugmentError(
-        path.read(), SyscallReturnValue(path, LazyString{L"Mkdir"},
-                                        mkdir(path.ToBytes().c_str(), mode)));
+    return SyscallReturnValue(path, LazyString{L"Mkdir"},
+                              mkdir(path.ToBytes().c_str(), mode));
   });
 }
 
