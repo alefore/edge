@@ -57,31 +57,42 @@ class LogTreeParser : public TreeParser {
              LazyString{L"()"}}});
     CompiledLogView compiled_log_view(evaluator, log_view_);
     range.ForEachLine([&](LineNumber i) {
-      VisitValue(
-          log_type_.Parse(contents.at(i).contents().read()), [&](LogLine line) {
-            ParseTree line_output(
-                LineRange(LineColumn{i},
-                          std::numeric_limits<ColumnNumberDelta>::max())
-                    .read());
-            std::expected<std::unordered_map<LogEntryName, Style>, Error>
-                modifiers_map = compiled_log_view.Evaluate(
-                    line.values | std::views::transform(&LogEntryValue::name) |
-                        std::ranges::to<std::unordered_set>(),
-                    line);
-            if (!modifiers_map) {
-              LOG(INFO) << "Error: " << modifiers_map.error();
-              return;
-            }
+      SingleLine line_contents = contents.at(i).contents().read();
+      VisitValue(log_type_.Parse(line_contents), [&](LogLine line) {
+        ParseTree line_output(
+            LineRange(LineColumn{i},
+                      std::numeric_limits<ColumnNumberDelta>::max())
+                .read());
+        std::expected<std::unordered_map<LogEntryName, Style>, Error>
+            modifiers_map = compiled_log_view.Evaluate(
+                line.values | std::views::transform(&LogEntryValue::name) |
+                    std::ranges::to<std::unordered_set>(),
+                line);
+        if (!modifiers_map) {
+          LOG(INFO) << "Error: " << modifiers_map.error();
+          return;
+        }
 
-            TRACK_OPERATION(LogTreeParser_ProduceTrees);
-            std::ranges::for_each(line.values, [&](const LogEntryValue& data) {
-              ParseTree child(
-                  LineRange(LineColumn{i, data.position}, data.size).read());
-              child.set_modifiers(modifiers_map->find(data.name)->second);
-              line_output.PushChild(std::move(child));
-            });
-            output.PushChild(std::move(line_output));
-          });
+        TRACK_OPERATION(LogTreeParser_ProduceTrees);
+        std::ranges::for_each(line.values, [&](const LogEntryValue& data) {
+          ParseTree child(
+              LineRange(LineColumn{i, data.position}, data.size).read());
+          child.set_modifiers(modifiers_map->find(data.name)->second);
+          switch (data.value_type) {
+            case LogEntryValueType::Path:
+              child.set_properties(ParseTree::PropertyMap{
+                  {{ParseTreePropertyName::Link(), LazyString{}},
+                   {ParseTreePropertyName::LinkTarget(),
+                    ToLazyString(
+                        line_contents.Substring(data.position, data.size))}}});
+              break;
+            case LogEntryValueType::String:
+              break;
+          }
+          line_output.PushChild(std::move(child));
+        });
+        output.PushChild(std::move(line_output));
+      });
     });
     return output;
   }
