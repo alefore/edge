@@ -318,6 +318,9 @@ src/record_command.cc \
 src/repeat_mode.cc \
 src/flashcard.cc \
 src/flashcard.h \
+src/run_command.h \
+src/run_command.cc \
+src/run_command_handler.h \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
 src/run_cpp_command.h \

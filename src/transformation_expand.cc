@@ -10,7 +10,7 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
 #include "src/predictor.h"
-#include "src/run_command_handler.h"
+#include "src/run_command.h"
 #include "src/run_cpp_command.h"
 #include "src/tests/tests.h"
 #include "src/transformation_composite.h"
@@ -229,8 +229,8 @@ class ExternalCompletion : public CompositeTransformation {
                                       buffer_root->position().column.read()))},
                              },
                          .insertion_type = BuffersList::AddBufferType::Ignore,
-                         .existing_buffer_behavior = RunCommandOptions::
-                             ExistingBufferBehavior::Ignore})
+                         .existing_buffer_behavior =
+                             RunCommandOptions::ExistingBufferBehavior::Ignore})
               ->WaitForEndOfFile();
         })
         .Transform(

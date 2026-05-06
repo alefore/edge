@@ -8,7 +8,7 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/log.h"
-#include "src/run_command_handler.h"
+#include "src/run_command.h"
 #include "src/tests/tests.h"
 #include "src/transformation_composite.h"
 #include "src/transformation_input.h"

@@ -172,6 +172,8 @@ cc_binary(
         "record_command.h",
         "repeat_mode.cc",
         "repeat_mode.h",
+        "run_command.cc",
+        "run_command.h",
         "run_command_handler.cc",
         "run_command_handler.h",
         "run_cpp_command.cc",

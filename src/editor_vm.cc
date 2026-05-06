@@ -19,7 +19,7 @@
 #include "src/language/wstring.h"
 #include "src/open_file_command.h"
 #include "src/parse_tree.h"
-#include "src/run_command_handler.h"
+#include "src/run_command.h"
 #include "src/search_handler_vm.h"
 #include "src/server.h"
 #include "src/set_buffer_mode.h"

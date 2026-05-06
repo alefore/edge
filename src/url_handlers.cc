@@ -5,7 +5,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/text/line_builder.h"
 #include "src/open_files.h"
-#include "src/run_command_handler.h"
+#include "src/run_command.h"
 #include "src/url.h"
 #include "src/vm/escape.h"
 
@@ -91,12 +91,12 @@ futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>> HandleURL(
                   LineBuilder{SINGLE_LINE_CONSTANT(L"Open: ") + url.read()}
                       .Build()));
           RunCommand(editor,
-                      RunCommandOptions{
-                          .command = LazyString{L"xdg-open "} +
-                                     vm::EscapedString(ToLazyString(url))
-                                         .ShellEscapedRepresentation(),
-                          .insertion_type = BuffersList::AddBufferType::Ignore,
-                      });
+                     RunCommandOptions{
+                         .command = LazyString{L"xdg-open "} +
+                                    vm::EscapedString(ToLazyString(url))
+                                        .ShellEscapedRepresentation(),
+                         .insertion_type = BuffersList::AddBufferType::Ignore,
+                     });
       }
       return std::nullopt;
     case URL::Scheme::File:
