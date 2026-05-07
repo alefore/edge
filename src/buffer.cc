@@ -1923,8 +1923,8 @@ LazyString OpenBuffer::ToString() const {
   return contents_.snapshot().ToLazyString();
 }
 
-const struct timespec OpenBuffer::time_last_exit() const {
-  return child_process_tracker_.time_last_exit();
+const ChildProcessTracker& OpenBuffer::child_process_tracker() const {
+  return child_process_tracker_;
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {

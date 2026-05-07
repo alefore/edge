@@ -298,7 +298,9 @@ struct BuffersListOptions {
 enum class FilterResult { Excluded, Included };
 
 Style GetNumberModifiers(const BuffersListOptions& options,
-                         const OpenBuffer& buffer, FilterResult filter_result) {
+                         const OpenBuffer& buffer,
+                         const ChildProcessTracker& child_process,
+                         FilterResult filter_result) {
   Style output;
   if (buffer.status().GetType() == Status::Type::Warning) {
     output.foreground_color = Color::Red;
@@ -309,10 +311,10 @@ Style GetNumberModifiers(const BuffersListOptions& options,
     }
   } else if (filter_result == FilterResult::Excluded) {
     output.attributes |= StyleAttribute::Dim;
-  } else if (buffer.child_pid().has_value()) {
+  } else if (child_process.pid()) {
     output.foreground_color = Color::Yellow;
-  } else if (buffer.child_exit_status().has_value()) {
-    auto status = buffer.child_exit_status().value();
+  } else if (child_process.exit_status()) {
+    auto status = child_process.exit_status().value();
     if (!WIFEXITED(status)) {
       output.foreground_color = Color::Red;
       output.attributes |= StyleAttribute::Bold;
@@ -321,7 +323,7 @@ Style GetNumberModifiers(const BuffersListOptions& options,
     } else {
       output.foreground_color = Color::Red;
     }
-    if (GetElapsedSecondsSince(buffer.time_last_exit()) < 5.0) {
+    if (GetElapsedSecondsSince(child_process.time_last_exit()) < 5.0) {
       output.attributes |= StyleAttribute::Reverse;
     }
   } else {
@@ -685,7 +687,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 SingleLine::Padding(prefix_width - number_prefix.size() -
                                     kProgressWidth) +
                     number_prefix,
-                GetNumberModifiers(options.value(), buffer, filter_result));
+                GetNumberModifiers(options.value(), buffer,
+                                   buffer.child_process_tracker(),
+                                   filter_result));
 
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width - kProgressWidth);

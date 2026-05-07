@@ -445,7 +445,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   std::optional<infrastructure::ProcessId> child_pid() const;
   std::optional<int> child_exit_status() const;
-  const struct timespec time_last_exit() const;
+  const ChildProcessTracker& child_process_tracker() const;
 
   void PushSignal(infrastructure::UnixSignal signal);
 
