@@ -155,6 +155,8 @@ using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
+using afc::language::version::VersionId;
+using afc::language::version::VersionValue;
 using afc::language::view::SkipErrors;
 using gc::LockAndVisitCallback;
 

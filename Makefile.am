@@ -238,6 +238,8 @@ src/language/text/range.cc \
 src/language/text/range.h \
 src/language/text/sorted_line_sequence.cc \
 src/language/text/sorted_line_sequence.h \
+src/language/version_tracker.cc \
+src/language/version_tracker.h \
 src/language/wstring.cc \
 src/language/wstring.h \
 src/line_output.cc \

@@ -34,6 +34,7 @@
 #include "src/language/text/line_processor_map.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
+#include "src/language/version_tracker.h"
 #include "src/line_marks.h"
 #include "src/log.h"
 #include "src/log_model.h"
@@ -619,6 +620,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
       contents_observer_;
 
   language::text::MutableLineSequence contents_;
+  language::version::Tracker version_tracker_;
+
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
   DiskState disk_state_ = DiskState::Current;

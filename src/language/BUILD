@@ -185,6 +185,7 @@ cc_library(
     hdrs = ["ghost_type_class.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":wstring",
         "//src/language/error:base",
     ],
 )
@@ -239,6 +240,21 @@ cc_library(
     name = "safe_types",
     hdrs = ["safe_types.h"],
     visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "version_tracker",
+    srcs = ["version_tracker.cc"],
+    hdrs = ["version_tracker.h"],
+    visibility = ["//visibility:public"],
+    deps = [":version_value"],
+)
+
+cc_library(
+    name = "version_value",
+    hdrs = ["version_value.h"],
+    visibility = ["//visibility:public"],
+    deps = [":ghost_type_class"],
 )
 
 cc_library(

@@ -301,6 +301,8 @@ cc_binary(
         "//src/language:observers",
         "//src/language:observers_gc",
         "//src/language:tests",
+        "//src/language:version_tracker",
+        "//src/language:version_value",
         "//src/language/error:value_or_error_tests",
         "//src/language/lazy_string",
         "//src/language/lazy_string:convert",
