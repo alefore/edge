@@ -495,8 +495,7 @@ OpenBuffer::PrepareToClose() {
                   root_this->on_exit_handler_ =
                       [root_this,
                        consumer = std::move(future.consumer)]() mutable {
-                        CHECK(!root_this->child_process_tracker_.pid()
-                                   .has_value());
+                        CHECK(!root_this->child_process_tracker_.pid());
                         LOG(INFO) << "Subprocess terminated: "
                                   << root_this->Read(buffer_variables::name);
                         root_this->PrepareToClose().SetConsumer(
@@ -1927,6 +1926,10 @@ const ChildProcessTracker& OpenBuffer::child_process_tracker() const {
   return child_process_tracker_;
 }
 
+ChildProcessTracker& OpenBuffer::child_process_tracker() {
+  return child_process_tracker_;
+}
+
 void OpenBuffer::PushSignal(UnixSignal signal) {
   status_->SetInformationText(Line{NonEmptySingleLine{signal.read()}});
   if (file_adapter_->WriteSignal(signal)) return;
@@ -1965,10 +1968,7 @@ BufferName OpenBuffer::name() const { return options_.name; }
 
 futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     std::optional<FileDescriptor> input_fd,
-    std::optional<FileDescriptor> input_error_fd, bool fd_is_terminal,
-    std::optional<ProcessId> child_pid) {
-  child_process_tracker_.set_pid(child_pid);
-
+    std::optional<FileDescriptor> input_error_fd, bool fd_is_terminal) {
   file_adapter_ = std::invoke([fd_is_terminal,
                                this] -> NonNull<std::unique_ptr<FileAdapter>> {
     if (fd_is_terminal) return NewTerminal();
@@ -2081,8 +2081,7 @@ futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
       .Transform([buffer = RootFromThis(),
                   path](FileDescriptor fd) -> futures::Value<PossibleError> {
         LOG(INFO) << path << ": Opened file descriptor: " << fd;
-        return buffer->SetInputFiles(fd, std::nullopt, false,
-                                     std::optional<ProcessId>());
+        return buffer->SetInputFiles(fd, std::nullopt, false);
       });
 }
 

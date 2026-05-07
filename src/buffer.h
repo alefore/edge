@@ -433,7 +433,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   futures::Value<language::EmptyValue> SetInputFiles(
       std::optional<infrastructure::FileDescriptor> input_fd,
       std::optional<infrastructure::FileDescriptor> input_fd_error,
-      bool fd_is_terminal, std::optional<infrastructure::ProcessId> child_pid);
+      bool fd_is_terminal);
+
   futures::Value<language::PossibleError> SetInputFromPath(
       const infrastructure::Path& path);
 
@@ -446,6 +447,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   std::optional<infrastructure::ProcessId> child_pid() const;
   std::optional<int> child_exit_status() const;
   const ChildProcessTracker& child_process_tracker() const;
+  ChildProcessTracker& child_process_tracker();
 
   void PushSignal(infrastructure::UnixSignal signal);
 
