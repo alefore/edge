@@ -46,6 +46,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 
 namespace afc::editor {
@@ -81,16 +82,19 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       output.AppendString(SingleLine{LazyString{to_wstring(
           options.buffer->current_position_line() + LineNumberDelta(1))}});
     }
-    output.AppendString(SINGLE_LINE_CONSTANT(L" of "),
-                        Style{.attributes = StyleAttribute::Dim});
+    output.AppendString(
+        SINGLE_LINE_CONSTANT(L" of "),
+        LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
     output.AppendString(SingleLine{LazyString{to_wstring(
         options.buffer->contents().EndLine() + LineNumberDelta(1))}});
-    output.AppendString(SINGLE_LINE_CONSTANT(L", "),
-                        Style{.attributes = StyleAttribute::Dim});
+    output.AppendString(
+        SINGLE_LINE_CONSTANT(L", "),
+        LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
     output.AppendString(SingleLine{LazyString{to_wstring(
         options.buffer->current_position_col() + ColumnNumberDelta(1))}});
-    output.AppendString(SINGLE_LINE_CONSTANT(L" 🧭 "),
-                        Style{.attributes = StyleAttribute::Dim});
+    output.AppendString(
+        SINGLE_LINE_CONSTANT(L" 🧭 "),
+        LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
 
     if (SingleLine marks_text = options.buffer->GetLineMarksText();
         !marks_text.empty()) {
@@ -106,13 +110,15 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                    ? SingleLine::Char<L'✨'>()
                    : SingleLine::Char<L'👥'>()),
           std::nullopt);
-      output.AppendString(SingleLine::Char<L':'>(),
-                          Style{.attributes = StyleAttribute::Dim});
+      output.AppendString(
+          SingleLine::Char<L':'>(),
+          LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
       output.AppendString(SingleLine{LazyString{std::to_wstring(
                               active_cursors.current_index() + 1)}},
                           std::nullopt);
-      output.AppendString(SingleLine::Char<L'/'>(),
-                          Style{.attributes = StyleAttribute::Dim});
+      output.AppendString(
+          SingleLine::Char<L'/'>(),
+          LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
       output.AppendString(
           SingleLine{LazyString{std::to_wstring(active_cursors.size())}} +
               SingleLine::Char<L' '>(),

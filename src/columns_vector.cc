@@ -31,6 +31,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 
 namespace afc::editor {
 namespace {
@@ -64,7 +65,7 @@ LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
   while (contents.size() < size)
     contents = std::move(contents).Append(padding.body);
   options.AppendString(std::move(contents).Substring(ColumnNumber(), size),
-                       padding.style);
+                       LinePartMetadata{.style = padding.style});
   return options;
 }
 }  // namespace
@@ -126,7 +127,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
           std::optional<ColumnNumber> cursor;
           LineBuilder options;
           ColumnNumber initial_column;
-          Style current_modifiers;
+          LinePartMetadata current_modifiers;
           // This takes wide characters into account (i.e., it may differ from
           // options.EndColumn() when there are wide characters).
           ColumnNumber columns_shown;

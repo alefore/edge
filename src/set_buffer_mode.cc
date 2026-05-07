@@ -31,6 +31,7 @@ using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 
 namespace afc::editor {
@@ -191,32 +192,43 @@ Line BuildStatus(const Data& data) {
             SingleLine{LazyString{std::to_wstring(operation.number)}});
         break;
       case Operation::Type::kFilter:
-        output.AppendString(SingleLine::Char<L'w'>(),
-                            Style{.foreground_color = StandardColor::Cyan});
-        output.AppendString(SingleLine::Char<L':'>(),
-                            Style{.attributes = StyleAttribute::Dim});
+        output.AppendString(
+            SingleLine::Char<L'w'>(),
+            LinePartMetadata{.style = Style{.foreground_color = StandardColor::Cyan}});
+        output.AppendString(
+            SingleLine::Char<L':'>(),
+            LinePartMetadata{.style =
+                                 Style{.attributes = StyleAttribute::Dim}});
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::ReadingFilter) {
-          output.AppendString(SingleLine::Char<L'…'>(),
-                              Style{.foreground_color = StandardColor::Yellow});
+          output.AppendString(
+              SingleLine::Char<L'…'>(),
+              LinePartMetadata{.style =
+                                   Style{.foreground_color = StandardColor::Yellow}});
         }
         break;
       case Operation::Type::WarningFilter:
-        output.AppendString(SINGLE_LINE_CONSTANT(L" !"),
-                            Style{.foreground_color = StandardColor::Red});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L" !"),
+            LinePartMetadata{.style = Style{.foreground_color = StandardColor::Red}});
         break;
       case Operation::Type::kSearch:
-        output.AppendString(SingleLine::Char<L'/'>(),
-                            Style{.foreground_color = StandardColor::Green});
-        output.AppendString(SingleLine::Char<L':'>(),
-                            Style{.attributes = StyleAttribute::Dim});
+        output.AppendString(
+            SingleLine::Char<L'/'>(),
+            LinePartMetadata{.style = Style{.foreground_color = StandardColor::Green}});
+        output.AppendString(
+            SingleLine::Char<L':'>(),
+            LinePartMetadata{.style =
+                                 Style{.attributes = StyleAttribute::Dim}});
 
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::ReadingSearch) {
-          output.AppendString(SingleLine::Char<L'…'>(),
-                              Style{.foreground_color = StandardColor::Yellow});
+          output.AppendString(
+              SingleLine::Char<L'…'>(),
+              LinePartMetadata{.style =
+                                   Style{.foreground_color = StandardColor::Yellow}});
         }
         break;
     }

@@ -22,6 +22,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LinePartMetadata;
 
 namespace afc::editor {
 
@@ -41,18 +42,18 @@ std::vector<Color> GetBufferFlag(const OpenBuffer& buffer) {
 
 LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
   return LineWithCursor::Generator::Vector{
-      .lines = GetBufferFlag(buffer) | std::views::transform([](auto modifier) {
-                 return LineWithCursor::Generator::New(CaptureAndHash(
-                     [](Color m) {
-                       LineBuilder options;
-                       options.AppendString(
-                           SingleLine::Padding<L'█'>(ColumnNumberDelta{80}),
-                           Style{.foreground_color = m});
-                       return LineWithCursor{.line =
-                                                 std::move(options).Build()};
-                     },
-                     modifier));
-               }) |
-               std::ranges::to<std::vector>()};
+      .lines =
+          GetBufferFlag(buffer) | std::views::transform([](auto modifier) {
+            return LineWithCursor::Generator::New(CaptureAndHash(
+                [](Color m) {
+                  LineBuilder options;
+                  options.AppendString(
+                      SingleLine::Padding<L'█'>(ColumnNumberDelta{80}),
+                      LinePartMetadata{.style = Style{.foreground_color = m}});
+                  return LineWithCursor{.line = std::move(options).Build()};
+                },
+                modifier));
+          }) |
+          std::ranges::to<std::vector>()};
 }
 }  // namespace afc::editor

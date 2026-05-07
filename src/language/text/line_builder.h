@@ -28,7 +28,7 @@ class LineBuilder {
   explicit LineBuilder(const Line&);
   explicit LineBuilder(language::lazy_string::SingleLine input_contents);
   LineBuilder(language::lazy_string::SingleLine input_contents,
-              afc::infrastructure::screen::Style modifiers);
+              LinePartMetadata modifiers);
   explicit LineBuilder(
       language::lazy_string::NonEmptySingleLine input_contents);
 
@@ -50,13 +50,13 @@ class LineBuilder {
   // `column` may be greater than size(), in which case the character will
   // just get appended (extending the line by exactly one character).
   void SetCharacter(language::lazy_string::ColumnNumber column, int c,
-                    const afc::infrastructure::screen::Style& modifiers);
+                    const LinePartMetadata& modifiers);
 
   void InsertCharacterAtPosition(language::lazy_string::ColumnNumber position);
-  void AppendCharacter(wchar_t c, afc::infrastructure::screen::Style modifier);
+  void AppendCharacter(wchar_t c, LinePartMetadata modifier);
   void AppendString(language::lazy_string::SingleLine suffix);
   void AppendString(language::lazy_string::SingleLine suffix,
-                    std::optional<afc::infrastructure::screen::Style> modifier);
+                    std::optional<LinePartMetadata> modifier);
 
   // This function has linear complexity on the number of modifiers in `line`
   // and logarithmic on the length of `line` and `this`.
@@ -88,21 +88,19 @@ class LineBuilder {
   // Delete characters from column (included) until the end.
   LineBuilder& DeleteSuffix(language::lazy_string::ColumnNumber column);
 
-  LineBuilder& SetAllModifiers(afc::infrastructure::screen::Style value);
+  LineBuilder& SetAllModifiers(LinePartMetadata value);
 
-  LineBuilder& insert_end_of_line_modifiers(
-      afc::infrastructure::screen::Style values);
-  LineBuilder& set_end_of_line_modifiers(
-      afc::infrastructure::screen::Style values);
-  afc::infrastructure::screen::Style copy_end_of_line_modifiers() const;
+  LineBuilder& insert_end_of_line_modifiers(LinePartMetadata values);
+  LineBuilder& set_end_of_line_modifiers(LinePartMetadata values);
+  LinePartMetadata copy_end_of_line_modifiers() const;
 
-  std::map<language::lazy_string::ColumnNumber,
-           afc::infrastructure::screen::Style>
-  modifiers() const;
+  // TODO(2026-05-07, P1, rename, trivial): Rename `modifiers` to
+  // `line_part_metadata_map`. Same for `modifiers_size` and `modifiers_empty`
+  // and `modifiers_last`.
+  LinePartMetadataMap modifiers() const;
   size_t modifiers_size() const;
   bool modifiers_empty() const;
-  std::pair<language::lazy_string::ColumnNumber,
-            afc::infrastructure::screen::Style>
+  std::pair<language::lazy_string::ColumnNumber, LinePartMetadata>
   modifiers_last() const;
 #if 0
   // XXXX
@@ -110,12 +108,9 @@ class LineBuilder {
                       afc::infrastructure::screen::LineModifier);
 #endif
   void InsertModifiers(language::lazy_string::ColumnNumber,
-                       const afc::infrastructure::screen::Style&);
-  void set_modifiers(language::lazy_string::ColumnNumber,
-                     afc::infrastructure::screen::Style);
-  void set_modifiers(std::map<language::lazy_string::ColumnNumber,
-                              afc::infrastructure::screen::Style>
-                         value);
+                       const LinePartMetadata&);
+  void set_modifiers(language::lazy_string::ColumnNumber, LinePartMetadata);
+  void set_modifiers(LinePartMetadataMap value);
   void ClearModifiers();
 
   language::lazy_string::SingleLine contents() const;

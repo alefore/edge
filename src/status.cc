@@ -33,6 +33,7 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 
 namespace afc::editor {
@@ -166,8 +167,9 @@ const VersionPropertyReceiver* Status::prompt_extra_information() const {
 }
 
 Line Status::prompt_extra_information_line() const {
-  static const auto dim = Style{.attributes = StyleAttribute::Dim};
-  static const auto empty = Style{};
+  static const LinePartMetadata dim =
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}};
+  static const LinePartMetadata empty;
 
   const VersionPropertyReceiver* const receiver = prompt_extra_information();
   if (receiver == nullptr) return LineBuilder().Build();
@@ -263,9 +265,10 @@ void Status::Set(Error error) {
       return;
     }
     LineBuilder text;
-    text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
-                      Style{.foreground_color = StandardColor::Red,
-                            .attributes = StyleAttribute::Bold});
+    text.AppendString(
+        LineSequence::BreakLines(error.read()).FoldLines(),
+        LinePartMetadata{.style = Style{.foreground_color = StandardColor::Red,
+                                        .attributes = StyleAttribute::Bold}});
     data = MakeNonNullShared<Data>(Data{
         .type = Type::Warning,
         .text = MakeNonNullShared<Protected<Line>>(std::move(text).Build())});
@@ -323,8 +326,10 @@ void Status::Bell() {
           StyleAttribute::Reverse};
       output.AppendString(
           SingleLine::Char<L' '>() + notes.at(rand() % notes.size()),
-          Style{.foreground_color = colors.at(rand() % colors.size()),
-                .attributes = effects.at(rand() % effects.size())});
+          LinePartMetadata{
+              .style =
+                  Style{.foreground_color = colors.at(rand() % colors.size()),
+                        .attributes = effects.at(rand() % effects.size())}});
       text = std::move(output).Build();
     });
   });

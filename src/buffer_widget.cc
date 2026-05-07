@@ -48,6 +48,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
@@ -59,7 +60,8 @@ static const auto kStatusFrameLines = LineNumberDelta(1);
 
 LineWithCursor ProducerForString(SingleLine src, Style modifiers) {
   LineBuilder options;
-  options.AppendString(std::move(src), std::move(modifiers));
+  options.AppendString(std::move(src),
+                       LinePartMetadata{.style = std::move(modifiers)});
   return LineWithCursor{.line = std::move(options).Build()};
 }
 
@@ -141,8 +143,10 @@ LineWithCursor::Generator::Vector LinesSpanView(
         .generate = [original_generator = buffer_output.lines.back().generate] {
           LineWithCursor output = original_generator();
           LineBuilder line_options;
-          line_options.AppendString(output.line.contents(),
-                                    Style{.attributes = StyleAttribute::Dim});
+          line_options.AppendString(
+              output.line.contents(),
+              LinePartMetadata{.style =
+                                   Style{.attributes = StyleAttribute::Dim}});
           output.line = std::move(line_options).Build();
           return output;
         }};

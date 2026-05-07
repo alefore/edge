@@ -32,6 +32,15 @@ namespace afc::language::text {
 
 using ::operator<<;
 
+bool operator==(const LinePartMetadata& a, const LinePartMetadata& b) {
+  return a.style == b.style;
+}
+
+std::ostream& operator<<(std::ostream& os, const LinePartMetadata& s) {
+  os << "[LinePartMetadata: " << s.style << "]";
+  return os;
+}
+
 Line::Line() : Line(MakeNonNullShared<const Data>(Line::Data{})) {}
 
 Line::Line(SingleLine contents)
@@ -48,10 +57,10 @@ size_t Line::ComputeHash(const Line::Data& data) {
       data.contents,
       MakeHashableIteratorRange(
           data.modifiers.begin(), data.modifiers.end(),
-          [](const std::pair<ColumnNumber, Style>& value) {
-            return compute_hash(value.first, value.second);
+          [](const std::pair<ColumnNumber, LinePartMetadata>& value) {
+            return compute_hash(value.first, value.second.style);
           }),
-      data.end_of_line_modifiers,
+      data.end_of_line_modifiers.style,
       MakeHashableIteratorRange(
           data.metadata.get().begin(), data.metadata.get().end(),
           [](const std::pair<LineMetadataKey, futures::Progressive<SingleLine>>&
@@ -83,22 +92,20 @@ const LazyValue<LineMetadataMap>& Line::metadata() const {
   return data_->metadata;
 }
 
-const std::map<ColumnNumber, afc::infrastructure::screen::Style>&
-Line::modifiers() const {
+const std::map<ColumnNumber, LinePartMetadata>& Line::modifiers() const {
   return data_->modifiers;
 }
 
-afc::infrastructure::screen::Style Line::modifiers_at_position(
-    ColumnNumber column) const {
-  if (data_->modifiers.empty()) return Style{};
+LinePartMetadata Line::modifiers_at_position(ColumnNumber column) const {
+  if (data_->modifiers.empty()) return LinePartMetadata{};
   auto bound = data_->modifiers.lower_bound(column);
   if (bound != data_->modifiers.end() && bound->first == column)
     return bound->second;  // Exact match.
-  if (bound == data_->modifiers.begin()) return Style{};
+  if (bound == data_->modifiers.begin()) return LinePartMetadata{};
   return std::prev(bound)->second;
 }
 
-afc::infrastructure::screen::Style Line::end_of_line_modifiers() const {
+LinePartMetadata Line::end_of_line_modifiers() const {
   return data_->end_of_line_modifiers;
 }
 

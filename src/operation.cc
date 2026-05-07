@@ -59,6 +59,7 @@ using afc::language::lazy_string::TrimLeft;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
@@ -69,20 +70,24 @@ using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
                    LineBuilder& output) {
-  output.AppendString(name.read(), Style{StandardColor::Cyan});
-  output.AppendString(SingleLine::Char<L'('>(),
-                      Style{.attributes = StyleAttribute::Dim});
+  output.AppendString(name.read(),
+                      LinePartMetadata{.style = Style{StandardColor::Cyan}});
+  output.AppendString(
+      SingleLine::Char<L'('>(),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
   SingleLine separator;
   std::ranges::for_each(
       arguments | std::views::filter(std::not_fn(&SingleLine::empty)),
       [&](const SingleLine& a) {
-        output.AppendString(separator,
-                            Style{.attributes = StyleAttribute::Dim});
+        output.AppendString(
+            separator, LinePartMetadata{
+                           .style = Style{.attributes = StyleAttribute::Dim}});
         output.AppendString(a, std::nullopt);
         separator = SINGLE_LINE_CONSTANT(L", ");
       });
-  output.AppendString(SingleLine::Char<L')'>(),
-                      Style{.attributes = StyleAttribute::Dim});
+  output.AppendString(
+      SingleLine::Char<L')'>(),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
 }
 
 NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
@@ -929,8 +934,9 @@ class OperationMode : public EditorMode {
   void ShowStatus() {
     LineBuilder output;
     AppendStatus(state_.top_command(), output);
-    output.AppendString(SingleLine::Char<L':'>(),
-                        Style{.attributes = StyleAttribute::Dim});
+    output.AppendString(
+        SingleLine::Char<L':'>(),
+        LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
     state_.AppendStatusString(output);
     AppendStatusForCommandsAvailable(output);
     editor_state_.status().SetInformationText(std::move(output).Build());
@@ -1251,39 +1257,54 @@ class OperationMode : public EditorMode {
   static void AppendStatus(TopCommand top_command, LineBuilder& output) {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::None:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"🦋 Move"),
-                            Style{.foreground_color = StandardColor::Cyan,
-                                  .attributes = StyleAttribute::Bold});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"🦋 Move"),
+            LinePartMetadata{.style =
+                                 Style{.foreground_color = StandardColor::Cyan,
+                                       .attributes = StyleAttribute::Bold}});
         return;
       case transformation::Stack::PostTransformationBehavior::DeleteRegion:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"✂️  Delete"),
-                            Style{.background_color = StandardColor::Red,
-                                  .attributes = StyleAttribute::Bold});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"✂️  Delete"),
+            LinePartMetadata{.style =
+                                 Style{.background_color = StandardColor::Red,
+                                       .attributes = StyleAttribute::Bold}});
         return;
       case transformation::Stack::PostTransformationBehavior::CopyRegion:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"📋 Copy"),
-                            Style{.background_color = StandardColor::Yellow});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"📋 Copy"),
+            LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Yellow,
+                               .attributes = StyleAttribute::Bold}});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandSystem:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"🐚 System"),
-                            Style{.foreground_color = StandardColor::Green,
-                                  .attributes = StyleAttribute::Bold});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"🐚 System"),
+            LinePartMetadata{.style =
+                                 Style{.foreground_color = StandardColor::Green,
+                                       .attributes = StyleAttribute::Bold}});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandCpp:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
-                            Style{.foreground_color = StandardColor::Green,
-                                  .attributes = StyleAttribute::Bold |
-                                                StyleAttribute::Underline});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
+            LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Green,
+                               .attributes = StyleAttribute::Bold |
+                                             StyleAttribute::Underline}});
         return;
       case transformation::Stack::PostTransformationBehavior::CapitalsSwitch:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"🔠 Aa"),
-                            Style{.foreground_color = StandardColor::Magenta,
-                                  .attributes = StyleAttribute::Bold});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"🔠 Aa"),
+            LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Magenta,
+                               .attributes = StyleAttribute::Bold}});
         return;
       case transformation::Stack::PostTransformationBehavior::CursorOnEachLine:
-        output.AppendString(SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
-                            Style{.foreground_color = StandardColor::Magenta,
-                                  .attributes = StyleAttribute::Bold});
+        output.AppendString(
+            SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
+            LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Magenta,
+                               .attributes = StyleAttribute::Bold}});
         return;
     }
     LOG(FATAL) << "Invalid post transformation "

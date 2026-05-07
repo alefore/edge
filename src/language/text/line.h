@@ -44,6 +44,17 @@ struct OutgoingLink {
 
 class LineBuilder;
 
+struct LinePartMetadata {
+  afc::infrastructure::screen::Style style =
+      afc::infrastructure::screen::Style{};
+};
+
+bool operator==(const LinePartMetadata&, const LinePartMetadata&);
+std::ostream& operator<<(std::ostream& os, const LinePartMetadata& s);
+
+using LinePartMetadataMap =
+    std::map<lazy_string::ColumnNumber, LinePartMetadata>;
+
 // This class is thread-safe.
 class Line {
  public:
@@ -69,14 +80,14 @@ class Line {
   std::wstring ToString() const { return contents().read().ToString(); }
 
   const language::LazyValue<LineMetadataMap>& metadata() const;
-  const std::map<lazy_string::ColumnNumber, afc::infrastructure::screen::Style>&
-  modifiers() const;
+  // TODO(2026-05-07, P1): Rename from `modifiers` to part_metadata_map`.
+  const LinePartMetadataMap& modifiers() const;
 
   // Returns the modifiers that should be applied at a given column.
-  afc::infrastructure::screen::Style modifiers_at_position(
+  LinePartMetadata modifiers_at_position(
       lazy_string::ColumnNumber column) const;
 
-  afc::infrastructure::screen::Style end_of_line_modifiers() const;
+  LinePartMetadata end_of_line_modifiers() const;
 
   std::function<void()> explicit_delete_observer() const;
 
@@ -95,9 +106,11 @@ class Line {
     lazy_string::SingleLine contents = lazy_string::SingleLine{};
 
     // Columns without an entry here reuse the last present value. If no
-    // previous value, assume afc::infrastructure::screen::Style{}.
-    std::map<lazy_string::ColumnNumber, afc::infrastructure::screen::Style>
-        modifiers = {};
+    // previous value, assume LinePartMetadata{}.
+    //
+    // TODO(2026-05-07, P1, trivial): Rename from `modifiers` to
+    // `line_part_metadata_map`.
+    LinePartMetadataMap modifiers = {};
 
     // The semantics of this is that any characters at the end of the line
     // (i.e., the space that represents the end of the line) should be rendered
@@ -106,7 +119,7 @@ class Line {
     // If two lines are concatenated, the end of line modifiers of the first
     // line is entirely ignored; it doesn't affect the first characters from the
     // second line.
-    afc::infrastructure::screen::Style end_of_line_modifiers = {};
+    LinePartMetadata end_of_line_modifiers = {};
 
     language::LazyValue<LineMetadataMap> metadata =
         language::WrapAsLazyValue(LineMetadataMap{});

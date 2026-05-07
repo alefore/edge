@@ -68,6 +68,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::math::numbers::Number;
@@ -200,9 +201,11 @@ LineSequence PrepareCardContents(LineSequence original, SingleLine answer,
     // This is quite inefficient… maybe we should optimize it.
     for (ColumnNumber index; index.ToDelta() < input.size(); ++index) {
       if (StartsWith(input.Substring(index), answer)) {
-        output.AppendString(answer_cover,
-                            Style{.foreground_color = StandardColor::Cyan,
-                                  .attributes = StyleAttribute::Reverse});
+        output.AppendString(
+            answer_cover,
+            LinePartMetadata{.style =
+                                 Style{.foreground_color = StandardColor::Cyan,
+                                       .attributes = StyleAttribute::Reverse}});
         index += answer.size();
       } else
         output.AppendCharacter(input.get(index), {});

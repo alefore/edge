@@ -33,6 +33,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineRange;
 using afc::language::text::Range;
 
@@ -46,8 +47,8 @@ namespace editor {
   return kColon + ColumnNumberDelta(to_wstring(lines_size).size());
 }
 
-Style LineModifiers(const BufferContentsViewLayout::Line& line,
-                    const OpenBuffer& buffer) {
+Style LineNumberStyle(const BufferContentsViewLayout::Line& line,
+                      const OpenBuffer& buffer) {
   if (line.current_cursors.empty()) {
     return Style{.attributes = StyleAttribute::Dim};
   } else if (line.has_active_cursor ||
@@ -73,7 +74,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
     }
 
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
-        [](LineRange range, ColumnNumberDelta width, Style modifiers) {
+        [](LineRange range, ColumnNumberDelta width, Style style) {
           SingleLine number = range.begin_column().IsZero()
                                   ? SingleLine{LazyString{to_wstring(
                                         range.line() + LineNumberDelta(1))}}
@@ -83,10 +84,11 @@ LineWithCursor::Generator::Vector LineNumberOutput(
               SingleLine::Padding(width - ColumnNumberDelta(number.size() + 1));
           LineBuilder line_options;
           line_options.AppendString(padding + number + SingleLine::Char<L':'>(),
-                                    modifiers);
+                                    LinePartMetadata{.style = style});
           return LineWithCursor{.line = std::move(line_options).Build()};
         },
-        screen_line.range, output.width, LineModifiers(screen_line, buffer))));
+        screen_line.range, output.width,
+        LineNumberStyle(screen_line, buffer))));
   }
   return output;
 }

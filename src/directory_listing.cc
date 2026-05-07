@@ -43,6 +43,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::vm::Environment;
@@ -188,7 +189,8 @@ Line ShowLine(EditorState& editor, const FileEntry& entry) {
                            entry.file_type_description};
 
   if (!entry.file_type_modifiers.empty())
-    line_options.set_modifiers(ColumnNumber(0), entry.file_type_modifiers);
+    line_options.set_modifiers(
+        ColumnNumber(0), LinePartMetadata{.style = entry.file_type_modifiers});
 
   // See note about why GetMetadata is disabled (above).
   // line_options.SetMetadata(GetMetadata(target, path));

@@ -40,6 +40,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
@@ -143,11 +144,13 @@ LineBuilder DescribeSequence(const std::vector<ExtendedChar>& input) {
 LineBuilder DescribeSequenceWithQuotes(
     const std::vector<infrastructure::ExtendedChar>& input) {
   LineBuilder output;
-  output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
-                      Style{.attributes = StyleAttribute::Dim});
+  output.AppendString(
+      SINGLE_LINE_CONSTANT(L"`"),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
   output.Append(DescribeSequence(input));
-  output.AppendString(SINGLE_LINE_CONSTANT(L"`"),
-                      Style{.attributes = StyleAttribute::Dim});
+  output.AppendString(
+      SINGLE_LINE_CONSTANT(L"`"),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
   return output;
 }
 

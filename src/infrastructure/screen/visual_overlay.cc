@@ -14,6 +14,8 @@ using language::lazy_string::SingleLine;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
+using language::text::LinePartMetadata;
+using language::text::LinePartMetadataMap;
 using language::text::LineRange;
 
 VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
@@ -60,20 +62,19 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
   if ((column + length).ToDelta() > output_line.contents().size())
     length = output_line.contents().size() - column.ToDelta();
 
-  std::map<language::lazy_string::ColumnNumber, Style> modifiers =
-      output_line.modifiers();
+  LinePartMetadataMap modifiers = output_line.modifiers();
 
   switch (overlay.behavior) {
     case VisualOverlay::Behavior::Replace:
       modifiers.erase(modifiers.lower_bound(column),
                       modifiers.lower_bound(column + length));
-      modifiers.insert({column, overlay.modifiers});
+      modifiers.insert({column, LinePartMetadata{.style = overlay.modifiers}});
       modifiers.insert({column + length, {}});
       break;
 
     case VisualOverlay::Behavior::Toggle:
     case VisualOverlay::Behavior::On:
-      Style last_modifiers;
+      LinePartMetadata last_modifiers;
       if (modifiers.find(column) == modifiers.end()) {
         auto bound = modifiers.lower_bound(column);
         if (bound == modifiers.begin())
@@ -89,18 +90,19 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
            it != modifiers.end() && it->first < column + length; ++it) {
         last_modifiers = it->second;
         if (overlay.modifiers.foreground_color)
-          it->second.foreground_color = overlay.modifiers.foreground_color;
+          it->second.style.foreground_color =
+              overlay.modifiers.foreground_color;
         switch (overlay.behavior) {
           case VisualOverlay::Behavior::Replace:
             LOG(FATAL) << "Invalid behavior; internal error.";
             break;
 
           case VisualOverlay::Behavior::On:
-            it->second.attributes |= overlay.modifiers.attributes;
+            it->second.style.attributes |= overlay.modifiers.attributes;
             break;
 
           case VisualOverlay::Behavior::Toggle:
-            it->second.attributes ^= overlay.modifiers.attributes;
+            it->second.style.attributes ^= overlay.modifiers.attributes;
         }
       }
       if (column.ToDelta() + length == output_line.contents().size())

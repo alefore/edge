@@ -41,6 +41,7 @@ using afc::language::lazy_string::ToLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedMap;
 using afc::vm::EscapedString;
@@ -283,7 +284,7 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
     // TODO(easy, 2024-09-19): This is suspcious. Why is it safe? Remove the
     // wrapping (maybe turn `line` into a SingleLine).
     options.AppendString(SingleLine{line.Substring(position, end - position)},
-                         std::move(modifiers));
+                         LinePartMetadata{.style = std::move(modifiers)});
     position = end;
   };
   for (const auto& t : tokens) {
@@ -496,7 +497,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview{SingleLine{LazyString{L"foo\\"}}};
                expected_preview.AppendString(
                    SingleLine{LazyString{L"nbar"}},
-                   Style{.foreground_color = StandardColor::Cyan});
+                   LinePartMetadata{.style = Style{.foreground_color =
+                                                       StandardColor::Cyan}});
                expected_preview.AppendString(SingleLine{LazyString{L"do"}});
 
                CHECK_EQ(
@@ -571,7 +573,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview;
                expected_preview.AppendString(
                    SingleLine{LazyString{L"ls"}},
-                   Style{.foreground_color = StandardColor::Cyan});
+                   LinePartMetadata{.style = Style{.foreground_color =
+                                                       StandardColor::Cyan}});
                expected_preview.AppendString(SingleLine{LazyString{L"\\n"}});
 
                CHECK_EQ(output.matches[0],

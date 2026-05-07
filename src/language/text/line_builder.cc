@@ -35,33 +35,33 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder options;
-            options.insert_end_of_line_modifiers(
-                Style{.foreground_color = StandardColor::Red});
+            options.insert_end_of_line_modifiers(LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Red}});
             CHECK_EQ(std::move(options)
                          .Build()
                          .end_of_line_modifiers()
-                         .foreground_color.value(),
-                     Color(StandardColor::Red));
+                         .style.foreground_color.value(),
+                     Color{StandardColor::Red});
           }},
      {.name = L"CopyOfEmptyPreservesEndOfLine",
       .callback =
           [] {
             LineBuilder options;
-            options.insert_end_of_line_modifiers(
-                Style{.foreground_color = StandardColor::Red});
+            options.insert_end_of_line_modifiers(LinePartMetadata{
+                Style{.foreground_color = StandardColor::Red}});
             Line initial_line = std::move(options).Build();
             Line final_line(std::move(initial_line));
-            CHECK_EQ(
-                final_line.end_of_line_modifiers().foreground_color.value(),
-                Color(StandardColor::Red));
+            CHECK_EQ(final_line.end_of_line_modifiers()
+                         .style.foreground_color.value(),
+                     Color{StandardColor::Red});
           }},
      {.name = L"EndOfLineModifiersChangesHash",
       .callback =
           [] {
             LineBuilder options;
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
-            options.insert_end_of_line_modifiers(
-                Style{.foreground_color = StandardColor::Red});
+            options.insert_end_of_line_modifiers(LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Red}});
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
@@ -79,7 +79,9 @@ const bool line_tests_registration = tests::Register(
             LineBuilder options{SINGLE_LINE_CONSTANT(L"alejo")};
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.InsertModifiers(
-                ColumnNumber(2), Style{.foreground_color = StandardColor::Red});
+                ColumnNumber(2),
+                LinePartMetadata{
+                    .style = Style{.foreground_color = StandardColor::Red}});
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
@@ -113,24 +115,27 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
       .callback =
           [] {
             Line line = LineBuilder{SINGLE_LINE_CONSTANT(L"alejo")}.Build();
-            CHECK(line.modifiers_at_position(ColumnNumber{}).empty());
-            CHECK(line.modifiers_at_position(ColumnNumber{3}).empty());
-            CHECK(line.modifiers_at_position(ColumnNumber{999}).empty());
+            CHECK(line.modifiers_at_position(ColumnNumber{}).style.empty());
+            CHECK(line.modifiers_at_position(ColumnNumber{3}).style.empty());
+            CHECK(line.modifiers_at_position(ColumnNumber{999}).style.empty());
           }},
      {.name = L"ExactMatch",
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
             builder.InsertModifiers(
-                ColumnNumber(2), Style{.foreground_color = StandardColor::Red});
+                ColumnNumber(2),
+                LinePartMetadata{
+                    .style = Style{.foreground_color = StandardColor::Red}});
             builder.InsertModifiers(
                 ColumnNumber(5),
-                Style{.foreground_color = StandardColor::Blue});
+                LinePartMetadata{
+                    .style = Style{.foreground_color = StandardColor::Blue}});
             Line line = std::move(builder).Build();
             CHECK(line.modifiers_at_position(ColumnNumber{2}) ==
-                  Style{StandardColor::Red});
+                  LinePartMetadata{.style = Style{StandardColor::Red}});
             CHECK(line.modifiers_at_position(ColumnNumber{5}) ==
-                  Style{StandardColor::Blue});
+                  LinePartMetadata{.style = Style{StandardColor::Blue}});
           }},
      {.name = L"PositionBeforeModifiers",
       .callback =
@@ -138,11 +143,12 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
             builder.InsertModifiers(
                 ColumnNumber(5),
-                Style{.foreground_color = StandardColor::Blue});
+                LinePartMetadata{
+                    .style = Style{.foreground_color = StandardColor::Blue}});
             CHECK(std::move(builder)
                       .Build()
                       .modifiers_at_position(ColumnNumber{2})
-                      .empty());
+                      .style.empty());
           }},
      {.name = L"InexactMatch",
       .callback =
@@ -150,19 +156,24 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
             builder.InsertModifiers(
                 ColumnNumber(2),
-                Style{.foreground_color = StandardColor::Green});
+                LinePartMetadata{
+                    .style = Style{.foreground_color = StandardColor::Green}});
             builder.InsertModifiers(
                 ColumnNumber(5),
-                Style{.foreground_color = StandardColor::Blue});
+                LinePartMetadata{
+                    .style = Style{.foreground_color = StandardColor::Blue}});
             CHECK(std::move(builder).Build().modifiers_at_position(
-                      ColumnNumber{4}) == Style{StandardColor::Green});
+                      ColumnNumber{4}) ==
+                  LinePartMetadata{.style = Style{StandardColor::Green}});
           }},
      {.name = L"InexactMatchAfterLast", .callback = [] {
         LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-        builder.InsertModifiers(ColumnNumber(5),
-                                Style{.foreground_color = StandardColor::Blue});
-        CHECK(std::move(builder).Build().modifiers_at_position(
-                  ColumnNumber{8}) == Style{StandardColor::Blue});
+        builder.InsertModifiers(
+            ColumnNumber(5),
+            LinePartMetadata{
+                .style = Style{.foreground_color = StandardColor::Blue}});
+        CHECK(std::move(builder).Build().modifiers_at_position(ColumnNumber{
+                  8}) == LinePartMetadata{.style = Style{StandardColor::Blue}});
       }}});
 }  // namespace
 
@@ -172,7 +183,7 @@ LineBuilder::LineBuilder(SingleLine input_contents)
     : data_(Line::Data{.contents = std::move(input_contents)}) {}
 
 LineBuilder::LineBuilder(language::lazy_string::SingleLine input_contents,
-                         afc::infrastructure::screen::Style modifiers)
+                         LinePartMetadata modifiers)
     : data_(Line::Data{.contents = std::move(input_contents),
                        .modifiers = {{ColumnNumber{}, std::move(modifiers)}}}) {
 }
@@ -201,7 +212,7 @@ language::lazy_string::ColumnNumberDelta LineBuilder::size() const {
 }
 
 void LineBuilder::SetCharacter(ColumnNumber column, int c,
-                               const Style& c_modifiers) {
+                               const LinePartMetadata& c_modifiers) {
   ValidateInvariants();
   VLOG(4) << "Start SetCharacter: " << column;
   SingleLine str{LazyString{ColumnNumberDelta{1}, c}};
@@ -219,7 +230,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
   data_.metadata = WrapAsLazyValue(LineMetadataMap{});
 
   // Return the modifiers that are effective at a given position.
-  auto Read = [&](ColumnNumber position) -> Style {
+  auto Read = [&](ColumnNumber position) -> LinePartMetadata {
     if (data_.modifiers.empty() || data_.modifiers.begin()->first > position)
       return {};
     auto it = data_.modifiers.lower_bound(position);
@@ -227,9 +238,10 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
     return it->second;
   };
 
-  auto Set = [&](ColumnNumber position, Style value) {
-    Style previous_value =
-        position.IsZero() ? Style{} : Read(position - ColumnNumberDelta(1));
+  auto Set = [&](ColumnNumber position, LinePartMetadata value) {
+    LinePartMetadata previous_value =
+        position.IsZero() ? LinePartMetadata{}
+                          : Read(position - ColumnNumberDelta(1));
     if (previous_value == value)
       data_.modifiers.erase(position);
     else
@@ -237,7 +249,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
   };
 
   ColumnNumber after_column = column + ColumnNumberDelta(1);
-  Style modifiers_after_column = Read(after_column);
+  LinePartMetadata modifiers_after_column = Read(after_column);
 
   Set(column, c_modifiers);
 
@@ -245,7 +257,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
 
   ValidateInvariants();
 
-  for (std::pair<ColumnNumber, Style> entry : data_.modifiers)
+  for (std::pair<ColumnNumber, LinePartMetadata> entry : data_.modifiers)
     VLOG(5) << "Modifiers: " << entry.first << ": " << entry.second;
 }
 
@@ -258,70 +270,99 @@ const bool line_set_character_tests_registration = tests::Register(
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"ALEJANDRO"));
         CHECK(options.modifiers().empty());
 
-        options.SetCharacter(ColumnNumber(1), L'l',
-                             Style{.attributes = StyleAttribute::Bold});
+        options.SetCharacter(
+            ColumnNumber(1), L'l',
+            LinePartMetadata{.style =
+                                 Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlEJANDRO"));
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 Style{.attributes = StyleAttribute::Bold});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(2))->second, Style{});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Bold}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(2))->second,
+                 LinePartMetadata{});
 
-        options.SetCharacter(ColumnNumber(2), L'e',
-                             Style{.attributes = StyleAttribute::Bold});
+        options.SetCharacter(
+            ColumnNumber(2), L'e',
+            LinePartMetadata{.style =
+                                 Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AleJANDRO"));
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 Style{.attributes = StyleAttribute::Bold});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second, Style{});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Bold}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
+                 LinePartMetadata{});
 
-        options.SetCharacter(ColumnNumber(3), L'j',
-                             Style{.attributes = StyleAttribute::Underline});
+        options.SetCharacter(
+            ColumnNumber(3), L'j',
+            LinePartMetadata{
+                .style = Style{.attributes = StyleAttribute::Underline}});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejANDRO"));
         CHECK_EQ(options.modifiers().size(), 3ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 Style{.attributes = StyleAttribute::Bold});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 Style{.attributes = StyleAttribute::Underline});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second, Style{});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Underline}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
+                 LinePartMetadata{});
 
-        options.SetCharacter(ColumnNumber(5), L'n', Style{StandardColor::Blue});
+        options.SetCharacter(
+            ColumnNumber(5), L'n',
+            LinePartMetadata{.style = Style{StandardColor::Blue}});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejAnDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 Style{.attributes = StyleAttribute::Bold});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 Style{.attributes = StyleAttribute::Underline});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second, Style{});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Underline}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
+                 LinePartMetadata{});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 Style{StandardColor::Blue});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second, Style{});
+                 LinePartMetadata{.style = Style{StandardColor::Blue}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second,
+                 LinePartMetadata{});
 
-        options.SetCharacter(ColumnNumber(4), L'a', Style{StandardColor::Red});
+        options.SetCharacter(
+            ColumnNumber(4), L'a',
+            LinePartMetadata{.style = Style{StandardColor::Red}});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
-                 Style{.attributes = StyleAttribute::Bold});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 Style{.attributes = StyleAttribute::Underline});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Underline}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
-                 Style{StandardColor::Red});
+                 LinePartMetadata{.style = Style{StandardColor::Red}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 Style{StandardColor::Blue});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second, Style{});
+                 LinePartMetadata{.style = Style{StandardColor::Blue}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second,
+                 LinePartMetadata{});
 
-        options.SetCharacter(ColumnNumber(0), L'a',
-                             Style{.attributes = StyleAttribute::Bold});
+        options.SetCharacter(
+            ColumnNumber(0), L'a',
+            LinePartMetadata{.style =
+                                 Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"alejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(0))->second,
-                 Style{.attributes = StyleAttribute::Bold});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Bold}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
-                 Style{.attributes = StyleAttribute::Underline});
+                 LinePartMetadata{
+                     .style = Style{.attributes = StyleAttribute::Underline}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
-                 Style{StandardColor::Red});
+                 LinePartMetadata{.style = Style{StandardColor::Red}});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 Style{StandardColor::Blue});
-        CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second, Style{});
+                 LinePartMetadata{.style = Style{StandardColor::Blue}});
+        CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second,
+                 LinePartMetadata{});
       }}});
 }  // namespace
 
@@ -330,7 +371,7 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   set_contents(data_.contents.Substring(ColumnNumber(0), column.ToDelta()) +
                SingleLine{LazyString{L" "}} + data_.contents.Substring(column));
 
-  std::map<ColumnNumber, Style> new_modifiers;
+  std::map<ColumnNumber, LinePartMetadata> new_modifiers;
   for (auto& m : data_.modifiers) {
     new_modifiers[m.first + (m.first < column ? ColumnNumberDelta(0)
                                               : ColumnNumberDelta(1))] =
@@ -341,7 +382,7 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
 }
 
-void LineBuilder::AppendCharacter(wchar_t c, Style modifier) {
+void LineBuilder::AppendCharacter(wchar_t c, LinePartMetadata modifier) {
   ValidateInvariants();
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
   data_.contents = std::move(data_.contents) +
@@ -354,8 +395,8 @@ void LineBuilder::AppendString(SingleLine suffix) {
   AppendString(std::move(suffix), std::nullopt);
 }
 
-void LineBuilder::AppendString(SingleLine suffix,
-                               std::optional<Style> suffix_modifiers) {
+void LineBuilder::AppendString(
+    SingleLine suffix, std::optional<LinePartMetadata> suffix_modifiers) {
   ValidateInvariants();
   LineBuilder suffix_line(std::move(suffix));
   if (suffix_modifiers.has_value() &&
@@ -378,16 +419,17 @@ void LineBuilder::Append(LineBuilder line) {
   auto initial_modifier =
       line.data_.modifiers.empty() ||
               line.data_.modifiers.begin()->first != ColumnNumber(0)
-          ? Style{}
+          ? LinePartMetadata{}
           : line.data_.modifiers.begin()->second;
-  auto final_modifier =
-      data_.modifiers.empty() ? Style{} : data_.modifiers.rbegin()->second;
+  auto final_modifier = data_.modifiers.empty()
+                            ? LinePartMetadata{}
+                            : data_.modifiers.rbegin()->second;
   if (initial_modifier != final_modifier) {
     data_.modifiers[ColumnNumber() + original_length] = initial_modifier;
   }
   for (auto& [position, new_modifiers] : line.data_.modifiers) {
     if ((data_.modifiers.empty()
-             ? Style{}
+             ? LinePartMetadata{}
              : data_.modifiers.rbegin()->second) != new_modifiers) {
       data_.modifiers[position + original_length] = std::move(new_modifiers);
     }
@@ -416,11 +458,11 @@ LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
   data_.contents = data_.contents.Substring(ColumnNumber(0), column.ToDelta())
                        .Append(data_.contents.Substring(column + delta));
 
-  std::map<ColumnNumber, Style> new_modifiers;
+  LinePartMetadataMap new_modifiers;
   // TODO: We could optimize this to only set it once (rather than for every
   // modifier before the deleted range).
-  std::optional<Style> last_modifiers_before_gap;
-  std::optional<Style> modifiers_continuation;
+  std::optional<LinePartMetadata> last_modifiers_before_gap;
+  std::optional<LinePartMetadata> modifiers_continuation;
   for (auto& m : data_.modifiers) {
     if (m.first < column) {
       last_modifiers_before_gap = m.second;
@@ -449,35 +491,33 @@ LineBuilder& LineBuilder::DeleteSuffix(ColumnNumber column) {
   return DeleteCharacters(column, EndColumn() - column);
 }
 
-LineBuilder& LineBuilder::SetAllModifiers(Style value) {
+LineBuilder& LineBuilder::SetAllModifiers(LinePartMetadata value) {
   set_modifiers({{ColumnNumber(0), value}});
   data_.end_of_line_modifiers = std::move(value);
   return *this;
 }
 
-LineBuilder& LineBuilder::insert_end_of_line_modifiers(Style values) {
-  data_.end_of_line_modifiers.Merge(values);
+LineBuilder& LineBuilder::insert_end_of_line_modifiers(
+    LinePartMetadata values) {
+  data_.end_of_line_modifiers.style.Merge(values.style);
   return *this;
 }
 
-LineBuilder& LineBuilder::set_end_of_line_modifiers(Style values) {
+LineBuilder& LineBuilder::set_end_of_line_modifiers(LinePartMetadata values) {
   data_.end_of_line_modifiers = std::move(values);
   return *this;
 }
 
-Style LineBuilder::copy_end_of_line_modifiers() const {
+LinePartMetadata LineBuilder::copy_end_of_line_modifiers() const {
   return data_.end_of_line_modifiers;
 }
 
-std::map<language::lazy_string::ColumnNumber, Style> LineBuilder::modifiers()
-    const {
-  return data_.modifiers;
-}
+LinePartMetadataMap LineBuilder::modifiers() const { return data_.modifiers; }
 
 size_t LineBuilder::modifiers_size() const { return data_.modifiers.size(); }
 bool LineBuilder::modifiers_empty() const { return data_.modifiers.empty(); }
 
-std::pair<language::lazy_string::ColumnNumber, Style>
+std::pair<language::lazy_string::ColumnNumber, LinePartMetadata>
 LineBuilder::modifiers_last() const {
   return *data_.modifiers.rbegin();
 }
@@ -490,17 +530,16 @@ void LineBuilder::InsertModifier(language::lazy_string::ColumnNumber position,
 #endif
 
 void LineBuilder::InsertModifiers(language::lazy_string::ColumnNumber position,
-                                  const Style& modifiers) {
-  data_.modifiers[position].Merge(modifiers);
+                                  const LinePartMetadata& modifiers) {
+  data_.modifiers[position].style.Merge(modifiers.style);
 }
 
 void LineBuilder::set_modifiers(language::lazy_string::ColumnNumber position,
-                                Style value) {
+                                LinePartMetadata value) {
   data_.modifiers[position] = std::move(value);
 }
 
-void LineBuilder::set_modifiers(
-    std::map<language::lazy_string::ColumnNumber, Style> value) {
+void LineBuilder::set_modifiers(LinePartMetadataMap value) {
   data_.modifiers = std::move(value);
 }
 

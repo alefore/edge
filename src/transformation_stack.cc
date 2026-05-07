@@ -47,6 +47,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
@@ -62,10 +63,12 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   oss << value;
   buffer.status().SetInformationText(std::invoke([&oss] {
     LineBuilder flag;
-    flag.AppendString(SINGLE_LINE_CONSTANT(L"Value: "),
-                      Style{.attributes = StyleAttribute::Bold});
-    flag.AppendString(SingleLine{LazyString{FromByteString(oss.str())}},
-                      Style{.background_color = kCppCommandColor});
+    flag.AppendString(
+        SINGLE_LINE_CONSTANT(L"Value: "),
+        LinePartMetadata{.style = Style{.attributes = StyleAttribute::Bold}});
+    flag.AppendString(
+        SingleLine{LazyString{FromByteString(oss.str())}},
+        LinePartMetadata{.style = Style{.background_color = kCppCommandColor}});
     return std::move(flag).Build();
   }));
   if (!delete_buffer) return;
@@ -96,11 +99,13 @@ futures::Value<PossibleError> PreviewCppExpression(
                      LineBuilder builder;
                      builder.AppendString(
                          SINGLE_LINE_CONSTANT(L"💣 E:"),
-                         Style{.background_color = StandardColor::Red});
+                         LinePartMetadata{.style =
+                                              Style{.background_color =
+                                                        StandardColor::Red}});
                      builder.AppendString(SINGLE_LINE_CONSTANT(L" "));
                      builder.AppendString(
                          LineSequence::BreakLines(error.read()).FoldLines(),
-                         Style{StandardColor::Red});
+                         LinePartMetadata{.style = Style{StandardColor::Red}});
                      buffer.status().SetInformationText(
                          std::move(builder).Build());
                      return EmptyValue{};

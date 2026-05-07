@@ -54,6 +54,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataKey;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineRange;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
@@ -166,7 +167,7 @@ LineWithCursor::Generator NewGenerator(Line input_prefix, MetadataLine line) {
          const Line& prefix) {
         LineBuilder options;
         if (prefix.empty()) {
-          options.AppendCharacter(info_char, style);
+          options.AppendCharacter(info_char, LinePartMetadata{.style = style});
         } else {
           options.Append(LineBuilder(std::move(prefix)));
         }
@@ -239,7 +240,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     modifiers.foreground_color = StandardColor::Cyan;
   }
   LineBuilder line_options;
-  line_options.AppendString(output_str, modifiers);
+  line_options.AppendString(output_str, LinePartMetadata{.style = modifiers});
   return line_options;
 }
 
@@ -356,7 +357,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   LineBuilder line_options;
   line_options.AppendString(
       SingleLine{LazyString{ColumnNumberDelta{1}, chars[base_char]}},
-      modifiers);
+      LinePartMetadata{.style = modifiers});
   return line_options;
 }
 
@@ -755,7 +756,7 @@ std::vector<LineBuilder> ComputePrefixLines(
           (padding_dash ? SingleLine::Padding<L'─'>(padding_size)
                         : SingleLine::Padding<L' '>(padding_size)) +
               SingleLine{LazyString{ColumnNumberDelta{1}, c}},
-          boxes[index].modifiers);
+          LinePartMetadata{.style = boxes[index].modifiers});
       *indents = target.size() - ColumnNumberDelta(1);
     };
 
@@ -821,23 +822,23 @@ std::vector<LineBuilder> ComputePrefixLines(
                       ColumnNumberDelta(1))) != std::wstring::npos
               ? SingleLine::Padding<L' '>(indents - target.size())
               : SingleLine::Padding<L'─'>(indents - target.size()),
-          b.modifiers);
+          LinePartMetadata{.style = b.modifiers});
     }
     // Add the wrappings around the box.
     get(b.position)
         .AppendCharacter(b.position >= b.box.reference ? L'┬' : L'╭',
-                         b.modifiers);
+                         LinePartMetadata{.style = b.modifiers});
     for (LineNumberDelta l(1); l + LineNumberDelta(1) < b.box.size; ++l) {
       get(b.position + l)
           .AppendCharacter(b.position + l == b.box.reference ? L'┤' : L'│',
-                           b.modifiers);
+                           LinePartMetadata{.style = b.modifiers});
     }
     get(b.position + b.box.size - LineNumberDelta(1))
         .AppendCharacter(
             b.position + b.box.size - LineNumberDelta(1) <= b.box.reference
                 ? L'┴'
                 : L'╰',
-            b.modifiers);
+            LinePartMetadata{.style = b.modifiers});
   }
   return output;
 }

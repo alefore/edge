@@ -93,7 +93,9 @@ void MutableLineSequence::insert(
           VLOG(6) << "Insert line: " << line.EndColumn()
                   << " modifiers: " << modifiers;
           LineBuilder builder(line);
-          builder.SetAllModifiers(modifiers);
+          // TODO(2026-05-07, P2): Don't convert from Style to LinePartMetadata
+          // here: force customers to do that.
+          builder.SetAllModifiers(LinePartMetadata{.style = modifiers});
           // TODO(P2, 2026-05-08, staging): Don't pass staging::Clean here.
           prefix = Lines::PushBack(std::move(prefix),
                                    staging::Value<Line>{
@@ -199,7 +201,10 @@ void MutableLineSequence::SetCharacter(LineColumn position, int c,
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers;
   TransformLine(position.line, origin, [&](LineBuilder& options) {
-    options.SetCharacter(position.column, c, modifiers);
+    // TODO(2026-05-07, P2): Don't convert from Style to LinePartMetadata here.
+    // Do it in the customer.
+    options.SetCharacter(position.column, c,
+                         LinePartMetadata{.style = modifiers});
   });
 
   observer_->SetCharacter(position);

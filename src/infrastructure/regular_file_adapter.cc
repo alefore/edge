@@ -23,6 +23,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 
 namespace afc::infrastructure {
 RegularFileAdapter::RegularFileAdapter(Options options)
@@ -37,7 +38,7 @@ std::optional<language::text::LineColumn> RegularFileAdapter::position() const {
 void RegularFileAdapter::SetPositionToZero() {}
 
 std::vector<Line> CreateLineInstances(LazyString contents,
-                                      const Style& modifiers) {
+                                      const LinePartMetadata& modifiers) {
   TRACK_OPERATION(FileDescriptorReader_CreateLineInstances);
 
   std::vector<Line> lines_to_insert;
@@ -68,8 +69,11 @@ std::vector<Line> CreateLineInstances(LazyString contents,
 
 futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
     language::lazy_string::LazyString str, const Style& modifiers) {
+  // TODO(2026-05-07, P2, trivial): Don't convert from Style to LinePartMetadata
+  // here. Do it in the customer.
   return options_.thread_pool
-      .Run(std::bind_front(CreateLineInstances, std::move(str), modifiers))
+      .Run(std::bind_front(CreateLineInstances, std::move(str),
+                           LinePartMetadata{.style = modifiers}))
       .Transform([options = options_](std::vector<Line> lines) {
         TRACK_OPERATION(RegularFileAdapter_ReceiveInput);
         CHECK_GT(lines.size(), 0ul);

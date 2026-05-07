@@ -53,6 +53,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 
 namespace afc::editor {
@@ -76,7 +77,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
     LineBuilder current_output;
     auto Add = [&current_output, &columns](SingleLine s, const Style& m) {
       CHECK_LE(s.size(), columns);
-      current_output.AppendString(s, m);
+      current_output.AppendString(s, LinePartMetadata{.style = m});
       columns -= s.size();
     };
 
@@ -472,8 +473,9 @@ LineBuilder GetBufferContents(const LineSequence& contents,
   line_without_suffix.DeleteSuffix(ColumnNumber() + columns);
   output.Append(std::move(line_without_suffix));
   output.ClearModifiers();
-  output.InsertModifiers(ColumnNumber{},
-                         Style{.attributes = StyleAttribute::Dim});
+  output.InsertModifiers(
+      ColumnNumber{},
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
   return output;
 }
 
@@ -523,7 +525,7 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
         output.AppendString(
             std::move(output_name)
                 .SubstringWithRangeChecks(ColumnNumber(0), columns),
-            modifiers);
+            LinePartMetadata{.style = modifiers});
         CHECK_LE(output.size(), columns);
       });
 
@@ -680,11 +682,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             line_options_output.AppendString(
                 SingleLine::Padding(start.ToDelta() -
                                     line_options_output.contents().size()),
-                Style());
+                LinePartMetadata{});
 
             if (j > 0) {
               start += kSeparator.size();
-              line_options_output.AppendString(kSeparator, Style());
+              line_options_output.AppendString(kSeparator, LinePartMetadata{});
             }
 
             FilterResult filter_result =
@@ -701,9 +703,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 SingleLine::Padding(prefix_width - number_prefix.size() -
                                     kProgressWidth) +
                     number_prefix,
-                GetNumberModifiers(options.value(), buffer,
-                                   buffer.child_process_tracker(),
-                                   filter_result));
+                LinePartMetadata{
+                    .style = GetNumberModifiers(options.value(), buffer,
+                                                buffer.child_process_tracker(),
+                                                filter_result)});
 
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width - kProgressWidth);
@@ -731,9 +734,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
-                  progress, filter_result == FilterResult::Excluded
-                                ? Style{.attributes = StyleAttribute::Dim}
-                                : progress_modifier);
+                  progress,
+                  LinePartMetadata{
+                      .style = filter_result == FilterResult::Excluded
+                                   ? Style{.attributes = StyleAttribute::Dim}
+                                   : progress_modifier});
 
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width);

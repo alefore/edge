@@ -49,6 +49,8 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
+using afc::language::text::LinePartMetadataMap;
 using afc::language::text::LineRange;
 using afc::language::text::Range;
 
@@ -71,11 +73,11 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
       std::nullopt, [generator]() {
         auto output = generator.generate();
         LineBuilder line_options(output.line);
-        std::map<language::lazy_string::ColumnNumber, Style> new_modifiers;
-        new_modifiers.insert({ColumnNumber(0), {}});
+        LinePartMetadataMap new_modifiers;
+        new_modifiers.insert({ColumnNumber(0), LinePartMetadata{}});
         for (auto& m : line_options.modifiers()) {
           new_modifiers[m.first] = m.second;
-          new_modifiers[m.first].attributes ^= StyleAttribute::Reverse;
+          new_modifiers[m.first].style.attributes ^= StyleAttribute::Reverse;
         }
         line_options.set_modifiers(std::move(new_modifiers));
         output.line = std::move(line_options).Build();
@@ -89,11 +91,10 @@ LineWithCursor::Generator ParseTreeHighlighter(
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
         LineBuilder line_options(output.line);
-        std::map<language::lazy_string::ColumnNumber, Style> modifiers =
-            line_options.modifiers();
+        LinePartMetadataMap modifiers = line_options.modifiers();
         modifiers.erase(modifiers.lower_bound(begin),
                         modifiers.lower_bound(end));
-        modifiers[begin] = {StandardColor::Blue};
+        modifiers[begin].style = Style{.foreground_color = StandardColor::Blue};
         line_options.set_modifiers(std::move(modifiers));
         output.line = std::move(line_options).Build();
         return output;
@@ -107,14 +108,14 @@ LineWithCursor::Generator ParseTreeHighlighter(
 // relative to range.begin().column, rather than absolute.
 void GetSyntaxModifiersForLine(LineRange range, const ParseTree& tree,
                                Style child_modifiers,
-                               std::map<ColumnNumber, Style>& output) {
+                               LinePartMetadataMap& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
   if (range.read().Intersection(tree.range()).empty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
     if (tree_position.line != range.line()) return;
     auto column = tree_position.column.MinusHandlingOverflow(
         range.begin_column().ToDelta());
-    output[column] = child_modifiers;
+    output[column] = LinePartMetadata{.style = child_modifiers};
   };
 
   PushCurrentModifiers(tree.range().end());
@@ -146,15 +147,14 @@ Style MergeSets(const Style& parent, const Style& child) {
   return output;
 }
 
-std::map<ColumnNumber, Style> MergeModifiers(
-    const std::map<ColumnNumber, Style>& parent_modifiers,
-    const std::map<ColumnNumber, Style>& child_modifiers,
-    ColumnNumber end_column) {
-  std::map<ColumnNumber, Style> output;
+LinePartMetadataMap MergeModifiers(const LinePartMetadataMap& parent_modifiers,
+                                   const LinePartMetadataMap& child_modifiers,
+                                   ColumnNumber end_column) {
+  LinePartMetadataMap output;
   auto parent_it = parent_modifiers.begin();
   auto child_it = child_modifiers.begin();
-  Style current_parent_modifiers;
-  Style current_child_modifiers;
+  LinePartMetadata current_parent_modifiers;
+  LinePartMetadata current_child_modifiers;
   while ((child_it != child_modifiers.end() && child_it->first <= end_column) ||
          parent_it != parent_modifiers.end()) {
     ColumnNumber position;
@@ -182,8 +182,11 @@ std::map<ColumnNumber, Style> MergeModifiers(
       position = parent_it->first;
       ++parent_it;
     }
-    InsertOrDie(output, {position, MergeSets(current_parent_modifiers,
-                                             current_child_modifiers)});
+    InsertOrDie(output,
+                std::pair{position, LinePartMetadata{
+                                        .style = MergeSets(
+                                            current_parent_modifiers.style,
+                                            current_child_modifiers.style)}});
   }
   return output;
 }
@@ -198,7 +201,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     LineWithCursor input = generator.generate();
     LineBuilder options(input.line);
 
-    std::map<ColumnNumber, Style> child_modifiers;
+    LinePartMetadataMap child_modifiers;
     GetSyntaxModifiersForLine(range, root.value(), {}, child_modifiers);
     VLOG(8) << "Syntax tokens for " << range << ": " << child_modifiers.size();
 
@@ -252,14 +255,18 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                std::optional<StyleAttribute> style_attribute_to_apply) {
               TRACK_OPERATION(ProduceBufferView_GeneratorBody);
               LineWithCursor::ViewOptions options{
-                  .line = style_attribute_to_apply.has_value()
-                              ? LineBuilder{line_contents_with_hash.value
-                                                ->contents(),
-                                            Style{.attributes =
-                                                      style_attribute_to_apply
-                                                          .value()}}
-                                    .Build()
-                              : *line_contents_with_hash.value,
+                  .line =
+                      style_attribute_to_apply.has_value()
+                          ? LineBuilder{line_contents_with_hash.value
+                                            ->contents(),
+                                        LinePartMetadata{
+                                            .style =
+                                                Style{
+                                                    .attributes =
+                                                        style_attribute_to_apply
+                                                            .value()}}}
+                                .Build()
+                          : *line_contents_with_hash.value,
                   .initial_column = screen_line_inner.range.begin_column(),
                   .width = size_columns,
                   .input_width = screen_line_inner.range.end_column() -

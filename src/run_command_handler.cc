@@ -39,7 +39,8 @@ using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::ProcessId;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -64,6 +65,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::LineSequence;
 using afc::vm::EscapedString;
 
@@ -187,7 +189,9 @@ class ForkEditorCommand : public Command {
       VisitValue(children_path, [&prompt](Path path) {
         prompt.AppendString(LineSequence::BreakLines(path.read()).FoldLines());
       });
-      prompt.AppendString(SINGLE_LINE_CONSTANT(L"$ "), Style{StandardColor::Green});
+      prompt.AppendString(
+          SINGLE_LINE_CONSTANT(L"$ "),
+          LinePartMetadata{.style = Style{StandardColor::Green}});
       Prompt(PromptOptions{
           .editor_state = editor_state_,
           .prompt = std::move(prompt).Build(),

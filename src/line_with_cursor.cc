@@ -14,7 +14,8 @@
 #include "src/tests/tests.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -23,6 +24,7 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 
 namespace afc::editor {
 using ::operator<<;
@@ -155,10 +157,11 @@ LineWithCursor LineWithCursor::View(
       if (!options.modifiers_main_cursor.empty()) {
         line_output.set_modifiers(current_position + ColumnNumberDelta(1),
                                   line_output.modifiers_empty()
-                                      ? Style()
+                                      ? LinePartMetadata{}
                                       : line_output.modifiers_last().second);
-        line_output.InsertModifiers(current_position,
-                                    options.modifiers_main_cursor);
+        line_output.InsertModifiers(
+            current_position,
+            LinePartMetadata{.style = options.modifiers_main_cursor});
       }
     } else if (options.inactive_cursor_columns.find(input_column) !=
                    options.inactive_cursor_columns.end() ||
@@ -167,10 +170,11 @@ LineWithCursor LineWithCursor::View(
                 *options.inactive_cursor_columns.rbegin() >= input_column)) {
       line_output.set_modifiers(current_position + ColumnNumberDelta(1),
                                 line_output.modifiers_empty()
-                                    ? Style()
+                                    ? LinePartMetadata{}
                                     : line_output.modifiers_last().second);
-      line_output.InsertModifiers(current_position,
-                                  options.modifiers_inactive_cursors);
+      line_output.InsertModifiers(
+          current_position,
+          LinePartMetadata{.style = options.modifiers_inactive_cursors});
     }
 
     switch (c) {
@@ -210,7 +214,7 @@ LineWithCursor LineWithCursor::View(
       input_column == options.line.EndColumn()
           ? options.line.end_of_line_modifiers()
           : (line_output.modifiers_empty()
-                 ? Style()
+                 ? LinePartMetadata{}
                  : line_output.modifiers_last().second));
   if (!line_with_cursor.cursor.has_value() &&
       options.active_cursor_column.has_value()) {

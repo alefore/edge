@@ -34,6 +34,8 @@ using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
+using afc::language::text::LinePartMetadata;
+using afc::language::text::LinePartMetadataMap;
 
 namespace afc {
 namespace editor {
@@ -172,7 +174,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
 
   functions.push_back([](Screen& screen) { screen.SetStyle(Style{}); });
 
-  std::map<ColumnNumber, Style> modifiers = line_with_cursor.line.modifiers();
+  LinePartMetadataMap modifiers = line_with_cursor.line.modifiers();
   auto modifiers_it = modifiers.lower_bound(input_column);
 
   while (input_column < line_with_cursor.line.EndColumn() &&
@@ -208,10 +210,9 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
     if (modifiers_it != modifiers.end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
-        Style modifiers_set = modifiers_it->second;
-        functions.push_back([modifiers_set](Screen& screen) {
-          FlushModifiers(screen, modifiers_set);
-        });
+        Style style = modifiers_it->second.style;
+        functions.push_back(
+            [style](Screen& screen) { FlushModifiers(screen, style); });
         ++modifiers_it;
       }
     }
