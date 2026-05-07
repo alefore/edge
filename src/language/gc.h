@@ -172,10 +172,10 @@ class ObjectMetadata {
     // operation starts. At the end, when the collection finishes, all objects
     // remaining in this state will be deleted (and the state of all surviving
     // objects will be switched to this).
-    kUnreached,
+    Unreached,
 
     // The object has been reached and has been scheduled for expansion.
-    kScheduled,
+    Scheduled,
 
     // The object has been reached and expanded: all its outgoing references
     // have been scheduled.
@@ -183,7 +183,7 @@ class ObjectMetadata {
   };
   struct Data {
     ExpandCallback expand_callback;
-    ExpandState expand_state = ExpandState::kUnreached;
+    ExpandState expand_state = ExpandState::Unreached;
 
     // Returns true if the object had not been reached before in the current GC
     // cycle (if any), and thus an actual `Expand` operation is necessary).

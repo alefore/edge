@@ -359,10 +359,10 @@ bool Pool::Eden::IsEmpty() const {
 bool ObjectMetadata::Data::MarkReached() {
   switch (expand_state) {
     case ObjectMetadata::ExpandState::Done:
-    case ObjectMetadata::ExpandState::kScheduled:
+    case ObjectMetadata::ExpandState::Scheduled:
       return false;
-    case ObjectMetadata::ExpandState::kUnreached:
-      expand_state = ObjectMetadata::ExpandState::kScheduled;
+    case ObjectMetadata::ExpandState::Unreached:
+      expand_state = ObjectMetadata::ExpandState::Scheduled;
       return true;
   }
   LOG(FATAL) << "Invalid state";
@@ -398,13 +398,13 @@ void Pool::Expand(const Operation& parallel_operation,
                   switch (object_data.expand_state) {
                     case ObjectMetadata::ExpandState::Done:
                       return nullptr;
-                    case ObjectMetadata::ExpandState::kScheduled: {
+                    case ObjectMetadata::ExpandState::Scheduled: {
                       object_data.expand_state =
                           ObjectMetadata::ExpandState::Done;
                       TRACK_OPERATION(gc_Pool_Expand_Step_call);
                       return object_data.expand_callback;
                     }
-                    case ObjectMetadata::ExpandState::kUnreached:
+                    case ObjectMetadata::ExpandState::Unreached:
                       LOG(FATAL) << "Invalid state.";
                   }
                   LOG(FATAL) << "Invalid state.";
@@ -447,16 +447,16 @@ void Pool::RemoveUnreachable(const Operation& parallel_operation,
             [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {
               return obj->data_.lock([&](ObjectMetadata::Data& object_data) {
                 switch (object_data.expand_state) {
-                  case ObjectMetadata::ExpandState::kUnreached:
+                  case ObjectMetadata::ExpandState::Unreached:
                     obj->Orphan();
                     local_expired_objects_callbacks.push_back(
                         std::move(object_data.expand_callback));
                     return true;
                   case ObjectMetadata::ExpandState::Done:
                     object_data.expand_state =
-                        ObjectMetadata::ExpandState::kUnreached;
+                        ObjectMetadata::ExpandState::Unreached;
                     return false;
-                  case ObjectMetadata::ExpandState::kScheduled:
+                  case ObjectMetadata::ExpandState::Scheduled:
                     LOG(FATAL)
                         << "Invalid State: Removing unreachable objects while "
                            "some objects are scheduled for expansion.";
