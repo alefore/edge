@@ -25,6 +25,7 @@ src/buffer_filter.cc \
 src/buffer_filter.h \
 src/buffer_flags.cc \
 src/buffer_flags.h \
+src/buffer_flag_map.h \
 src/buffer_name.cc \
 src/buffer_name.h \
 src/buffer_metadata_output_producer.cc \

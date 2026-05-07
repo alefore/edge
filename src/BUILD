@@ -391,6 +391,15 @@ cc_library(
 )
 
 cc_library(
+    name = "buffer_flag_map",
+    hdrs = ["buffer_flag_map.h"],
+    deps = [
+        "//src/language:ghost_type_class",
+        "//src/language/lazy_string:single_line",
+    ],
+)
+
+cc_library(
     name = "buffer_metadata_output_producer",
     srcs = ["buffer_metadata_output_producer.cc"],
     hdrs = ["buffer_metadata_output_producer.h"],
@@ -457,7 +466,10 @@ cc_library(
     name = "child_process_tracker",
     srcs = ["child_process_tracker.cc"],
     hdrs = ["child_process_tracker.h"],
-    deps = ["//src/infrastructure:file_system_driver"],
+    deps = [
+        "//src/infrastructure:file_system_driver",
+        "//src/language/lazy_string:single_line",
+    ],
 )
 
 cc_library(

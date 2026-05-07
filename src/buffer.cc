@@ -696,9 +696,10 @@ void OpenBuffer::SignalEndOfFile() {
     }
   }
 
-  if (Read(buffer_variables::close_after_clean_exit) &&
-      child_exit_status_.has_value() && WIFEXITED(child_exit_status_.value()) &&
-      WEXITSTATUS(child_exit_status_.value()) == 0)
+  if (std::optional<int> exit_status = child_process_tracker_.exit_status();
+      exit_status.has_value() &&
+      Read(buffer_variables::close_after_clean_exit) &&
+      WIFEXITED(exit_status.value()) && WEXITSTATUS(exit_status.value()) == 0)
     editor().CloseBuffer(*this);
 
   if (std::optional<gc::Root<OpenBuffer>> current_buffer =
@@ -2056,24 +2057,21 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                           -> futures::Value<EmptyValue> {
                         return root_this->file_system_driver()
                             ->WaitPid(materialized_child_pid, 0)
-                            .Transform(
-                                [root_this](FileSystemDriver::WaitPidOutput
-                                                waitpid_output)
-                                    -> futures::Value<PossibleError> {
-                                  root_this->child_exit_status_ =
-                                      waitpid_output.wstatus;
-                                  clock_gettime(0, &root_this->time_last_exit_);
-
-                                  root_this->child_process_tracker_.pid() =
-                                      std::nullopt;
-                                  if (root_this->on_exit_handler_.has_value()) {
-                                    std::invoke(
-                                        std::move(root_this->on_exit_handler_)
-                                            .value());
-                                    root_this->on_exit_handler_ = std::nullopt;
-                                  }
-                                  return EmptyValue{};
-                                })
+                            .Transform([root_this](
+                                           FileSystemDriver::WaitPidOutput
+                                               waitpid_output)
+                                           -> futures::Value<PossibleError> {
+                              root_this->child_process_tracker_.set_exit_status(
+                                  waitpid_output.wstatus);
+                              clock_gettime(0, &root_this->time_last_exit_);
+                              if (root_this->on_exit_handler_.has_value()) {
+                                std::invoke(
+                                    std::move(root_this->on_exit_handler_)
+                                        .value());
+                                root_this->on_exit_handler_ = std::nullopt;
+                              }
+                              return EmptyValue{};
+                            })
                             .ConsumeErrors([](Error) { return EmptyValue{}; });
                       },
                       [] { return EmptyValue{}; },
@@ -2116,6 +2114,11 @@ void OpenBuffer::AddExecutionHandlers(
 // TODO(2026-05-07, P2): Try to kill this method.
 std::optional<infrastructure::ProcessId> OpenBuffer::child_pid() const {
   return child_process_tracker_.pid();
+}
+
+// TODO(2026-05-07, P2): Try to kill this method.
+std::optional<int> OpenBuffer::child_exit_status() const {
+  return child_process_tracker_.exit_status();
 }
 
 LineNumber OpenBuffer::current_position_line() const { return position().line; }
@@ -2296,10 +2299,7 @@ bool OpenBuffer::dirty() const {
           (!Read(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
-         child_process_tracker_.is_dirty() ||
-         (child_exit_status_.has_value() &&
-          (!WIFEXITED(child_exit_status_.value()) ||
-           WEXITSTATUS(child_exit_status_.value()) != 0));
+         child_process_tracker_.is_dirty();
 }
 
 std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
@@ -2374,30 +2374,7 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
         {BufferFlagKey{SINGLE_LINE_CONSTANT(L"🕷️ ")}, BufferFlagValue{}});
   }
 
-  // TODO(2026-05-07, P2, decouple): Move the whole if/else block to
-  // ChildProcessTracker.
-  if (std::optional<ProcessId> pid = child_process_tracker_.pid(); pid) {
-    output.insert({BufferFlagKey{SingleLine::Char<L'🟡'>()},
-                   BufferFlagValue{NonEmptySingleLine{pid->read()}}});
-  } else if (!child_exit_status_.has_value()) {
-    // Nothing.
-  } else if (WIFEXITED(child_exit_status_.value())) {
-    auto exit_status = WEXITSTATUS(child_exit_status_.value());
-    if (exit_status == 0)
-      output.insert(
-          {BufferFlagKey{SingleLine::Char<L'🟢'>()}, BufferFlagValue{}});
-    else
-      output.insert({BufferFlagKey{SingleLine::Char<L'🔴'>()},
-                     BufferFlagValue{NonEmptySingleLine(exit_status)}});
-  } else if (WIFSIGNALED(child_exit_status_.value())) {
-    output.insert({BufferFlagKey{SingleLine::Char<L'🟣'>()},
-                   BufferFlagValue{NonEmptySingleLine{
-                       WTERMSIG(child_exit_status_.value())}}});
-  } else {
-    output.insert(
-        {BufferFlagKey{SINGLE_LINE_CONSTANT(L"exit-status")},
-         BufferFlagValue{NonEmptySingleLine{child_exit_status_.value()}}});
-  }
+  child_process_tracker_.GetFlags(output);
 
   if (SingleLine marks = GetLineMarksText(); !marks.empty()) {
     output.insert(

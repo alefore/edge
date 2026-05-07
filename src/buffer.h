@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/buffer_flag_map.h"
 #include "src/buffer_name.h"
 #include "src/buffer_state.h"
 #include "src/buffer_syntax_parser.h"
@@ -60,22 +61,6 @@ class UndoState;
 
 class OpenBufferMutableLineSequenceObserver;
 
-struct BufferFlagKey
-    : public language::GhostType<BufferFlagKey,
-                                 language::lazy_string::SingleLine> {
-  using GhostType::GhostType;
-};
-
-struct BufferFlagValue
-    : public language::GhostType<BufferFlagValue,
-                                 language::lazy_string::SingleLine> {
- public:
-  using GhostType::GhostType;
-  // Convenience constructor.
-  BufferFlagValue(language::lazy_string::NonEmptySingleLine input)
-      : BufferFlagValue(input.read()) {}
-};
-
 class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   struct ConstructorAccessTag {};
 
@@ -104,8 +89,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must
     // begin with a space.
-    std::function<std::map<BufferFlagKey, BufferFlagValue>(const OpenBuffer&)>
-        describe_status = nullptr;
+    std::function<BufferFlagMap(const OpenBuffer&)> describe_status = nullptr;
 
     // Optional function that listens on visits to the buffer (i.e., the user
     // entering the buffer from other buffers).
@@ -460,7 +444,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
       infrastructure::execution::IterationHandler& handler);
 
   std::optional<infrastructure::ProcessId> child_pid() const;
-  std::optional<int> child_exit_status() const { return child_exit_status_; }
+  std::optional<int> child_exit_status() const;
   const struct timespec time_last_exit() const;
 
   void PushSignal(infrastructure::UnixSignal signal);
@@ -626,7 +610,6 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   ReloadState reload_state_ = ReloadState::Done;
 
   ChildProcessTracker child_process_tracker_;
-  std::optional<int> child_exit_status_;
   struct timespec time_last_exit_;
   // Optional function to execute when a sub-process exits.
   std::optional<language::OnceOnlyFunction<void()>> on_exit_handler_;
