@@ -612,8 +612,6 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   ReloadState reload_state_ = ReloadState::Done;
 
   ChildProcessTracker child_process_tracker_;
-  // Optional function to execute when a sub-process exits.
-  std::optional<language::OnceOnlyFunction<void()>> on_exit_handler_;
 
   infrastructure::screen::CursorsTracker cursors_tracker_;
 

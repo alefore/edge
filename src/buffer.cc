@@ -481,27 +481,16 @@ OpenBuffer::PrepareToClose() {
               LOG(INFO) << root_this->name() << ": State persisted.";
               if (root_this->child_process_tracker_.pid().has_value()) {
                 if (root_this->Read(buffer_variables::term_on_close)) {
-                  if (root_this->on_exit_handler_.has_value()) {
-                    return Error{
-                        LazyString{L"Already waiting for termination."}};
-                  }
                   LOG(INFO) << "Sending termination and preparing handler: "
                             << root_this->Read(buffer_variables::name);
-                  root_this->file_system_driver()->Kill(
-                      root_this->child_process_tracker_.pid().value(),
-                      UnixSignal{SIGHUP});
-                  auto future =
-                      futures::Future<ValueOrError<PrepareToCloseOutput>>();
-                  root_this->on_exit_handler_ =
-                      [root_this,
-                       consumer = std::move(future.consumer)]() mutable {
-                        CHECK(!root_this->child_process_tracker_.pid());
+                  return root_this->child_process_tracker_
+                      .KillAndWaitForTermination(
+                          root_this->file_system_driver().value())
+                      .Transform([root_this](EmptyValue) {
                         LOG(INFO) << "Subprocess terminated: "
                                   << root_this->Read(buffer_variables::name);
-                        root_this->PrepareToClose().SetConsumer(
-                            std::move(consumer));
-                      };
-                  return std::move(future.value);
+                        return root_this->PrepareToClose();
+                      });
                 }
                 CHECK(root_this->options_.editor.modifiers().strength >
                       Modifiers::Strength::Normal);
@@ -2046,26 +2035,16 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
           new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
           new_reader(input_error_fd, LazyString{L"stderr"},
                      Style{.attributes = StyleAttribute::Bold}, fd_error_))
-          .Transform([weak_this = WeakPtrFromThis()](
-                         std::tuple<EmptyValue, EmptyValue>) {
-            return VisitOptional(
-                [&](gc::Root<OpenBuffer> root_this) {
-                  CHECK(root_this->fd_ == nullptr);
-                  CHECK(root_this->fd_error_ == nullptr);
-                  return root_this->child_process_tracker_
-                      .WaitPid(root_this->file_system_driver())
-                      .Transform([root_this](EmptyValue) {
-                        if (root_this->on_exit_handler_.has_value()) {
-                          std::invoke(
-                              std::move(root_this->on_exit_handler_).value());
-                          root_this->on_exit_handler_ = std::nullopt;
-                        }
-                        return EmptyValue{};
-                      });
-                  ;
-                },
-                [] { return EmptyValue{}; }, weak_this.Lock());
-          });
+          .Transform(LockAndVisitCallback(
+              [](std::tuple<EmptyValue, EmptyValue>,
+                 gc::Root<OpenBuffer> root_this) {
+                CHECK(root_this->fd_ == nullptr);
+                CHECK(root_this->fd_error_ == nullptr);
+                return root_this->child_process_tracker_.WaitPid(
+                    root_this->file_system_driver());
+              },
+              [](auto) { return EmptyValue{}; }, WeakPtrFromThis()));
+
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
 }

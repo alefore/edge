@@ -2,10 +2,13 @@
 
 #include <glog/logging.h>
 
+#include <csignal>
+
 #include "src/language/lazy_string/single_line.h"
 
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::ProcessId;
+using afc::infrastructure::UnixSignal;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::NonNull;
@@ -30,9 +33,27 @@ futures::Value<EmptyValue> ChildProcessTracker::WaitPid(
       .Transform([this](FileSystemDriver::WaitPidOutput waitpid_output)
                      -> futures::Value<PossibleError> {
         set_exit_status(waitpid_output.wstatus);
+        if (on_exit_handler_) {
+          std::invoke(std::move(on_exit_handler_).value());
+          on_exit_handler_ = std::nullopt;
+        }
         return EmptyValue{};
       })
       .ConsumeErrors([](Error) { return EmptyValue{}; });
+}
+
+futures::PossibleError ChildProcessTracker::KillAndWaitForTermination(
+    FileSystemDriver& file_system_driver) {
+  if (on_exit_handler_) return Error{L"Already waiting for termination."};
+
+  CHECK(pid_);
+  file_system_driver.Kill(pid_.value(), UnixSignal{SIGHUP});
+  futures::Future<std::expected<EmptyValue, Error>> output;
+  on_exit_handler_ = [this, consumer = std::move(output.consumer)]() mutable {
+    CHECK(!pid_);
+    std::move(consumer)(EmptyValue{});
+  };
+  return std::move(output.value);
 }
 
 std::optional<int> ChildProcessTracker::exit_status() const {
@@ -49,6 +70,11 @@ void ChildProcessTracker::set_exit_status(int status) {
 struct timespec ChildProcessTracker::time_last_exit() const {
   CHECK(exit_status_);
   return time_last_exit_;
+}
+
+void ChildProcessTracker::set_on_exit_handler(
+    language::OnceOnlyFunction<void()> value) {
+  on_exit_handler_ = std::move(value);
 }
 
 bool ChildProcessTracker::is_dirty() const {
