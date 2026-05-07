@@ -4,7 +4,10 @@
 #include <optional>
 
 #include "src/buffer_flag_map.h"
+#include "src/futures/futures.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/error/value_or_error.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor {
 class ChildProcessTracker {
@@ -15,6 +18,9 @@ class ChildProcessTracker {
  public:
   std::optional<infrastructure::ProcessId> pid() const;
   void set_pid(std::optional<infrastructure::ProcessId> pid);
+  futures::Value<language::EmptyValue> WaitPid(
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+          file_system_driver);
 
   std::optional<int> exit_status() const;
   // Also resets pid_.

@@ -4,7 +4,12 @@
 
 #include "src/language/lazy_string/single_line.h"
 
+using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::ProcessId;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::NonNull;
+using afc::language::PossibleError;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 
@@ -15,6 +20,19 @@ void ChildProcessTracker::set_pid(
     std::optional<infrastructure::ProcessId> pid) {
   CHECK(!pid_);
   pid_ = pid;
+}
+
+futures::Value<EmptyValue> ChildProcessTracker::WaitPid(
+    NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver) {
+  if (!pid_) return EmptyValue{};
+
+  return file_system_driver->WaitPid(pid_.value(), 0)
+      .Transform([this](FileSystemDriver::WaitPidOutput waitpid_output)
+                     -> futures::Value<PossibleError> {
+        set_exit_status(waitpid_output.wstatus);
+        return EmptyValue{};
+      })
+      .ConsumeErrors([](Error) { return EmptyValue{}; });
 }
 
 std::optional<int> ChildProcessTracker::exit_status() const {

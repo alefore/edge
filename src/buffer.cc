@@ -2052,29 +2052,17 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                 [&](gc::Root<OpenBuffer> root_this) {
                   CHECK(root_this->fd_ == nullptr);
                   CHECK(root_this->fd_error_ == nullptr);
-                  return VisitOptional(
-                      [&](ProcessId materialized_child_pid)
-                          -> futures::Value<EmptyValue> {
-                        return root_this->file_system_driver()
-                            ->WaitPid(materialized_child_pid, 0)
-                            .Transform([root_this](
-                                           FileSystemDriver::WaitPidOutput
-                                               waitpid_output)
-                                           -> futures::Value<PossibleError> {
-                              root_this->child_process_tracker_.set_exit_status(
-                                  waitpid_output.wstatus);
-                              if (root_this->on_exit_handler_.has_value()) {
-                                std::invoke(
-                                    std::move(root_this->on_exit_handler_)
-                                        .value());
-                                root_this->on_exit_handler_ = std::nullopt;
-                              }
-                              return EmptyValue{};
-                            })
-                            .ConsumeErrors([](Error) { return EmptyValue{}; });
-                      },
-                      [] { return EmptyValue{}; },
-                      root_this->child_process_tracker_.pid());
+                  return root_this->child_process_tracker_
+                      .WaitPid(root_this->file_system_driver())
+                      .Transform([root_this](EmptyValue) {
+                        if (root_this->on_exit_handler_.has_value()) {
+                          std::invoke(
+                              std::move(root_this->on_exit_handler_).value());
+                          root_this->on_exit_handler_ = std::nullopt;
+                        }
+                        return EmptyValue{};
+                      });
+                  ;
                 },
                 [] { return EmptyValue{}; }, weak_this.Lock());
           });
