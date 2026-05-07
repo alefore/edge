@@ -275,6 +275,7 @@ cc_binary(
         # "-lao",
     ],
     deps = [
+        ":child_process_tracker",
         ":log_model",
         "//src/concurrent:tests",
         "//src/concurrent:version_property_receiver",
@@ -450,6 +451,13 @@ cc_library(
     name = "buffer_widget",
     srcs = ["buffer_widget.cc"],
     hdrs = ["buffer_widget.h"],
+)
+
+cc_library(
+    name = "child_process_tracker",
+    srcs = ["child_process_tracker.cc"],
+    hdrs = ["child_process_tracker.h"],
+    deps = ["//src/infrastructure:file_system_driver"],
 )
 
 cc_library(

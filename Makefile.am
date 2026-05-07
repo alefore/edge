@@ -52,6 +52,8 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffers_list.cc \
 src/buffers_list.h \
+src/child_process_tracker.cc \
+src/child_process_tracker.h \
 src/columns_vector.cc \
 src/columns_vector.h \
 src/command_argument_mode.h \

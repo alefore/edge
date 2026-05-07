@@ -13,6 +13,7 @@
 #include "src/buffer_state.h"
 #include "src/buffer_syntax_parser.h"
 #include "src/buffer_variables.h"
+#include "src/child_process_tracker.h"
 #include "src/concurrent/work_queue.h"
 #include "src/editor_mode.h"
 #include "src/execution_context.h"
@@ -624,7 +625,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   };
   ReloadState reload_state_ = ReloadState::Done;
 
-  std::optional<infrastructure::ProcessId> child_pid_ = std::nullopt;
+  ChildProcessTracker child_process_tracker_;
   std::optional<int> child_exit_status_;
   struct timespec time_last_exit_;
   // Optional function to execute when a sub-process exits.

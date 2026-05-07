@@ -133,6 +133,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NonEmptySingleLine;
+using afc::language::lazy_string::Parenthesize;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::ToLazyString;
@@ -456,10 +457,11 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::Normal) {
     return EmptyValue{};
   }
-  if (child_pid_.has_value() && !Read(buffer_variables::term_on_close))
-    return Error{LazyString{L"Running subprocess "} +
-                 Parenthesize(LazyString{L"pid: "} +
-                              LazyString{std::to_wstring(child_pid_->read())})};
+  if (std::optional<ProcessId> pid = child_process_tracker_.pid();
+      pid.has_value() && !Read(buffer_variables::term_on_close))
+    return Error{
+        LazyString{L"Running subprocess "} +
+        Parenthesize(LazyString{L"pid: "} + NonEmptySingleLine(pid->read()))};
   return EmptyValue{};
 }
 
@@ -477,7 +479,7 @@ OpenBuffer::PrepareToClose() {
             .Transform([root_this = RootFromThis()](EmptyValue)
                            -> futures::ValueOrError<PrepareToCloseOutput> {
               LOG(INFO) << root_this->name() << ": State persisted.";
-              if (root_this->child_pid_.has_value()) {
+              if (root_this->child_process_tracker_.pid().has_value()) {
                 if (root_this->Read(buffer_variables::term_on_close)) {
                   if (root_this->on_exit_handler_.has_value()) {
                     return Error{
@@ -486,13 +488,15 @@ OpenBuffer::PrepareToClose() {
                   LOG(INFO) << "Sending termination and preparing handler: "
                             << root_this->Read(buffer_variables::name);
                   root_this->file_system_driver()->Kill(
-                      root_this->child_pid_.value(), UnixSignal{SIGHUP});
+                      root_this->child_process_tracker_.pid().value(),
+                      UnixSignal{SIGHUP});
                   auto future =
                       futures::Future<ValueOrError<PrepareToCloseOutput>>();
                   root_this->on_exit_handler_ =
                       [root_this,
                        consumer = std::move(future.consumer)]() mutable {
-                        CHECK(!root_this->child_pid_.has_value());
+                        CHECK(!root_this->child_process_tracker_.pid()
+                                   .has_value());
                         LOG(INFO) << "Subprocess terminated: "
                                   << root_this->Read(buffer_variables::name);
                         root_this->PrepareToClose().SetConsumer(
@@ -1045,10 +1049,9 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
   LOG(INFO) << name() << ": Reload starts.";
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
 
-  if (child_pid_.has_value()) {
+  if (std::optional<ProcessId> pid = child_process_tracker_.pid(); pid) {
     LOG(INFO) << "Sending SIGHUP.";
-    file_system_driver()->Kill(ProcessId(-child_pid_->read()),
-                               UnixSignal(SIGHUP));
+    file_system_driver()->Kill(ProcessId(-pid->read()), UnixSignal(SIGHUP));
     Set(buffer_variables::reload_after_exit, true);
     return EmptyValue{};
   }
@@ -1929,12 +1932,12 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
 
   switch (signal.read()) {
     case SIGINT:
-      if (child_pid_ != std::nullopt) {
+      if (std::optional<ProcessId> pid = child_process_tracker_.pid(); pid) {
         status_->SetInformationText(LineBuilder{
             SINGLE_LINE_CONSTANT(L"SIGINT >> pid:") +
             NonEmptySingleLine{
-                child_pid_->read()}}.Build());
-        file_system_driver()->Kill(child_pid_.value(), signal);
+                pid->read()}}.Build());
+        file_system_driver()->Kill(pid.value(), signal);
         return;
       }
   }
@@ -1963,8 +1966,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     std::optional<FileDescriptor> input_fd,
     std::optional<FileDescriptor> input_error_fd, bool fd_is_terminal,
     std::optional<ProcessId> child_pid) {
-  CHECK(child_pid_ == std::nullopt);
-  child_pid_ = child_pid;
+  child_process_tracker_.set_pid(child_pid);
 
   file_adapter_ = std::invoke([fd_is_terminal,
                                this] -> NonNull<std::unique_ptr<FileAdapter>> {
@@ -2062,7 +2064,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                       waitpid_output.wstatus;
                                   clock_gettime(0, &root_this->time_last_exit_);
 
-                                  root_this->child_pid_ = std::nullopt;
+                                  root_this->child_process_tracker_.pid() =
+                                      std::nullopt;
                                   if (root_this->on_exit_handler_.has_value()) {
                                     std::invoke(
                                         std::move(root_this->on_exit_handler_)
@@ -2073,7 +2076,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                 })
                             .ConsumeErrors([](Error) { return EmptyValue{}; });
                       },
-                      [] { return EmptyValue{}; }, root_this->child_pid_);
+                      [] { return EmptyValue{}; },
+                      root_this->child_process_tracker_.pid());
                 },
                 [] { return EmptyValue{}; }, weak_this.Lock());
           });
@@ -2109,8 +2113,9 @@ void OpenBuffer::AddExecutionHandlers(
   if (fd_error_ != nullptr) fd_error_->Register(handler);
 }
 
+// TODO(2026-05-07, P2): Try to kill this method.
 std::optional<infrastructure::ProcessId> OpenBuffer::child_pid() const {
-  return child_pid_;
+  return child_process_tracker_.pid();
 }
 
 LineNumber OpenBuffer::current_position_line() const { return position().line; }
@@ -2291,7 +2296,7 @@ bool OpenBuffer::dirty() const {
           (!Read(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
-         child_pid_.has_value() ||
+         child_process_tracker_.is_dirty() ||
          (child_exit_status_.has_value() &&
           (!WIFEXITED(child_exit_status_.value()) ||
            WEXITSTATUS(child_exit_status_.value()) != 0));
@@ -2369,9 +2374,11 @@ std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
         {BufferFlagKey{SINGLE_LINE_CONSTANT(L"🕷️ ")}, BufferFlagValue{}});
   }
 
-  if (child_pid_.has_value()) {
+  // TODO(2026-05-07, P2, decouple): Move the whole if/else block to
+  // ChildProcessTracker.
+  if (std::optional<ProcessId> pid = child_process_tracker_.pid(); pid) {
     output.insert({BufferFlagKey{SingleLine::Char<L'🟡'>()},
-                   BufferFlagValue{NonEmptySingleLine{child_pid_->read()}}});
+                   BufferFlagValue{NonEmptySingleLine{pid->read()}}});
   } else if (!child_exit_status_.has_value()) {
     // Nothing.
   } else if (WIFEXITED(child_exit_status_.value())) {
