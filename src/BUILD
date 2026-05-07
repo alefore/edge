@@ -275,6 +275,7 @@ cc_binary(
         # "-lao",
     ],
     deps = [
+        ":buffer_flag_map",
         ":child_process_tracker",
         ":log_model",
         "//src/concurrent:tests",
@@ -467,6 +468,8 @@ cc_library(
     srcs = ["child_process_tracker.cc"],
     hdrs = ["child_process_tracker.h"],
     deps = [
+        ":buffer_flag_map",
+        "//src/futures",
         "//src/infrastructure:file_system_driver",
         "//src/language/lazy_string:single_line",
     ],
