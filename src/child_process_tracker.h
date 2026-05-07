@@ -10,6 +10,7 @@ namespace afc::editor {
 class ChildProcessTracker {
   std::optional<infrastructure::ProcessId> pid_ = std::nullopt;
   std::optional<int> exit_status_;
+  struct timespec time_last_exit_;
 
  public:
   std::optional<infrastructure::ProcessId> pid() const;
@@ -18,7 +19,8 @@ class ChildProcessTracker {
   std::optional<int> exit_status() const;
   // Also resets pid_.
   void set_exit_status(int status);
-
+  // It is an error (and will crash) to call this when exit_status isn't set.
+  struct timespec time_last_exit() const;
   bool is_dirty() const;
 
   void GetFlags(BufferFlagMap& output) const;

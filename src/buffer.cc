@@ -1924,7 +1924,7 @@ LazyString OpenBuffer::ToString() const {
 }
 
 const struct timespec OpenBuffer::time_last_exit() const {
-  return time_last_exit_;
+  return child_process_tracker_.time_last_exit();
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {
@@ -2063,7 +2063,6 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                                            -> futures::Value<PossibleError> {
                               root_this->child_process_tracker_.set_exit_status(
                                   waitpid_output.wstatus);
-                              clock_gettime(0, &root_this->time_last_exit_);
                               if (root_this->on_exit_handler_.has_value()) {
                                 std::invoke(
                                     std::move(root_this->on_exit_handler_)

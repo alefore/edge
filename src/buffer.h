@@ -610,7 +610,6 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   ReloadState reload_state_ = ReloadState::Done;
 
   ChildProcessTracker child_process_tracker_;
-  struct timespec time_last_exit_;
   // Optional function to execute when a sub-process exits.
   std::optional<language::OnceOnlyFunction<void()>> on_exit_handler_;
 
