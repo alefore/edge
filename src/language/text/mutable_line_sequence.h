@@ -160,11 +160,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // valid range.
   void DeleteCharactersFromLine(
       language::text::LineColumn position,
-      language::lazy_string::ColumnNumberDelta amount,
+      language::lazy_string::ColumnNumberDelta amount, staging::Origin origin,
       ObserverBehavior observer_behavior = ObserverBehavior::Show);
   // Delete characters from position.line in range [position.column, ...).
   void DeleteToLineEnd(
-      language::text::LineColumn position,
+      language::text::LineColumn position, staging::Origin origin,
       ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   // Sets the character and modifiers in a given position.

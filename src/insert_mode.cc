@@ -629,7 +629,7 @@ class InsertMode : public InputReceiver,
             // purposes; we might as well not let it be added to the history (so
             // as to not pollute it).
             VLOG(5) << "Cleaning up current_insertion_.";
-            current_insertion_->DeleteToLineEnd(LineColumn());
+            current_insertion_->DeleteToLineEnd(LineColumn(), staging::Clean);
             return 1;
           }
         }
@@ -848,7 +848,8 @@ class InsertMode : public InputReceiver,
         } else {
           current_insertion_->DeleteToLineEnd(
               current_insertion_->snapshot().PositionBefore(
-                  current_insertion_->range().end()));
+                  current_insertion_->range().end()),
+              staging::Clean);
         }
         break;
       case Direction::Forwards:

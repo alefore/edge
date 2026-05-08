@@ -1432,18 +1432,19 @@ void OpenBuffer::AddLineProcessor(
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
+  staging::Origin origin = line_origin_tracker().active();
   if (range.IsSingleLine()) {
     contents_.DeleteCharactersFromLine(
-        range.begin(), range.end().column - range.begin().column);
+        range.begin(), range.end().column - range.begin().column, origin);
     SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                        range.begin().line);
   } else {
-    contents_.DeleteToLineEnd(range.begin());
+    contents_.DeleteToLineEnd(range.begin(), origin);
     contents_.DeleteCharactersFromLine(LineColumn(range.end().line),
-                                       range.end().column.ToDelta());
+                                       range.end().column.ToDelta(), origin);
     // Lines in the middle.
     EraseLines(range.begin().line + LineNumberDelta(1), range.end().line);
-    contents_.FoldNextLine(range.begin().line, line_origin_tracker().active());
+    contents_.FoldNextLine(range.begin().line, origin);
     SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                        range.begin().line);
   }

@@ -160,16 +160,13 @@ void MutableLineSequence::set_line(LineNumber position,
 }
 
 void MutableLineSequence::DeleteCharactersFromLine(
-    LineColumn position, ColumnNumberDelta amount,
+    LineColumn position, ColumnNumberDelta amount, staging::Origin origin,
     ObserverBehavior observer_behavior) {
-  if (amount == ColumnNumberDelta(0)) {
-    return;
-  }
+  if (amount.IsZero()) return;
   CHECK_GT(amount, ColumnNumberDelta(0));
   CHECK_LE(position.column + amount, at(position.line).EndColumn());
 
-  // TODO(2026-05-09, P2): Don't assume staging::Clean.
-  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
+  TransformLine(position.line, origin, [&](LineBuilder& options) {
     options.DeleteCharacters(position.column, amount);
   });
 
@@ -182,12 +179,12 @@ void MutableLineSequence::DeleteCharactersFromLine(
 }
 
 void MutableLineSequence::DeleteToLineEnd(LineColumn position,
+                                          staging::Origin origin,
                                           ObserverBehavior observer_behavior) {
-  if (position.column < at(position.line).EndColumn()) {
+  if (position.column < at(position.line).EndColumn())
     return DeleteCharactersFromLine(
-        position, at(position.line).EndColumn() - position.column,
+        position, at(position.line).EndColumn() - position.column, origin,
         observer_behavior);
-  }
 }
 
 void MutableLineSequence::SetCharacter(LineColumn position, int c,
@@ -260,15 +257,18 @@ bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
 
 void MutableLineSequence::SplitLine(LineColumn position,
                                     staging::Origin origin) {
-  LineBuilder builder(at(position.line));
+  staging::Value<Line> original_line = at_with_origin(position.line);
+
+  LineBuilder builder(original_line.value);
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
-  builder.set_modified_state(LineModifiedState::Dirty);
-  insert_line(position.line + LineNumberDelta(1),
-              staging::Value<Line>{.origin = origin,
-                                   .value = std::move(builder).Build()},
-              ObserverBehavior::Hide);
+  insert_line(
+      position.line + LineNumberDelta(1),
+      staging::Value<Line>{
+          .origin = position.column.IsZero() ? original_line.origin : origin,
+          .value = std::move(builder).Build()},
+      ObserverBehavior::Hide);
   observer_->SplitLine(position);
-  DeleteToLineEnd(position, ObserverBehavior::Hide);
+  DeleteToLineEnd(position, origin, ObserverBehavior::Hide);
 }
 
 namespace {

@@ -15,8 +15,11 @@ extern "C" {
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
+#include "src/language/version_value.h"
 #include "src/language/wstring.h"
 #include "src/tests/fuzz.h"
+
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Style;
@@ -309,12 +312,12 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
           data_->receiver->EraseLines(
               data_->position.line + LineNumberDelta(1),
               LineNumber(0) + data_->receiver->contents().size());
-          data_->contents.DeleteToLineEnd(data_->position);
+          data_->contents.DeleteToLineEnd(data_->position, staging::Clean);
         } else if (sequence == "1") {
           VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
           data_->receiver->EraseLines(LineNumber(0), data_->position.line);
           data_->contents.DeleteCharactersFromLine(
-              LineColumn(), data_->position.column.ToDelta());
+              LineColumn(), data_->position.column.ToDelta(), staging::Clean);
           data_->position = LineColumn();
         } else if (sequence == "2") {
           VLOG(10) << "ed: Clear entire screen (and moves cursor to upper left "
@@ -343,7 +346,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
 
       case 'K': {
         VLOG(9) << "Terminal: el: clear to end of line.";
-        data_->contents.DeleteToLineEnd(data_->position);
+        data_->contents.DeleteToLineEnd(data_->position, staging::Clean);
         return read_index;
       }
 
@@ -364,7 +367,8 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
         if (data_->position.column < end_column) {
           data_->contents.DeleteCharactersFromLine(
               data_->position,
-              std::min(chars_to_erase, end_column - data_->position.column));
+              std::min(chars_to_erase, end_column - data_->position.column),
+              staging::Clean);
         }
         current_line = data_->receiver->contents().at(data_->position.line);
         return read_index;
