@@ -7,7 +7,10 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/mutable_line_sequence.h"
+#include "src/language/version_value.h"
 #include "src/vm/escape.h"
+
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::Path;
 using afc::language::MakeNonNullShared;
@@ -50,15 +53,17 @@ LineSequence AddVariables(std::wstring type_name,
   // TODO(2023-11-26, ranges): Extend const-tree to be able to receive the range
   // directly. This is tricky because the iterators in the range need to support
   // operator+.
-  contents.append_back(language::container::MaterializeVector(
-      variables.variables() | std::views::transform([&](const auto& variable) {
+  contents.append_back(
+      variables.variables() |
+      std::views::transform([&](const auto& variable) -> Line {
         return LineBuilder{
             SingleLine{LazyString{L"buffer.set_"}} + variable.first.read() +
             SingleLine{LazyString{L"("}} +
             SerializeValue(values.Get(&variable.second.value())) +
             SingleLine{LazyString{L");"}}}
             .Build();
-      })));
+      }) |
+      staging::AddOrigin(staging::Clean));
   contents.push_back(L"");
   return contents.snapshot();
 }

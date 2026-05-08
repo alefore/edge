@@ -16,6 +16,7 @@
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
@@ -412,7 +413,8 @@ class HelpCommand : public Command {
         case Handler<CommandLineValues>::VariableType::None:
           break;
       }
-      output.append_back(LineSequence::BreakLines(h.help()));
+      output.append_back(LineSequence::BreakLines(h.help()) |
+                         staging::AddOrigin(staging::Clean));
       output.push_back(L"");
     }
   }

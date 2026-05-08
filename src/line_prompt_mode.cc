@@ -345,8 +345,10 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     }
 
     // TODO(easy, 2024-09-19): Avoid read():
-    prompt_buffer_.ptr()->AppendRawLine(
-        ColorizeLine(line->contents().read(), std::move(options.tokens)));
+    // TODO(2026-05-08, P2): Document why staging::CleanValue is OK here. Or,
+    // perhaps better, propagate value from original line?
+    prompt_buffer_.ptr()->AppendRawLine(staging::CleanValue(
+        ColorizeLine(line->contents().read(), std::move(options.tokens))));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
     std::visit(overload{[](ColorizePromptOptions::ContextUnmodified) {},
                         [&](ColorizePromptOptions::ContextClear) {

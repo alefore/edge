@@ -240,7 +240,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(
-      language::text::Line line,
+      language::staging::Value<language::text::Line> line,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::Show);
 

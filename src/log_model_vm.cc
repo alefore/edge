@@ -8,6 +8,7 @@
 #include "src/vm/types.h"
 
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -80,7 +81,7 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
             section.push_back(L"");
             return std::move(section).snapshot();
           }) |
-      std::views::join);
+      std::views::join | staging::AddOrigin(staging::Clean));
   output.push_back(L"");
   target.InsertInPosition(output.snapshot(), target.contents().range().end(),
                           std::nullopt);

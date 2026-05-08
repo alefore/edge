@@ -26,6 +26,9 @@
 #include "src/vm/environment.h"
 #include "src/vm/function_call.h"
 
+namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
+
 using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
@@ -44,7 +47,6 @@ using afc::language::text::LineNumber;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
 
-namespace gc = afc::language::gc;
 namespace afc {
 namespace vm {
 template <>
@@ -83,7 +85,8 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
                                     range.begin().column.ToDelta());
       delete_buffer.ptr()->AppendToLastLine(std::move(line_options).Build());
     } else {
-      delete_buffer.ptr()->AppendRawLine(std::move(line_options).Build());
+      delete_buffer.ptr()->AppendRawLine(
+          staging::CleanValue(std::move(line_options).Build()));
     }
   }
 

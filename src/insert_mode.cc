@@ -54,6 +54,7 @@ extern "C" {
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+namespace staging = afc::language::staging;
 namespace audio = afc::infrastructure::audio;
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
@@ -183,9 +184,12 @@ class TestsHelper {
     buffer_root->Set(buffer_variables::is_prompt, true);
 
     buffer_root->AppendToLastLine(SINGLE_LINE_CONSTANT(L"foobarhey"));
-    buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  foxbarnowl")});
-    buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  aaaaa ")});
-    buffer_root->AppendRawLine(Line{SINGLE_LINE_CONSTANT(L"  alejo forero ")});
+    buffer_root->AppendRawLine(
+        staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L"  foxbarnowl")}));
+    buffer_root->AppendRawLine(
+        staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L"  aaaaa ")}));
+    buffer_root->AppendRawLine(
+        staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L"  alejo forero ")}));
     return buffer_root;
   }();
 

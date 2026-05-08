@@ -19,6 +19,7 @@ using ::operator<<;
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
@@ -63,7 +64,7 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
       delete_buffer->AppendToLastLine(LineBuilder{
           SingleLine{LazyString{
               FromByteString(line_str)}}}.Build());
-      delete_buffer->AppendRawLine(Line{});
+      delete_buffer->AppendRawLine(staging::CleanValue(Line{}));
     }
   }
 }
@@ -142,7 +143,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
           input.delete_buffer->ptr()->AppendToLastLine(
               LineBuilder{LineSequence::BreakLines(error.read()).FoldLines()}
                   .Build());
-          input.delete_buffer->ptr()->AppendRawLine(Line{});
+          input.delete_buffer->ptr()->AppendRawLine(
+              staging::CleanValue(Line{}));
           output.added_to_paste_buffer = true;
         }
         return output;

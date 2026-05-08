@@ -22,10 +22,11 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
           TrustedConstructorTag(),
           [&] {
             TRACK_OPERATION(SortedLineSequence_sort);
-            std::vector<Line> lines = container::MaterializeVector(input);
+            std::vector<Line> lines = input | std::ranges::to<std::vector>();
             std::sort(lines.begin(), lines.end(), compare);
             MutableLineSequence builder;
-            builder.append_back(std::move(lines));
+            builder.append_back(std::move(lines) |
+                                staging::AddOrigin(staging::Clean));
             builder.MaybeEraseEmptyFirstLine();
             return builder.snapshot();
           }(),

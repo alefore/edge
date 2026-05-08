@@ -3,14 +3,13 @@
 #include "src/buffer_registry.h"
 #include "src/command_argument_mode.h"
 #include "src/infrastructure/extended_char.h"
-#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/parsers/markdown.h"
 
-namespace container = afc::language::container;
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::ExtendedChar;
 using afc::language::EmptyValue;
@@ -80,7 +79,8 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
                          LineBuilder line_output{SingleLine{LazyString{L"* "}}};
                          line_output.Append(LineBuilder(std::move(mark.text)));
                          return std::move(line_output).Build();
-                       }));
+                       }) |
+                       staging::AddOrigin(staging::Clean));
   }
   return output.snapshot();
 }

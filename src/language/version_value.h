@@ -4,6 +4,8 @@
 #ifndef __AFC_EDITOR_SRC_LANGUAGE_VERSION_VALUE_H__
 #define __AFC_EDITOR_SRC_LANGUAGE_VERSION_VALUE_H__
 
+#include <ranges>
+
 #include "src/language/ghost_type_class.h"
 
 namespace afc::language::staging {
@@ -27,6 +29,34 @@ template <typename T>
 struct Value {
   Origin origin;
   T value;
+};
+
+template <typename T>
+auto CleanValue(T&& value) -> Value<std::decay_t<T>> {
+  return Value<std::decay_t<T>>{.origin = Clean,
+                                .value = std::forward<T>(value)};
+}
+
+struct AddOrigin {
+  Origin origin;
+
+  constexpr explicit AddOrigin(Origin o) : origin(o) {}
+
+  // The magic happens here: pipe operator support
+  template <std::ranges::viewable_range R>
+  constexpr auto operator()(R&& r) const {
+    return std::forward<R>(r) |
+           std::views::transform([origin = origin](auto&& value) {
+             using T = std::decay_t<decltype(value)>;
+             return Value<T>{.origin = origin,
+                             .value = std::forward<decltype(value)>(value)};
+           });
+  }
+
+  template <std::ranges::viewable_range R>
+  friend constexpr auto operator|(R&& r, const AddOrigin& closure) {
+    return closure(std::forward<R>(r));
+  }
 };
 }  // namespace afc::language::staging
 #endif  // __AFC_EDITOR_SRC_LANGUAGE_VERSION_VALUE_H__

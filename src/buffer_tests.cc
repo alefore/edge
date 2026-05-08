@@ -12,6 +12,7 @@
 #include "src/math/numbers.h"
 #include "src/tests/tests.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
@@ -185,7 +186,7 @@ const bool buffer_tests_registration = tests::Register(
                // This is important: otherwise OpenBuffer will assume that it is
                // safe to override them (recompute them).
                line.metadata().get();
-               buffer->AppendRawLine(std::move(line));
+               buffer->AppendRawLine(staging::CleanValue(std::move(line)));
                // Gives it a chance to execute:
                buffer->editor().work_queue()->Execute();
                CHECK(buffer->contents()

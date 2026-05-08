@@ -15,6 +15,7 @@
 #include "src/vm/constant_expression.h"
 #include "src/vm/function_call.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
@@ -213,7 +214,8 @@ LineSequence ShowFiles(EditorState& editor, LazyString name,
       std::move(entries) |
       std::views::transform([&editor](const FileEntry& entry) -> Line {
         return ShowLine(editor, entry);
-      }));
+      }) |
+      staging::AddOrigin(staging::Clean));
   output.push_back(L"");
   return output.snapshot();
 }

@@ -213,15 +213,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::Show) {
     Lines::Ptr subtree = std::invoke([&lines] {
       TRACK_OPERATION(MutableLineSequence_append_back_subtree);
-      // TODO(2026-05-08, P2, Origin): Stop appending Clean origin. Receive it
-      // as a parameter.
-      auto lines_with_origin =
-          std::forward<R>(lines) | std::views::transform([](Line line) {
-            return value_and_origin_type{.origin = staging::Clean,
-                                         .value = std::move(line)};
-          });
-      return Lines::FromRange(lines_with_origin.begin(),
-                              lines_with_origin.end());
+      return Lines::FromRange(lines.begin(), lines.end());
     });
 
     TRACK_OPERATION(MutableLineSequence_append_back_append);

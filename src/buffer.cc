@@ -950,7 +950,7 @@ void OpenBuffer::StartNewLine(Line line) {
 
 // TODO(2026-05-08, version): Apply version id.
 void OpenBuffer::AppendLines(
-    std::vector<Line> lines, staging::Origin,
+    std::vector<Line> lines, staging::Origin origin,
     language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
   TRACK_OPERATION(OpenBuffer_AppendLines);
 
@@ -959,7 +959,8 @@ void OpenBuffer::AppendLines(
   lines_read_rate_.IncrementAndGetEventsPerSecond(lines_added.read());
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
   contents_.append_back(
-      UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
+      UpdateLineMetadata(*this, line_processor_map_, std::move(lines)) |
+          staging::AddOrigin(origin),
       observer_behavior);
 
   static const LineNumberDelta kLineActivationThreshold{8};
@@ -1358,14 +1359,19 @@ void OpenBuffer::AppendLine(SingleLine str) {
 
 void OpenBuffer::AppendRawLine(
     SingleLine str, MutableLineSequence::ObserverBehavior observer_behavior) {
-  AppendRawLine(LineBuilder{std::move(str)}.Build(), observer_behavior);
+  // TODO(2026-05-08, P1): Don't assume staging::Clean. Force customers to pass
+  // it.
+  AppendRawLine(staging::CleanValue(LineBuilder{std::move(str)}.Build()),
+                observer_behavior);
 }
 
 void OpenBuffer::AppendRawLine(
-    Line line, MutableLineSequence::ObserverBehavior observer_behavior) {
+    staging::Value<Line> line,
+    MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
   contents_.append_back(
-      UpdateLineMetadata(*this, line_processor_map_, {std::move(line)}),
+      UpdateLineMetadata(*this, line_processor_map_, {std::move(line.value)}) |
+          staging::AddOrigin(line.origin),
       observer_behavior);
 }
 
@@ -1378,7 +1384,9 @@ void OpenBuffer::AppendToLastLine(Line line) {
   auto follower = GetEndPositionFollower();
   LineBuilder options(contents_.back());
   options.Append(LineBuilder(std::move(line)));
-  AppendRawLine(std::move(options).Build(),
+  // TODO(2026-05-08, P1): Don't assume staging::Clean. Force customers to pass
+  // it.
+  AppendRawLine(staging::CleanValue(std::move(options).Build()),
                 MutableLineSequence::ObserverBehavior::Hide);
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),

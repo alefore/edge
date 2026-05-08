@@ -18,6 +18,8 @@
 
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
+namespace staging = afc::language::staging;
+
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
 using afc::language::EmptyValue;
@@ -74,7 +76,7 @@ void AppendLine(OpenBuffer& source, SingleLine padding, LineColumn position,
     options.SetOutgoingLink(
         OutgoingLink{.path = source_path->read(), .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
-  target.AppendRawLine(std::move(options).Build());
+  target.AppendRawLine(staging::CleanValue(std::move(options).Build()));
 }
 
 void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
@@ -103,7 +105,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
         options.SetOutgoingLink(OutgoingLink{
             .path = source_path->read(), .line_column = child.range().begin()});
 
-      target.AppendRawLine(std::move(options).Build());
+      target.AppendRawLine(staging::CleanValue(std::move(options).Build()));
       continue;
     }
 
