@@ -12,7 +12,7 @@ static Observers::Observer WeakPtrLockingObserver(
   return [data, callable = std::move(callable)] mutable {
     return VisitPointer(
         data.Lock(),
-        [callable = std::move(callable)](language::gc::Root<P> root) mutable {
+        [&callable](language::gc::Root<P> root) mutable {
           return std::move(callable)(root.ptr().value());
         },
         [] { return Observers::State::Expired; });
