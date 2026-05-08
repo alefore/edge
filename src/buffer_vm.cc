@@ -640,10 +640,11 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                            output_lock = output->GetLockFunction()] {
                             MutableLineSequence tmp;
                             size_t inputs_seen = 0;
-                            contents.ForEach([&](const Line& line) {
+                            contents.ForEach([&](const staging::Value<Line>&
+                                                     line) {
                               inputs_seen++;
                               VisitValue(
-                                  log_type->Parse(line.contents()),
+                                  log_type->Parse(line.value.contents()),
                                   [&](LogLine log_line) {
                                     LogLineEvaluator line_evaluator =
                                         evaluator->Enter(log_line);

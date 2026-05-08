@@ -248,8 +248,8 @@ class HelpCommand : public Command {
   static void StartSection(NonEmptySingleLine section,
                            MutableLineSequence& buffer) {
     VLOG(2) << "Section: " << section;
-    buffer.push_back(Line{std::move(section).read()});
-    buffer.push_back(Line{});
+    buffer.push_back(staging::CleanValue(Line{std::move(section).read()}));
+    buffer.push_back(staging::CleanValue(Line{}));
   }
 
   static void ShowCommands(const MapModeCommands& commands,
@@ -274,7 +274,7 @@ class HelpCommand : public Command {
                               // SingleLine here:
                               SingleLine{command->Description()},
                           std::nullopt);
-        output.push_back(std::move(line).Build());
+        output.push_back(staging::CleanValue(std::move(line).Build()));
       }
       output.push_back(L"");
     }
@@ -311,13 +311,12 @@ class HelpCommand : public Command {
                                    ? ColumnNumberDelta{}
                                    : kPaddingSize - field_name.read().size(),
                                L' '}};
-                output.push_back(LineBuilder{
+                output.push_back(staging::CleanValue(LineBuilder{
                     SingleLine{LazyString{L"* `"}} + field_name.read() +
                     SingleLine{LazyString{L"`"}} + std::move(padding) +
                     SingleLine{LazyString{L"`"}} +
                     SingleLine{LazyString{FromByteString(value_stream.str())}} +
-                    SingleLine{LazyString{
-                        L"`"}}}.Build());
+                    SingleLine{LazyString{L"`"}}}.Build()));
               });
           output.push_back(L"");
         });
@@ -353,10 +352,10 @@ class HelpCommand : public Command {
                                             ? ColumnNumberDelta{}
                                             : kPaddingSize - name.read().size(),
                                         L' '}};
-          output.push_back(LineBuilder{
+          output.push_back(staging::CleanValue(LineBuilder{
               SingleLine{LazyString{L"* `"}} + name.read() +
               SingleLine{LazyString{L"`"}} + std::move(padding) + value_str}
-                               .Build());
+                                                   .Build()));
         });
     output.push_back(L"");
   }
@@ -367,18 +366,20 @@ class HelpCommand : public Command {
                                 EdgeStruct<T>* variables, C print) {
     StartSection(NON_EMPTY_SINGLE_LINE_CONSTANT(L"### ") + type_name, output);
     for (const auto& variable : variables->variables()) {
-      output.push_back(LineBuilder{SINGLE_LINE_CONSTANT(L"#### ") +
-                                   variable.second->name().read()}
-                           .Build());
+      output.push_back(staging::CleanValue(LineBuilder{
+          SINGLE_LINE_CONSTANT(L"#### ") + variable.second->name().read()}
+                                               .Build()));
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
-      output.push_back(LineBuilder{SingleLine{LazyString{L"* Value: "}} +
-                                   print(source.Read(&variable.second.value()))}
-                           .Build());
-      output.push_back(LineBuilder{SingleLine{LazyString{L"* Default: "}} +
-                                   print(variable.second->default_value())}
-                           .Build());
+      output.push_back(staging::CleanValue(
+          LineBuilder{SingleLine{LazyString{L"* Value: "}} +
+                      print(source.Read(&variable.second.value()))}
+              .Build()));
+      output.push_back(staging::CleanValue(
+          LineBuilder{SingleLine{LazyString{L"* Default: "}} +
+                      print(variable.second->default_value())}
+              .Build()));
 
       if (!variable.second->key().empty()) {
         output.push_back(L"* Related commands: `v" + variable.second->key() +

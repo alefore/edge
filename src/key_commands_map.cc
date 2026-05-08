@@ -11,6 +11,8 @@
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/tests/tests.h"
 
+namespace staging = afc::language::staging;
+
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Style;
@@ -118,7 +120,8 @@ LineSequence KeyCommandsMapSequence::Help() const {
       for (ExtendedChar c : entry.second)
         category_line.Append(LineBuilder(DescribeSequence({c})));
     }
-    help_output.push_back(std::move(category_line).Build());
+    help_output.push_back(
+        staging::CleanValue(std::move(category_line).Build()));
   }
   if (help_output.size() > LineNumberDelta(1) &&
       help_output.snapshot().front().empty())

@@ -74,9 +74,9 @@ LineSequence SerializeState(LineColumn position,
   MutableLineSequence contents;
 
   // TODO(2023-11-26, P1): Turn this into an entry in LineColumnStruct.
-  contents.push_back(Line{SINGLE_LINE_CONSTANT(L"buffer.set_position(") +
-                          position.ToCppString() +
-                          SINGLE_LINE_CONSTANT(L");")});
+  contents.push_back(staging::CleanValue(
+      Line{SINGLE_LINE_CONSTANT(L"buffer.set_position(") +
+           position.ToCppString() + SINGLE_LINE_CONSTANT(L");")}));
   contents.push_back(L"");
 
   contents.insert(contents.EndLine(),

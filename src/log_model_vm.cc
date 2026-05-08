@@ -72,12 +72,12 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
                 value_type_description = SINGLE_LINE_CONSTANT(L" (type: ") +
                                          value_type_description +
                                          SINGLE_LINE_CONSTANT(L")");
-              section.push_back(
+              section.push_back(staging::CleanValue(
                   Line(SINGLE_LINE_CONSTANT(L"Value: ") +
                        LineSequence::BreakLines(
                            std::get<LazyString>(data.second.front().value))
                            .FoldLines() +
-                       value_type_description));
+                       value_type_description)));
             }
             section.push_back(L"");
             return std::move(section).snapshot();

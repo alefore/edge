@@ -89,14 +89,24 @@ class LineSequence {
   // the iteration if the callback returns false. Returns true iff the callback
   // always returned true.
   template <typename Callback>
-  bool EveryLine(const Callback& callback) const {
+  bool EveryLineWithOrigin(const Callback& callback) const {
     LineNumber start;
     return Lines::Every(lines_.get_shared(),
                         [&callback, &start](const staging::Value<Line>& line) {
-                          return callback(start++, line.value);
+                          return callback(start++, line);
                         });
   }
 
+  template <typename Callback>
+  bool EveryLine(const Callback& callback) const {
+    return EveryLineWithOrigin(
+        [&callback](LineNumber start, const staging::Value<Line>& line) {
+          return callback(start, line.value);
+        });
+  }
+
+  void ForEach(
+      const std::function<void(const staging::Value<Line>&)>& callback) const;
   void ForEach(const std::function<void(const Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 

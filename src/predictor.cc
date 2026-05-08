@@ -229,6 +229,8 @@ const bool register_variations_tests_registration = tests::Register(
 
 Predictor PrecomputedPredictor(
     const std::vector<NonEmptySingleLine>& predictions, wchar_t separator) {
+  // TODO(2026-05-09, P2): Maybe the value should be already a
+  // staging::Value<Line>?
   const NonNull<
       std::shared_ptr<std::multimap<NonEmptySingleLine, NonEmptySingleLine>>>
       contents;
@@ -247,7 +249,8 @@ Predictor PrecomputedPredictor(
     for (auto it = contents->lower_bound(std::move(input_value));
          it != contents->end(); ++it) {
       if (StartsWith((*it).first, input.input)) {
-        output_contents.push_back(LineBuilder{it->second.read()}.Build());
+        output_contents.push_back(
+            staging::CleanValue(LineBuilder{it->second.read()}.Build()));
       } else {
         break;
       }

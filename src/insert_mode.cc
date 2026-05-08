@@ -128,7 +128,9 @@ class NewLineTransformation : public CompositeTransformation {
       LineBuilder line_without_suffix(*line);
       line_without_suffix.DeleteSuffix(prefix_end);
       MutableLineSequence contents_to_insert;
-      contents_to_insert.push_back(std::move(line_without_suffix).Build());
+      contents_to_insert.push_back(
+          input.buffer.line_origin_tracker().NewStagingValue(
+              std::move(line_without_suffix).Build()));
       output.Push(transformation::Insert{.contents_to_insert =
                                              contents_to_insert.snapshot()});
     }

@@ -66,8 +66,9 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
     : SortedLineSequenceUniqueLines(
           TrustedConstructorTag{}, std::invoke([&] {
             MutableLineSequence builder;
-            sorted_lines.lines().ForEach([&builder](const Line& line) {
-              if (builder.size().IsZero() || !(builder.back() == line))
+            sorted_lines.lines().ForEach([&builder](
+                                             const staging::Value<Line>& line) {
+              if (builder.size().IsZero() || !(builder.back() == line.value))
                 builder.push_back(line);
             });
             builder.MaybeEraseEmptyFirstLine();
@@ -91,7 +92,7 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
         MutableLineSequence builder;
         auto advance = [&](const LineSequence& input, LineNumber& line) {
           CHECK_LT(line.ToDelta(), input.size());
-          builder.push_back(input.at(line));
+          builder.push_back(input.at_with_origin(line));
           ++line;
         };
         while (a_line.ToDelta() < a_lines.size() ||

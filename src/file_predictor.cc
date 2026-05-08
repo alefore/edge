@@ -46,7 +46,7 @@ extern "C" {
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
-namespace container = afc::language::container;
+namespace staging = afc::language::staging;
 
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
@@ -536,7 +536,7 @@ void PredictInSearchPath(const FilePredictorOptions& options, Path search_path,
                   ? static_cast<int64_t>(options.match_limit.value())
                   : std::numeric_limits<int64_t>::max()),
       [&](ScanMatchValid scan_result) {
-        predictions.push_back(std::move(scan_result.line));
+        predictions.push_back(staging::CleanValue(std::move(scan_result.line)));
         predictor_output.found_exact_match |=
             scan_result.match_type == FilePredictorMatchType::Exact;
       });

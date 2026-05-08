@@ -26,8 +26,9 @@ class Tracker {
   Revision active() const;
 
   template <typename T>
-  Value<T> NewStagingValue(T value) {
-    return Value<T>{.origin = active(), .value = std::move<T>(value)};
+  auto NewStagingValue(T&& value) const -> Value<std::decay_t<T>> {
+    return Value<std::decay_t<T>>{.origin = active(),
+                                  .value = std::forward<T>(value)};
   }
 
   // Marks a given revision as clean (e.g., successfully saved).

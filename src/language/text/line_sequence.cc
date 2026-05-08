@@ -297,9 +297,17 @@ const Line& LineSequence::back() const { return at(EndLine()); }
 const Line& LineSequence::front() const { return at(LineNumber(0)); }
 
 void LineSequence::ForEach(
-    const std::function<void(const Line&)>& callback) const {
-  EveryLine([callback](LineNumber, const Line& line) {
+    const std::function<void(const staging::Value<Line>&)>& callback) const {
+  EveryLineWithOrigin([callback](LineNumber, const staging::Value<Line>& line) {
     callback(line);
+    return true;
+  });
+}
+
+void LineSequence::ForEach(
+    const std::function<void(const Line&)>& callback) const {
+  EveryLineWithOrigin([callback](LineNumber, const staging::Value<Line>& line) {
+    callback(line.value);
     return true;
   });
 }

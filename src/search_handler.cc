@@ -15,9 +15,10 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
 namespace container = afc::language::container;
+namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
@@ -190,10 +191,11 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   for (OpenBuffer& search_buffer : input.source_buffers | gc::view::Value)
     SearchInBuffer(input, search_buffer, matches);
   MutableLineSequence output_contents;
-  std::ranges::copy(
-      std::move(matches) |
-          std::views::transform([](SingleLine match) { return Line{match}; }),
-      std::back_inserter(output_contents));
+  // TODO(2026-05-09, P2): Get rid of `for` loop. Should become easier once
+  // MutableLineSequence and LineSequence abandon the view of "container of
+  // Line".
+  for (SingleLine match : matches)
+    output_contents.push_back(staging::CleanValue(Line{match}));
   output_contents.MaybeEraseEmptyFirstLine();
   TRACK_OPERATION(SearchHandlerPredictor_sort);
   return PredictorOutput{.contents = SortedLineSequenceUniqueLines(

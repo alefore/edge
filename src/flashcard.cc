@@ -175,7 +175,8 @@ class FlashcardReviewLog {
     output.push_back(L"");
     output.push_back(L"## Tags");
     output.push_back(L"");
-    output.push_back(Line{SINGLE_LINE_CONSTANT(L"Answer: ") + answer});
+    output.push_back(
+        staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L"Answer: ") + answer}));
     output.push_back(L"");
     return output.snapshot();
   }

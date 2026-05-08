@@ -196,7 +196,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void FoldNextLine(language::text::LineNumber line);
 
   void push_back(std::wstring str);
-  void push_back(value_type line,
+  void push_back(staging::Value<Line> line,
                  ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   template <std::ranges::range R>

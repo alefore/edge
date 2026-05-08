@@ -153,13 +153,13 @@ void MutableLineSequence::set_line(LineNumber position, Line line) {
   TRACK_OPERATION(MutableLineSequence_set_line);
 
   if (position.ToDelta() >= size()) {
-    return push_back(line);
+    // TODO(2026-05-08, P2): Don't assume staging::Clean.
+    return push_back(staging::CleanValue(line));
   }
 
   // TODO(2026-05-08, P2): Don't use staging::Clean here.
-  lines_ = lines_->Replace(
-      position.read(),
-      staging::Value{.origin = staging::Clean, .value = std::move(line)});
+  lines_ =
+      lines_->Replace(position.read(), staging::CleanValue(std::move(line)));
   // TODO: Why no notify observer_?
 }
 
@@ -344,13 +344,10 @@ const bool push_back_wstring_tests_registration = tests::Register(
     });
 }  // namespace
 
-void MutableLineSequence::push_back(Line line,
+void MutableLineSequence::push_back(staging::Value<Line> line,
                                     ObserverBehavior observer_behavior) {
   LineNumber position = EndLine();
-  // TODO(2026-05-08, P2): Don't assume clean here.
-  lines_ = Lines::PushBack(
-      lines_.get_shared(),
-      staging::Value<Line>{.origin = staging::Clean, .value = std::move(line)});
+  lines_ = Lines::PushBack(lines_.get_shared(), std::move(line));
   switch (observer_behavior) {
     case ObserverBehavior::Hide:
       break;
@@ -445,7 +442,8 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
   // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will crash.
   output.push_back(
       Call(std::function<void(ShortRandomLine)>([this](ShortRandomLine s) {
-        push_back(LineBuilder{SingleLine{s.value}}.Build());
+        push_back(
+            staging::CleanValue(LineBuilder{SingleLine{s.value}}.Build()));
       })));
 
   return output;

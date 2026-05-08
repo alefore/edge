@@ -662,7 +662,7 @@ void OpenBuffer::ClearContents() {
 
 void OpenBuffer::AppendEmptyLine() {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(Line());
+  contents_.push_back(line_origin_tracker().NewStagingValue(Line{}));
 }
 
 void OpenBuffer::SignalEndOfFile() {
