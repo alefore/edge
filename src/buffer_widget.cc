@@ -190,7 +190,9 @@ LineWithCursor::Generator::Vector LinesSpanView(
     columns_vector.push_back(BufferMetadataOutput(BufferMetadataOutputOptions{
         .buffer = buffer,
         .screen_lines = screen_lines,
-        .zoomed_out_tree = zoomed_out_tree.value()}));
+        .zoomed_out_tree = zoomed_out_tree.value(),
+        .staging_revision_max_clean =
+            buffer.line_origin_tracker().max_clean()}));
   }
   return OutputFromColumnsVector(std::move(columns_vector));
 }

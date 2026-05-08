@@ -3,6 +3,7 @@
 
 #include "src/buffer_contents_view_layout.h"
 #include "src/columns_vector.h"
+#include "src/language/version_value.h"
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
 
@@ -15,6 +16,7 @@ struct BufferMetadataOutputOptions {
   const OpenBuffer& buffer;
   const std::vector<BufferContentsViewLayout::Line>& screen_lines;
   const ParseTree& zoomed_out_tree;
+  const language::staging::Revision staging_revision_max_clean;
 };
 
 // OutputProducer that prints the metadata that is usually shown right after the

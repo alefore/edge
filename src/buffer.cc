@@ -1958,6 +1958,10 @@ const language::text::MutableLineSequence& OpenBuffer::contents() const {
   return contents_;
 }
 
+const language::staging::Tracker OpenBuffer::line_origin_tracker() const {
+  return line_origin_tracker_;
+}
+
 BufferName OpenBuffer::name() const { return options_.name; }
 
 futures::Value<EmptyValue> OpenBuffer::SetInputFiles(

@@ -19,6 +19,7 @@ struct Clean_t {
   explicit Clean_t() = default;
 };
 inline constexpr Clean_t Clean{};
+bool operator==(const Clean_t&, const Clean_t&);
 
 using Origin = std::variant<Clean_t, Revision>;
 

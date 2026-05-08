@@ -9,7 +9,9 @@
 
 namespace afc::language::staging {
 class Tracker {
-  // The revision of the largest staging area known to be clean.
+  // The revision of the largest staging area known to be clean. Revision 0
+  // always starts as clean (so that we can start with a valid "known clean"
+  // revision, rather than have to use std::optional<Revision> everywhere).
   Revision max_clean_ = Revision{0};
 
   // Holds the currently active staging revision, which should be used by all

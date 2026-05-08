@@ -23,6 +23,7 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
@@ -403,12 +404,13 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   TRACK_OPERATION(BufferMetadataOutput_Prepare);
 
   std::list<MetadataLine> output;
-  const Line& contents = options.buffer.contents().at(range.line());
+  const staging::Value<Line>& contents =
+      options.buffer.contents().at_with_origin(range.line());
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
   NonNull<const OpenBuffer*> target_buffer =
       NonNull<const OpenBuffer*>::AddressOf(options.buffer);
   VisitPointer(
-      contents.outgoing_link(),
+      contents.value.outgoing_link(),
       [&](const OutgoingLink& link) {
         VisitOptional(
             [&](gc::Root<OpenBuffer> target_buffer_dummy_value) {
@@ -428,16 +430,21 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         info_char, info_char_modifier,
         LineBuilder{OpenBuffer::FlagsToString(target_buffer->Flags())}.Build(),
         MetadataLine::Type::Flags});
-  } else if (contents.modified_state() == LineModifiedState::Dirty) {
+  } else if (std::visit(overload{[](staging::Clean_t) { return true; },
+                                 [&options](staging::Revision revision) {
+                                   return revision <=
+                                          options.staging_revision_max_clean;
+                                 }},
+                        contents.origin)) {
+    info_char_modifier = Style{.attributes = StyleAttribute::Dim};
+  } else {
     info_char_modifier = Style{.foreground_color = Color::Green};
     info_char = L'•';
-  } else {
-    info_char_modifier = Style{.attributes = StyleAttribute::Dim};
   }
 
   if (SingleLine metadata = Concatenate(
           std::views::transform(
-              contents.metadata().get(),
+              contents.value.metadata().get(),
               [](const std::pair<LineMetadataKey,
                                  futures::Progressive<SingleLine>>& item) {
                 TRACK_OPERATION(

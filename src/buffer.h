@@ -423,6 +423,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   // TODO(easy, 2023-08-21): Stop passing a reference to TerminalInputParser;
   // instead, extend TerminalInputParser::Receiver.
   const language::text::MutableLineSequence& contents() const;
+  const language::staging::Tracker line_origin_tracker() const;
 
   BufferName name() const;
 
