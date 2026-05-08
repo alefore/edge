@@ -660,20 +660,26 @@ class InsertMode : public InputReceiver,
                  completion_model_supplier_](OpenBuffer& buffer) {
               CHECK(buffer.fd() == nullptr);
               return std::visit(
-                  overload{[&](OpenBufferNoPasteMode buffer_input) {
-                             return ApplyCompletionModel(
-                                 modify_mode, completion_model_supplier,
-                                 buffer_input);
-                           },
-                           [&](OpenBufferPasteMode buffer_input) {
-                             return buffer_input.value.ApplyToCursors(
-                                 transformation::Insert{
-                                     .contents_to_insert =
-                                         LineSequence::WithLine(LineBuilder{
-                                             SingleLine{
-                                                 LazyString{L" "}}}.Build()),
-                                     .modifiers = {.insertion = modify_mode}});
-                           }},
+                  overload{
+                      [&](OpenBufferNoPasteMode buffer_input) {
+                        return ApplyCompletionModel(modify_mode,
+                                                    completion_model_supplier,
+                                                    buffer_input);
+                      },
+                      [&](OpenBufferPasteMode buffer_input) {
+                        return buffer_input.value.ApplyToCursors(
+                            transformation::Insert{
+                                .contents_to_insert =
+                                    LineSequence::WithLine(staging::Value<Line>{
+                                        .origin = buffer_input.value
+                                                      .line_origin_tracker()
+                                                      .active(),
+                                        .value =
+                                            LineBuilder{
+                                                SINGLE_LINE_CONSTANT(L" ")}
+                                                .Build()}),
+                                .modifiers = {.insertion = modify_mode}});
+                      }},
                   GetPasteModeVariant(buffer));
             });
         return 1;
@@ -713,10 +719,13 @@ class InsertMode : public InputReceiver,
           gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
           VLOG(6) << "Inserting text: [" << consumed_input << "]";
           TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
-          return buffer_root.ptr()
+          return buffer_root
               ->ApplyToCursors(transformation::Insert{
-                  .contents_to_insert = LineSequence::WithLine(
-                      Line{SingleLine{LazyString{consumed_input}}}),
+                  .contents_to_insert =
+                      LineSequence::WithLine(staging::Value<Line>{
+                          .origin = buffer_root->line_origin_tracker().active(),
+                          .value =
+                              Line{SingleLine{LazyString{consumed_input}}}}),
                   .modifiers = {.insertion = options.editor_state.modifiers()
                                                  .insertion}})
               .Transform([buffer_root, completion_model_supplier](
@@ -817,7 +826,7 @@ class InsertMode : public InputReceiver,
             case Modifiers::ModifyMode::Overwrite:
               stack.push_back(transformation::Insert{
                   .contents_to_insert = LineSequence::WithLine(
-                      Line{SingleLine{LazyString{L" "}}}),
+                      staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L" ")})),
                   .final_position =
                       direction == Direction::Backwards
                           ? transformation::Insert::FinalPosition::Start
@@ -972,8 +981,9 @@ class InsertMode : public InputReceiver,
     LineRange token_range = GetTokenRange(buffer.value);
     futures::Value<EmptyValue> output =
         buffer.value.ApplyToCursors(transformation::Insert{
-            .contents_to_insert = LineSequence::WithLine(
-                LineBuilder{SingleLine{LazyString{L" "}}}.Build()),
+            .contents_to_insert = LineSequence::WithLine(staging::Value<Line>{
+                .origin = buffer.value.line_origin_tracker().active(),
+                .value = Line{SINGLE_LINE_CONSTANT(L" ")}}),
             .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {

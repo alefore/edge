@@ -205,11 +205,12 @@ LineSequence ShowFiles(EditorState& editor, LazyString name,
       entries.begin(), entries.end(),
       [](const FileEntry& a, const FileEntry& b) { return a.name < b.name; });
 
-  MutableLineSequence output = MutableLineSequence::WithLine(LineBuilder{
-      SingleLine{LazyString{L"## "}} + SingleLine{name} +
-      SingleLine{LazyString{L" ("}} +
-      SingleLine{LazyString{std::to_wstring(entries.size())}} +
-      SingleLine{LazyString{L")"}}}.Build());
+  MutableLineSequence output =
+      MutableLineSequence::WithLine(staging::CleanValue(LineBuilder{
+          SingleLine{LazyString{L"## "}} + SingleLine{name} +
+          SingleLine{LazyString{L" ("}} +
+          SingleLine{LazyString{std::to_wstring(entries.size())}} +
+          SingleLine{LazyString{L")"}}}.Build()));
   output.append_back(
       std::move(entries) |
       std::views::transform([&editor](const FileEntry& entry) -> Line {

@@ -251,7 +251,8 @@ futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
       .Transform([&buffer, prompt_contents_type, initial_value](EmptyValue) {
         buffer.Set(buffer_variables::contents_type, prompt_contents_type);
         return buffer.ApplyToCursors(transformation::Insert{
-            .contents_to_insert = LineSequence::WithLine(initial_value)});
+            .contents_to_insert =
+                LineSequence::WithLine(staging::CleanValue(initial_value))});
       })
       .Transform([output = std::move(output)](EmptyValue) mutable {
         return std::move(output);
@@ -555,8 +556,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
             line_builder.Append(LineBuilder(line));
           },
           [] {});
-      ReplaceContents(buffer,
-                      LineSequence::WithLine(std::move(line_builder).Build()));
+      ReplaceContents(buffer, LineSequence::WithLine(staging::CleanValue(
+                                  std::move(line_builder).Build())));
     });
   }
 
@@ -793,8 +794,9 @@ InsertModeOptions PromptState::insert_mode_options() {
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
-                            {.contents_to_insert = LineSequence::WithLine(
-                                 LineBuilder{std::move(line)}.Build())}));
+                            {.contents_to_insert =
+                                 LineSequence::WithLine(staging::CleanValue(
+                                     LineBuilder{std::move(line)}.Build()))}));
                     prompt_state->OnModify();
                     return EmptyValue();
                   }

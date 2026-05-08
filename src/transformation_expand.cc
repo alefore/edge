@@ -21,6 +21,7 @@
 #include "src/transformation_type.h"
 #include "src/transformation_vm.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
@@ -138,11 +139,11 @@ class PredictorTransformation : public CompositeTransformation {
           CHECK_GT(text.size(), ColumnNumberDelta());
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
-              .contents_to_insert = LineSequence::WithLine(
+              .contents_to_insert = LineSequence::WithLine(staging::CleanValue(
                   // TODO(easy, 2024-09-11): Change common_prefix to use
                   // SingleLine.
                   Line{SingleLine{
-                      LazyString{results.value().common_prefix.value()}}})});
+                      LazyString{results.value().common_prefix.value()}}}))});
           return output;
         });
   }

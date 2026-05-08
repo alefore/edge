@@ -15,6 +15,7 @@
 #include "src/vm/escape.h"
 
 namespace container = afc::language::container;
+namespace staging = afc::language::staging;
 
 using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
@@ -479,9 +480,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(),
                        SingleLine{LazyString{L"nbar"}},
-                       LineSequence::WithLine(LineBuilder{
-                           SingleLine{LazyString{L"value:\"foo\\nbardo\""}}}
-                                                  .Build()),
+                       LineSequence::WithLine(staging::CleanValue(LineBuilder{
+                           SingleLine{
+                               LazyString{L"value:\"foo\\nbardo\""}}}.Build())),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
 
@@ -505,9 +506,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(),
                        SingleLine{LazyString{L"nbar"}},
-                       LineSequence::WithLine(LineBuilder{
-                           SingleLine{LazyString{L"value:\"foo\\nbar\""}}}
-                                                  .Build()),
+                       LineSequence::WithLine(staging::CleanValue(LineBuilder{
+                           SingleLine{
+                               LazyString{L"value:\"foo\\nbar\""}}}.Build())),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
                CHECK_EQ(output.matches[0].preview.contents(),
@@ -551,9 +552,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(),
                        SingleLine{LazyString{L"ls"}},
-                       LineSequence::WithLine(LineBuilder{
-                           SingleLine{LazyString{L"value:\"ls\\n\""}}}
-                                                  .Build()),
+                       LineSequence::WithLine(staging::CleanValue(LineBuilder{
+                           SingleLine{
+                               LazyString{L"value:\"ls\\n\""}}}.Build())),
                        features});
                CHECK_EQ(output.matches.size(), 1ul);
 

@@ -21,6 +21,7 @@
 #include "src/vm/string.h"
 #include "src/vm/types.h"
 
+namespace staging = afc::language::staging;
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
@@ -102,7 +103,7 @@ void FileTags::Add(language::lazy_string::NonEmptySingleLine name,
   const Line line_to_add{name + SINGLE_LINE_CONSTANT(L": ") + value};
   LOG(INFO) << buffer_->name() << ": Adding line: " << line_to_add;
   buffer_->InsertInPosition(
-      LineSequence::WithLine(line_to_add) + LineSequence{},
+      LineSequence::WithLine(staging::CleanValue(line_to_add)) + LineSequence{},
       LineColumn{end_line_}, std::nullopt);
   ++end_line_;
   AddTag(name, value, tags_);

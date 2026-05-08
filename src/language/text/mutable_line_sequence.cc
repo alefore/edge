@@ -41,11 +41,10 @@ MutableLineSequence::MutableLineSequence()
     : MutableLineSequence(
           MakeNonNullShared<NullMutableLineSequenceObserver>()) {}
 
-/* static */ MutableLineSequence MutableLineSequence::WithLine(Line line) {
+/* static */ MutableLineSequence MutableLineSequence::WithLine(
+    staging::Value<Line> line) {
   MutableLineSequence output;
-  output.lines_ = Lines::PushBack(
-      nullptr,
-      staging::Value<Line>{.origin = staging::Clean, .value = std::move(line)});
+  output.lines_ = Lines::PushBack(nullptr, std::move(line));
   return output;
 }
 

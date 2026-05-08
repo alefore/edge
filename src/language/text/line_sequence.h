@@ -60,7 +60,7 @@ class LineSequence {
         })) {}
 
   static LineSequence ForTests(std::vector<std::wstring> inputs);
-  static LineSequence WithLine(Line line);
+  static LineSequence WithLine(staging::Value<Line> line);
   static LineSequence BreakLines(lazy_string::LazyString);
 
   // Returns a new LineSequence that contains a subset of the current one.

@@ -47,8 +47,8 @@ SingleLine ToString(LogEntryValueType value_type) {
 futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
                                                OpenBuffer& target) {
   LOG(INFO) << "Generate Contents for Log Line View";
-  MutableLineSequence output =
-      MutableLineSequence::WithLine(Line{SingleLine{L"# Log Line Details"}});
+  MutableLineSequence output = MutableLineSequence::WithLine(
+      staging::CleanValue(Line{SingleLine{L"# Log Line Details"}}));
 
   output.push_back(L"");
 
@@ -57,9 +57,10 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
       std::views::transform(
           [](std::pair<LogEntryName, std::vector<LogEntryValue>> data)
               -> LineSequence {
-            MutableLineSequence section = MutableLineSequence::WithLine(
-                Line{SINGLE_LINE_CONSTANT(L"## ") +
-                     language::lazy_string::ToSingleLine(data.first)});
+            MutableLineSequence section =
+                MutableLineSequence::WithLine(staging::CleanValue(
+                    Line{SINGLE_LINE_CONSTANT(L"## ") +
+                         language::lazy_string::ToSingleLine(data.first)}));
 
             if (data.second.size() == 1) {
               // TODO(2026-05-05, log, P2): Avoid std::get, don't assume that

@@ -88,8 +88,8 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
 futures::Value<PossibleError> GenerateContents(const EditorState& editor,
                                                OpenBuffer& buffer) {
   LOG(INFO) << "LineMarksBuffer: Generate contents";
-  MutableLineSequence output =
-      MutableLineSequence::WithLine(Line{SingleLine{LazyString{L"# Marks"}}});
+  MutableLineSequence output = MutableLineSequence::WithLine(
+      staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L"# Marks")}));
 
   output.push_back(L"");
 

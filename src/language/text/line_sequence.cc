@@ -67,11 +67,8 @@ using ::operator<<;
   return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
 }
 
-/* static */ LineSequence LineSequence::WithLine(Line line) {
-  // TODO(P2, 2026-05-08): Receive the origin?
-  return LineSequence(
-      Lines::PushBack(nullptr, staging::Value<Line>{.origin = staging::Clean,
-                                                    .value = std::move(line)}));
+/* static */ LineSequence LineSequence::WithLine(staging::Value<Line> line) {
+  return LineSequence(Lines::PushBack(nullptr, std::move(line)));
 }
 
 LineSequence LineSequence::ViewRange(Range range) const {

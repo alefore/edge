@@ -23,11 +23,13 @@
 #include "src/language/text/line_builder.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
+#include "src/language/version_value.h"
 #include "src/math/numbers.h"
 #include "src/vm/callbacks_gc.h"
 #include "src/vm/container.h"
 #include "src/vm/types.h"
 
+namespace staging = afc::language::staging;
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
@@ -342,8 +344,8 @@ class Flashcard {
               output_buffer->Set(buffer_variables::allow_dirty_delete, true);
               output_buffer->Set(buffer_variables::persist_state, false);
               output_buffer->InsertInPosition(
-                  LineSequence::WithLine(
-                      Line{SINGLE_LINE_CONSTANT(L"## Flashcard")}) +
+                  LineSequence::WithLine(staging::CleanValue(
+                      Line{SINGLE_LINE_CONSTANT(L"## Flashcard")})) +
                       card_contents,
                   LineColumn{}, std::nullopt);
               VisitOptional(

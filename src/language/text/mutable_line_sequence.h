@@ -60,7 +60,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   MutableLineSequence(const MutableLineSequence&) = delete;
   MutableLineSequence& operator=(MutableLineSequence&&) = default;
 
-  static MutableLineSequence WithLine(value_type line);
+  static MutableLineSequence WithLine(staging::Value<Line> line);
 
   virtual ~MutableLineSequence() = default;
 

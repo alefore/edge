@@ -626,10 +626,10 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         Path path = Path::Join(edge_state_directory,
                                PathComponent::FromString(L".edge_state"));
         LOG(INFO) << "PersistState: Preparing state file: " << path;
-        LineSequence header = LineSequence::WithLine(Line{
+        LineSequence header = LineSequence::WithLine(staging::CleanValue(Line{
                                   SINGLE_LINE_CONSTANT(L"// State of file: ") +
                                   EscapedString::FromString(path.read())
-                                      .EscapedRepresentation()}) +
+                                      .EscapedRepresentation()})) +
                               LineSequence{};
         return futures::OnError(
             SaveContentsToFile(path, header + serialized_state,
