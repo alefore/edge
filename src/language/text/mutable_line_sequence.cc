@@ -43,7 +43,9 @@ MutableLineSequence::MutableLineSequence()
 
 /* static */ MutableLineSequence MutableLineSequence::WithLine(Line line) {
   MutableLineSequence output;
-  output.lines_ = Lines::PushBack(nullptr, std::move(line));
+  output.lines_ = Lines::PushBack(
+      nullptr,
+      staging::Value<Line>{.origin = staging::Clean, .value = std::move(line)});
   return output;
 }
 
@@ -87,9 +89,12 @@ void MutableLineSequence::insert(
                   << " modifiers: " << modifiers;
           LineBuilder builder(line);
           builder.SetAllModifiers(modifiers);
-          prefix =
-              Lines::PushBack(std::move(prefix), std::move(builder).Build())
-                  .get_shared();
+          // TODO(P2, 2026-05-08, staging): Don't pass staging::Clean here.
+          prefix = Lines::PushBack(std::move(prefix),
+                                   staging::Value<Line>{
+                                       .origin = staging::Clean,
+                                       .value = std::move(builder).Build()})
+                       .get_shared();
         });
       },
       [&] { prefix = Lines::Append(prefix, source.lines_.get_shared()); },
@@ -97,16 +102,20 @@ void MutableLineSequence::insert(
   lines_ = VisitPointer(
       Lines::Append(prefix, suffix),
       [](NonNull<Lines::Ptr> value) { return value; },
-      [] { return Lines::PushBack(nullptr, Line()); });
+      [] {
+        return Lines::PushBack(
+            nullptr, staging::Value{.origin = staging::Clean, .value = Line{}});
+      });
   observer_->LinesInserted(position_line, source.size());
 }
 
 bool MutableLineSequence::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
-  return Lines::Every(lines_.get_shared(), [&](const Line& line) {
-    return callback(line_number++, line);
-  });
+  return Lines::Every(lines_.get_shared(),
+                      [&](const staging::Value<Line>& line) {
+                        return callback(line_number++, line.value);
+                      });
 }
 
 void MutableLineSequence::ForEach(
@@ -130,7 +139,12 @@ void MutableLineSequence::insert_line(LineNumber line_position, Line line,
   CHECK_EQ(Lines::Size(prefix), line_position.read());
   auto suffix = Lines::Suffix(lines_.get_shared(), line_position.read());
   CHECK_EQ(Lines::Size(suffix), lines_->size() - line_position.read());
-  lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
+  lines_ = Lines::Append(
+      Lines::PushBack(prefix,
+                      // TODO(2026-05-08, P2): Don't use staging::Clean here.
+                      staging::Value<Line>{.origin = staging::Clean,
+                                           .value = std::move(line)}),
+      suffix);
   CHECK_EQ(lines_->size(), original_size + 1);
   switch (observer_behavior) {
     case ObserverBehavior::Hide:
@@ -147,7 +161,10 @@ void MutableLineSequence::set_line(LineNumber position, Line line) {
     return push_back(line);
   }
 
-  lines_ = lines_->Replace(position.read(), std::move(line));
+  // TODO(2026-05-08, P2): Don't use staging::Clean here.
+  lines_ = lines_->Replace(
+      position.read(),
+      staging::Value{.origin = staging::Clean, .value = std::move(line)});
   // TODO: Why no notify observer_?
 }
 
@@ -228,7 +245,11 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
       Lines::Append(Lines::Prefix(lines_.get_shared(), first.read()),
                     Lines::Suffix(lines_.get_shared(), last.read())),
       [](NonNull<Lines::Ptr> value) { return value; },
-      [] { return Lines::PushBack(nullptr, Line()); });
+      [] {
+        return Lines::PushBack(
+            nullptr,
+            staging::Value<Line>{.origin = staging::Clean, .value = Line{}});
+      });
 
   if (observer_behavior == ObserverBehavior::Hide) {
     return;
@@ -324,7 +345,10 @@ const bool push_back_wstring_tests_registration = tests::Register(
 void MutableLineSequence::push_back(Line line,
                                     ObserverBehavior observer_behavior) {
   LineNumber position = EndLine();
-  lines_ = Lines::PushBack(lines_.get_shared(), line);
+  // TODO(2026-05-08, P2): Don't assume clean here.
+  lines_ = Lines::PushBack(
+      lines_.get_shared(),
+      staging::Value<Line>{.origin = staging::Clean, .value = std::move(line)});
   switch (observer_behavior) {
     case ObserverBehavior::Hide:
       break;

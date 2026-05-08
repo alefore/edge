@@ -5,6 +5,8 @@
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/text/mutable_line_sequence.h"
 
+namespace staging = afc::language::staging;
+
 using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::SingleLine;
 
@@ -36,8 +38,13 @@ SortedLineSequence::SortedLineSequence(TrustedConstructorTag,
 const LineSequence& SortedLineSequence::lines() const { return lines_; }
 
 LineSequenceIterator SortedLineSequence::upper_bound(const Line& key) const {
-  return lines_.begin() + LineSequence::Lines::UpperBound(
-                              lines_.lines_.get_shared(), key, compare_);
+  return lines_.begin() +
+         LineSequence::Lines::UpperBound(
+             lines_.lines_.get_shared(),
+             staging::Value<Line>{.origin = staging::Clean, .value = key},
+             [&](const staging::Value<Line>& a, const staging::Value<Line>& b) {
+               return compare_(a.value, b.value);
+             });
 }
 
 SortedLineSequence SortedLineSequence::FilterLines(

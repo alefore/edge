@@ -13,7 +13,8 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -36,14 +37,20 @@ using ::operator<<;
     CHECK_GE(i, start);
     if (c == '\n') {
       output =
-          Lines::PushBack(std::move(output),
-                          Line{SingleLine{input.Substring(start, i - start)}})
+          Lines::PushBack(
+              std::move(output),
+              staging::Value<Line>{
+                  .origin = staging::Clean,
+                  .value = Line{SingleLine{input.Substring(start, i - start)}}})
               .get_shared();
       start = i + ColumnNumberDelta(1);
     }
   }
   return LineSequence(Lines::PushBack(
-      std::move(output), Line{SingleLine{LazyString{input.Substring(start)}}}));
+      std::move(output),
+      staging::Value<Line>{
+          .origin = staging::Clean,
+          .value = Line{SingleLine{LazyString{input.Substring(start)}}}}));
 }
 
 /* static */ LineSequence LineSequence::ForTests(
@@ -51,14 +58,20 @@ using ::operator<<;
   CHECK(!inputs.empty());
   Lines::Ptr output = nullptr;
   for (const std::wstring& input : inputs)
-    output = Lines::PushBack(output, Line{SingleLine{LazyString{input}}})
+    output = Lines::PushBack(output,
+                             staging::Value<Line>{
+                                 .origin = staging::Clean,
+                                 .value = Line{SingleLine{LazyString{input}}}})
                  .get_shared();
   // This is safe because we've validated that inputs isn't empty.
   return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
 }
 
 /* static */ LineSequence LineSequence::WithLine(Line line) {
-  return LineSequence(Lines::PushBack(nullptr, std::move(line)));
+  // TODO(P2, 2026-05-08): Receive the origin?
+  return LineSequence(
+      Lines::PushBack(nullptr, staging::Value<Line>{.origin = staging::Clean,
+                                                    .value = std::move(line)}));
 }
 
 LineSequence LineSequence::ViewRange(Range range) const {
@@ -68,25 +81,40 @@ LineSequence LineSequence::ViewRange(Range range) const {
   output = Lines::Suffix(Lines::Prefix(output, range.end().line.read() + 1),
                          range.begin().line.read());
 
-  if (range.end().column < output->Get(output->size() - 1).EndColumn()) {
-    LineBuilder replacement(output->Get(output->size() - 1));
+  if (range.end().column < output->Get(output->size() - 1).value.EndColumn()) {
+    staging::Value<Line> tail = output->Get(output->size() - 1);
+    LineBuilder replacement(tail.value);
     replacement.DeleteSuffix(range.end().column);
-    output = output->Replace(output->size() - 1, std::move(replacement).Build())
+    output = output
+                 ->Replace(output->size() - 1,
+                           staging::Value<Line>{
+                               .origin = tail.origin,
+                               .value = std::move(replacement).Build()})
                  .get_shared();
   }
 
   if (!range.begin().column.IsZero()) {
-    LineBuilder replacement(output->Get(0));
+    staging::Value<Line> head = output->Get(0);
+    LineBuilder replacement(head.value);
     replacement.DeleteCharacters(
         ColumnNumber(0),
-        std::min(output->Get(0).EndColumn(), range.begin().column).ToDelta());
-    output = output->Replace(0, std::move(replacement).Build()).get_shared();
+        std::min(head.value.EndColumn(), range.begin().column).ToDelta());
+    output = output
+                 ->Replace(0,
+                           staging::Value<Line>{
+                               .origin = head.origin,
+                               .value = std::move(replacement).Build()})
+                 .get_shared();
   }
 
   return VisitPointer(
       output,
       [](NonNull<Lines::Ptr> lines) { return LineSequence(std::move(lines)); },
-      [] { return LineSequence(Lines::PushBack(nullptr, Line())); });
+      [] {
+        return LineSequence(Lines::PushBack(
+            nullptr,
+            staging::Value<Line>{.origin = staging::Clean, .value = Line{}}));
+      });
 }
 
 namespace {
@@ -259,7 +287,7 @@ size_t LineSequence::CountCharacters() const {
 
 const Line& LineSequence::at(LineNumber line_number) const {
   CHECK_LT(line_number, LineNumber(0) + size());
-  return lines_->Get(line_number.read());
+  return lines_->Get(line_number.read()).value;
 }
 
 const Line& LineSequence::back() const { return at(EndLine()); }
@@ -281,7 +309,13 @@ void LineSequence::ForEach(
 
 LineSequence LineSequence::Map(
     const std::function<Line(const Line&)>& transformer) const {
-  return LineSequence(lines_->Map(transformer));
+  return LineSequence(
+      lines_->Map([&transformer](const staging::Value<Line>& value) {
+        // TODO(2026-05-08, P2): Force the customers to pass the
+        // staging::Origin.
+        return staging::Value<Line>{.origin = staging::Clean,
+                                    .value = transformer(value.value)};
+      }));
 }
 
 wchar_t LineSequence::character_at(const LineColumn& position) const {

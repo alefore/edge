@@ -9,6 +9,7 @@
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence_observer.h"
+#include "src/language/version_value.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::language::text {
@@ -31,11 +32,21 @@ class NullMutableLineSequenceObserver : public MutableLineSequenceObserver {
 
 class MutableLineSequence : public tests::fuzz::FuzzTestable {
  public:
-  using value_type = language::text::Line;
+  using value_type = Line;
+  using value_and_origin_type = staging::Value<Line>;
 
  private:
   using Lines =
-      language::ConstTree<language::VectorBlock<value_type, 256>, 256>;
+      language::ConstTree<language::VectorBlock<value_and_origin_type, 256>,
+                          256>;
+
+  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, {});
+
+  // TODO(2023-09-09, easy): Add const qualifier? This should be immutable. But
+  // that is challenging because it disables move construction... which would be
+  // fine (given that there's a copy method), but we use ListenableValues of
+  // this, and ListenableValue requires moves.
+  language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer_;
 
  public:
   MutableLineSequence();
@@ -69,7 +80,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   const value_type& at(language::text::LineNumber line_number) const {
     CHECK_LT(line_number, language::text::LineNumber(0) + size());
-    return lines_->Get(line_number.read());
+    return lines_->Get(line_number.read()).value;
   }
 
   const value_type& back() const { return at(EndLine()); }
@@ -106,15 +117,19 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
     // TODO: Only append to `lines` the actual range [start, start + length),
     // and then just Append to prefix/suffix.
-    std::vector<value_type> lines;
-    Lines::Every(lines_.get_shared(), [&lines](value_type line) {
+    std::vector<value_and_origin_type> lines;
+    Lines::Every(lines_.get_shared(), [&lines](value_and_origin_type line) {
       lines.push_back(line);
       return true;
     });
     CHECK(!lines.empty());  // This is is implied by lines_ being NonNull.
 
     std::sort(lines.begin() + start.read(),
-              lines.begin() + (start + length).read(), compare);
+              lines.begin() + (start + length).read(),
+              [&compare](const value_and_origin_type& a,
+                         const value_and_origin_type& b) {
+                return compare(a.value, b.value);
+              });
     Lines::Ptr new_lines = nullptr;
     for (auto& line : lines) {
       new_lines =
@@ -128,9 +143,9 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   // If modifiers is present, applies it to every character (overriding
   // modifiers from the source).
-  void insert(
-      language::text::LineNumber position_line, const LineSequence& source,
-      const std::optional<infrastructure::screen::Style>& modifiers);
+  void insert(language::text::LineNumber position_line,
+              const LineSequence& source,
+              const std::optional<infrastructure::screen::Style>& modifiers);
 
   // Delete characters from position.line in range [position.column,
   // position.column + amount). Amount must not be negative and it must be in a
@@ -191,7 +206,15 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::Show) {
     Lines::Ptr subtree = std::invoke([&lines] {
       TRACK_OPERATION(MutableLineSequence_append_back_subtree);
-      return Lines::FromRange(lines.begin(), lines.end());
+      // TODO(2026-05-08, P2, Origin): Stop appending Clean origin. Receive it
+      // as a parameter.
+      auto lines_with_origin =
+          std::forward<R>(lines) | std::views::transform([](Line line) {
+            return value_and_origin_type{.origin = staging::Clean,
+                                         .value = std::move(line)};
+          });
+      return Lines::FromRange(lines_with_origin.begin(),
+                              lines_with_origin.end());
     });
 
     TRACK_OPERATION(MutableLineSequence_append_back_append);
@@ -225,14 +248,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     callback(options);
     set_line(line_number, std::move(options).Build());
   }
-
-  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, {});
-
-  // TODO(2023-09-09, easy): Add const qualifier? This should be immutable. But
-  // that is challenging because it disables move construction... which would be
-  // fine (given that there's a copy method), but we use ListenableValues of
-  // this, and ListenableValue requires moves.
-  language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer_;
 };
 
 // For convenience, define this wrapper that builds a temporary

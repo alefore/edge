@@ -9,6 +9,7 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/range.h"
+#include "src/language/version_value.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::language::text {
@@ -25,9 +26,12 @@ class LineSequenceIterator;
 // This class is thread-compatible.
 class LineSequence {
  private:
-  using Lines = language::ConstTree<language::VectorBlock<Line, 256>, 256>;
+  using Lines =
+      language::ConstTree<language::VectorBlock<staging::Value<Line>, 256>,
+                          256>;
 
-  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, Line());
+  NonNull<Lines::Ptr> lines_ = Lines::PushBack(
+      nullptr, staging::Value{.origin = staging::Clean, .value = Line{}});
 
  public:
   LineSequence() = default;
@@ -40,7 +44,11 @@ class LineSequence {
       : LineSequence(std::invoke([&] {
           Lines::Ptr output = nullptr;
           while (a != b) {
-            output = Lines::PushBack(std::move(output), Line(*a)).get_shared();
+            output =
+                Lines::PushBack(std::move(output),
+                                staging::Value<Line>{.origin = staging::Clean,
+                                                     .value = Line{*a}})
+                    .get_shared();
             ++a;
           }
           return VisitPointer(
@@ -81,8 +89,8 @@ class LineSequence {
   bool EveryLine(const Callback& callback) const {
     LineNumber start;
     return Lines::Every(lines_.get_shared(),
-                        [&callback, &start](const Line& line) {
-                          return callback(start++, line);
+                        [&callback, &start](const staging::Value<Line>& line) {
+                          return callback(start++, line.value);
                         });
   }
 
@@ -132,6 +140,7 @@ class LineSequenceIterator {
   LineSequenceIterator(LineSequence container, LineNumber position)
       : container_(std::move(container)), position_(position) {}
 
+  // TODO(2026-05-08, P2): Change it to return a staging::Value<Line>.
   Line operator*() const { return container_.at(position_); }
 
   bool operator!=(const LineSequenceIterator& other) const {

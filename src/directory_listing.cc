@@ -209,8 +209,11 @@ LineSequence ShowFiles(EditorState& editor, LazyString name,
       SingleLine{LazyString{L" ("}} +
       SingleLine{LazyString{std::to_wstring(entries.size())}} +
       SingleLine{LazyString{L")"}}}.Build());
-  output.append_back(std::move(entries) | std::views::transform(std::bind_front(
-                                              ShowLine, std::ref(editor))));
+  output.append_back(
+      std::move(entries) |
+      std::views::transform([&editor](const FileEntry& entry) -> Line {
+        return ShowLine(editor, entry);
+      }));
   output.push_back(L"");
   return output.snapshot();
 }
