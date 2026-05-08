@@ -1442,7 +1442,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
                                        range.end().column.ToDelta());
     // Lines in the middle.
     EraseLines(range.begin().line + LineNumberDelta(1), range.end().line);
-    contents_.FoldNextLine(range.begin().line);
+    contents_.FoldNextLine(range.begin().line, line_origin_tracker().active());
     SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                        range.begin().line);
   }
@@ -1464,7 +1464,7 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   }
   contents_.SplitLine(position, line_origin_tracker().active());
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
-  contents_.FoldNextLine(position.line);
+  contents_.FoldNextLine(position.line, line_origin_tracker().active());
   SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                      position.line);
 
@@ -1475,7 +1475,7 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   CHECK(line.has_value());
   ColumnNumber column = line->EndColumn();
 
-  contents_.FoldNextLine(last_line);
+  contents_.FoldNextLine(last_line, line_origin_tracker().active());
   SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                      last_line);
   return LineColumn(last_line, column);

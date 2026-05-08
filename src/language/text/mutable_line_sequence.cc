@@ -292,13 +292,14 @@ const bool split_line_tests_registration = tests::Register(
     });
 }  // namespace
 
-void MutableLineSequence::FoldNextLine(LineNumber position) {
+void MutableLineSequence::FoldNextLine(LineNumber position, staging::Origin) {
   auto next_line = position + LineNumberDelta(1);
   if (next_line.ToDelta() >= size()) {
     return;
   }
 
   ColumnNumber initial_size = at(position).EndColumn();
+  // TODO(2026-05-09, P1): Pass origin here.
   AppendToLine(position, at(next_line), ObserverBehavior::Hide);
   EraseLines(next_line, position + LineNumberDelta(2), ObserverBehavior::Hide);
   observer_->FoldedLine(LineColumn(position, initial_size));
@@ -436,7 +437,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
       Call(std::function<void(LineNumber)>([this](LineNumber line) {
         static const LineNumberDelta kMargin(10);
         // TODO: Declare a operator% for LineNumber and avoid the roundtrip.
-        FoldNextLine(LineNumber(line % (size() + kMargin)));
+        FoldNextLine(LineNumber(line % (size() + kMargin)), staging::Clean);
       })));
 
   // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will crash.

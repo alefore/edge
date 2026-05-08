@@ -193,7 +193,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // Essentially, removes the \n at the end of the current line.
   //
   // If the line is out of range, doesn't do anything.
-  void FoldNextLine(language::text::LineNumber line);
+  void FoldNextLine(language::text::LineNumber line, staging::Origin);
 
   void push_back(std::wstring str);
   void push_back(staging::Value<Line> line,

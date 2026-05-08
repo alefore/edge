@@ -11,12 +11,15 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
+#include "src/language/version_value.h"
 #include "src/language/wstring.h"
 #include "src/test/line_test.h"
 
-using afc::infrastructure::screen::CursorsTracker;
+namespace staging = afc::language::staging;
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::CursorsTracker;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::lazy_string::ColumnNumber;
@@ -75,24 +78,21 @@ void TestBufferInsertModifiers() {
       // Check line 1: 0:CYAN
       auto modifiers_1 = contents.at(LineNumber(1)).modifiers();
       CHECK_EQ(modifiers_1.size(), 1ul);
-      CHECK(modifiers_1.find(ColumnNumber(0))->second ==
-            Style({Color::Cyan}));
+      CHECK(modifiers_1.find(ColumnNumber(0))->second == Style({Color::Cyan}));
     }
 
     {
       // Check line 2: 0:CYAN
       auto modifiers_2 = contents.at(LineNumber(2)).modifiers();
       CHECK_EQ(modifiers_2.size(), 1ul);
-      CHECK(modifiers_2.find(ColumnNumber(0))->second ==
-            Style({Color::Cyan}));
+      CHECK(modifiers_2.find(ColumnNumber(0))->second == Style({Color::Cyan}));
     }
 
     {
       // Check line 3: 0:CYAN, 2:BOLD
       auto modifiers_3 = contents.at(LineNumber(3)).modifiers();
       CHECK_EQ(modifiers_3.size(), 2ul);
-      CHECK(modifiers_3.find(ColumnNumber(0))->second ==
-            Style({Color::Cyan}));
+      CHECK(modifiers_3.find(ColumnNumber(0))->second == Style({Color::Cyan}));
       CHECK(modifiers_3.find(ColumnNumber(2))->second ==
             Style({StyleAttribute::Bold}));
     }
@@ -121,7 +121,7 @@ void TestBufferInsertModifiers() {
     // alejo 0:C 2:B
     // alejo 0:D
     CHECK_EQ(contents.size(), LineNumberDelta(6));
-    contents.FoldNextLine(LineNumber(1));
+    contents.FoldNextLine(LineNumber(1), staging::Clean);
 
     // Contents:
     //
@@ -147,7 +147,7 @@ void TestBufferInsertModifiers() {
       CHECK_EQ(modifiers_4.size(), 1ul);
     }
 
-    contents.FoldNextLine(LineNumber(4));
+    contents.FoldNextLine(LineNumber(4), staging::Clean);
     // Contents:
     //
     // alejo 0:C
