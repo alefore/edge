@@ -109,7 +109,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   enum class ObserverBehavior { Show, Hide };
 
-  void insert_line(language::text::LineNumber line_position, value_type line,
+  void insert_line(language::text::LineNumber line_position,
+                   staging::Value<Line> line,
                    ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   // Does not call observer_! That should be done by the caller. Avoid

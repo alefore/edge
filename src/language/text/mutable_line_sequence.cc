@@ -130,7 +130,8 @@ void MutableLineSequence::ForEach(
   ForEach([callback](const Line& line) { callback(line.ToString()); });
 }
 
-void MutableLineSequence::insert_line(LineNumber line_position, Line line,
+void MutableLineSequence::insert_line(LineNumber line_position,
+                                      staging::Value<Line> line,
                                       ObserverBehavior observer_behavior) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = lines_->size();
@@ -138,12 +139,7 @@ void MutableLineSequence::insert_line(LineNumber line_position, Line line,
   CHECK_EQ(Lines::Size(prefix), line_position.read());
   auto suffix = Lines::Suffix(lines_.get_shared(), line_position.read());
   CHECK_EQ(Lines::Size(suffix), lines_->size() - line_position.read());
-  lines_ = Lines::Append(
-      Lines::PushBack(prefix,
-                      // TODO(2026-05-08, P2): Don't use staging::Clean here.
-                      staging::Value<Line>{.origin = staging::Clean,
-                                           .value = std::move(line)}),
-      suffix);
+  lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(lines_->size(), original_size + 1);
   switch (observer_behavior) {
     case ObserverBehavior::Hide:
@@ -266,7 +262,9 @@ void MutableLineSequence::SplitLine(LineColumn position) {
   LineBuilder builder(at(position.line));
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   builder.set_modified_state(LineModifiedState::Dirty);
-  insert_line(position.line + LineNumberDelta(1), std::move(builder).Build(),
+  // TODO(2026-05-08, P1): Don't pass Clean; force customers to specify it.
+  insert_line(position.line + LineNumberDelta(1),
+              staging::CleanValue(std::move(builder).Build()),
               ObserverBehavior::Hide);
   observer_->SplitLine(position);
   DeleteToLineEnd(position, ObserverBehavior::Hide);
@@ -392,9 +390,9 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
         line_number = LineNumber(line_number % size());
         // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will
         // crash.
-        insert_line(
-            line_number,
-            LineBuilder{SingleLine{LazyString{std::move(text.value)}}}.Build());
+        insert_line(line_number, staging::CleanValue(LineBuilder{
+                                     SingleLine{LazyString{std::move(
+                                         text.value)}}}.Build()));
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(

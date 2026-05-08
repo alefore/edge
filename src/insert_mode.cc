@@ -717,7 +717,9 @@ class InsertMode : public InputReceiver,
          completion_model_supplier =
              completion_model_supplier_](OpenBuffer& buffer) {
           gc::Root<OpenBuffer> buffer_root = buffer.RootFromThis();
-          VLOG(6) << "Inserting text: [" << consumed_input << "]";
+          VLOG(6) << "Inserting text: [" << consumed_input
+                  << "], staging origin: "
+                  << buffer_root->line_origin_tracker().active();
           TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
           return buffer_root
               ->ApplyToCursors(transformation::Insert{

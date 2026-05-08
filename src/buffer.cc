@@ -1332,9 +1332,10 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position, Line line) {
-  contents_.insert_line(
-      line_position,
-      UpdateLineMetadata(*this, line_processor_map_, {std::move(line)})[0]);
+  // TODO(2026-05-08, P1): Don't assume clean, force customer to pass origin.
+  contents_.insert_line(line_position,
+                        staging::CleanValue(UpdateLineMetadata(
+                            *this, line_processor_map_, {std::move(line)})[0]));
 }
 
 void OpenBuffer::AppendLine(SingleLine str) {
