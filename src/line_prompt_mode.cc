@@ -43,6 +43,7 @@
 #include "src/vm/escape.h"
 #include "src/vm/value.h"
 
+namespace staging = afc::language::staging;
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
@@ -59,7 +60,8 @@ using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -209,9 +211,12 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
                   SingleLine{output.errors.front().read()}}.Build()));
         }
         if (!abort_value.has_value()) {
-          filter_buffer.AppendLines(container::MaterializeVector(
+          filter_buffer.AppendLines(
               std::move(output.matches) |
-              std::views::transform(&FilterSortBufferOutput::Match::preview)));
+                  std::views::transform(
+                      &FilterSortBufferOutput::Match::preview) |
+                  std::ranges::to<std::vector>(),
+              staging::Clean);
           if (filter_buffer.lines_size() > LineNumberDelta(1)) {
             VLOG(5) << "Erasing the first (empty) line.";
             CHECK(filter_buffer.LineAt(LineNumber())->empty());

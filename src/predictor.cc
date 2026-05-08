@@ -28,6 +28,7 @@
 #include "src/vm/escape.h"
 
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 namespace container = afc::language::container;
 
 using afc::concurrent::ChannelAll;
@@ -418,10 +419,12 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName{LazyString{L"Dictionary"}}});
   // TODO(2023-11-26, Ranges): Add a method to Buffer that takes the range
-  // directly, to avoid the need to call MaterializeVector.
-  dictionary.ptr()->AppendLines(container::MaterializeVector(
-      words | std::views::transform(
-                  [](NonEmptySingleLine word) { return Line{word.read()}; })));
+  // directly, to avoid the need to call std::ranges::to<>.
+  dictionary.ptr()->AppendLines(
+      words | std::views::transform([](NonEmptySingleLine word) {
+        return Line{word.read()};
+      }) | std::ranges::to<std::vector>(),
+      staging::Clean);
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }

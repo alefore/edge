@@ -1,14 +1,14 @@
 #include "src/language/version_tracker.h"
 
-namespace afc::language::version {
-VersionId Tracker::last_clean() const { return last_clean_; }
+namespace afc::language::staging {
+Revision Tracker::max_clean() const { return max_clean_; }
 
-VersionId Tracker::staging() const { return staging_; }
+Revision Tracker::active() const { return active_; }
 
-void Tracker::MarkClean(VersionId version) {
-  CHECK_LT(version, staging_);
-  last_clean_ = std::max(last_clean_, version);
+void Tracker::MarkClean(Revision revision) {
+  CHECK_LT(revision, active_);
+  max_clean_ = std::max(max_clean_, revision);
 }
 
-VersionId Tracker::NewStagingVersion() { return staging_++; }
-}  // namespace afc::language::version
+void Tracker::StartStagingRevision() { ++active_; }
+}  // namespace afc::language::staging

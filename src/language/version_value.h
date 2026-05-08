@@ -6,15 +6,26 @@
 
 #include "src/language/ghost_type_class.h"
 
-namespace afc::language::version {
-struct VersionId : public language::GhostType<VersionId, size_t> {
+namespace afc::language::staging {
+// Monotonically increasing version of a "staging" area where changes are
+// grouped (and appied together).
+struct Revision : public language::GhostType<Revision, size_t> {
   using GhostType::GhostType;
 };
 
-template <typename Value>
-struct VersionValue {
-  VersionId version_id;
-  Value value;
+// Version for data that doesn't come from a staging source but rather from a
+// canonical source.
+struct Clean_t {
+  explicit Clean_t() = default;
 };
-}  // namespace afc::language::version
+inline constexpr Clean_t Clean{};
+
+using Origin = std::variant<Clean_t, Revision>;
+
+template <typename T>
+struct Value {
+  Origin origin;
+  T value;
+};
+}  // namespace afc::language::staging
 #endif  // __AFC_EDITOR_SRC_LANGUAGE_VERSION_VALUE_H__

@@ -74,6 +74,7 @@ extern "C" {
 #include "src/vm/value.h"
 #include "src/vm/vm.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
 
@@ -155,8 +156,6 @@ using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
-using afc::language::version::VersionId;
-using afc::language::version::VersionValue;
 using afc::language::view::SkipErrors;
 using gc::LockAndVisitCallback;
 
@@ -946,11 +945,12 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
 
 void OpenBuffer::StartNewLine(Line line) {
   TRACK_OPERATION(OpenBuffer_StartNewLine);
-  AppendLines({std::move(line)});
+  AppendLines({std::move(line)}, line_origin_tracker_.active());
 }
 
+// TODO(2026-05-08, version): Apply version id.
 void OpenBuffer::AppendLines(
-    std::vector<Line> lines,
+    std::vector<Line> lines, staging::Origin,
     language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
   TRACK_OPERATION(OpenBuffer_AppendLines);
 
@@ -1144,12 +1144,15 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
                     status_->LogErrors(options_.get_save_callback()));
   CHECK(save_callback != nullptr);
   LineSequence contents_snapshot = contents().snapshot();
+  staging::Revision revision_saved = line_origin_tracker_.active();
+  line_origin_tracker_.StartStagingRevision();
   futures::Value<PossibleError> output = save_callback(
       Options::SaveOptions{.buffer = RootFromThis(), .save_type = save_type});
   if (save_type == OpenBuffer::Options::SaveType::kMainFile)
     output = std::move(output).Transform(
-        [&editor = editor(), contents_snapshot, root_buffer = RootFromThis()](
-            EmptyValue) -> futures::Value<PossibleError> {
+        [&editor = editor(), contents_snapshot, root_buffer = RootFromThis(),
+         revision_saved](EmptyValue) -> futures::Value<PossibleError> {
+          root_buffer->line_origin_tracker_.MarkClean(revision_saved);
           if (contents_snapshot == root_buffer->contents().snapshot())
             root_buffer->SetDiskState(OpenBuffer::DiskState::Current);
           if (root_buffer->Read(
@@ -1980,7 +1983,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
               lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
               tracker_erase_call = nullptr;
 
-              buffer->AppendLines(std::move(lines_to_insert),
+              buffer->AppendLines(std::move(lines_to_insert), staging::Clean,
                                   MutableLineSequence::ObserverBehavior::Hide);
             },
             [](const auto&) {}, WeakPtrFromThis())});

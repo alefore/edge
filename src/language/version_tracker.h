@@ -7,39 +7,33 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/version_value.h"
 
-namespace afc::language::version {
-enum class SyncState {
-  // The value originated at the canonical data source.
-  Clean,
-  // The value originates locally (should be considered dirty).
-  Dirty
-};
-
+namespace afc::language::staging {
 class Tracker {
-  // The largest local version id known to be clean.
-  VersionId last_clean_ = VersionId{0};
+  // The revision of the largest staging area known to be clean.
+  Revision max_clean_ = Revision{0};
 
-  // The current version we're producing. DAta with ValueSource::Local should be
-  // marked with this version.
+  // Holds the currently active staging revision, which should be used by all
+  // new values.
   //
-  // Must be greater than master_version_.
-  VersionId staging_ = VersionId{1};
+  // Must be greater than max_clean_.
+  Revision active_ = Revision{1};
 
  public:
-  VersionId last_clean() const;
+  Revision max_clean() const;
 
-  VersionId staging() const;
+  Revision active() const;
 
-  // Marks a given version as clean. This should be done when the corresponding
-  // snapshot is stored.
-  void MarkClean(VersionId);
+  template <typename T>
+  Value<T> NewStagingValue(T value) {
+    return Value<T>{.origin = active(), .value = std::move<T>(value)};
+  }
 
-  // Signals that a save operation has started and future modifications should
-  // remain dirty even after that save operation concludes.
-  //
-  // Returns the previous value of `local_version`, which should be passed to
-  // `MarkClean` when/if the operation succeeds.
-  VersionId NewStagingVersion();
+  // Marks a given revision as clean (e.g., successfully saved).
+  void MarkClean(Revision);
+
+  // Creates a new staging revision. All future modifications must occur inside
+  // it (until `NewStagingRevision` is called again).
+  void StartStagingRevision();
 };
-}  // namespace afc::language::version
+}  // namespace afc::language::staging
 #endif  // __AFC_EDITOR_SRC_LANGUAGE_VERSION_TRACKER_H__

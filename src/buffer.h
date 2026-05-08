@@ -253,7 +253,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   // Equivalent to calling StartNewLine repeatedly, but significantly more
   // efficient.
   void AppendLines(
-      std::vector<language::text::Line> lines,
+      std::vector<language::text::Line> lines, language::staging::Origin origin,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::Show);
 
@@ -620,7 +620,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
       contents_observer_;
 
   language::text::MutableLineSequence contents_;
-  language::version::Tracker version_tracker_;
+  language::staging::Tracker line_origin_tracker_;
 
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
