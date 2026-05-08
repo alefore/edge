@@ -237,9 +237,10 @@ ValueOrError<futures::Progressive<SingleLine>> LineMetadataCompilation(
 void SetMutableLineSequenceLineMetadata(
     OpenBuffer& buffer, const LineProcessorMap& line_processor_map,
     MutableLineSequence& contents, LineNumber position) {
-  contents.set_line(position,
-                    UpdateLineMetadata(buffer, line_processor_map,
-                                       {buffer.contents().at(position)})[0]);
+  contents.set_line(
+      position,
+      buffer.line_origin_tracker().NewStagingValue(UpdateLineMetadata(
+          buffer, line_processor_map, {buffer.contents().at(position)})[0]));
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -1498,7 +1499,8 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   LineBuilder options(line);
   options.Append(LineBuilder{SingleLine{LazyString{
       position.column - line.EndColumn() + ColumnNumberDelta(1), L' '}}});
-  contents_.set_line(position.line, std::move(options).Build());
+  contents_.set_line(position.line, line_origin_tracker().NewStagingValue(
+                                        std::move(options).Build()));
 }
 
 void OpenBuffer::CheckPosition() {

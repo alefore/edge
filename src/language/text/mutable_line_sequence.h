@@ -116,7 +116,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
   // semantic information about what you're doing).
-  void set_line(language::text::LineNumber position, language::text::Line line);
+  void set_line(LineNumber position, staging::Value<Line> line);
 
   template <class C>
   void sort(language::text::LineNumber start,
@@ -241,12 +241,14 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
  private:
   template <typename Callback>
   void TransformLine(language::text::LineNumber line_number,
-                     Callback callback) {
+                     staging::Origin origin, Callback callback) {
     TRACK_OPERATION(MutableLineSequence_TransformLine);
     CHECK_LE(line_number, EndLine());
     language::text::LineBuilder options(at(line_number));
     callback(options);
-    set_line(line_number, std::move(options).Build());
+    set_line(line_number,
+             staging::Value<Line>{.origin = origin,
+                                  .value = std::move(options).Build()});
   }
 };
 

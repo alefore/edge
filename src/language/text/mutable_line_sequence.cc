@@ -149,17 +149,13 @@ void MutableLineSequence::insert_line(LineNumber line_position,
   }
 }
 
-void MutableLineSequence::set_line(LineNumber position, Line line) {
+void MutableLineSequence::set_line(LineNumber position,
+                                   staging::Value<Line> line) {
   TRACK_OPERATION(MutableLineSequence_set_line);
 
-  if (position.ToDelta() >= size()) {
-    // TODO(2026-05-08, P2): Don't assume staging::Clean.
-    return push_back(staging::CleanValue(line));
-  }
+  if (position.ToDelta() >= size()) return push_back(line);
 
-  // TODO(2026-05-08, P2): Don't use staging::Clean here.
-  lines_ =
-      lines_->Replace(position.read(), staging::CleanValue(std::move(line)));
+  lines_ = lines_->Replace(position.read(), std::move(line));
   // TODO: Why no notify observer_?
 }
 
@@ -172,7 +168,8 @@ void MutableLineSequence::DeleteCharactersFromLine(
   CHECK_GT(amount, ColumnNumberDelta(0));
   CHECK_LE(position.column + amount, at(position.line).EndColumn());
 
-  TransformLine(position.line, [&](LineBuilder& options) {
+  // TODO(2026-05-09, P2): Don't assume staging::Clean.
+  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
     options.DeleteCharacters(position.column, amount);
   });
 
@@ -197,7 +194,8 @@ void MutableLineSequence::SetCharacter(LineColumn position, int c,
                                        Style modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers;
-  TransformLine(position.line, [&](LineBuilder& options) {
+  // TODO(2026-05-09, P2): Don't assume staging::Clean.
+  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
     options.SetCharacter(position.column, c, modifiers);
   });
 
@@ -205,7 +203,8 @@ void MutableLineSequence::SetCharacter(LineColumn position, int c,
 }
 
 void MutableLineSequence::InsertCharacter(LineColumn position) {
-  TransformLine(position.line, [&](LineBuilder& options) {
+  // TODO(2026-05-09, P2): Don't assume staging::Clean.
+  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
     options.InsertCharacterAtPosition(position.column);
   });
   observer_->InsertedCharacter(position);
@@ -215,7 +214,8 @@ void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
                                        ObserverBehavior observer_behavior) {
   const LineColumn position = LineColumn(
       std::min(line, EndLine()), at(std::min(line, EndLine())).EndColumn());
-  TransformLine(position.line, [&](LineBuilder& options) {
+  // TODO(2026-05-09, P2): Don't assume staging::Clean.
+  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
     options.set_modified_state(LineModifiedState::Dirty);
     options.Append(LineBuilder(std::move(line_to_append)));
   });
@@ -400,9 +400,9 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
         line_number = LineNumber(line_number % size());
         // TODO(easy, 2024-09-17): Avoid \n characters, otherwise this will
         // crash.
-        set_line(
-            line_number,
-            LineBuilder{SingleLine{LazyString{std::move(text.value)}}}.Build());
+        set_line(line_number, staging::CleanValue(LineBuilder{
+                                  SingleLine{LazyString{std::move(
+                                      text.value)}}}.Build()));
       })));
 
   // TODO: Call sort.
