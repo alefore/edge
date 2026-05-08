@@ -1464,9 +1464,19 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   if (position.column > contents_.at(position.line).EndColumn()) {
     position.column = contents_.at(position.line).EndColumn();
   }
-  contents_.SplitLine(position, line_origin_tracker().active());
-  contents_.insert(position.line.next(), contents_to_insert, modifiers);
-  contents_.FoldNextLine(position.line, line_origin_tracker().active());
+
+  bool collapse_last = true;
+  if (position.column.IsZero()) {
+    contents_.insert(position.line, contents_to_insert, modifiers);
+  } else if (position.column == contents_.at(position.line).EndColumn()) {
+    contents_.insert(position.line.next(), contents_to_insert, modifiers);
+    contents_.FoldNextLine(position.line, line_origin_tracker().active());
+    collapse_last = false;
+  } else {
+    contents_.SplitLine(position, line_origin_tracker().active());
+    contents_.insert(position.line.next(), contents_to_insert, modifiers);
+    contents_.FoldNextLine(position.line, line_origin_tracker().active());
+  }
   SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                      position.line);
 
@@ -1477,7 +1487,8 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   CHECK(line.has_value());
   ColumnNumber column = line->EndColumn();
 
-  contents_.FoldNextLine(last_line, line_origin_tracker().active());
+  if (collapse_last)
+    contents_.FoldNextLine(last_line, line_origin_tracker().active());
   SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
                                      last_line);
   return LineColumn(last_line, column);
