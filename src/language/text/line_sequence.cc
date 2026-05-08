@@ -283,8 +283,13 @@ size_t LineSequence::CountCharacters() const {
 }
 
 const Line& LineSequence::at(LineNumber line_number) const {
+  return at_with_origin(line_number).value;
+}
+
+const staging::Value<Line>& LineSequence::at_with_origin(
+    LineNumber line_number) const {
   CHECK_LT(line_number, LineNumber(0) + size());
-  return lines_->Get(line_number.read()).value;
+  return lines_->Get(line_number.read());
 }
 
 const Line& LineSequence::back() const { return at(EndLine()); }

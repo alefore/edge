@@ -1462,7 +1462,7 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   if (position.column > contents_.at(position.line).EndColumn()) {
     position.column = contents_.at(position.line).EndColumn();
   }
-  contents_.SplitLine(position);
+  contents_.SplitLine(position, line_origin_tracker().active());
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
   SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,

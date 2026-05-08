@@ -187,7 +187,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
                   ObserverBehavior observer_behavior = ObserverBehavior::Show);
   bool MaybeEraseEmptyFirstLine();
 
-  void SplitLine(language::text::LineColumn position);
+  void SplitLine(LineColumn position, staging::Origin);
 
   // Appends the next line to the current line and removes the next line.
   // Essentially, removes the \n at the end of the current line.

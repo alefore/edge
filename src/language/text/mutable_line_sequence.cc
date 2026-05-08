@@ -258,13 +258,14 @@ bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
   return true;
 }
 
-void MutableLineSequence::SplitLine(LineColumn position) {
+void MutableLineSequence::SplitLine(LineColumn position,
+                                    staging::Origin origin) {
   LineBuilder builder(at(position.line));
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   builder.set_modified_state(LineModifiedState::Dirty);
-  // TODO(2026-05-08, P1): Don't pass Clean; force customers to specify it.
   insert_line(position.line + LineNumberDelta(1),
-              staging::CleanValue(std::move(builder).Build()),
+              staging::Value<Line>{.origin = origin,
+                                   .value = std::move(builder).Build()},
               ObserverBehavior::Hide);
   observer_->SplitLine(position);
   DeleteToLineEnd(position, ObserverBehavior::Hide);
@@ -283,7 +284,8 @@ const bool split_line_tests_registration = tests::Register(
                contents.push_back(L"forero");
                CHECK_EQ(contents.snapshot().ToLazyString(),
                         LazyString{L"\nfoo\nalejandro\nforero"});
-               contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
+               contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)),
+                                  staging::Clean);
                CHECK_EQ(contents.snapshot().ToLazyString(),
                         LazyString{L"\nfoo\nale\njandro\nforero"});
              }},
@@ -430,7 +432,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
           position.column = ColumnNumber(position.column.ToDelta() %
                                          line.EndColumn().ToDelta());
         }
-        SplitLine(position);
+        SplitLine(position, staging::Clean);
       })));
 
   output.push_back(

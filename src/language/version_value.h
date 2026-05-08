@@ -25,6 +25,11 @@ bool operator==(const Clean_t&, const Clean_t&);
 
 using Origin = std::variant<Clean_t, Revision>;
 
+// Returns the largest of two origin specifications. If two lines with origins
+// a and b are getting merged, returns the origin that the merged line should
+// use.
+Origin MergeOrigins(Origin a, Origin b);
+
 template <typename T>
 struct Value {
   Origin origin;
