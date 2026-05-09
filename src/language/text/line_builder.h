@@ -121,8 +121,6 @@ class LineBuilder {
   language::lazy_string::SingleLine contents() const;
   void set_contents(language::lazy_string::SingleLine);
 
-  void set_modified_state(LineModifiedState value);
-
  private:
   explicit LineBuilder(Line::Data);
 

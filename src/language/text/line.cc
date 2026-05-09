@@ -114,8 +114,6 @@ const ValueOrError<vm::EscapedMap>& Line::escaped_map() const {
   return data_->escaped_map_supplier.get();
 }
 
-LineModifiedState Line::modified_state() const { return data_->modified_state; }
-
 Line::Line(NonNull<std::shared_ptr<const Line::Data>> data)
     : data_(std::move(data)),
       hash_(LazyValue<size_t>{[this] { return ComputeHash(data_.value()); }}) {

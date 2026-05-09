@@ -507,10 +507,6 @@ void LineBuilder::set_contents(SingleLine value) {
   data_.contents = std::move(value);
 }
 
-void LineBuilder::set_modified_state(LineModifiedState value) {
-  data_.modified_state = value;
-}
-
 void LineBuilder::InternalSetMetadata(LazyValue<LineMetadataMap> metadata) {
   data_.metadata = std::move(metadata);
 }
