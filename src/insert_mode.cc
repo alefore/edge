@@ -125,18 +125,17 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
-      LineBuilder line_without_suffix(*line);
-      line_without_suffix.DeleteSuffix(prefix_end);
-      MutableLineSequence contents_to_insert;
-      contents_to_insert.push_back(
-          input.buffer.line_origin_tracker().NewStagingValue(
-              std::move(line_without_suffix).Build()));
       // We have to append two lines and then delete the original (empty) line
       // simply so that the two lines have the right origin. Otherwise, the
       // first empty line has a staging::Clean origin, which messes things up.
       //
       // TODO(2026-05-09, P2): Instead of this, pass the origin directly to the
       // constructor and have it use it for the first line.
+      LineBuilder line_without_suffix(*line);
+      line_without_suffix.DeleteSuffix(prefix_end);
+      MutableLineSequence contents_to_insert;
+      contents_to_insert.push_back(
+          input.buffer.line_origin_tracker().NewStagingValue(Line{}));
       contents_to_insert.push_back(
           input.buffer.line_origin_tracker().NewStagingValue(
               std::move(line_without_suffix).Build()));
