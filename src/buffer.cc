@@ -237,10 +237,12 @@ ValueOrError<futures::Progressive<SingleLine>> LineMetadataCompilation(
 void SetMutableLineSequenceLineMetadata(
     OpenBuffer& buffer, const LineProcessorMap& line_processor_map,
     MutableLineSequence& contents, LineNumber position) {
+  staging::Value<Line> line = buffer.contents().at_with_origin(position);
   contents.set_line(
       position,
-      buffer.line_origin_tracker().NewStagingValue(UpdateLineMetadata(
-          buffer, line_processor_map, {buffer.contents().at(position)})[0]));
+      staging::Value<Line>{.origin = line.origin,
+                           .value = UpdateLineMetadata(
+                               buffer, line_processor_map, {line.value})[0]});
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -1454,7 +1456,8 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
                                         const LineColumn& input_position,
                                         const std::optional<Style>& modifiers) {
   VLOG(5) << "InsertInPosition: " << input_position << " "
-          << modifiers.value_or(Style{});
+          << modifiers.value_or(Style{})
+          << " size: " << contents_to_insert.size();
   auto blocker = cursors_tracker_.DelayTransformations();
   LineColumn position = input_position;
   if (position.line > contents_.EndLine()) {
@@ -1465,13 +1468,8 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
     position.column = contents_.at(position.line).EndColumn();
   }
 
-  bool collapse_last = true;
   if (position.column.IsZero()) {
     contents_.insert(position.line, contents_to_insert, modifiers);
-  } else if (position.column == contents_.at(position.line).EndColumn()) {
-    contents_.insert(position.line.next(), contents_to_insert, modifiers);
-    contents_.FoldNextLine(position.line, line_origin_tracker().active());
-    collapse_last = false;
   } else {
     contents_.SplitLine(position, line_origin_tracker().active());
     contents_.insert(position.line.next(), contents_to_insert, modifiers);
@@ -1487,10 +1485,10 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   CHECK(line.has_value());
   ColumnNumber column = line->EndColumn();
 
-  if (collapse_last)
-    contents_.FoldNextLine(last_line, line_origin_tracker().active());
-  SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
-                                     last_line);
+  contents_.FoldNextLine(last_line, line_origin_tracker().active());
+  if (!column.IsZero())
+    SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
+                                       last_line);
   return LineColumn(last_line, column);
 }
 

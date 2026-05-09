@@ -294,14 +294,17 @@ const bool split_line_tests_registration = tests::Register(
 
 void MutableLineSequence::FoldNextLine(LineNumber position, staging::Origin) {
   auto next_line = position + LineNumberDelta(1);
-  if (next_line.ToDelta() >= size()) {
-    return;
-  }
+  if (next_line.ToDelta() >= size()) return;
 
   ColumnNumber initial_size = at(position).EndColumn();
-  // TODO(2026-05-09, P1): Pass origin here.
-  AppendToLine(position, at(next_line), ObserverBehavior::Hide);
-  EraseLines(next_line, position + LineNumberDelta(2), ObserverBehavior::Hide);
+  if (initial_size.IsZero()) {
+    EraseLines(position, position + LineNumberDelta(1), ObserverBehavior::Hide);
+  } else {
+    // TODO(2026-05-09, P1): Pass origin here.
+    AppendToLine(position, at(next_line), ObserverBehavior::Hide);
+    EraseLines(next_line, position + LineNumberDelta(2),
+               ObserverBehavior::Hide);
+  }
   observer_->FoldedLine(LineColumn(position, initial_size));
 }
 
