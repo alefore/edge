@@ -213,7 +213,6 @@ void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
       std::min(line, EndLine()), at(std::min(line, EndLine())).EndColumn());
   // TODO(2026-05-09, P2): Don't assume staging::Clean.
   TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
-    options.set_modified_state(LineModifiedState::Dirty);
     options.Append(LineBuilder(std::move(line_to_append)));
   });
   switch (observer_behavior) {
@@ -268,7 +267,8 @@ void MutableLineSequence::SplitLine(LineColumn position,
           .value = std::move(builder).Build()},
       ObserverBehavior::Hide);
   observer_->SplitLine(position);
-  DeleteToLineEnd(position, origin, ObserverBehavior::Hide);
+  if (position.column < original_line.value.EndColumn())
+    DeleteToLineEnd(position, origin, ObserverBehavior::Hide);
 }
 
 namespace {
