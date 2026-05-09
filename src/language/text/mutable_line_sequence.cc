@@ -207,14 +207,15 @@ void MutableLineSequence::InsertCharacter(LineColumn position) {
   observer_->InsertedCharacter(position);
 }
 
-void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
+void MutableLineSequence::AppendToLine(LineNumber line,
+                                       staging::Value<Line> line_to_append,
                                        ObserverBehavior observer_behavior) {
   const LineColumn position = LineColumn(
       std::min(line, EndLine()), at(std::min(line, EndLine())).EndColumn());
-  // TODO(2026-05-09, P2): Don't assume staging::Clean.
-  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
-    options.Append(LineBuilder(std::move(line_to_append)));
-  });
+  TransformLine(position.line, line_to_append.origin,
+                [&](LineBuilder& options) {
+                  options.Append(LineBuilder(std::move(line_to_append.value)));
+                });
   switch (observer_behavior) {
     case ObserverBehavior::Hide:
       break;
@@ -292,17 +293,22 @@ const bool split_line_tests_registration = tests::Register(
     });
 }  // namespace
 
-void MutableLineSequence::FoldNextLine(LineNumber position, staging::Origin) {
-  auto next_line = position + LineNumberDelta(1);
-  if (next_line.ToDelta() >= size()) return;
+void MutableLineSequence::FoldNextLine(LineNumber position,
+                                       staging::Origin origin) {
+  auto position_next = position.next();
+  if (position_next.ToDelta() >= size()) return;
 
   ColumnNumber initial_size = at(position).EndColumn();
   if (initial_size.IsZero()) {
     EraseLines(position, position + LineNumberDelta(1), ObserverBehavior::Hide);
+  } else if (at(position_next).EndColumn().IsZero()) {
+    EraseLines(position_next, position_next + LineNumberDelta(1),
+               ObserverBehavior::Hide);
   } else {
-    // TODO(2026-05-09, P1): Pass origin here.
-    AppendToLine(position, at(next_line), ObserverBehavior::Hide);
-    EraseLines(next_line, position + LineNumberDelta(2),
+    staging::Value<Line> line_next = at_with_origin(position_next);
+    line_next.origin = MergeOrigins(origin, line_next.origin);
+    AppendToLine(position, line_next, ObserverBehavior::Hide);
+    EraseLines(position_next, position + LineNumberDelta(2),
                ObserverBehavior::Hide);
   }
   observer_->FoldedLine(LineColumn(position, initial_size));

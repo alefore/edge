@@ -171,7 +171,8 @@ class FlashcardReviewLog {
   static LineSequence DefaultReviewLogBufferContents(SingleLine answer) {
     MutableLineSequence output;
     output.AppendToLine(LineNumber{},
-                        Line{SINGLE_LINE_CONSTANT(L"# Flashcard review log")});
+                        staging::CleanValue(Line{
+                            SINGLE_LINE_CONSTANT(L"# Flashcard review log")}));
     output.push_back(L"");
     output.push_back(L"## Tags");
     output.push_back(L"");

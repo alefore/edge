@@ -204,9 +204,10 @@ class HelpCommand : public Command {
                                     const OpenBuffer& buffer) {
     LOG(INFO) << "Generating help contents.";
     MutableLineSequence output;
-    output.AppendToLine(LineNumber(),
-                        Line{SINGLE_LINE_CONSTANT(L"# Edge - Help: ") +
-                             ToSingleLine(buffer.name())});
+    output.AppendToLine(
+        LineNumber(),
+        staging::CleanValue(Line{SINGLE_LINE_CONSTANT(L"# Edge - Help: ") +
+                                 ToSingleLine(buffer.name())}));
     output.push_back(L"");
 
     ShowCommands(commands, output);

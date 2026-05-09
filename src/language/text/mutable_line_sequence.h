@@ -179,7 +179,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   void InsertCharacter(language::text::LineColumn position);
   void AppendToLine(
-      language::text::LineNumber line, language::text::Line line_to_append,
+      LineNumber line, staging::Value<Line> line_to_append,
       ObserverBehavior observer_behavior = ObserverBehavior::Show);
 
   void EraseLines(language::text::LineNumber first,
@@ -193,7 +193,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // Essentially, removes the \n at the end of the current line.
   //
   // If the line is out of range, doesn't do anything.
-  void FoldNextLine(language::text::LineNumber line, staging::Origin);
+  //
+  // New contents are produced (different than the two lines joined) if either
+  // line or line.next() is non-empty. In this case, `origin` will be applied.
+  // Otherwise, it'll be ignored.
+  void FoldNextLine(language::text::LineNumber line, staging::Origin origin);
 
   void push_back(std::wstring str);
   void push_back(staging::Value<Line> line,
@@ -244,10 +248,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
                      staging::Origin origin, Callback callback) {
     TRACK_OPERATION(MutableLineSequence_TransformLine);
     CHECK_LE(line_number, EndLine());
-    language::text::LineBuilder options(at(line_number));
+    staging::Value<Line> line = at_with_origin(line_number);
+    LineBuilder options(line.value);
     callback(options);
     set_line(line_number,
-             staging::Value<Line>{.origin = origin,
+             staging::Value<Line>{.origin = MergeOrigins(line.origin, origin),
                                   .value = std::move(options).Build()});
   }
 };

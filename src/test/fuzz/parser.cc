@@ -16,8 +16,10 @@ extern "C" {
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/mutable_line_sequence.h"
+#include "src/language/version_value.h"
 #include "src/parsers/cpp.h"
 
+namespace staging = afc::language::staging;
 using namespace afc::editor;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
@@ -45,7 +47,8 @@ int main(int, char** argv) {
   MutableLineSequence contents;
   for (std::wstring line; std::getline(input, line, L'\n');) {
     LineBuilder options{SingleLine{LazyString{line}}};
-    contents.AppendToLine(contents.EndLine(), std::move(options).Build());
+    contents.AppendToLine(contents.EndLine(),
+                          staging::CleanValue(std::move(options).Build()));
     contents.push_back(Line());
   }
 

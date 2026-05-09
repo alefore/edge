@@ -46,9 +46,10 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
       wchar_t c = line.get(i.column);
       contents_to_insert.AppendToLine(
           contents_to_insert.EndLine(),
-          Line{SingleLine{LazyString{
-              ColumnNumberDelta{1},
-              static_cast<wchar_t>(iswupper(c) ? towlower(c) : towupper(c))}}});
+          input.buffer.line_origin_tracker().NewStagingValue(Line{SingleLine{
+              LazyString{ColumnNumberDelta{1},
+                         static_cast<wchar_t>(iswupper(c) ? towlower(c)
+                                                          : towupper(c))}}}));
       i.column++;
     }
   }
