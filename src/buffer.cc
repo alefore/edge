@@ -51,6 +51,7 @@ extern "C" {
 #include "src/language/text/sorted_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
+#include "src/line_marks_scanner.h"
 #include "src/log_config_loader.h"
 #include "src/map_mode.h"
 #include "src/open_files.h"
@@ -952,7 +953,7 @@ void OpenBuffer::AppendLines(
     language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
   TRACK_OPERATION(OpenBuffer_AppendLines);
 
-  auto lines_added = LineNumberDelta(lines.size());
+  LineNumberDelta lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
   lines_read_rate_.IncrementAndGetEventsPerSecond(lines_added.read());
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
@@ -987,51 +988,8 @@ void OpenBuffer::AppendLines(
   }
 
   if (Read(buffer_variables::contains_line_marks)) {
-    TRACK_OPERATION(OpenBuffer_StartNewLine_ScanForMarks);
-    std::function<futures::Value<PredictorOutput>(PredictorInput)>
-        file_predictor = GetFilePredictor(FilePredictorOptions{
-            .match_type = FilePredictorMatchType::Exact,
-            .open_file_position_suffix_mode =
-                open_file_position::SuffixMode::Allow,
-            .output_format = FilePredictorOutputFormat::SearchPathAndInput});
-    for (LineNumberDelta i; i < lines_added; ++i) {
-      LineNumber source_line = LineNumber{} + start_new_section + i;
-      Line source_line_content = contents_.at(source_line);
-      file_predictor(PredictorInput{.editor = editor(),
-                                    .input = source_line_content.contents(),
-                                    .input_column = {},
-                                    .source_buffers = {}})
-          .Transform([buffer_name = name(), &editor = editor(),
-                      source_line](PredictorOutput output) {
-            std::ranges::for_each(
-                output.contents.read().lines() |
-                    std::views::transform(
-                        [&buffer_name, &editor, &source_line](
-                            const Line& line) -> ValueOrError<LineMarks::Mark> {
-                          DECLARE_OR_RETURN(
-                              Path target_buffer,
-                              Path::New(ToLazyString(line.contents())));
-                          open_file_position::Spec spec =
-                              open_file_position::SpecFromLineMetadata(
-                                  line.metadata().get());
-                          return LineMarks::Mark{
-                              .source_buffer = buffer_name,
-                              .source_line = source_line,
-                              .source_line_content = line,
-                              .target_buffer = BufferFileId(target_buffer),
-                              .target_line_column =
-                                  std::holds_alternative<LineColumn>(spec)
-                                      ? std::get<LineColumn>(spec)
-                                      : LineColumn{}};
-                        }) |
-                    SkipErrors,
-                [&editor](LineMarks::Mark mark) {
-                  LOG(INFO) << "Found a mark: " << mark;
-                  editor.line_marks().AddMark(std::move(mark));
-                });
-            return EmptyValue{};
-          });
-    }
+    ScanLineMarks(editor(), name(), contents_.snapshot(), start_new_section,
+                  lines_added);
   }
 }
 

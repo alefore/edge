@@ -102,6 +102,8 @@ cc_binary(
         "line_marks.h",
         "line_marks_buffer.cc",
         "line_marks_buffer.h",
+        "line_marks_scanner.cc",
+        "line_marks_scanner.h",
         "line_marks_test.cc",
         "line_number_output_producer.cc",
         "line_number_output_producer.h",
