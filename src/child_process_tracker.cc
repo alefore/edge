@@ -13,6 +13,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::NonNull;
 using afc::language::PossibleError;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 
@@ -110,5 +111,13 @@ void ChildProcessTracker::GetFlags(
   }
   output.insert({BufferFlagKey{SINGLE_LINE_CONSTANT(L"exit-status")},
                  BufferFlagValue{NonEmptySingleLine{exit_status_.value()}}});
+}
+
+PossibleError ChildProcessTracker::IsUnableToPrepareToClose() const {
+  if (pid_.has_value())
+    return Error{
+        LazyString{L"Running subprocess "} +
+        Parenthesize(LazyString{L"pid: "} + NonEmptySingleLine(pid_->read()))};
+  return EmptyValue{};
 }
 }  // namespace afc::editor

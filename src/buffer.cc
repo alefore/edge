@@ -458,15 +458,10 @@ EditorState& OpenBuffer::editor() const { return options_.editor; }
 Status& OpenBuffer::status() const { return status_.value(); }
 
 PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
-  if (options_.editor.modifiers().strength > Modifiers::Strength::Normal) {
+  if (options_.editor.modifiers().strength > Modifiers::Strength::Normal ||
+      Read(buffer_variables::term_on_close))
     return EmptyValue{};
-  }
-  if (std::optional<ProcessId> pid = child_process_tracker_.pid();
-      pid.has_value() && !Read(buffer_variables::term_on_close))
-    return Error{
-        LazyString{L"Running subprocess "} +
-        Parenthesize(LazyString{L"pid: "} + NonEmptySingleLine(pid->read()))};
-  return EmptyValue{};
+  return child_process_tracker_.IsUnableToPrepareToClose();
 }
 
 futures::ValueOrError<OpenBuffer::PrepareToCloseOutput>

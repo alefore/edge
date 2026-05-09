@@ -36,6 +36,7 @@ class ChildProcessTracker {
   bool is_dirty() const;
 
   void GetFlags(BufferFlagMap& output) const;
+  language::PossibleError IsUnableToPrepareToClose() const;
 };
 }  // namespace afc::editor
 #endif
