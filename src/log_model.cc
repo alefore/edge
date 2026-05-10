@@ -5,6 +5,7 @@
 #include "src/infrastructure/screen/line_modifier_vm.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/error/view.h"
+#include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/text/line.h"
@@ -20,6 +21,7 @@ using afc::infrastructure::screen::HashToStyle;
 using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
+using afc::language::compute_hash;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -49,6 +51,23 @@ std::map<LogEntryName, std::vector<LogEntryValue>> LogLine::ValueGroups()
     output[entry.name].push_back(entry);
   });
   return output;
+}
+
+void LogViewValueSpec::Merge(const LogViewValueSpec& overlay) {
+  if (ColorsFromHash* this_colors = std::get_if<ColorsFromHash>(&style);
+      this_colors) {
+    if (const ColorsFromHash* overlay_colors =
+            std::get_if<ColorsFromHash>(&overlay.style);
+        overlay_colors) {
+      this_colors->hash = compute_hash(this_colors->hash, overlay_colors->hash);
+    }
+  } else {
+    if (std::holds_alternative<ColorsFromHash>(overlay.style)) {
+      style = overlay.style;
+    } else {
+      std::get<Style>(style).Merge(std::get<Style>(overlay.style));
+    }
+  }
 }
 
 LogType::LogType(LogTypeName name, std::wregex pattern,
@@ -154,7 +173,8 @@ LogEvaluator::LogEvaluator(LogType log_type)
         VisitValue(Identifier::New(LowerCase(data.first)), [&](Identifier id) {
           VLOG(5) << "Define: " << id << ": " << data.first;
           environment_->Define(
-              id, vm::VMTypeMapper<Style>::New(pool_, Style{data.second}));
+              id, vm::VMTypeMapper<LogViewValueSpec>::New(
+                      pool_, LogViewValueSpec{.style = Style{data.second}}));
         });
       });
   infrastructure::screen::RegisterLineModifier(pool_, environment_.value());
@@ -162,17 +182,26 @@ LogEvaluator::LogEvaluator(LogType log_type)
       IDENTIFIER_CONSTANT(L"log_type"),
       vm::Value::NewString(pool_, ToLazyString(log_type_.name())));
   environment_->Define(IDENTIFIER_CONSTANT(L"default"),
-                       vm::VMTypeMapper<Style>::New(pool_, Style{}));
+                       vm::VMTypeMapper<LogViewValueSpec>::New(
+                           pool_, LogViewValueSpec{.style = Style{}}));
+
   VLOG(2) << "Defining entries for all LogEntryName instances.";
   std::ranges::for_each(log_type_.entry_names(), [&](const LogEntryName& name) {
     // TODO(2026-04-30, P1): Don't assume string type.
     environment_->DefineUninitialized(name.read(), vm::types::String{});
   });
   environment_->Define(
+      IDENTIFIER_CONSTANT(L"hash_block"),
+      vm::NewCallback(pool_, vm::kPurityTypePure, [](LazyString input) {
+        return LogViewValueSpec{.style =
+                                    HashToStyle(std::hash<LazyString>{}(input),
+                                                HashToStyleBold::Never)};
+      }));
+  environment_->Define(
       IDENTIFIER_CONSTANT(L"hash"),
       vm::NewCallback(pool_, vm::kPurityTypePure, [](LazyString input) {
-        return HashToStyle(std::hash<LazyString>{}(input),
-                           HashToStyleBold::Never);
+        return LogViewValueSpec{.style = LogViewValueSpec::ColorsFromHash{
+                                    std::hash<LazyString>{}(input)}};
       }));
 }
 
@@ -231,7 +260,7 @@ CompiledLogView::CompiledLogView(LogEvaluator& log_evaluator,
               }) |
           SkipErrors | std::ranges::to<std::unordered_map>()) {}
 
-std::expected<std::unordered_map<LogEntryName, Style>, Error>
+std::expected<std::unordered_map<LogEntryName, LogViewValueSpec>, Error>
 CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
                           const LogLine& log_line) const {
   LogLineEvaluator log_line_evaluator = log_evaluator_.Enter(log_line);
@@ -239,37 +268,40 @@ CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
              names |
              std::views::transform(
                  [&](LogEntryName name)
-                     -> std::expected<std::pair<LogEntryName, Style>, Error> {
+                     -> std::expected<std::pair<LogEntryName, LogViewValueSpec>,
+                                      Error> {
                    auto data = compiled_expressions_.find(name);
                    if (data == compiled_expressions_.end())
-                     return std::pair{name, Style{}};
+                     return std::pair{name, LogViewValueSpec{}};
 
                    DECLARE_OR_RETURN(
-                       std::vector<Style> output_vector,
+                       std::vector<LogViewValueSpec> output_vector,
                        CollectExpected(
                            data->second |
-                           std::views::transform([&](gc::Root<Expression> expr)
-                                                     -> std::expected<Style,
-                                                                      Error> {
-                             TRACK_OPERATION(CompiledLogView_Evaluate_vm);
-                             DECLARE_OR_RETURN(
-                                 gc::Root<vm::Value> value,
-                                 log_line_evaluator.Evaluate(expr.ptr()));
-                             if (!value->IsObjectType(
-                                     vm::VMTypeMapper<Style>::object_type_name))
-                               return Error{
-                                   LazyString{L"Value has wrong type: "} +
-                                   vm::ToQuotedSingleLine(value->type())};
-                             TRACK_OPERATION(CompiledLogView_Extract);
-                             return vm::VMTypeMapper<Style>::get(value.value());
-                           })));
-                   return std::pair{name,
-                                    std::ranges::fold_left(
-                                        output_vector, Style{},
-                                        [](Style aggregator, Style element) {
-                                          aggregator.Merge(element);
-                                          return aggregator;
-                                        })};
+                           std::views::transform(
+                               [&](gc::Root<Expression> expr)
+                                   -> std::expected<LogViewValueSpec, Error> {
+                                 TRACK_OPERATION(CompiledLogView_Evaluate_vm);
+                                 DECLARE_OR_RETURN(
+                                     gc::Root<vm::Value> value,
+                                     log_line_evaluator.Evaluate(expr.ptr()));
+                                 if (!value->IsObjectType(
+                                         vm::VMTypeMapper<LogViewValueSpec>::
+                                             object_type_name))
+                                   return Error{
+                                       LazyString{L"Value has wrong type: "} +
+                                       vm::ToQuotedSingleLine(value->type())};
+                                 TRACK_OPERATION(CompiledLogView_Extract);
+                                 return vm::VMTypeMapper<LogViewValueSpec>::get(
+                                     value.value());
+                               })));
+                   return std::pair{name, std::ranges::fold_left(
+                                              output_vector, LogViewValueSpec{},
+                                              [](LogViewValueSpec aggregator,
+                                                 LogViewValueSpec element) {
+                                                aggregator.Merge(element);
+                                                return aggregator;
+                                              })};
                  }))
       .transform([](auto values) {
         return values | std::ranges::to<std::unordered_map>();
@@ -277,3 +309,21 @@ CompiledLogView::Evaluate(std::unordered_set<LogEntryName> names,
 }
 
 }  // namespace afc::editor
+namespace afc::vm {
+/* static */ editor::LogViewValueSpec
+VMTypeMapper<editor::LogViewValueSpec>::get(Value& value) {
+  return value.get_user_value<editor::LogViewValueSpec>(object_type_name)
+      .value();
+}
+
+/* static */ language::gc::Root<Value>
+VMTypeMapper<editor::LogViewValueSpec>::New(language::gc::Pool& pool,
+                                            editor::LogViewValueSpec value) {
+  return Value::NewObject(pool, object_type_name,
+                          MakeNonNullShared<editor::LogViewValueSpec>(value));
+}
+
+const types::ObjectName
+    VMTypeMapper<editor::LogViewValueSpec>::object_type_name =
+        types::ObjectName{IDENTIFIER_CONSTANT(L"LogViewValueSpec")};
+}  // namespace afc::vm

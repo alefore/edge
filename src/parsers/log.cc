@@ -6,6 +6,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/error/view.h"
 #include "src/language/gc.h"
+#include "src/language/overload.h"
 #include "src/log_model.h"
 #include "src/log_model_vm.h"
 #include "src/vm/types.h"
@@ -14,11 +15,14 @@
 
 namespace gc = afc::language::gc;
 using afc::concurrent::Protected;
+using afc::infrastructure::screen::HashToStyle;
+using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::VisitValue;
 using afc::language::lazy_string::ColumnNumber;
@@ -63,7 +67,7 @@ class LogTreeParser : public TreeParser {
             LineRange(LineColumn{i},
                       std::numeric_limits<ColumnNumberDelta>::max())
                 .read());
-        std::expected<std::unordered_map<LogEntryName, Style>, Error>
+        std::expected<std::unordered_map<LogEntryName, LogViewValueSpec>, Error>
             modifiers_map = compiled_log_view.Evaluate(
                 line.values | std::views::transform(&LogEntryValue::name) |
                     std::ranges::to<std::unordered_set>(),
@@ -77,7 +81,23 @@ class LogTreeParser : public TreeParser {
         std::ranges::for_each(line.values, [&](const LogEntryValue& data) {
           ParseTree child(
               LineRange(LineColumn{i, data.position}, data.size).read());
-          child.set_modifiers(modifiers_map->find(data.name)->second);
+          std::visit(
+              overload{[&child](Style style) { child.set_modifiers(style); },
+                       [&child, i, data](const LogViewValueSpec::ColorsFromHash&
+                                             colors_from_hash) {
+                         for (ColumnNumberDelta c; c < data.size; ++c) {
+                           ParseTree char_child(
+                               LineRange(LineColumn{i, data.position + c},
+                                         data.size - c)
+                                   .read());
+                           char_child.set_modifiers(HashToStyle(
+                               compute_hash(colors_from_hash.hash, c),
+                               HashToStyleBold::Never));
+                           child.PushChild(char_child);
+                         }
+                       }},
+              modifiers_map->find(data.name)->second.style);
+
           switch (data.value_type) {
             case LogEntryValueType::Path:
               child.set_properties(ParseTree::PropertyMap{

@@ -60,6 +60,18 @@ class LogTypeName
   using GhostType::GhostType;
 };
 
+// The VM expressions must evaluate to values of this type.
+struct LogViewValueSpec {
+  struct ColorsFromHash {
+    size_t hash;
+  };
+
+  std::variant<ColorsFromHash, infrastructure::screen::Style> style =
+      infrastructure::screen::Style{};
+
+  void Merge(const LogViewValueSpec& overlay);
+};
+
 class LogViewName
     : public language::GhostType<LogViewName,
                                  language::lazy_string::NonEmptySingleLine> {
@@ -147,11 +159,20 @@ class CompiledLogView {
  public:
   CompiledLogView(LogEvaluator& log_evaluator_, const LogView& log_view);
 
-  std::expected<std::unordered_map<LogEntryName, infrastructure::screen::Style>,
+  std::expected<std::unordered_map<LogEntryName, LogViewValueSpec>,
                 language::Error>
   Evaluate(std::unordered_set<LogEntryName> names,
            const LogLine& log_line) const;
 };
 }  // namespace afc::editor
+namespace afc::vm {
+template <>
+struct VMTypeMapper<editor::LogViewValueSpec> {
+  static editor::LogViewValueSpec get(Value& value);
+  static language::gc::Root<Value> New(language::gc::Pool& pool,
+                                       editor::LogViewValueSpec value);
+  static const types::ObjectName object_type_name;
+};
+}  // namespace afc::vm
 
 #endif
