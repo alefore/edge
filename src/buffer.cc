@@ -157,6 +157,7 @@ using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
+using afc::language::view::GetErrors;
 using afc::language::view::SkipErrors;
 using gc::LockAndVisitCallback;
 
@@ -1072,8 +1073,20 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   CHECK(options_.get_save_callback != nullptr);
-  DECLARE_OR_RETURN(Options::SaveCallback save_callback,
-                    status_->LogErrors(options_.get_save_callback()));
+
+  DECLARE_OR_RETURN(
+      Options::SaveCallback save_callback,
+      status_->LogErrors(options_.get_save_callback().or_else(
+          hooks_->save_hook().empty()
+          ? [](Error error)
+                -> ValueOrError<Options::SaveCallback> { return error; }
+          : [](Error) -> ValueOrError<Options::SaveCallback> {
+              // Return a dummy SaveCallback when none was provided in Options
+              // but save hooks are installed.
+              return Options::SaveCallback(
+                  [](Options::SaveOptions) { return EmptyValue{}; });
+            })));
+
   CHECK(save_callback != nullptr);
   LineSequence contents_snapshot = contents().snapshot();
   staging::Revision revision_saved = line_origin_tracker_.active();
@@ -1081,30 +1094,44 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   futures::Value<PossibleError> output = save_callback(
       Options::SaveOptions{.buffer = RootFromThis(), .save_type = save_type});
   if (save_type == OpenBuffer::Options::SaveType::kMainFile)
-    output = std::move(output).Transform(
-        [&editor = editor(), contents_snapshot, root_buffer = RootFromThis(),
-         revision_saved](EmptyValue) -> futures::Value<PossibleError> {
-          root_buffer->line_origin_tracker_.MarkClean(revision_saved);
-          if (contents_snapshot == root_buffer->contents().snapshot())
-            root_buffer->SetDiskState(OpenBuffer::DiskState::Current);
-          if (root_buffer->Read(
-                  buffer_variables::trigger_reload_on_buffer_write)) {
-            std::ranges::for_each(
-                editor.buffer_registry().buffers() | gc::view::Value |
-                    std::views::filter([](OpenBuffer& reload_buffer) {
-                      return reload_buffer.Read(
-                          buffer_variables::reload_on_buffer_write);
-                    }),
-                [&](OpenBuffer& reload_buffer) {
-                  LOG(INFO) << "Write of " << root_buffer->name()
-                            << " triggers reload: "
-                            << reload_buffer.Read(buffer_variables::name);
-                  reload_buffer.Reload();
-                });
-          }
+    output = std::move(output)
+                 .Transform(
+                     [root_buffer = RootFromThis()](EmptyValue)
+                         -> futures::ValueOrError<std::vector<PossibleError>> {
+                       return root_buffer->hooks_->save_hook().Dispatch();
+                     })
+                 .Transform([](std::vector<PossibleError> errors)
+                                -> futures::Value<PossibleError> {
+                   std::vector<Error> actual_errors =
+                       errors | GetErrors | std::ranges::to<std::vector>();
+                   if (actual_errors.empty()) return EmptyValue{};
+                   return MergeErrors(actual_errors, L", ");
+                 })
+                 .Transform([&editor = editor(), contents_snapshot,
+                             root_buffer = RootFromThis(), revision_saved](
+                                EmptyValue) -> futures::Value<PossibleError> {
+                   root_buffer->line_origin_tracker_.MarkClean(revision_saved);
+                   if (contents_snapshot == root_buffer->contents().snapshot())
+                     root_buffer->SetDiskState(OpenBuffer::DiskState::Current);
+                   if (root_buffer->Read(
+                           buffer_variables::trigger_reload_on_buffer_write)) {
+                     std::ranges::for_each(
+                         editor.buffer_registry().buffers() | gc::view::Value |
+                             std::views::filter([](OpenBuffer& reload_buffer) {
+                               return reload_buffer.Read(
+                                   buffer_variables::reload_on_buffer_write);
+                             }),
+                         [&](OpenBuffer& reload_buffer) {
+                           LOG(INFO)
+                               << "Write of " << root_buffer->name()
+                               << " triggers reload: "
+                               << reload_buffer.Read(buffer_variables::name);
+                           reload_buffer.Reload();
+                         });
+                   }
 
-          return EmptyValue{};
-        });
+                   return EmptyValue{};
+                 });
   return OnError(
       std::move(output),
       [weak_status = std::weak_ptr<Status>(status_.get_shared())](Error error) {
