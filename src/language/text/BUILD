@@ -103,6 +103,7 @@ cc_library(
     deps = [
         "//src/language:const_tree",
         "//src/language:safe_types",
+        "//src/language:version_value",
         "//src/language:wstring",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:char_buffer",
@@ -165,6 +166,7 @@ cc_library(
         "//src/infrastructure:tracker",
         "//src/language:const_tree",
         "//src/language:safe_types",
+        "//src/language:version_value",
         "//src/language:wstring",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:char_buffer",
