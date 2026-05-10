@@ -289,7 +289,8 @@ using namespace afc::vm;
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options), default_commands.ptr(),
           mode.ptr(), std::move(status), execution_context.ptr(),
-          futures::Future<EmptyValue>{}));
+          futures::Future<EmptyValue>{},
+          BufferHooks::New(options.editor.gc_pool()).ptr()));
   output->Initialize();
   return output;
 }
@@ -371,7 +372,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<InputReceiver> mode,
                        NonNull<std::shared_ptr<Status>> status,
                        gc::Ptr<ExecutionContext> execution_context,
-                       futures::Future<EmptyValue> close_future)
+                       futures::Future<EmptyValue> close_future,
+                       gc::Ptr<BufferHooks> hooks)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -439,7 +441,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                 [](LogModel) { return EmptyValue{}; }, WeakPtrFromThis()));
         return true;
       }}),
-      execution_context_(std::move(execution_context)) {
+      execution_context_(std::move(execution_context)),
+      hooks_(std::move(hooks)) {
   work_queue()->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution, std::ref(editor()),
       std::weak_ptr<WorkQueue>(work_queue().get_shared()),
@@ -1356,6 +1359,11 @@ void OpenBuffer::AddLineProcessor(
         language::text::LineProcessorInput)>
         callback) {
   line_processor_map_.Add(key, callback);
+}
+
+void OpenBuffer::AddSaveHook(
+    BufferHooks::SaveRegistry::HookCallbackPtr callback) {
+  hooks_->save_hook().Add(std::move(callback));
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -2571,8 +2579,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> OpenBuffer::Expand()
     const {
   LOG(INFO) << "Buffer::Expand: " << name();
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output = {
-      default_commands_.object_metadata(),
-      execution_context_.object_metadata()};
+      default_commands_.object_metadata(), execution_context_.object_metadata(),
+      hooks_.object_metadata()};
   data_.lock(
       [&output](auto& data) { output.push_back(data.mode.object_metadata()); });
   return output;

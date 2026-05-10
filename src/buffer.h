@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/buffer_flag_map.h"
+#include "src/buffer_hooks.h"
 #include "src/buffer_name.h"
 #include "src/buffer_state.h"
 #include "src/buffer_syntax_parser.h"
@@ -126,7 +127,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
              language::gc::Ptr<InputReceiver> mode,
              language::NonNull<std::shared_ptr<Status>> status,
              language::gc::Ptr<ExecutionContext> execution_context,
-             futures::Future<language::EmptyValue> close_future);
+             futures::Future<language::EmptyValue> close_future,
+             language::gc::Ptr<BufferHooks> hooks);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -370,7 +372,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   GetExpiredLineMarks() const;
   language::lazy_string::SingleLine GetLineMarksText() const;
 
-  /////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // Extensions
 
   const language::gc::Ptr<vm::Environment>& environment() const;
@@ -401,7 +403,9 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
                             language::text::LineProcessorInput)>
                             callback);
 
-  /////////////////////////////////////////////////////////////////////////////
+  void AddSaveHook(BufferHooks::SaveRegistry::HookCallbackPtr callback);
+
+  //////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
 
   // If the line is past the end of the file, returns the last available line
@@ -594,7 +598,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is
-  // reloaded.
+  // reloaded).
   language::Observers end_of_file_observers_;
 
   // Functions to call when this buffer is deleted.
@@ -681,6 +685,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   const language::gc::Ptr<ExecutionContext> execution_context_;
 
   language::text::LineProcessorMap line_processor_map_;
+
+  const language::gc::Ptr<BufferHooks> hooks_;
 
   // Self-reference. This is used for buffers that want to make sure they are
   // explicitly closed (through OpenBuffer::Close) before they can be collected.
