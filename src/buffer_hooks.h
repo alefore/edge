@@ -11,8 +11,8 @@ namespace afc::editor {
 template <typename HookResult, typename... Args>
 class HookRegistry {
  public:
-  using HookCallback =
-      language::gc::WithDependencies<std::function<HookResult(Args...)>>;
+  using HookCallback = language::gc::WithDependencies<
+      std::function<futures::Value<HookResult>(Args...)>>;
   using HookCallbackPtr = language::gc::Ptr<HookCallback>;
 
  private:
@@ -27,15 +27,19 @@ class HookRegistry {
     return pool.NewRoot(MakeNonNullUnique<HookRegistry>(ConstructorKey{}));
   }
 
+  bool empty() const { return hooks_.empty(); }
+
   void Add(HookCallbackPtr hook) { hooks_.push_back(std::move(hook)); }
 
   // Runs all hooks and returns a future with all their results.
   futures::Value<std::vector<HookResult>> Dispatch(Args... args) const {
     return UnwrapVectorFuture(
-        language::MakeNonNullShared<std::vector<futures::Value<HookResult>>>(
-            hooks_ | std::views::transform([&](HookCallback& callback) {
-              return callback.value()(args...);
-            })));
+        hooks_ |
+        std::views::transform(
+            [&](const HookCallbackPtr& callback) -> futures::Value<HookResult> {
+              return callback->value()(args...);
+            }) |
+        std::ranges::to<std::vector>());
   }
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
@@ -47,7 +51,7 @@ class HookRegistry {
 
 class BufferHooks {
  public:
-  using SaveRegistry = HookRegistry<futures::PossibleError>;
+  using SaveRegistry = HookRegistry<language::PossibleError>;
 
  private:
   language::gc::Ptr<SaveRegistry> save_;
