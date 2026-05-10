@@ -118,7 +118,6 @@ struct Style {
   void Merge(const Style& overlay);
 
   // Returns a few simple styles by name.
-  // XXXX Used to be LineModifiers
   static const std::unordered_map<language::lazy_string::NonEmptySingleLine,
                                   Style>&
   Names();
