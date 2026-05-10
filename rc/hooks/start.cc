@@ -145,7 +145,7 @@ editor.AddBinding("ss", "Run a shell in the directory of the current buffer.",
                       options.set_insertion_type("visit");
                       options.set_name("💻 shell");
                       editor.RunCommand(options).SetStatus("Children path: " +
-                                                            path);
+                                                           path);
                     });
                   });
 
