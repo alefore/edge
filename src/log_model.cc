@@ -172,7 +172,7 @@ LogEvaluator::LogEvaluator(LogType log_type)
       IDENTIFIER_CONSTANT(L"hash"),
       vm::NewCallback(pool_, vm::kPurityTypePure, [](LazyString input) {
         return HashToStyle(std::hash<LazyString>{}(input),
-                               HashToStyleBold::Never);
+                           HashToStyleBold::Never);
       }));
 }
 
