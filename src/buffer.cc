@@ -753,101 +753,75 @@ void OpenBuffer::UpdateTreeParser() {
   // fix it or document here.
   // TODO(P0, 2026-04-29): I think loading the dictionary is broken: it should
   // apply editor.edge_path!
-  ValueOrError<Path> dictionary_path =
-      Path::New(Read(buffer_variables::dictionary));
-  futures::Value<SortedLineSequence> dictionary_future =
-      !dictionary_path
-          ? futures::Value<SortedLineSequence>(
-                SortedLineSequence(LineSequence()))
-          : OpenFileIfFound(
-                OpenFileOptions{
-                    .editor_state = editor(),
-                    .path = ValueOrDie(std::move(dictionary_path)),
-                    .insertion_type = BuffersList::AddBufferType::Ignore})
-                .Transform([](gc::Root<OpenBuffer> dictionary_root)
-                               -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-                  return dictionary_root->WaitForEndOfFile();
-                })
-                .Transform([](gc::Root<OpenBuffer> dictionary_root)
-                               -> futures::ValueOrError<SortedLineSequence> {
-                  return dictionary_root->editor().thread_pool().Run(
-                      [contents = dictionary_root->contents().snapshot()] {
-                        return SortedLineSequence(contents);
-                      });
-                })
-                .ConsumeErrors(
-                    [](Error) { return SortedLineSequence(LineSequence{}); });
-
-  futures::JoinValues(
-      (Read(buffer_variables::log_type).empty() ||
-       Read(buffer_variables::tree_parser) != SINGLE_LINE_CONSTANT(L"log"))
-          ? Error{LazyString{L"Not loaded."}}
-          : std::invoke([&] -> futures::ValueOrError<LogModel> {
-              futures::Future<LogModel> log_model_future;
-              log_model_.Add(WeakPtrLockingObserver(
-                  [consumer = std::move(log_model_future.consumer)](
-                      OpenBuffer& buffer) mutable {
-                    return VisitPointer(
-                        buffer.log_model_.Get(),
-                        [&](NonNull<std::shared_ptr<LogModel>> output) {
-                          std::move(consumer)(output.value());
-                          return Observers::State::Expired;
-                        },
-                        [] { return Observers::State::Alive; });
-                  },
-                  WeakPtrFromThis()));
-              return std::move(log_model_future.value);
-            }),
-      std::move(dictionary_future))
-      .Transform([root_this = RootFromThis()](
-                     std::tuple<ValueOrError<LogModel>, SortedLineSequence>
-                         log_and_dictionary) {
-        root_this->buffer_syntax_parser_.UpdateParser(
-            BufferSyntaxParser::ParserOptions{
-                .parser_name = OptionalFrom(
-                    ParserId::New(NonEmptySingleLine::New(SingleLine::New(
-                        root_this->Read(buffer_variables::tree_parser))))),
-                .typos_set = MaterializeUnorderedSet(
-                    TokenizeBySpaces(
-                        LineSequence::BreakLines(
-                            root_this->Read(buffer_variables::typos))
-                            .FoldLines()) |
-                    std::views::transform(&Token::value)),
-                .language_keywords = MaterializeUnorderedSet(
-                    TokenizeBySpaces(
-                        LineSequence::BreakLines(
-                            root_this->Read(
-                                buffer_variables::language_keywords))
-                            .FoldLines()) |
-                    std::views::transform(&Token::value)),
-                .symbol_characters =
-                    root_this->Read(buffer_variables::symbol_characters),
-                .identifier_behavior =
-                    root_this->Read(buffer_variables::identifier_behavior) ==
-                            LazyString{L"color-by-hash"}
-                        ? IdentifierBehavior::kColorByHash
-                        : IdentifierBehavior::kNone,
-                .dictionary = std::move(std::get<1>(log_and_dictionary)),
-                .log_model =
-                    OptionalFrom(std::move(std::get<0>(log_and_dictionary))),
-                .log_type_name =
-                    OptionalFrom(
-                        NonEmptySingleLine::New(SingleLine::New(
-                            root_this->Read(buffer_variables::log_type))))
-                        .transform([](NonEmptySingleLine input) {
-                          return LogTypeName{input};
-                        }),
-                .log_view_name =
-                    OptionalFrom(
-                        NonEmptySingleLine::New(SingleLine::New(
-                            root_this->Read(buffer_variables::log_view))))
-                        .transform([](NonEmptySingleLine input) {
-                          return LogViewName{input};
-                        }),
-            });
-        root_this->MaybeStartUpdatingSyntaxTrees();
-        return EmptyValue();
-      });
+  ((Read(buffer_variables::log_type).empty() ||
+    Read(buffer_variables::tree_parser) != SINGLE_LINE_CONSTANT(L"log"))
+       ? futures::ValueOrError<LogModel>(Error{LazyString{L"Not loaded."}})
+       : std::invoke([&] -> futures::ValueOrError<LogModel> {
+           futures::Future<LogModel> log_model_future;
+           log_model_.Add(WeakPtrLockingObserver(
+               [consumer = std::move(log_model_future.consumer)](
+                   OpenBuffer& buffer) mutable {
+                 return VisitPointer(
+                     buffer.log_model_.Get(),
+                     [&](NonNull<std::shared_ptr<LogModel>> output) {
+                       std::move(consumer)(output.value());
+                       return Observers::State::Expired;
+                     },
+                     [] { return Observers::State::Alive; });
+               },
+               WeakPtrFromThis()));
+           return std::move(log_model_future.value);
+         }))
+      .Transform<futures::ErrorHandling::Disable>(
+          [root_this = RootFromThis()](ValueOrError<LogModel> log_model) {
+            root_this->buffer_syntax_parser_.UpdateParser(
+                BufferSyntaxParser::ParserOptions{
+                    .editor = root_this->editor(),
+                    .parser_name = OptionalFrom(
+                        ParserId::New(NonEmptySingleLine::New(SingleLine::New(
+                            root_this->Read(buffer_variables::tree_parser))))),
+                    .typos_set = MaterializeUnorderedSet(
+                        TokenizeBySpaces(
+                            LineSequence::BreakLines(
+                                root_this->Read(buffer_variables::typos))
+                                .FoldLines()) |
+                        std::views::transform(&Token::value)),
+                    .language_keywords = MaterializeUnorderedSet(
+                        TokenizeBySpaces(
+                            LineSequence::BreakLines(
+                                root_this->Read(
+                                    buffer_variables::language_keywords))
+                                .FoldLines()) |
+                        std::views::transform(&Token::value)),
+                    .symbol_characters =
+                        root_this->Read(buffer_variables::symbol_characters),
+                    .identifier_behavior =
+                        root_this->Read(
+                            buffer_variables::identifier_behavior) ==
+                                LazyString{L"color-by-hash"}
+                            ? IdentifierBehavior::kColorByHash
+                            : IdentifierBehavior::kNone,
+                    .dictionary_path =
+                        root_this->Read(buffer_variables::dictionary),
+                    .log_model = OptionalFrom(std::move(log_model)),
+                    .log_type_name =
+                        OptionalFrom(
+                            NonEmptySingleLine::New(SingleLine::New(
+                                root_this->Read(buffer_variables::log_type))))
+                            .transform([](NonEmptySingleLine input) {
+                              return LogTypeName{input};
+                            }),
+                    .log_view_name =
+                        OptionalFrom(
+                            NonEmptySingleLine::New(SingleLine::New(
+                                root_this->Read(buffer_variables::log_view))))
+                            .transform([](NonEmptySingleLine input) {
+                              return LogViewName{input};
+                            }),
+                });
+            root_this->MaybeStartUpdatingSyntaxTrees();
+            return EmptyValue();
+          });
 }
 
 namespace {

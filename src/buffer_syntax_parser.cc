@@ -1,5 +1,7 @@
 #include "src/buffer_syntax_parser.h"
 
+#include "src/file_link_mode.h"
+#include "src/infrastructure/dirname.h"
 #include "src/language/safe_types.h"
 #include "src/parse_tree.h"
 #include "src/parsers/cpp.h"
@@ -10,67 +12,108 @@
 #include "src/parsers/markdown.h"
 #include "src/parsers/py.h"
 
+namespace gc = afc::language::gc;
+
 using afc::futures::DeleteNotification;
+using afc::infrastructure::Path;
+using afc::language::EmptyValue;
+using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Observers;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
+using afc::language::text::SortedLineSequence;
 
 namespace afc::editor {
+futures::ValueOrError<SortedLineSequence> LoadDictionary(
+    EditorState& editor, LazyString dictionary_path_str) {
+  DECLARE_OR_RETURN(Path dictionary_path, Path::New(dictionary_path_str));
+  // TODO(P0, 2026-04-29): I think loading the dictionary is broken: it should
+  // apply editor.edge_path!
+  return OpenFileIfFound(
+             OpenFileOptions{
+                 .editor_state = editor,
+                 .path = std::move(dictionary_path),
+                 .insertion_type = BuffersList::AddBufferType::Ignore})
+      .Transform([](gc::Root<OpenBuffer> dictionary_root)
+                     -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+        return dictionary_root->WaitForEndOfFile();
+      })
+      .Transform([](gc::Root<OpenBuffer> dictionary_root)
+                     -> futures::ValueOrError<SortedLineSequence> {
+        return dictionary_root->editor().thread_pool().Run(
+            [contents = dictionary_root->contents().snapshot()] {
+              return SortedLineSequence(contents);
+            });
+      });
+}
+
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
-  data_->lock([&options](Data& data) {
-    data.tree_parser = NewNullTreeParser();
-    if (options.parser_name == ParserId::Text()) {
-      data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
-          options.symbol_characters, options.typos_set, NewNullTreeParser()));
-    } else if (options.parser_name == ParserId::Cpp() ||
-               options.parser_name == ParserId::Java() ||
-               options.parser_name == ParserId::JavaScript()) {
-      data.tree_parser = parsers::NewCppTreeParser(
-          options.parser_name.value(), options.language_keywords,
-          options.typos_set, options.identifier_behavior);
-    } else if (options.parser_name == ParserId::Diff()) {
-      data.tree_parser = parsers::NewDiffTreeParser();
-    } else if (options.parser_name == ParserId::Markdown()) {
-      data.tree_parser = parsers::NewMarkdownTreeParser(
-          options.symbol_characters, options.dictionary);
-    } else if (options.parser_name == ParserId::Csv()) {
-      data.tree_parser = parsers::NewCsvTreeParser();
-    } else if (options.parser_name == ParserId::Css()) {
-      data.tree_parser = parsers::NewCssTreeParser(options.parser_name.value());
-    } else if (options.parser_name == ParserId::Py()) {
-      data.tree_parser =
-          parsers::NewPyTreeParser(options.language_keywords, options.typos_set,
-                                   options.identifier_behavior);
-    } else if (options.parser_name == ParserId::Log()) {
-      if (options.log_model.has_value() && options.log_type_name.has_value()) {
-        const auto& log_types = options.log_model->log_types;
-        if (auto it_type = log_types.find(options.log_type_name.value());
-            it_type != log_types.end()) {
-          const auto& views = options.log_model->views;
-          if (auto it_view = views.find(options.log_view_name.value());
-              it_view != views.end()) {
+  // TODO(2026-05-10, P2, trivial): Only load the dictionary for those parsers
+  // that will need it (as an optimization).
+  LoadDictionary(options.editor, options.dictionary_path)
+      .ConsumeErrors([](Error) { return SortedLineSequence{LineSequence{}}; })
+      .Transform([options,
+                  protected_data = data_](SortedLineSequence dictionary) {
+        protected_data->lock([&options, &dictionary](Data& data) {
+          data.tree_parser = NewNullTreeParser();
+          if (options.parser_name == ParserId::Text()) {
+            data.tree_parser = NewLineTreeParser(
+                NewWordsTreeParser(options.symbol_characters, options.typos_set,
+                                   NewNullTreeParser()));
+          } else if (options.parser_name == ParserId::Cpp() ||
+                     options.parser_name == ParserId::Java() ||
+                     options.parser_name == ParserId::JavaScript()) {
+            data.tree_parser = parsers::NewCppTreeParser(
+                options.parser_name.value(), options.language_keywords,
+                options.typos_set, options.identifier_behavior);
+          } else if (options.parser_name == ParserId::Diff()) {
+            data.tree_parser = parsers::NewDiffTreeParser();
+          } else if (options.parser_name == ParserId::Markdown()) {
+            data.tree_parser = parsers::NewMarkdownTreeParser(
+                options.symbol_characters, dictionary);
+          } else if (options.parser_name == ParserId::Csv()) {
+            data.tree_parser = parsers::NewCsvTreeParser();
+          } else if (options.parser_name == ParserId::Css()) {
             data.tree_parser =
-                parsers::NewLogTreeParser(it_type->second, it_view->second);
-          } else {
-            LOG(INFO) << "Unable to find log view: "
-                      << options.log_view_name.value();
+                parsers::NewCssTreeParser(options.parser_name.value());
+          } else if (options.parser_name == ParserId::Py()) {
+            data.tree_parser = parsers::NewPyTreeParser(
+                options.language_keywords, options.typos_set,
+                options.identifier_behavior);
+          } else if (options.parser_name == ParserId::Log()) {
+            if (options.log_model.has_value() &&
+                options.log_type_name.has_value()) {
+              const auto& log_types = options.log_model->log_types;
+              if (auto it_type = log_types.find(options.log_type_name.value());
+                  it_type != log_types.end()) {
+                const auto& views = options.log_model->views;
+                if (auto it_view = views.find(options.log_view_name.value());
+                    it_view != views.end()) {
+                  data.tree_parser = parsers::NewLogTreeParser(it_type->second,
+                                                               it_view->second);
+                } else {
+                  LOG(INFO) << "Unable to find log view: "
+                            << options.log_view_name.value();
+                }
+              } else {
+                LOG(INFO) << "Unable to find log type: "
+                          << options.log_type_name.value();
+              }
+            } else {
+              LOG(INFO) << "Log model or log type name are missing.";
+            }
           }
-        } else {
-          LOG(INFO) << "Unable to find log type: "
-                    << options.log_type_name.value();
-        }
-      } else {
-        LOG(INFO) << "Log model or log type name are missing.";
-      }
-    }
-  });
+        });
+        return EmptyValue{};
+      });
 }
 
 std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(

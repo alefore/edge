@@ -15,17 +15,23 @@
 #include "src/parse_tree.h"
 
 namespace afc::editor {
+class EditorState;
+
 // This class is thread-safe (and does significant work in a background thread).
+//
+// It can be deleted while its methods are executing (it internally ensures that
+// data it depends on survives).
 class BufferSyntaxParser {
  public:
   struct ParserOptions {
+    EditorState& editor;
     std::optional<ParserId> parser_name;
     std::unordered_set<language::lazy_string::NonEmptySingleLine> typos_set;
     std::unordered_set<language::lazy_string::NonEmptySingleLine>
         language_keywords;
     language::lazy_string::LazyString symbol_characters;
     IdentifierBehavior identifier_behavior;
-    language::text::SortedLineSequence dictionary;
+    language::lazy_string::LazyString dictionary_path;
     std::optional<LogModel> log_model;
     std::optional<LogTypeName> log_type_name;
     std::optional<LogViewName> log_view_name;
