@@ -12,6 +12,12 @@ cc_library(
 )
 
 cc_library(
+    name = "access_key",
+    hdrs = ["access_key.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "container",
     hdrs = ["container.h"],
     visibility = ["//visibility:public"],
@@ -119,6 +125,7 @@ cc_library(
     hdrs = ["gc_util.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":access_key",
         ":gc",
         ":gc_concepts",
         ":safe_types",
