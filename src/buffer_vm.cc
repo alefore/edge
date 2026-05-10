@@ -771,14 +771,25 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             gc::Ptr<OpenBuffer> buffer =
                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                     args[0].ptr().value());
-            gc::Ptr<vm::Value> callback = args[1].ptr();
-            buffer->AddSaveHook(BufferHooks::SaveRegistry::HookCallback::New(
-                                    pool,
-                                    [callback] -> futures::PossibleError {
-                                      return EmptyValue{};
-                                    },
-                                    std::vector{callback.object_metadata()})
-                                    .ptr());
+            gc::Root<vm::Expression> callback =
+                NewFunctionCall(NewConstantExpression(args[1].ptr()).ptr(),
+                                std::vector<gc::Ptr<vm::Expression>>{});
+            buffer->AddSaveHook(
+                BufferHooks::SaveRegistry::HookCallback::New(
+                    pool,
+                    [buffer,
+                     callback_ptr = callback.ptr()] -> futures::PossibleError {
+                      return buffer
+                          ->EvaluateExpression(callback_ptr,
+                                               buffer->environment())
+                          .Transform([](gc::Root<vm::Value>)
+                                         -> futures::PossibleError {
+                            return EmptyValue{};
+                          });
+                    },
+                    std::vector{callback.ptr().object_metadata(),
+                                buffer.object_metadata()})
+                    .ptr());
             return vm::Value::NewVoid(pool);
           })
           .ptr());
