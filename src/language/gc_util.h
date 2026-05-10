@@ -6,6 +6,7 @@
 #include <tuple>
 #include <vector>
 
+#include "src/language/access_key.h"
 #include "src/language/gc.h"
 #include "src/language/gc_concepts.h"
 #include "src/language/safe_types.h"
@@ -164,5 +165,42 @@ decltype(auto) LockAndVisitCallback(F1&& on_lock, F2&& on_failure,
     });
   };
 }
+
+template <typename Value>
+class WithDependencies {
+  using ConstructorKey = AccessKey<WithDependencies>;
+
+  Value value_;
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies_;
+
+ public:
+  static gc::Root<WithDependencies> New(
+      gc::Pool& pool, Value value,
+      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies) {
+    return pool.NewRoot(MakeNonNullUnique<WithDependencies>(
+        ConstructorKey{}, value, std::move(dependencies)));
+  }
+
+  WithDependencies(
+      ConstructorKey, Value value,
+      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies)
+      : value_(std::move(value)), dependencies_(std::move(dependencies)) {}
+
+  Value* operator->() const { return value_; }
+  const Value& value() const { return value_; }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    return dependencies_;
+  }
+};
+
+template <typename Value>
+gc::Root<WithDependencies<Value>> MakeWithDependencies(
+    gc::Pool& pool, Value value,
+    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies) {
+  return WithDependencies<Value>::New(pool, std::move(value),
+                                      std::move(dependencies));
+}
+
 }  // namespace afc::language::gc
 #endif  // __AFC_LANGUAGE_GC_UTIL_H__
