@@ -55,7 +55,6 @@ void ApplyLine(string content_to_parse) {
 void Save(Buffer buffer) {
   buffer.ForEach(
       [](number num, string content) -> void { ApplyLine(content); });
-
   SetString paths_to_save;
   buffer.ForEach([](number num, string content) -> void {
     VectorString line_struct = ParseLine(content);
@@ -71,10 +70,18 @@ void Save(Buffer buffer) {
         buffer.Save();
       });
 }
+
+void Install(Buffer buffer) {
+  buffer.AddSaveHook([]() -> void {
+    internal::Save(buffer);
+    editor.SetStatus("Saved.");
+  });
+  buffer.SetStatus("Grep Writer Installed");
+}
 }  // namespace internal
 
-void Save() {
+void Install() {
   editor.ForEachActiveBuffer(
-      [](Buffer buffer) -> void { internal::Save(buffer); });
+      [](Buffer buffer) -> void { internal::Install(buffer); });
 }
 }  // namespace grep_writer
