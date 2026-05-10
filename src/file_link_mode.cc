@@ -171,8 +171,7 @@ futures::Value<PossibleError> Save(
     case OpenBuffer::Options::SaveType::kBackup:
       path_future =
           OnError(options.buffer->GetEdgeStateDirectory(), [](Error error) {
-            return MakeUnexpected(
-                AugmentError(LazyString{L"Unable to backup buffer"}, error));
+            return AugmentError(LazyString{L"Unable to backup buffer"}, error);
           }).Transform([](Path state_directory) {
             return Success(Path::Join(state_directory,
                                       PathComponent::FromString(L"backup")));
@@ -267,7 +266,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                                     stat_value.st_mode),
             [tmp_path](Error error) {
               LOG(INFO) << tmp_path << ": Error opening file: " << error;
-              return MakeUnexpected(error);
+              return error;
             });
       })
       .Transform([&thread_pool, path, contents = std::move(contents), tmp_path,
@@ -277,7 +276,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                                               contents),
                        [&file_system_driver, fd](Error error) {
                          file_system_driver.Close(fd);
-                         return MakeUnexpected(error);
+                         return error;
                        })
             .Transform([&file_system_driver, fd](EmptyValue) {
               return file_system_driver.Close(fd);
@@ -334,8 +333,7 @@ futures::ValueOrError<ResolvePathOutput> FindAlreadyOpenBuffer(
                        !buffers.empty()) {
                      return buffers.at(0);
                    }
-                   return MakeUnexpected(
-                       Error{LazyString{L"Unable to find buffer"}});
+                   return Error{L"Unable to find buffer"};
                  }})
       .Transform([options_position = options.position](ResolvePathOutput input)
                      -> futures::ValueOrError<ResolvePathOutput> {

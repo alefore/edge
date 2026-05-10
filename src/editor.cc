@@ -406,12 +406,12 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
                 error);
             switch (buffer->status().InsertError(error, 30)) {
               case error::Log::InsertResult::Inserted:
-                return MakeUnexpected(error);
+                return error;
               case error::Log::InsertResult::AlreadyFound:
                 return OpenBuffer::PrepareToCloseOutput();
             }
             LOG(FATAL) << "Invalid enum value.";
-            return MakeUnexpected(error);
+            return error;
           })
       .Transform([this, buffer = buffer.RootFromThis()](
                      OpenBuffer::PrepareToCloseOutput)

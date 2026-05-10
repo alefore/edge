@@ -31,7 +31,8 @@ using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -77,7 +78,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> LowLevelOpenFile(
   }
   Error error{LazyString{L"Invalid value for not_found_handler."}};
   LOG(FATAL) << error;
-  return MakeUnexpected(error);
+  return error;
 }
 }  // namespace
 

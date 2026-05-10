@@ -61,11 +61,6 @@ struct IsValueOrError : std::false_type {};
 template <typename T>
 struct IsValueOrError<ValueOrError<T>> : std::true_type {};
 
-template <typename E>
-auto MakeUnexpected(E&& e) {
-  return std::unexpected(Error(std::forward<E>(e)));
-}
-
 template <typename T>
 bool HasValue(const ValueOrError<T>& value) {
   return value.has_value();

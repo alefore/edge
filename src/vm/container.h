@@ -179,13 +179,13 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                 [object_type_name, index, &trampoline](Container& c)
                     -> futures::ValueOrError<language::gc::Root<Value>> {
                   if (index < 0 || static_cast<size_t>(index) >= c.size()) {
-                    return MakeUnexpected(
-                        language::Error{ToLazyString(object_type_name) +
-                                        LazyString{L": Index out of range "} +
-                                        LazyString{std::to_wstring(index)} +
-                                        LazyString{L" (size: "} +
-                                        LazyString{std::to_wstring(c.size())} +
-                                        LazyString{L")"}});
+                    return language::Error{
+                        ToLazyString(object_type_name) +
+                        LazyString{L": Index out of range "} +
+                        LazyString{std::to_wstring(index)} +
+                        LazyString{L" (size: "} +
+                        LazyString{std::to_wstring(c.size())} +
+                        LazyString{L")"}};
                   }
                   return VMTypeMapper<typename Container::value_type>::New(
                       trampoline.pool(), T::Get(c, index));
@@ -212,13 +212,13 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                   [object_type_name, index, &args, &trampoline](Container& c)
                       -> futures::ValueOrError<language::gc::Root<Value>> {
                     if (index < 0 || static_cast<size_t>(index) >= c.size()) {
-                      return language::MakeUnexpected(language::Error{
+                      return language::Error{
                           ToLazyString(object_type_name) +
                           LazyString{L": Index out of range "} +
                           LazyString{std::to_wstring(index)} +
                           LazyString{L" (size: "} +
                           LazyString{std::to_wstring(c.size())} +
-                          LazyString{L")"}});
+                          LazyString{L")"}};
                     }
                     auto value =
                         VMTypeMapper<typename Container::value_type>::get(

@@ -121,11 +121,11 @@ class Handler {
                      return TestsBehavior::RunAndExit;
                    if (input == language::lazy_string::LazyString{L"list"})
                      return TestsBehavior::ListAndExit;
-                   return language::MakeUnexpected(language::Error{
+                   return language::Error{
                        language::lazy_string::LazyString{
                            L"Invalid value (valid values are `run` and "
                            L"`list`): "} +
-                       language::lazy_string::LazyString{input}});
+                       language::lazy_string::LazyString{input}};
                  }),
         Handler<ParsedValues>({FlagName{L"tests_filter"}},
                               FlagShortHelp{L"Run specific tests"})

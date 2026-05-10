@@ -208,7 +208,7 @@ std::generator<ComponentData> ViewComponents(
                   ToLazyString(Path::Join(path, std::move(sub_path))).ToBytes(),
                   ec);
               if (ec || !entry.exists(ec))
-                return MakeUnexpected(Error{LazyString{L"Not found"}});
+                return Error{LazyString{L"Not found"}};
               return ComponentData(entry, glob_matcher);
             }) |
         SkipErrors);

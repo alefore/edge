@@ -75,7 +75,7 @@ class IfExpression : public Expression {
           }
           language::Error error{LazyString{L"Unhandled OutputType case."}};
           LOG(FATAL) << error;
-          return MakeUnexpected(error);
+          return error;
         });
   }
 

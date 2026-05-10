@@ -94,12 +94,11 @@ class WhileExpression : public Expression {
                                        std::move(body));
                     }
                     LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
-                    return MakeUnexpected(
-                        Error{LazyString{L"Internal error."}});
+                    std::unreachable();
                   });
           }
           LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
-          return MakeUnexpected(Error{LazyString{L"Internal error."}});
+          return Error{LazyString{L"Internal error."}};
         });
   }
 };

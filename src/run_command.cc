@@ -153,7 +153,7 @@ futures::Value<PossibleError> GenerateContents(
     Error error{LazyString{L"fork failed: "} +
                 LazyString{FromByteString(strerror(errno))}};
     target.status().Set(error);
-    return MakeUnexpected(error);
+    return error;
   }
   if (child_pid == ProcessId(0)) {
     LOG(INFO) << "I am the children. Life is beautiful!";

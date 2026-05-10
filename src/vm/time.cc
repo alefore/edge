@@ -118,7 +118,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer), format_str.ToBytes().c_str(),
                          &t) == 0) {
-              return MakeUnexpected(Error{LazyString{L"strftime error"}});
+              return Error{LazyString{L"strftime error"}};
             }
             return FromByteString(buffer);
           })
@@ -141,21 +141,20 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       }));
   environment.Define(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"ParseTime"}}}},
-      vm::NewCallback(pool, kPurityTypePure,
-                      [](LazyString value,
-                         LazyString format) -> futures::ValueOrError<Time> {
-                        struct tm t = {};
-                        if (strptime(value.ToBytes().c_str(),
-                                     format.ToBytes().c_str(), &t) == nullptr)
-                          return MakeUnexpected(Error{
-                              LazyString{L"strptime error: value: "} + value +
-                              LazyString{L", format: "} + format});
-                        if (time_t output = mktime(&t); output != -1)
-                          return Time{.tv_sec = output, .tv_nsec = 0};
-                        return MakeUnexpected(
-                            Error{LazyString{L"mktime error: value: "} + value +
-                                  LazyString{L", format: "} + format});
-                      }));
+      vm::NewCallback(
+          pool, kPurityTypePure,
+          [](LazyString value,
+             LazyString format) -> futures::ValueOrError<Time> {
+            struct tm t = {};
+            if (strptime(value.ToBytes().c_str(), format.ToBytes().c_str(),
+                         &t) == nullptr)
+              return Error{LazyString{L"strptime error: value: "} + value +
+                           LazyString{L", format: "} + format};
+            if (time_t output = mktime(&t); output != -1)
+              return Time{.tv_sec = output, .tv_nsec = 0};
+            return Error{LazyString{L"mktime error: value: "} + value +
+                         LazyString{L", format: "} + format};
+          }));
 
   gc::Root<ObjectType> duration_type =
       ObjectType::New(pool, VMTypeMapper<Duration>::object_type_name);

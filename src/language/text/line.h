@@ -114,10 +114,8 @@ class Line {
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
     LazyValue<ValueOrError<vm::EscapedMap>> escaped_map_supplier =
-        LazyValue<ValueOrError<vm::EscapedMap>>{[] {
-          return MakeUnexpected(
-              Error{lazy_string::LazyString{L"No escaped map supplier."}});
-        }};
+        LazyValue<ValueOrError<vm::EscapedMap>>{
+            [] { return Error{L"No escaped map supplier."}; }};
   };
 
   friend class LineBuilder;

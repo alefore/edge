@@ -70,11 +70,11 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
         try {
           return std::stoi(str.ToString());
         } catch (const std::out_of_range& ia) {
-          return MakeUnexpected(Error{LazyString{L"toint: stoi failure: "} +
-                                      LazyString{FromByteString(ia.what())}});
+          return Error{LazyString{L"toint: stoi failure: "} +
+                       LazyString{FromByteString(ia.what())}};
         } catch (const std::invalid_argument& ia) {
-          return MakeUnexpected(Error{LazyString{L"toint: stoi failure: "} +
-                                      LazyString{FromByteString(ia.what())}});
+          return Error{LazyString{L"toint: stoi failure: "} +
+                       LazyString{FromByteString(ia.what())}};
         }
       },
       string_type);
@@ -98,8 +98,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, size_t pos,
          size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
-          return MakeUnexpected(Error{
-              LazyString{L"substr: Invalid index (past end of string)."}});
+          return Error{L"substr: Invalid index (past end of string)."};
         }
         return str.substr(pos, len);
       },

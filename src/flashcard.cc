@@ -512,7 +512,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                   Error error{LazyString{L"Invalid flashcard score: "} +
                               score_str};
                   LOG(ERROR) << error;
-                  return MakeUnexpected(error);
+                  return error;
                 },
                 GetValueOrNullOpt(scores, score_str));
           })
