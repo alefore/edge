@@ -18,6 +18,7 @@ cc_binary(
         "buffer_filter.h",
         "buffer_flags.cc",
         "buffer_flags.h",
+        "buffer_hooks.h",
         "buffer_metadata_output_producer.cc",
         "buffer_metadata_output_producer.h",
         "buffer_name.cc",
