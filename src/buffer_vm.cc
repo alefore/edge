@@ -761,6 +761,29 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
+      IDENTIFIER_CONSTANT(L"AddSaveHook"),
+      vm::Value::NewFunction(
+          pool, PurityType{.writes_external_outputs = true}, vm::types::Void{},
+          {buffer_object_type->type(),
+           vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
+          [&pool](std::vector<gc::Root<vm::Value>> args) {
+            CHECK_EQ(args.size(), 2u);
+            gc::Ptr<OpenBuffer> buffer =
+                vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
+                    args[0].ptr().value());
+            gc::Ptr<vm::Value> callback = args[1].ptr();
+            buffer->AddSaveHook(BufferHooks::SaveRegistry::HookCallback::New(
+                                    pool,
+                                    [callback] -> futures::PossibleError {
+                                      return EmptyValue{};
+                                    },
+                                    std::vector{callback.object_metadata()})
+                                    .ptr());
+            return vm::Value::NewVoid(pool);
+          })
+          .ptr());
+
+  buffer_object_type.ptr()->AddField(
       IDENTIFIER_CONSTANT(L"Close"),
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [](gc::Ptr<OpenBuffer> buffer) {
