@@ -162,6 +162,7 @@ if (path == "") {
       buffer.set_contains_line_marks(true);
       buffer.set_allow_dirty_delete(true);
       LogMode("grep-n");
+      grep_writer::Install();
     } else if (base_command == "grep") {
       buffer.set_contains_line_marks(true);
       buffer.set_allow_dirty_delete(true);
