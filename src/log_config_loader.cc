@@ -27,6 +27,7 @@ using afc::infrastructure::Path;
 using afc::language::AugmentError;
 using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::FromByteString;
 using afc::language::PossibleError;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
@@ -345,12 +346,21 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
             line.contents());
       }) |
       GetErrors | std::ranges::to<std::vector>();
-  if (patterns.empty()) errors.push_back(Error{L"No pattern specified."});
-  if (patterns.size() != 1) {
+  std::wregex pattern;
+  if (patterns.empty())
+    errors.push_back(Error{L"No pattern specified."});
+  else if (patterns.size() != 1)
     errors.push_back(Error{L"Multiple patterns specified."});
-  }
+  else
+    try {
+      pattern = std::wregex(ToLazyString(patterns[0]).ToString());
+    } catch (const std::regex_error& e) {
+      errors.push_back(Error{LazyString{L"Invalid regex found: "} +
+                             patterns[0] + LazyString{L": "} +
+                             LazyString{FromByteString(e.what())}});
+    }
   if (!errors.empty()) return MergeErrors(errors, L", ");
-  return LogType(log_type_name, patterns[0], std::move(entries),
+  return LogType(log_type_name, std::move(pattern), std::move(entries),
                  activation_policy);
 }
 

@@ -86,7 +86,7 @@ class LogType {
   LogTypeActivationPolicy activation_policy_;
 
  public:
-  LogType(LogTypeName name, language::lazy_string::NonEmptySingleLine pattern,
+  LogType(LogTypeName name, std::wregex pattern,
           std::vector<LogEntryConfiguration> entries,
           LogTypeActivationPolicy activation_policy);
 

@@ -51,11 +51,11 @@ std::map<LogEntryName, std::vector<LogEntryValue>> LogLine::ValueGroups()
   return output;
 }
 
-LogType::LogType(LogTypeName name, NonEmptySingleLine pattern,
+LogType::LogType(LogTypeName name, std::wregex pattern,
                  std::vector<LogEntryConfiguration> entries,
                  LogTypeActivationPolicy activation_policy)
     : name_(std::move(name)),
-      regex_(ToLazyString(pattern).ToString()),
+      regex_(std::move(pattern)),
       entries_(std::invoke([&] {
         std::ranges::sort(entries, {}, &LogEntryConfiguration::capturing_group);
         return std::move(entries);
@@ -64,7 +64,7 @@ LogType::LogType(LogTypeName name, NonEmptySingleLine pattern,
                    std::views::transform(&LogEntryConfiguration::name) |
                    std::ranges::to<std::set>()),
       activation_policy_(activation_policy) {
-  LOG(INFO) << "Created LogType with regex: [" << pattern << "]";
+  LOG(INFO) << "Created LogType with name: [" << name_ << "]";
 }
 
 LogTypeName LogType::name() const { return name_; }
