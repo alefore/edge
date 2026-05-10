@@ -58,7 +58,7 @@ class GetPtrValue {
 class GetObjectMetadata {
  public:
   template <typename Iterator>
-  static language::NonNull<std::shared_ptr<ObjectMetadata>> Adjust(
+  static NonNull<std::shared_ptr<ObjectMetadata>> Adjust(
       const Iterator& iterator) {
     return (*iterator).object_metadata();
   }
