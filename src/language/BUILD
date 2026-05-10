@@ -259,6 +259,7 @@ cc_library(
 
 cc_library(
     name = "version_value",
+    srcs = ["version_value.cc"],
     hdrs = ["version_value.h"],
     visibility = ["//visibility:public"],
     deps = [":ghost_type_class"],
