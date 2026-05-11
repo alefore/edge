@@ -5,9 +5,16 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc_util.h"
 #include "src/language/gc_view.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 
 namespace afc::editor {
+struct HookName
+    : public language::GhostType<HookName,
+                                 language::lazy_string::NonEmptySingleLine> {
+  using GhostType::GhostType;
+};
+
 template <typename HookResult, typename... Args>
 class HookRegistry {
  public:
@@ -16,7 +23,7 @@ class HookRegistry {
   using HookCallbackPtr = language::gc::Ptr<HookCallback>;
 
  private:
-  std::vector<HookCallbackPtr> hooks_ = {};
+  std::map<HookName, HookCallbackPtr> hooks_ = {};
 
  public:
   using ConstructorKey = afc::language::AccessKey<HookRegistry>;
@@ -29,12 +36,16 @@ class HookRegistry {
 
   bool empty() const { return hooks_.empty(); }
 
-  void Add(HookCallbackPtr hook) { hooks_.push_back(std::move(hook)); }
+  language::PossibleError Add(HookName name, HookCallbackPtr hook) {
+    if (!hooks_.insert({std::move(name), std::move(hook)}).second)
+      return language::Error(L"Hook already existed. Insertion failed.");
+    return language::EmptyValue{};
+  }
 
   // Runs all hooks and returns a future with all their results.
   futures::Value<std::vector<HookResult>> Dispatch(Args... args) const {
     return UnwrapVectorFuture(
-        hooks_ |
+        hooks_ | std::views::values |
         std::views::transform(
             [&](const HookCallbackPtr& callback) -> futures::Value<HookResult> {
               return callback->value()(args...);
@@ -44,7 +55,7 @@ class HookRegistry {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const {
-    return hooks_ | language::gc::view::ObjectMetadata |
+    return hooks_ | std::views::values | language::gc::view::ObjectMetadata |
            std::ranges::to<std::vector>();
   }
 };

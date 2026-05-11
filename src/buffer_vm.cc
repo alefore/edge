@@ -753,17 +753,22 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       IDENTIFIER_CONSTANT(L"AddSaveHook"),
       vm::Value::NewFunction(
           pool, PurityType{.writes_external_outputs = true}, vm::types::Void{},
-          {buffer_object_type->type(),
+          {buffer_object_type->type(), vm::types::String{},
            vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
-          [&pool](std::vector<gc::Root<vm::Value>> args) {
-            CHECK_EQ(args.size(), 2u);
+          [&pool](std::vector<gc::Root<vm::Value>> args,
+                  Trampoline&) -> futures::ValueOrError<gc::Root<vm::Value>> {
+            CHECK_EQ(args.size(), 3u);
             gc::Ptr<OpenBuffer> buffer =
                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                     args[0].ptr().value());
+            DECLARE_OR_RETURN(HookName hook_name,
+                              NonEmptySingleLine::New(
+                                  SingleLine::New(args[1]->get_string())));
             gc::Root<vm::Expression> callback =
-                NewFunctionCall(NewConstantExpression(args[1].ptr()).ptr(),
+                NewFunctionCall(NewConstantExpression(args[2].ptr()).ptr(),
                                 std::vector<gc::Ptr<vm::Expression>>{});
             buffer->AddSaveHook(
+                hook_name,
                 BufferHooks::SaveRegistry::HookCallback::New(
                     pool,
                     [buffer,
@@ -806,7 +811,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                 vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                     args[0].ptr().value());
             buffer->default_commands()->Add(
-                VectorExtendedChar(args[1].ptr()->get_string()),
+                VectorExtendedChar(args[1]->get_string()),
                 args[2].ptr()->get_string(), std::move(args[3]).ptr(),
                 buffer->environment());
             return vm::Value::NewVoid(pool);

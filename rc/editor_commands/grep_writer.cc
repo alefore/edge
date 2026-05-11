@@ -72,7 +72,7 @@ void Save(Buffer buffer) {
 }
 
 void Install(Buffer buffer) {
-  buffer.AddSaveHook([]() -> void {
+  buffer.AddSaveHook("GrepWriter", []() -> void {
     internal::Save(buffer);
     editor.SetStatus("Saved.");
   });

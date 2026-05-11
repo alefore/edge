@@ -1380,8 +1380,8 @@ void OpenBuffer::AddLineProcessor(
 }
 
 void OpenBuffer::AddSaveHook(
-    BufferHooks::SaveRegistry::HookCallbackPtr callback) {
-  hooks_->save_hook().Add(std::move(callback));
+    HookName name, BufferHooks::SaveRegistry::HookCallbackPtr callback) {
+  hooks_->save_hook().Add(name, std::move(callback));
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
