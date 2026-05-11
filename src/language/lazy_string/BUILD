@@ -151,11 +151,14 @@ cc_library(
     srcs = ["trim.cc"],
     hdrs = ["trim.h"],
     visibility = ["//visibility:public"],
-    # TODO(P3, 2026-04-22, easy): Trim should not depend on :single_line.
     deps = [
         ":lazy_string",
-        ":single_line",
+        "//src/language:safe_types",
         "//src/tests",
+        # TODO(P2, 2026-05-11): Ugh, this should not depend on value_or_error;
+        # instead, `:column_number` should have that dependency. But that gives
+        # us circular dependencies. column_number -> ghost_type_class -> error.
+        "//src/language/error:value_or_error",
     ],
     alwayslink = 1,
 )

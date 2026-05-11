@@ -5,9 +5,8 @@
 #include <unordered_set>
 
 #include "src/infrastructure/tracker.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/language/lazy_string/single_line.h"
-#include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
 // Returns a copy with all left trim_characters removed.
