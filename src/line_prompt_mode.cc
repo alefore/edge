@@ -261,19 +261,19 @@ futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
 
 // Holds the state required to show and update a prompt.
 class PromptState : public std::enable_shared_from_this<PromptState> {
-  struct ConstructorAccessKey {};
-
  public:
+  using ConstructorKey = afc::language::AccessKey<PromptState>;
+
   static NonNull<std::shared_ptr<PromptState>> New(
       PromptOptions options, gc::Root<OpenBuffer> history,
       gc::Root<OpenBuffer> prompt_buffer) {
-    return MakeNonNullShared<PromptState>(
-        std::move(options), std::move(history), std::move(prompt_buffer),
-        ConstructorAccessKey());
+    return MakeNonNullShared<PromptState>(ConstructorKey{}, std::move(options),
+                                          std::move(history),
+                                          std::move(prompt_buffer));
   }
 
-  PromptState(PromptOptions options, gc::Root<OpenBuffer> history,
-              gc::Root<OpenBuffer> prompt_buffer, ConstructorAccessKey)
+  PromptState(ConstructorKey, PromptOptions options,
+              gc::Root<OpenBuffer> history, gc::Root<OpenBuffer> prompt_buffer)
       : options_(std::move(options)),
         history_(std::move(history)),
         prompt_buffer_(std::move(prompt_buffer)),
