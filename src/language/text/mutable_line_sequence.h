@@ -207,6 +207,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
                        observer_behavior);
   }
 
+  // TODO(2026-05-11, P2): Convert this to take a LineSequence directly (rather
+  // than an arbitrary range). Since we have to create the subtree anyway, we
+  // might as well force the customers to do that (if they don't already have a
+  // LineSequence). That means we won't traverse it twice for customers that
+  // *do* have a LineSequence.
   template <std::ranges::range R>
   void append_back(
       R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::Show) {
