@@ -174,11 +174,10 @@ Style HashToStyle(const size_t hash_value,
       Color::Cyan, Color::Yellow, Color::Red,
       Color::Blue, Color::Green,  Color::Magenta};
   static const std::vector<Color> background_colors = {
-      Color::Gray0,  Color::Gray1,  Color::Gray2,  Color::Gray3,  Color::Gray4,
-      Color::Gray5,  Color::Gray6,  Color::Gray7,  Color::Gray8,  Color::Gray9,
-      Color::Gray10, Color::Gray11, Color::Gray12, Color::Gray13, Color::Gray14,
-      Color::Gray15, Color::Gray16, Color::Gray17, Color::Gray18, Color::Gray19,
-      Color::Gray20, Color::Gray21, Color::Gray22, Color::Gray23};
+      Color::Gray0, Color::Gray1, Color::Gray2,  Color::Gray3,
+      Color::Gray4, Color::Gray5, Color::Gray6,  Color::Gray7,
+      Color::Gray8, Color::Gray9, Color::Gray10, Color::Gray11,
+  };
   Style output{.foreground_color =
                    foreground_colors[hash_value % foreground_colors.size()],
                .background_color =
