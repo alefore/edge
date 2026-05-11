@@ -235,11 +235,9 @@ std::pair<LineNumber, LineNumberDelta> GetBoundariesForTransformation(
   else {
     output = std::make_pair(LineNumber(), buffer.size());
     // Skip the tail of empty lines.
-    while (!output.second.IsZero() &&
-           buffer.at(output.first + output.second - LineNumberDelta(1))
-               .contents()
-               .size()
-               .IsZero())
+    while (
+        !output.second.IsZero() &&
+        buffer.at(output.first + output.second - LineNumberDelta(1))->empty())
       --output.second;
   }
 
@@ -364,7 +362,7 @@ futures::ValueOrError<language::gc::Root<vm::Value>> BufferForEach(
                    math::numbers::Number::FromSizeT(data->line.read())),
                vm::Value::NewString(
                    data->trampoline.pool(),
-                   ToLazyString(data->contents.at(data->line)))};
+                   ToLazyString(data->contents.at(data->line).value))};
            ++data->line;
            return data->callback.ptr()
                ->RunFunction(std::move(args), data->trampoline)
@@ -717,7 +715,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                       output_buffer.contents()
                                           .snapshot()
                                           .at(LineNumber{})
-                                          .contents()
+                                          ->contents()
                                           .empty())
                                     output_buffer.EraseLines(LineNumber{},
                                                              LineNumber{1});

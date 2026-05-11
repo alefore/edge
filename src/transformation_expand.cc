@@ -61,7 +61,7 @@ SingleLine GetToken(const CompositeTransformation::Input& input,
   if (input.position.column < ColumnNumber(2)) return SingleLine{};
   const ColumnNumber end = input.position.column.previous().previous();
   const SingleLine line =
-      input.buffer.contents().snapshot().at(input.position.line).contents();
+      input.buffer.contents().snapshot().at(input.position.line)->contents();
 
   ColumnNumber symbol_start = VisitOptional(
       [](ColumnNumber index_before_symbol) {

@@ -67,7 +67,7 @@ namespace afc::editor {
                    contents));
   LineNumber tags_start_line = tags_start.line + LineNumberDelta{1};
   while (tags_start_line <= contents.EndLine() &&
-         contents.at(tags_start_line).empty())
+         contents.at(tags_start_line)->empty())
     ++tags_start_line;
   DECLARE_OR_RETURN(LoadTagsOutput load_tags_output,
                     LoadTags(contents, tags_start_line));
@@ -121,8 +121,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
   LineNumber line_number = tags_start_line;
   std::vector<Error> errors;
   while (line_number <= contents.EndLine() &&
-         !StartsWith(contents.at(line_number).contents(), LazyString{L"#"})) {
-    SingleLine line = contents.at(line_number).contents();
+         !StartsWith(contents.at(line_number)->contents(), LazyString{L"#"})) {
+    SingleLine line = contents.at(line_number)->contents();
     ++line_number;
     if (line.empty()) continue;
     CaptureErrors(
@@ -149,7 +149,7 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
 
   output.end_line = line_number;
   while (output.end_line > tags_start_line &&
-         contents.at(output.end_line - LineNumberDelta{1}).empty())
+         contents.at(output.end_line - LineNumberDelta{1})->empty())
     --output.end_line;
 
   if (errors.empty()) return output;

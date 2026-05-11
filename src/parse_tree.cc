@@ -380,7 +380,7 @@ class WordsTreeParser : public TreeParser {
   ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);
     range.ForEachLine([&](LineNumber line) {
-      const Line& contents = buffer.at(line);
+      const Line& contents = buffer.at(line).value;
 
       ColumnNumber line_end = contents.EndColumn();
       if (line == range.end().line) {
@@ -427,7 +427,7 @@ class LineTreeParser : public TreeParser {
   ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);
     range.ForEachLine([&](LineNumber line) {
-      auto contents = buffer.at(line);
+      auto contents = buffer.at(line).value;
       if (contents.empty()) {
         return;
       }

@@ -268,7 +268,7 @@ LineNumber LineSequence::EndLine() const {
 }
 
 Range LineSequence::range() const {
-  return Range(LineColumn(), LineColumn(EndLine(), back().EndColumn()));
+  return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
 }
 
 size_t LineSequence::CountCharacters() const {
@@ -282,19 +282,21 @@ size_t LineSequence::CountCharacters() const {
   return output.read();
 }
 
-const Line& LineSequence::at(LineNumber line_number) const {
-  return at_with_origin(line_number).value;
-}
-
-const staging::Value<Line>& LineSequence::at_with_origin(
-    LineNumber line_number) const {
+const staging::Value<Line>& LineSequence::at(LineNumber line_number) const {
   CHECK_LT(line_number, LineNumber(0) + size());
   return lines_->Get(line_number.read());
 }
 
-const Line& LineSequence::back() const { return at(EndLine()); }
+const staging::Value<Line>& LineSequence::at_with_origin(
+    LineNumber line_number) const {
+  return at(line_number);
+}
 
-const Line& LineSequence::front() const { return at(LineNumber(0)); }
+const staging::Value<Line>& LineSequence::back() const { return at(EndLine()); }
+
+const staging::Value<Line>& LineSequence::front() const {
+  return at(LineNumber(0));
+}
 
 void LineSequence::ForEach(
     const std::function<void(const staging::Value<Line>&)>& callback) const {
@@ -330,7 +332,7 @@ LineSequence LineSequence::Map(
 
 wchar_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
-  const Line& line = at(position.line);
+  const Line& line = at(position.line).value;
   return position.column >= line.EndColumn() ? L'\n'
                                              : line.get(position.column);
 }
@@ -341,22 +343,22 @@ LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
     position.line = EndLine();
     position.column = std::numeric_limits<ColumnNumber>::max();
   }
-  position.column = std::min(at(position.line).EndColumn(), position.column);
+  position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
 
 LineColumn LineSequence::PositionBefore(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
-    position.column = at(position.line).EndColumn();
-  } else if (position.column > at(position.line).EndColumn()) {
-    position.column = at(position.line).EndColumn();
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column > at(position.line)->EndColumn()) {
+    position.column = at(position.line)->EndColumn();
   } else if (position.column > ColumnNumber(0)) {
     position.column--;
   } else if (position.line > LineNumber(0)) {
     position.line =
         std::min(position.line, LineNumber(0) + size()) - LineNumberDelta(1);
-    position.column = at(position.line).EndColumn();
+    position.column = at(position.line)->EndColumn();
   }
   return position;
 }
@@ -436,14 +438,14 @@ const bool position_before_tests_registration = tests::Register(
 LineColumn LineSequence::PositionAfter(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
-    position.column = at(position.line).EndColumn();
-  } else if (position.column < at(position.line).EndColumn()) {
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column < at(position.line)->EndColumn()) {
     ++position.column;
   } else if (position.line < EndLine()) {
     ++position.line;
     position.column = ColumnNumber();
-  } else if (position.column > at(position.line).EndColumn()) {
-    position.column = at(position.line).EndColumn();
+  } else if (position.column > at(position.line)->EndColumn()) {
+    position.column = at(position.line)->EndColumn();
   }
   return position;
 }

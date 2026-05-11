@@ -32,7 +32,7 @@ void ScanLineMarks(EditorState& editor, BufferName buffer_name,
           .output_format = FilePredictorOutputFormat::SearchPathAndInput});
   for (LineNumberDelta i; i < lines_added; ++i) {
     LineNumber source_line = LineNumber{} + start_new_section + i;
-    Line source_line_content = contents.at(source_line);
+    Line source_line_content = contents.at(source_line).value;
     file_predictor(PredictorInput{.editor = editor,
                                   .input = source_line_content.contents(),
                                   .input_column = {},

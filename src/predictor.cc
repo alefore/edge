@@ -122,7 +122,7 @@ ValueOrError<PredictResults> BuildResults(
       });
   if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
   CHECK(predictor_output.contents.read().lines().EndLine() == LineNumber(0) ||
-        !predictor_output.contents.read().lines().at(LineNumber()).empty());
+        !predictor_output.contents.read().lines().at(LineNumber())->empty());
   gc::Root<OpenBuffer> predictions_buffer = OpenBuffer::New(
       OpenBuffer::Options{.editor = editor, .name = PredictionsBufferName{}});
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
@@ -139,7 +139,7 @@ ValueOrError<PredictResults> BuildResults(
                   predictor_output.contents.read()
                       .lines()
                       .at(LineNumber())
-                      .empty()
+                      ->empty()
               ? 0
               : predictions_buffer.ptr()->lines_size().read(),
       .predictor_output = predictor_output};

@@ -77,12 +77,12 @@ class LineSequence {
 
   size_t CountCharacters() const;
 
-  const Line& at(LineNumber line_number) const;
+  const staging::Value<Line>& at(LineNumber line_number) const;
   // TODO(2026-05-08, P2): Convert all customers from `at` into `at_with_origin`
   // and then delete `at` and then rename `at_with_origin` into `at`.
   const staging::Value<Line>& at_with_origin(LineNumber line_number) const;
-  const Line& back() const;
-  const Line& front() const;
+  const staging::Value<Line>& back() const;
+  const staging::Value<Line>& front() const;
 
   // Iterates: runs the callback on every line in the buffer intersecting,
   // passing as the first argument the line count (starts counting at 0). Stops
@@ -154,7 +154,7 @@ class LineSequenceIterator {
       : container_(std::move(container)), position_(position) {}
 
   // TODO(2026-05-08, P2): Change it to return a staging::Value<Line>.
-  Line operator*() const { return container_.at(position_); }
+  Line operator*() const { return container_.at(position_).value; }
 
   bool operator!=(const LineSequenceIterator& other) const {
     return !(*this == other);

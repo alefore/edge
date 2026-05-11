@@ -89,7 +89,7 @@ futures::Value<std::vector<FilterSortBufferOutput::Match>> FindFragment(
             fragments_buffer.ptr()->contents().snapshot();
         if (filter.empty()) {
           return Visit(
-              history.back().escaped_map(),
+              history.back()->escaped_map(),
               [](EscapedMap parsed_map) {
                 if (auto it = parsed_map.read().find(HistoryIdentifierValue());
                     it != parsed_map.read().end())

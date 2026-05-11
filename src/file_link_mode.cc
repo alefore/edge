@@ -568,7 +568,7 @@ class TestDriver {
             CHECK(buffer->contents().snapshot().EveryLine(
                 [expected_content](LineNumber i, const Line& line) {
                   CHECK_EQ(line.contents().ToBytes(),
-                           expected_content->at(i).contents().ToBytes());
+                           expected_content->at(i)->contents().ToBytes());
                   return true;
                 }));
           }

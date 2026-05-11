@@ -109,7 +109,7 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
     LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
               << adapter.contents().size();
 
-    Line line_contents = adapter.contents().at(position.line);
+    Line line_contents = adapter.contents().at(position.line).value;
     DVLOG(5) << "Erasing line: " << line_contents.contents();
     VisitPointer(
         buffer.CurrentLine().outgoing_link(),

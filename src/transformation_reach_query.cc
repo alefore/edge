@@ -46,7 +46,7 @@ std::vector<LineColumn> FindPositions(const SingleLine& query,
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
     const SingleLine& line =
-        buffer.contents().snapshot().at(view_start.line).contents();
+        buffer.contents().snapshot().at(view_start.line)->contents();
     while ((view_start.column +
             std::max(kQueryLength + ColumnNumberDelta(1), query.size()))
                .ToDelta() <= line.size()) {
@@ -73,7 +73,7 @@ bool FindSyntheticIdentifier(LineColumn position, const LineSequence& contents,
                              PositionIdentifierMap& output) {
   static const std::wstring kIdentifiers =
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const Line& line = contents.at(position.line);
+  const Line& line = contents.at(position.line).value;
   const Identifier first_identifier =
       std::tolower(line.get(position.column + ColumnNumberDelta(1)));
   const Identifier desired_identifier =
@@ -101,7 +101,7 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
   // different position. This lets us bias towards reducing the number of
   // "invented" identifiers.
   for (LineColumn position : matches) {
-    Line line = contents.at(position.line);
+    Line line = contents.at(position.line).value;
     const Identifier desired_identifier =
         line.get(position.column + kQueryLength);
     if (!output[std::tolower(line.get(position.column + ColumnNumberDelta(1)))]
@@ -181,7 +181,8 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     for (std::pair<Identifier, LineColumn> match : group.second) {
       static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
       static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
-      Line line = input.buffer.contents().snapshot().at(match.second.line);
+      Line line =
+          input.buffer.contents().snapshot().at(match.second.line).value;
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           infrastructure::screen::VisualOverlay{

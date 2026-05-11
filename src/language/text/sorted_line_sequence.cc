@@ -93,7 +93,7 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
         MutableLineSequence builder;
         auto advance = [&](const LineSequence& input, LineNumber& line) {
           CHECK_LT(line.ToDelta(), input.size());
-          builder.push_back(input.at_with_origin(line));
+          builder.push_back(input.at(line));
           ++line;
         };
         while (a_line.ToDelta() < a_lines.size() ||
@@ -103,8 +103,8 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
           } else if (b_line.ToDelta() == b_lines.size()) {
             advance(a_lines, a_line);
           } else {
-            const Line& a_str = a_lines.at(a_line);
-            const Line& b_str = b_lines.at(b_line);
+            const Line& a_str = a_lines.at(a_line).value;
+            const Line& b_str = b_lines.at(b_line).value;
             if (a.read().compare_(a_str, b_str)) {
               advance(a_lines, a_line);
             } else if (a.read().compare_(b_str, a_str)) {

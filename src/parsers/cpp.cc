@@ -268,7 +268,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     auto length = result->position().column - original_position.column;
     SingleLine str = result->buffer()
                          .at(original_position.line)
-                         .contents()
+                         ->contents()
                          .Substring(original_position.column, length);
     Style modifiers;
     if (Contains(keywords_, str)) {
@@ -276,8 +276,8 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     } else if (Contains(typos_, str)) {
       modifiers.foreground_color = Color::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToStyle(std::hash<SingleLine>{}(str),
-                                  HashToStyleBold::Never);
+      modifiers =
+          HashToStyle(std::hash<SingleLine>{}(str), HashToStyleBold::Never);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -392,8 +392,8 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       if ((c == L'}' && state_default == CURLY_BRACKET_DEFAULT) ||
           (c == L']' && state_default == SQUARE_BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
-        auto modifiers = HashToStyle(result->AddAndGetNesting(),
-                                         HashToStyleBold::Sometimes);
+        auto modifiers =
+            HashToStyle(result->AddAndGetNesting(), HashToStyleBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();

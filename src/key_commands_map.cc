@@ -123,9 +123,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
     help_output.push_back(
         staging::CleanValue(std::move(category_line).Build()));
   }
-  if (help_output.size() > LineNumberDelta(1) &&
-      help_output.snapshot().front().empty())
-    help_output.EraseLines(LineNumber(), LineNumber(1));
+  help_output.MaybeEraseEmptyFirstLine();
   return help_output.snapshot();
 }
 

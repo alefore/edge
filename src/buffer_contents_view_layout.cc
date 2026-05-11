@@ -42,7 +42,7 @@ namespace {
 
 std::list<ColumnRange> ComputeBreaks(
     const BufferContentsViewLayout::Input& input, LineNumber line) {
-  return BreakLineForOutput(input.contents.at(line), input.columns_shown,
+  return BreakLineForOutput(input.contents.at(line).value, input.columns_shown,
                             input.line_wrap_style, input.symbol_characters);
 }
 
@@ -135,7 +135,7 @@ LineRange GetRange(const LineSequence& contents, LineNumber line,
                    ColumnRange column_range) {
   CHECK_LE(line, contents.EndLine());
   return LineRange(LineColumn(line, column_range.begin),
-                   column_range.end < contents.at(line).EndColumn()
+                   column_range.end < contents.at(line)->EndColumn()
                        ? column_range.end - column_range.begin
                        : std::numeric_limits<ColumnNumberDelta>::max());
 }
@@ -293,7 +293,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
         std::min(options.active_position->line, options.contents.EndLine());
     options.active_position->column = std::min(
         options.active_position->column,
-        options.contents.at(options.active_position->line).EndColumn());
+        options.contents.at(options.active_position->line)->EndColumn());
     if (options.flow_mode)
       options.begin = LineColumn(options.active_position->line);
     options.begin =

@@ -177,7 +177,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
         result->position().column - original_position.column;
     SingleLine str = result->buffer()
                          .at(original_position.line)
-                         .contents()
+                         ->contents()
                          .Substring(original_position.column, length);
 
     if (str == SINGLE_LINE_CONSTANT(L"f") && result->seek().read() == L'"') {
@@ -203,8 +203,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     } else if (Contains(typos_, str)) {
       modifiers.foreground_color = Color::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToStyle(std::hash<SingleLine>{}(str),
-                                  HashToStyleBold::Never);
+      modifiers =
+          HashToStyle(std::hash<SingleLine>{}(str), HashToStyleBold::Never);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -291,8 +291,8 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
         expected_state = BRACE_DEFAULT;
 
       if (result->state() == expected_state) {
-        Style modifiers = HashToStyle(result->AddAndGetNesting(),
-                                          HashToStyleBold::Sometimes);
+        Style modifiers =
+            HashToStyle(result->AddAndGetNesting(), HashToStyleBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();

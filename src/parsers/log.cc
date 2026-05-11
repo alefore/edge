@@ -61,7 +61,7 @@ class LogTreeParser : public TreeParser {
              LazyString{L"()"}}});
     CompiledLogView compiled_log_view(evaluator, log_view_);
     range.ForEachLine([&](LineNumber i) {
-      SingleLine line_contents = contents.at(i).contents().read();
+      SingleLine line_contents = contents.at(i)->contents().read();
       VisitValue(log_type_.Parse(line_contents), [&](LogLine line) {
         ParseTree line_output(
             LineRange(LineColumn{i},

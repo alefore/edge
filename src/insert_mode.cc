@@ -966,7 +966,7 @@ class InsertMode : public InputReceiver,
                                           LineRange token_range) {
     DictionaryKey output{LowerCase(
         buffer_contents.at(token_range.line())
-            .contents()
+            ->contents()
             .Substring(token_range.begin_column(),
                        token_range.end_column() - token_range.begin_column()))};
     VLOG(6) << "Found completion token: " << output;

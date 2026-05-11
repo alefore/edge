@@ -444,10 +444,12 @@ LineBuilder GetBufferContents(const LineSequence& contents,
                               ColumnNumberDelta columns, LineColumn position) {
   static const std::unordered_set<wchar_t> space_characters = {L' ', L'\t'};
   while (position.line < contents.EndLine() &&
-         Trim(contents.at(position.line).contents(), space_characters).empty())
+         Trim(contents.at(position.line)->contents(), space_characters).empty())
     position = position.NextLine();
-  Line line = contents.at(position.line > contents.EndLine() ? LineNumber{}
-                                                             : position.line);
+  Line line =
+      contents
+          .at(position.line > contents.EndLine() ? LineNumber{} : position.line)
+          .value;
   LineBuilder output;
   if ((line.EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
     ColumnNumberDelta padding = (columns - line.EndColumn().ToDelta()) / 2;

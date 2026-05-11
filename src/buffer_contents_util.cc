@@ -10,7 +10,7 @@ using afc::language::lazy_string::LazyString;
 namespace afc::editor {
 LazyString GetCurrentToken(CurrentTokenOptions options) {
   LazyString line =
-      options.contents.at(options.line_column.line).contents().read();
+      options.contents.at(options.line_column.line)->contents().read();
   // Scroll back to the first character outside of the token. If we're in not
   // inside a token, this is a no-op.
   line = line.Substring(

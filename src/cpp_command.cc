@@ -31,7 +31,7 @@ namespace afc::editor {
 namespace {
 SingleLine GetFirstLine(LazyString code) {
   SingleLine first_line =
-      LineSequence::BreakLines(std::move(code)).front().contents();
+      LineSequence::BreakLines(std::move(code)).front()->contents();
   DVLOG(5) << "First line: " << first_line;
   if (LazyString prefix = LazyString{L"// "}; StartsWith(first_line, prefix))
     return first_line.Substring(ColumnNumber{} + prefix.size());

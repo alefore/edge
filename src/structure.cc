@@ -24,12 +24,12 @@ Seek StartSeekToLimit(const SeekInput& input) {
   input.position->line =
       std::min(input.contents.EndLine(), input.position->line);
   if (input.position->column >=
-      input.contents.at(input.position->line).EndColumn()) {
+      input.contents.at(input.position->line)->EndColumn()) {
     // if (buffer .Read(buffer_variables::extend_lines)) {
     //   MaybeExtendLine(*position);
     //} else {
     input.position->column =
-        input.contents.at(input.position->line).EndColumn();
+        input.contents.at(input.position->line)->EndColumn();
     //}
   }
   return Seek(input.contents, input.position);
@@ -58,7 +58,7 @@ bool FindTreeRange(const NonNull<std::shared_ptr<const ParseTree>>& root,
 
     if (child < tree->children().size() &&
         (direction == Direction::Forwards ? tree->range().begin() < position
-                                           : tree->range().end() > position)) {
+                                          : tree->range().end() > position)) {
       tree = get_child(child);
       continue;
     }
@@ -295,7 +295,7 @@ bool SeekToLimit(SeekInput input) {
       switch (input.direction) {
         case Direction::Forwards:
           input.position->column =
-              input.contents.at(input.position->line).EndColumn();
+              input.contents.at(input.position->line)->EndColumn();
           return true;
         case Direction::Backwards:
           input.position->column = ColumnNumber(0);
@@ -381,7 +381,7 @@ bool SeekToLimit(SeekInput input) {
         if (seek.ToNextLine() == Seek::Result::UnableToAdvance) {
           return false;
         }
-        if (input.contents.at(input.position->line).EndColumn() ==
+        if (input.contents.at(input.position->line)->EndColumn() ==
             ColumnNumber(0)) {
           if (input.direction == Direction::Forwards) {
             return false;

@@ -149,7 +149,8 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
   }
   ++read_index;
   CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
-  auto current_line = data_->receiver->contents().at(data_->position.line);
+  Line current_line =
+      data_->receiver->contents().at(data_->position.line).value;
   std::string sequence;
   while (read_index.ToDelta() < str.size()) {
     int c = str.get(read_index);
@@ -364,14 +365,15 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
         VLOG(9) << "Terminal: P";
         ColumnNumberDelta chars_to_erase(atoi(sequence.c_str()));
         ColumnNumber end_column =
-            data_->receiver->contents().at(data_->position.line).EndColumn();
+            data_->receiver->contents().at(data_->position.line)->EndColumn();
         if (data_->position.column < end_column) {
           data_->contents.DeleteCharactersFromLine(
               data_->position,
               std::min(chars_to_erase, end_column - data_->position.column),
               staging::Clean);
         }
-        current_line = data_->receiver->contents().at(data_->position.line);
+        current_line =
+            data_->receiver->contents().at(data_->position.line).value;
         return read_index;
       }
       default:

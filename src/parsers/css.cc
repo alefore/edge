@@ -353,8 +353,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
 
     if (c == L'}') {
       if (result->parse_results().states_stack.size() > 1) {
-        Style modifiers = HashToStyle(result->AddAndGetNesting(),
-                                          HashToStyleBold::Sometimes);
+        Style modifiers =
+            HashToStyle(result->AddAndGetNesting(), HashToStyleBold::Sometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
@@ -435,8 +435,8 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->position().column - original_word_start.column;
     CHECK_GT(length, ColumnNumberDelta{});
 
-    const auto& line_object = result->buffer().at(result->position().line);
-    const SingleLine& current_line_contents = line_object.contents();
+    const SingleLine& current_line_contents =
+        result->buffer().at(result->position().line)->contents();
     SingleLine token =
         current_line_contents.Substring(original_word_start.column, length);
 

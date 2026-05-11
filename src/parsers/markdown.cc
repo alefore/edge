@@ -122,7 +122,7 @@ class MarkdownParser : public LineOrientedTreeParser {
                 result->position().column - original_position.column;
             SingleLine str = result->buffer()
                                  .at(original_position.line)
-                                 .contents()
+                                 ->contents()
                                  .Substring(original_position.column, length);
             result->PushAndPop(length,
                                dictionary_.lines().range().empty() ||

@@ -228,7 +228,7 @@ PossibleError DispatchLine(
 std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
   if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
   DECLARE_OR_RETURN(SectionHeader header,
-                    ParseSectionHeader(block.at(LineNumber{}).contents()));
+                    ParseSectionHeader(block.at(LineNumber{})->contents()));
   CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"view"));
   LogViewName log_view_name{header.value};
   std::unordered_map<LogEntryName,
@@ -277,7 +277,7 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
   // Each block starts with the [type Name] line
   // TODO(P2, 2026-04-28): Remove comments.
   DECLARE_OR_RETURN(SectionHeader header,
-                    ParseSectionHeader(block.at(LineNumber{}).contents()));
+                    ParseSectionHeader(block.at(LineNumber{})->contents()));
   CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"type"));
   LogTypeName log_type_name{header.value};
   LogTypeActivationPolicy activation_policy = LogTypeActivationPolicy::Explicit;
@@ -375,7 +375,7 @@ std::expected<LogModel, language::Error> ParseLogConfig(
                              &views](LineSequence block) -> PossibleError {
         DECLARE_OR_RETURN(
             SectionHeader header,
-            ParseSectionHeader(block.at(LineNumber{}).contents()));
+            ParseSectionHeader(block.at(LineNumber{})->contents()));
         if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")) {
           DECLARE_OR_RETURN(LogType log_type, ParseLogType(block));
           log_types.insert({log_type.name(), log_type});

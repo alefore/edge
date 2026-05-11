@@ -74,7 +74,7 @@ void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
                         .source_line_content =
                             mark.source_line > source_buffer.EndLine()
                                 ? Line{SingleLine{LazyString{L"(expired)"}}}
-                                : source_buffer.at(mark.source_line),
+                                : source_buffer.at(mark.source_line).value,
                         .target_buffer = mark.target_buffer,
                         .target_line_column = mark.target_line_column};
       source_target_marks.expired_marks.insert(
