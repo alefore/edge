@@ -218,8 +218,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
               std::ranges::to<std::vector>());
           if (filter_buffer.lines_size() > LineNumberDelta(1)) {
             VLOG(5) << "Erasing the first (empty) line.";
-            CHECK(filter_buffer.LineAt(LineNumber())->empty());
-            filter_buffer.EraseLines(LineNumber(), LineNumber().next());
+            CHECK(filter_buffer.MaybeEraseEmptyFirstLine());
           }
         }
         return filter_buffer_root;
