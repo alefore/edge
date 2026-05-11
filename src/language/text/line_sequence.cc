@@ -255,10 +255,11 @@ lazy_string::LazyString LineSequence::ToLazyString() const {
 }
 
 lazy_string::SingleLine LineSequence::FoldLines() const {
-  return Concatenate(*this |
-                     std::views::transform(&staging::Value<Line>::value) |
-                     std::views::transform(&Line::contents) |
-                     Intersperse(SingleLine{LazyString{L" "}}));
+  return Concatenate(
+      *this | std::views::transform([](const staging::Value<Line>& line) {
+        return line->contents();
+      }) |
+      Intersperse(SingleLine{LazyString{L" "}}));
 }
 
 LineNumberDelta LineSequence::size() const {
