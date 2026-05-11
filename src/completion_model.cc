@@ -7,9 +7,11 @@
 #include "src/language/text/line_sequence_functional.h"
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/language/text/sorted_line_sequence.h"
+#include "src/language/version_value.h"
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
@@ -98,9 +100,9 @@ std::optional<DictionaryValue> FindCompletionInModel(
 
   if (line_it == contents.lines().end()) return std::nullopt;
 
-  VLOG(5) << "Check: " << compressed_text << " against: " << *line_it;
-  DECLARE_OR_RETURN_OTHER(const ParsedLine& parsed_line, Parse(*line_it),
-                          std::nullopt);
+  VLOG(5) << "Check: " << compressed_text << " against: " << (*line_it).value;
+  DECLARE_OR_RETURN_OTHER(const ParsedLine& parsed_line,
+                          Parse((*line_it).value), std::nullopt);
   if (compressed_text != parsed_line.key) {
     VLOG(5) << "No match: [" << compressed_text << "] != [" << parsed_line.key
             << "]";
@@ -235,7 +237,8 @@ DictionaryManager::FindWordDataWithIndex(
 /* static */ void DictionaryManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
   std::ranges::for_each(
-      contents | std::views::transform(Parse) | language::view::SkipErrors |
+      contents | std::views::transform(&staging::Value<Line>::value) |
+          std::views::transform(Parse) | language::view::SkipErrors |
           std::views::filter([](const ParsedLine& entry) {
             return entry.key.read().read() != entry.value.read();
           }),

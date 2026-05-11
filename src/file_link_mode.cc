@@ -46,6 +46,7 @@ extern "C" {
 
 namespace execution = afc::infrastructure::execution;
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
@@ -538,8 +539,8 @@ class TestDriver {
     free(path);
 
     std::ranges::for_each(
-        contents | std::views::transform([](const Line& line) {
-          return line.contents().read();
+        contents | std::views::transform([](const staging::Value<Line>& line) {
+          return line->contents().read();
         }) | Intersperse(LazyString{L"\n"}),
         [tmp_fd](LazyString line) {
           std::string line_str = line.ToBytes();

@@ -10,5 +10,4 @@ Origin MergeOrigins(Origin a, Origin b) {
   if (!b_ptr) return a;
   return *a_ptr > *b_ptr ? a : b;
 }
-
 }  // namespace afc::language::staging

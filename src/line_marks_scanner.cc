@@ -9,6 +9,8 @@
 #include "src/line_marks.h"
 #include "src/open_file_position.h"
 
+namespace staging = afc::language::staging;
+
 using afc::infrastructure::Path;
 using afc::language::EmptyValue;
 using afc::language::ValueOrError;
@@ -40,25 +42,25 @@ void ScanLineMarks(EditorState& editor, BufferName buffer_name,
         .Transform([buffer_name, &editor, source_line](PredictorOutput output) {
           std::ranges::for_each(
               output.contents.read().lines() |
-                  std::views::transform(
-                      [&buffer_name, &editor, &source_line](
-                          const Line& line) -> ValueOrError<LineMarks::Mark> {
-                        DECLARE_OR_RETURN(
-                            Path target_buffer,
-                            Path::New(ToLazyString(line.contents())));
-                        open_file_position::Spec spec =
-                            open_file_position::SpecFromLineMetadata(
-                                line.metadata().get());
-                        return LineMarks::Mark{
-                            .source_buffer = buffer_name,
-                            .source_line = source_line,
-                            .source_line_content = line,
-                            .target_buffer = BufferFileId(target_buffer),
-                            .target_line_column =
-                                std::holds_alternative<LineColumn>(spec)
-                                    ? std::get<LineColumn>(spec)
-                                    : LineColumn{}};
-                      }) |
+                  std::views::transform([&buffer_name, &editor, &source_line](
+                                            const staging::Value<Line>& line)
+                                            -> ValueOrError<LineMarks::Mark> {
+                    DECLARE_OR_RETURN(
+                        Path target_buffer,
+                        Path::New(ToLazyString(line->contents())));
+                    open_file_position::Spec spec =
+                        open_file_position::SpecFromLineMetadata(
+                            line->metadata().get());
+                    return LineMarks::Mark{
+                        .source_buffer = buffer_name,
+                        .source_line = source_line,
+                        .source_line_content = line.value,
+                        .target_buffer = BufferFileId(target_buffer),
+                        .target_line_column =
+                            std::holds_alternative<LineColumn>(spec)
+                                ? std::get<LineColumn>(spec)
+                                : LineColumn{}};
+                  }) |
                   SkipErrors,
               [&editor](LineMarks::Mark mark) {
                 LOG(INFO) << "Found a mark: " << mark;

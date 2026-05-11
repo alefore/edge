@@ -11,11 +11,10 @@ LineSequence FilterLines(
     const std::function<FilterPredicateResult(const language::text::Line&)>&
         predicate) {
   MutableLineSequence builder;
-  // TODO(2026-05-08, P1): Don't swallow the original origin. Preserve it.
-  builder.append_back(input | std::views::filter([&](const Line& line) {
-                        return predicate(line) == FilterPredicateResult::Keep;
-                      }) |
-                      staging::AddOrigin(staging::Clean));
+  builder.append_back(
+      input | std::views::filter([&](const staging::Value<Line>& line) {
+        return predicate(line.value) == FilterPredicateResult::Keep;
+      }));
   if (builder.size() > LineNumberDelta(1))
     builder.EraseLines(LineNumber(), LineNumber(1));
   LOG(INFO) << "Output: [" << builder.snapshot().ToLazyString() << "]";

@@ -321,10 +321,7 @@ void MutableLineSequence::FoldNextLine(LineNumber position,
 }
 
 void MutableLineSequence::push_back(std::wstring str) {
-  // TODO(2026-05-08, P2, staging): Don't assume staging::Clean. Force customers
-  // to pass it.
-  append_back(LineSequence::BreakLines(LazyString{str}) |
-              staging::AddOrigin(staging::Clean));
+  append_back(LineSequence::BreakLines(LazyString{str}));
 }
 
 namespace {
@@ -467,8 +464,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
 
 LineSequence operator+(const LineSequence& lhs, const LineSequence& rhs) {
   MutableLineSequence output{lhs};
-  // TODO(P1, 2026-05-08): Don't assume Clean here!
-  output.append_back(rhs | staging::AddOrigin(staging::Clean));
+  output.append_back(rhs);
   return output.snapshot();
 }
 

@@ -257,18 +257,19 @@ ContentStats AnalyzeContent(const LineSequence& contents,
     output.words = 0;
     output.alnums = 0;
     output.characters = 0;
-    std::ranges::for_each(contents, [&output](const Line& line) {
-      ColumnNumber i;
-      output.characters = *output.characters + line.EndColumn().read();
-      while (i < line.EndColumn()) {
-        while (i < line.EndColumn() && !isalnum(line.get(i))) ++i;
-        if (i < line.EndColumn()) ++*output.words;
-        while (i < line.EndColumn() && isalnum(line.get(i))) {
-          ++i;
-          ++*output.alnums;
-        }
-      }
-    });
+    std::ranges::for_each(
+        contents, [&output](const staging::Value<Line>& line) {
+          ColumnNumber i;
+          output.characters = *output.characters + line->EndColumn().read();
+          while (i < line->EndColumn()) {
+            while (i < line->EndColumn() && !isalnum(line->get(i))) ++i;
+            if (i < line->EndColumn()) ++*output.words;
+            while (i < line->EndColumn() && isalnum(line->get(i))) {
+              ++i;
+              ++*output.alnums;
+            }
+          }
+        });
   }
   VLOG(7) << "AnalyzeContent: Output: " << ToString(output);
   return output;

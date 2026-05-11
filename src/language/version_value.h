@@ -50,6 +50,11 @@ struct Value {
 };
 
 template <typename T>
+bool operator==(const Value<T>& a, const Value<T>& b) {
+  return a.origin == b.origin && a.value == b.value;
+}
+
+template <typename T>
 auto CleanValue(T&& value) -> Value<std::decay_t<T>> {
   return Value<std::decay_t<T>>{.origin = Clean,
                                 .value = std::forward<T>(value)};

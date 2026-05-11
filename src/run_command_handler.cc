@@ -30,6 +30,7 @@
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::futures::DeleteNotification;
 using afc::infrastructure::ExtendedChar;
@@ -392,12 +393,12 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
         std::ranges::for_each(
             buffer.contents().snapshot(),
-            [&editor_state, input](const Line& arg) {
+            [&editor_state, input](const staging::Value<Line>& arg) {
               RunCommandHandler(editor_state,
                                 std::map<std::wstring, LazyString>{
-                                    {L"ARG", arg.contents().read()}},
+                                    {L"ARG", arg->contents().read()}},
                                 input.read(),
-                                SingleLine{LazyString{L" "}} + arg.contents());
+                                SingleLine{LazyString{L" "}} + arg->contents());
             });
         return EmptyValue{};
       })

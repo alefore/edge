@@ -12,6 +12,7 @@
 #include "src/vm/default_environment.h"
 #include "src/vm/vm.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
@@ -140,9 +141,10 @@ std::optional<LogTypeName> LogModel::InferLogType(
       std::views::filter([&](const std::pair<LogTypeName, LogType>& data) {
         return data.second.activation_policy() ==
                    LogTypeActivationPolicy::Implicit &&
-               std::ranges::all_of(lines, [&data](const Line& line) -> bool {
-                 return data.second.Parse(line.contents()).has_value();
-               });
+               std::ranges::all_of(
+                   lines, [&data](const staging::Value<Line>& line) -> bool {
+                     return data.second.Parse(line->contents()).has_value();
+                   });
       }) |
       std::views::keys | std::ranges::to<std::vector>();
   if (options.empty()) {

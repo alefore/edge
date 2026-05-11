@@ -82,7 +82,7 @@ futures::Value<PossibleError> GenerateContents(EditorState&, LogLine log_line,
             section.push_back(L"");
             return std::move(section).snapshot();
           }) |
-      std::views::join | staging::AddOrigin(staging::Clean));
+      std::views::join);
   output.push_back(L"");
   target.InsertInPosition(output.snapshot(), target.contents().range().end(),
                           std::nullopt);

@@ -440,12 +440,15 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                FilterSortBufferOutput output =
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(), SingleLine{LazyString{L""}},
-                       container::Materialize<LineSequence>(std::vector<Line>{
-                           LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
-                               .Build(),
-                           LineBuilder{
-                               SingleLine{LazyString{L"value:\"bar\\n\""}}}
-                               .Build()}),
+                       container::Materialize<LineSequence>(
+                           std::vector<Line>{
+                               LineBuilder{
+                                   SingleLine{LazyString{L"value:\"foo\""}}}
+                                   .Build(),
+                               LineBuilder{
+                                   SingleLine{LazyString{L"value:\"bar\\n\""}}}
+                                   .Build()} |
+                           staging::AddOrigin(staging::Clean)),
                        features});
                CHECK_EQ(output.matches.size(), 2ul);
                // TODO(2024-09-17): This is brittle, the order of the results
@@ -463,12 +466,15 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(),
                        SingleLine{LazyString{L"quux"}},
-                       container::Materialize<LineSequence>(std::vector<Line>{
-                           LineBuilder{
-                               SingleLine{LazyString{L"value:\"foobar\""}}}
-                               .Build(),
-                           LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
-                               .Build()}),
+                       container::Materialize<LineSequence>(
+                           std::vector<Line>{
+                               LineBuilder{
+                                   SingleLine{LazyString{L"value:\"foobar\""}}}
+                                   .Build(),
+                               LineBuilder{
+                                   SingleLine{LazyString{L"value:\"foo\""}}}
+                                   .Build()} |
+                           staging::AddOrigin(staging::Clean)),
                        features});
                CHECK(output.matches.empty());
              }},
@@ -522,19 +528,22 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                    FilterSortBuffer(FilterSortBufferInput{
                        DeleteNotification::Never(),
                        SingleLine{LazyString{L"f"}},
-                       container::Materialize<LineSequence>(std::vector<Line>{
-                           LineBuilder{
-                               SingleLine{LazyString{L"value:\"foobar \\\""}}}
-                               .Build(),
-                           LineBuilder{SingleLine{LazyString{L"value:\"foo\""}}}
-                               .Build(),
-                           LineBuilder{
-                               SingleLine{LazyString{L"value:\"foo\\n bar\""}}}
-                               .Build(),
-                           LineBuilder{SingleLine{LazyString{
-                                           L"value:\"foo \\o bar \\\""}}}
-                               .Build(),
-                       }),
+                       container::Materialize<LineSequence>(
+                           std::vector<Line>{
+                               LineBuilder{SingleLine{LazyString{
+                                               L"value:\"foobar \\\""}}}
+                                   .Build(),
+                               LineBuilder{
+                                   SingleLine{LazyString{L"value:\"foo\""}}}
+                                   .Build(),
+                               LineBuilder{SingleLine{LazyString{
+                                               L"value:\"foo\\n bar\""}}}
+                                   .Build(),
+                               LineBuilder{SingleLine{LazyString{
+                                               L"value:\"foo \\o bar \\\""}}}
+                                   .Build(),
+                           } |
+                           staging::AddOrigin(staging::Clean)),
                        features});
                CHECK_EQ(output.matches.size(), 2ul);
                // TODO(2024-09-17): This is brittle, the order of the results

@@ -25,6 +25,7 @@ extern "C" {
 #include "src/vm/escape.h"
 
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::futures::DeleteNotification;
 using afc::futures::UnwrapVectorFuture;
@@ -100,12 +101,13 @@ futures::Value<std::vector<gc::Root<OpenBuffer>>> OpenFiles(
         if (std::vector<PathAndOpenFilePositionSpec> paths =
                 predictor_output.contents.read().lines() |
                 std::views::transform(
-                    [](Line line) -> ValueOrError<PathAndOpenFilePositionSpec> {
+                    [](staging::Value<Line> line)
+                        -> ValueOrError<PathAndOpenFilePositionSpec> {
                       DECLARE_OR_RETURN(
-                          Path path, Path::New(ToLazyString(line.contents())));
+                          Path path, Path::New(ToLazyString(line->contents())));
                       open_file_position::Spec spec =
                           open_file_position::SpecFromLineMetadata(
-                              line.metadata().get());
+                              line->metadata().get());
                       return PathAndOpenFilePositionSpec{.path = path,
                                                          .spec = spec};
                     }) |

@@ -44,11 +44,7 @@ class LineSequence {
       : LineSequence(std::invoke([&] {
           Lines::Ptr output = nullptr;
           while (a != b) {
-            output =
-                Lines::PushBack(std::move(output),
-                                staging::Value<Line>{.origin = staging::Clean,
-                                                     .value = Line{*a}})
-                    .get_shared();
+            output = Lines::PushBack(std::move(output), *a).get_shared();
             ++a;
           }
           return VisitPointer(
@@ -144,14 +140,14 @@ class LineSequenceIterator {
 
   using iterator_category = std::random_access_iterator_tag;
   using difference_type = int;
-  using value_type = Line;
+  using value_type = staging::Value<Line>;
   using reference = value_type&;
 
   LineSequenceIterator(LineSequence container, LineNumber position)
       : container_(std::move(container)), position_(position) {}
 
-  // TODO(2026-05-08, P2): Change it to return a staging::Value<Line>.
-  Line operator*() const { return container_.at(position_).value; }
+  value_type operator*() const { return container_.at(position_); }
+  const value_type* operator->() const { return &(container_.at(position_)); }
 
   bool operator!=(const LineSequenceIterator& other) const {
     return !(*this == other);

@@ -21,6 +21,7 @@
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
+namespace staging = afc::language::staging;
 
 using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::Path;
@@ -54,14 +55,16 @@ static const std::unordered_set<wchar_t> Space = {L' '};
 
 auto GetBlockIndices(LineSequence lines) {
   return lines | std::views::enumerate |
-         std::views::filter([](std::tuple<size_t, const Line&> input) {
-           SingleLine line = Trim(std::get<1>(input).contents(), Space);
-           return StartsWith(line, LazyString{L"["}) &&
-                  EndsWith(line, LazyString{L"]"});
-         }) |
-         std::views::transform([](std::tuple<size_t, const Line&> input) {
-           return LineColumn{LineNumber{std::get<0>(input)}};
-         });
+         std::views::filter(
+             [](std::tuple<size_t, const staging::Value<Line>&> input) {
+               SingleLine line = Trim(std::get<1>(input)->contents(), Space);
+               return StartsWith(line, LazyString{L"["}) &&
+                      EndsWith(line, LazyString{L"]"});
+             }) |
+         std::views::transform(
+             [](std::tuple<size_t, const staging::Value<Line>&> input) {
+               return LineColumn{LineNumber{std::get<0>(input)}};
+             });
 }
 
 std::vector<LineSequence> PartitionIntoBlocks(LineSequence lines) {
@@ -236,7 +239,7 @@ std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
       expressions;
   std::vector<Error> errors =
       block | std::views::drop(1) |
-      std::views::transform([&](Line line) -> PossibleError {
+      std::views::transform([&](staging::Value<Line> line) -> PossibleError {
         return DispatchLine(
             {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"variable"),
               [&expressions](NonEmptySingleLine value) -> PossibleError {
@@ -255,7 +258,7 @@ std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
                     expr_str.value());
                 return EmptyValue{};
               }}},
-            line.contents());
+            line->contents());
       }) |
       GetErrors | std::ranges::to<std::vector>();
   if (!errors.empty()) return MergeErrors(errors, L", ");
@@ -285,7 +288,7 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
   std::vector<LogEntryConfiguration> entries;
   std::vector<Error> errors =
       block | std::views::drop(1) |
-      std::views::transform([&](Line line) -> PossibleError {
+      std::views::transform([&](staging::Value<Line> line) -> PossibleError {
         return DispatchLine(
             {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"group"),
               [&entries](NonEmptySingleLine value) -> PossibleError {
@@ -343,7 +346,7 @@ std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
                                value);
                 return EmptyValue{};
               }}},
-            line.contents());
+            line->contents());
       }) |
       GetErrors | std::ranges::to<std::vector>();
   std::wregex pattern;

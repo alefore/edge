@@ -462,9 +462,10 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
                    .Transform([&editor_state](LineSequence buffer_contents)
                                   -> std::vector<Path> {
                      return buffer_contents |
-                            std::views::transform([](const Line& line) {
-                              return Path::New(line.contents().read());
-                            }) |
+                            std::views::transform(
+                                [](const staging::Value<Line>& line) {
+                                  return Path::New(line->contents().read());
+                                }) |
                             language::view::SkipErrors |
                             std::views::transform([&editor_state](
                                                       const Path& path) {

@@ -22,11 +22,15 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
           TrustedConstructorTag(),
           [&] {
             TRACK_OPERATION(SortedLineSequence_sort);
-            std::vector<Line> lines = input | std::ranges::to<std::vector>();
-            std::sort(lines.begin(), lines.end(), compare);
+            std::vector<staging::Value<Line>> lines =
+                input | std::ranges::to<std::vector>();
+            std::sort(lines.begin(), lines.end(),
+                      [&compare](const staging::Value<Line>& a,
+                                 const staging::Value<Line>& b) {
+                        return compare(a.value, b.value);
+                      });
             MutableLineSequence builder;
-            builder.append_back(std::move(lines) |
-                                staging::AddOrigin(staging::Clean));
+            builder.append_back(std::move(lines));
             builder.MaybeEraseEmptyFirstLine();
             return builder.snapshot();
           }(),
@@ -56,9 +60,9 @@ SortedLineSequence SortedLineSequence::FilterLines(
 
 bool SortedLineSequence::contains(SingleLine key) const {
   LineSequenceIterator it = upper_bound(LineBuilder{key}.Build());
-  if (it == lines().begin()) return false;
+  if (it->value == lines().begin()->value) return false;
   --it;
-  return (*it).contents() == key;
+  return it->value.contents() == key;
 }
 
 SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(

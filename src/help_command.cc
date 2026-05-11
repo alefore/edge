@@ -415,8 +415,7 @@ class HelpCommand : public Command {
         case Handler<CommandLineValues>::VariableType::None:
           break;
       }
-      output.append_back(LineSequence::BreakLines(h.help()) |
-                         staging::AddOrigin(staging::Clean));
+      output.append_back(LineSequence::BreakLines(h.help()));
       output.push_back(L"");
     }
   }

@@ -48,6 +48,7 @@
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 namespace numbers = afc::math::numbers;
+namespace staging = afc::language::staging;
 
 using afc::infrastructure::Path;
 using afc::language::Error;
@@ -672,10 +673,11 @@ ValueOrError<gc::Root<Expression>> CompileString(
 language::ValueOrError<language::gc::Root<Expression>> CompileString(
     const language::text::LineSequence& str,
     language::gc::Ptr<Environment> environment) {
-  return CompileLines(str | std::views::transform([](const Line& line) {
-                        return line.contents();
-                      }),
-                      std::move(environment));
+  return CompileLines(
+      str | std::views::transform([](const staging::Value<Line>& line) {
+        return line->contents();
+      }),
+      std::move(environment));
 }
 
 }  // namespace afc::vm

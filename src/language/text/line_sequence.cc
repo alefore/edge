@@ -255,7 +255,9 @@ lazy_string::LazyString LineSequence::ToLazyString() const {
 }
 
 lazy_string::SingleLine LineSequence::FoldLines() const {
-  return Concatenate(*this | std::views::transform(&Line::contents) |
+  return Concatenate(*this |
+                     std::views::transform(&staging::Value<Line>::value) |
+                     std::views::transform(&Line::contents) |
                      Intersperse(SingleLine{LazyString{L" "}}));
 }
 

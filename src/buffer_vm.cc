@@ -679,22 +679,19 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                             NonEmptySingleLine(percent) +
                                             SINGLE_LINE_CONSTANT(L"%]"))
                                             .Build();
+                                    // TODO(2026-05-11, P2): I think the
+                                    // conversion to ToVector shouldn't be
+                                    // necessary below. We should be able to
+                                    // pass the snapshot directly (with some
+                                    // changes to OpenBuffer::AppendLines).
                                     output_lock(
                                         [percent_line = std::move(percent_line),
                                          lines =
                                              tmp.snapshot() |
                                              std::ranges::to<std::vector>()](
                                             OpenBuffer& output_buffer) mutable {
-                                          // TODO(2026-05-08, P2): Figure out a
-                                          // better way to communicate the
-                                          // origin. Probably means changing the
-                                          // snapshot to return a
-                                          // staging::Value.
                                           output_buffer.AppendLines(
-                                              std::move(lines) |
-                                              staging::AddOrigin(
-                                                  staging::Clean) |
-                                              std::ranges::to<std::vector>());
+                                              std::move(lines));
                                           output_buffer.status()
                                               .SetInformationText(
                                                   std::move(percent_line));
@@ -703,15 +700,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                   });
                             });
                             tmp.MaybeEraseEmptyFirstLine();
+                            // TODO(2026-05-11, P2): Same as comment above,
+                            // avoid conversion to vector; pass the lines =
+                            // tmp.snapshot() directly.
                             output_lock(
                                 [lines = tmp.snapshot() |
-                                         staging::AddOrigin(staging::Clean) |
                                          std::ranges::to<std::vector>()](
                                     OpenBuffer& output_buffer) {
-                                  // TODO(2026-05-08, P2): Figure out a better
-                                  // way to communicate the origin. Probably
-                                  // means changing the snapshot to return a
-                                  // staging::Value.
                                   output_buffer.AppendLines(std::move(lines));
                                   // TODO(2026-05-11, P2, trivial): Add a
                                   // MaybeEraseEmptyFirstLine method to
