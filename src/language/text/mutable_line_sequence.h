@@ -175,6 +175,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // case the character will just get appended (extending the line by exactly
   // one character).
   void SetCharacter(language::text::LineColumn position, int c,
+                    staging::Origin origin,
                     infrastructure::screen::Style modifiers);
 
   void InsertCharacter(language::text::LineColumn position);

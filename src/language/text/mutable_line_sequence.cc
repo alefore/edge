@@ -188,11 +188,11 @@ void MutableLineSequence::DeleteToLineEnd(LineColumn position,
 }
 
 void MutableLineSequence::SetCharacter(LineColumn position, int c,
+                                       staging::Origin origin,
                                        Style modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers;
-  // TODO(2026-05-09, P2): Don't assume staging::Clean.
-  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
+  TransformLine(position.line, origin, [&](LineBuilder& options) {
     options.SetCharacter(position.column, c, modifiers);
   });
 

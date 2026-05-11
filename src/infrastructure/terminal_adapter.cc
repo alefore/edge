@@ -99,7 +99,8 @@ futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
           ColumnNumber(0) + LastViewSize(data_.value()).column) {
         MoveToNextLine();
       }
-      data_->contents.SetCharacter(data_->position, c, modifiers);
+      data_->contents.SetCharacter(data_->position, c, staging::Clean,
+                                   modifiers);
       data_->position.column++;
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";
