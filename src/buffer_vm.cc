@@ -708,18 +708,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                          std::ranges::to<std::vector>()](
                                     OpenBuffer& output_buffer) {
                                   output_buffer.AppendLines(std::move(lines));
-                                  // TODO(2026-05-11, P2, trivial): Add a
-                                  // MaybeEraseEmptyFirstLine method to
-                                  // OpenBuffer.
-                                  if (output_buffer.contents().size() >
-                                          LineNumberDelta{1} &&
-                                      output_buffer.contents()
-                                          .snapshot()
-                                          .at(LineNumber{})
-                                          ->contents()
-                                          .empty())
-                                    output_buffer.EraseLines(LineNumber{},
-                                                             LineNumber{1});
+                                  output_buffer.MaybeEraseEmptyFirstLine();
                                   output_buffer.status().Reset();
                                   LOG(INFO) << "Output size: "
                                             << output_buffer.contents().size();
