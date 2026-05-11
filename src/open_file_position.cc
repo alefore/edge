@@ -158,6 +158,8 @@ const bool parse_path_spec_tests_registration = tests::Register(
 const LineMetadataKey kSearchKey =
     LineMetadataKey{SINGLE_LINE_CONSTANT(L"search")};
 const LineMetadataKey kLineKey = LineMetadataKey{SINGLE_LINE_CONSTANT(L"line")};
+const LineMetadataKey kColumnKey =
+    LineMetadataKey{SINGLE_LINE_CONSTANT(L"column")};
 }  // namespace
 
 LineMetadataMap GetLineMetadata(Spec spec) {
@@ -170,11 +172,13 @@ LineMetadataMap GetLineMetadata(Spec spec) {
                   futures::Progressive<SingleLine>(search.read().read())}}};
           },
           [](LineColumn position) {
-            // TODO(P3, trivial, 2026-04-12): Also handle column.
             return LineMetadataMap{
                 {{kLineKey,
                   futures::Progressive<SingleLine>(
-                      NonEmptySingleLine(position.line.read()).read())}}};
+                      NonEmptySingleLine(position.line.read()).read())},
+                 {kColumnKey,
+                  futures::Progressive<SingleLine>(
+                      NonEmptySingleLine(position.column.read()).read())}}};
           },
       },
       spec);
