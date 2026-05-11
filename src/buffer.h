@@ -246,13 +246,10 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   void AppendToLastLine(language::lazy_string::SingleLine str);
   void AppendToLastLine(language::text::Line line);
 
-  // Adds a new line. If there's a previous line, notifies various things about
-  // it.
-  void StartNewLine(language::text::Line line);
   // Equivalent to calling StartNewLine repeatedly, but significantly more
   // efficient.
   void AppendLines(
-      std::vector<language::text::Line> lines, language::staging::Origin origin,
+      std::vector<language::staging::Value<language::text::Line>> lines,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::Show);
 

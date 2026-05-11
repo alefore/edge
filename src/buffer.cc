@@ -165,17 +165,19 @@ namespace afc::editor {
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
-std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
-                                     const LineProcessorMap& line_processor_map,
-                                     std::vector<Line> lines) {
+std::vector<staging::Value<Line>> UpdateLineMetadata(
+    OpenBuffer& buffer, const LineProcessorMap& line_processor_map,
+    std::vector<staging::Value<Line>> lines) {
   if (!buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
 
   VLOG(8) << "UpdateLineMetadata: " << buffer.name()
           << " lines: " << lines.size();
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
-  for (Line& line : lines)
-    if (!line.empty() &&
-        (!line.metadata().has_value() || line.metadata().get().empty())) {
+  std::ranges::for_each(lines, [&](staging::Value<Line>& line_with_origin) {
+    line_with_origin.transform([&](Line line) {
+      if (line.empty() ||
+          (line.metadata().has_value() && !line.metadata().get().empty()))
+        return line;
       LineBuilder line_builder(std::move(line));
       line_builder.SetMetadata(LazyValue<LineMetadataMap>(
           [&line_processor_map, contents = line_builder.contents()] {
@@ -192,8 +194,9 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                                                 std::move(*processor_output)});
             return line_metadata_map;
           }));
-      line = std::move(line_builder).Build();
-    }
+      return std::move(line_builder).Build();
+    });
+  });
   return lines;
 }
 
@@ -240,11 +243,8 @@ void SetMutableLineSequenceLineMetadata(
     OpenBuffer& buffer, const LineProcessorMap& line_processor_map,
     MutableLineSequence& contents, LineNumber position) {
   staging::Value<Line> line = buffer.contents().at(position);
-  contents.set_line(
-      position,
-      staging::Value<Line>{.origin = line.origin,
-                           .value = UpdateLineMetadata(
-                               buffer, line_processor_map, {line.value})[0]});
+  contents.set_line(position,
+                    UpdateLineMetadata(buffer, line_processor_map, {line})[0]);
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -918,14 +918,8 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
   buffer_syntax_parser_.Parse(GetBufferSyntaxParserInput(*this));
 }
 
-void OpenBuffer::StartNewLine(Line line) {
-  TRACK_OPERATION(OpenBuffer_StartNewLine);
-  AppendLines({std::move(line)}, line_origin_tracker_.active());
-}
-
-// TODO(2026-05-08, version): Apply version id.
 void OpenBuffer::AppendLines(
-    std::vector<Line> lines, staging::Origin origin,
+    std::vector<staging::Value<Line>> lines,
     language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
   TRACK_OPERATION(OpenBuffer_AppendLines);
 
@@ -934,8 +928,7 @@ void OpenBuffer::AppendLines(
   lines_read_rate_.IncrementAndGetEventsPerSecond(lines_added.read());
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
   contents_.append_back(
-      UpdateLineMetadata(*this, line_processor_map_, std::move(lines)) |
-          staging::AddOrigin(origin),
+      UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
       observer_behavior);
 
   static const LineNumberDelta kLineActivationThreshold{8};
@@ -1324,8 +1317,7 @@ void OpenBuffer::AppendRawLine(
     MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
   contents_.append_back(
-      UpdateLineMetadata(*this, line_processor_map_, {std::move(line.value)}) |
-          staging::AddOrigin(line.origin),
+      UpdateLineMetadata(*this, line_processor_map_, {std::move(line)}),
       observer_behavior);
 }
 
@@ -1963,7 +1955,9 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
               lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
               tracker_erase_call = nullptr;
 
-              buffer->AppendLines(std::move(lines_to_insert), staging::Clean,
+              buffer->AppendLines(std::move(lines_to_insert) |
+                                      staging::AddOrigin(staging::Clean) |
+                                      std::ranges::to<std::vector>(),
                                   MutableLineSequence::ObserverBehavior::Hide);
             },
             [](const auto&) {}, WeakPtrFromThis())});

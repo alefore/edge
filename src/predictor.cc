@@ -426,8 +426,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   dictionary.ptr()->AppendLines(
       words | std::views::transform([](NonEmptySingleLine word) {
         return Line{word.read()};
-      }) | std::ranges::to<std::vector>(),
-      staging::Clean);
+      }) |
+      staging::AddOrigin(staging::Clean) | std::ranges::to<std::vector>());
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }

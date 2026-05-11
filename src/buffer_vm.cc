@@ -691,7 +691,10 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                           // snapshot to return a
                                           // staging::Value.
                                           output_buffer.AppendLines(
-                                              std::move(lines), staging::Clean);
+                                              std::move(lines) |
+                                              staging::AddOrigin(
+                                                  staging::Clean) |
+                                              std::ranges::to<std::vector>());
                                           output_buffer.status()
                                               .SetInformationText(
                                                   std::move(percent_line));
@@ -702,14 +705,17 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                             tmp.MaybeEraseEmptyFirstLine();
                             output_lock(
                                 [lines = tmp.snapshot() |
+                                         staging::AddOrigin(staging::Clean) |
                                          std::ranges::to<std::vector>()](
                                     OpenBuffer& output_buffer) {
                                   // TODO(2026-05-08, P2): Figure out a better
                                   // way to communicate the origin. Probably
                                   // means changing the snapshot to return a
                                   // staging::Value.
-                                  output_buffer.AppendLines(std::move(lines),
-                                                            staging::Clean);
+                                  output_buffer.AppendLines(std::move(lines));
+                                  // TODO(2026-05-11, P2, trivial): Add a
+                                  // MaybeEraseEmptyFirstLine method to
+                                  // OpenBuffer.
                                   if (output_buffer.contents().size() >
                                           LineNumberDelta{1} &&
                                       output_buffer.contents()
@@ -872,22 +878,22 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           [](gc::Ptr<OpenBuffer> buffer) {
             buffer->AppendLines(
                 Tracker::GetData() |
-                    std::views::transform([](Tracker::Data data) -> const Line {
-                      return LineBuilder(SingleLine{LazyString{L"\""}} +
-                                         SingleLine{LazyString{data.name}} +
-                                         SingleLine{LazyString{L"\","}} +
-                                         SingleLine{LazyString{std::to_wstring(
-                                             data.executions)}} +
-                                         SingleLine{LazyString{L","}} +
-                                         SingleLine{LazyString{
-                                             std::to_wstring(data.seconds)}} +
-                                         SingleLine{LazyString{L","}} +
-                                         SingleLine{LazyString{std::to_wstring(
-                                             data.longest_seconds)}})
-                          .Build();
-                    }) |
-                    std::ranges::to<std::vector>(),
-                staging::Clean);
+                std::views::transform([](Tracker::Data data) -> const Line {
+                  return LineBuilder(SingleLine{LazyString{L"\""}} +
+                                     SingleLine{LazyString{data.name}} +
+                                     SingleLine{LazyString{L"\","}} +
+                                     SingleLine{LazyString{
+                                         std::to_wstring(data.executions)}} +
+                                     SingleLine{LazyString{L","}} +
+                                     SingleLine{LazyString{
+                                         std::to_wstring(data.seconds)}} +
+                                     SingleLine{LazyString{L","}} +
+                                     SingleLine{LazyString{std::to_wstring(
+                                         data.longest_seconds)}})
+                      .Build();
+                }) |
+                staging::AddOrigin(staging::Clean) |
+                std::ranges::to<std::vector>());
             buffer->AppendLine(staging::CleanValue(SingleLine{}));
           })
           .ptr());
