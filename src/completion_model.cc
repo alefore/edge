@@ -237,8 +237,11 @@ DictionaryManager::FindWordDataWithIndex(
 /* static */ void DictionaryManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
   std::ranges::for_each(
-      contents | std::views::transform(&staging::Value<Line>::value) |
-          std::views::transform(Parse) | language::view::SkipErrors |
+      contents |
+          std::views::transform([](const staging::Value<Line>& staging_line) {
+            return Parse(staging_line.value);
+          }) |
+          language::view::SkipErrors |
           std::views::filter([](const ParsedLine& entry) {
             return entry.key.read().read() != entry.value.read();
           }),
