@@ -157,7 +157,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
     switch (c) {
       case '@': {
         VLOG(9) << "Terminal: ich: Insert character.";
-        data_->contents.InsertCharacter(data_->position);
+        data_->contents.InsertCharacter(data_->position, staging::Clean);
         return read_index;
       }
 

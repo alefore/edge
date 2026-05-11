@@ -65,7 +65,7 @@ LineNumber MutableLineSequence::EndLine() const {
 }
 
 Range MutableLineSequence::range() const {
-  return Range(LineColumn(), LineColumn(EndLine(), back().EndColumn()));
+  return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
 }
 
 NonNull<std::unique_ptr<MutableLineSequence>> MutableLineSequence::copy()
@@ -199,9 +199,9 @@ void MutableLineSequence::SetCharacter(LineColumn position, int c,
   observer_->SetCharacter(position);
 }
 
-void MutableLineSequence::InsertCharacter(LineColumn position) {
-  // TODO(2026-05-09, P2): Don't assume staging::Clean.
-  TransformLine(position.line, staging::Clean, [&](LineBuilder& options) {
+void MutableLineSequence::InsertCharacter(LineColumn position,
+                                          staging::Origin origin) {
+  TransformLine(position.line, origin, [&](LineBuilder& options) {
     options.InsertCharacterAtPosition(position.column);
   });
   observer_->InsertedCharacter(position);

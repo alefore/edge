@@ -1300,7 +1300,7 @@ void OpenBuffer::AppendLine(staging::Value<SingleLine> str) {
   }
 
   if (contents_.size() == LineNumberDelta(1) &&
-      contents_.back().EndColumn().IsZero()) {
+      contents_.back()->EndColumn().IsZero()) {
     if (str.value == LazyString{L"EDGE PARSER v1.0"}) {
       reading_from_parser_ = true;
       return;
@@ -1336,11 +1336,11 @@ void OpenBuffer::AppendToLastLine(SingleLine str) {
 void OpenBuffer::AppendToLastLine(Line line) {
   TRACK_OPERATION(OpenBuffer_AppendToLastLine);
   auto follower = GetEndPositionFollower();
-  LineBuilder options(contents_.back());
-  options.Append(LineBuilder(std::move(line)));
-  // TODO(2026-05-08, P1): Don't assume staging::Clean. Force customers to pass
-  // it.
-  AppendRawLine(staging::CleanValue(std::move(options).Build()),
+  AppendRawLine(contents_.back().transform([&](Line last_line) {
+    LineBuilder options(std::move(last_line));
+    options.Append(LineBuilder(std::move(line)));
+    return std::move(options).Build();
+  }),
                 MutableLineSequence::ObserverBehavior::Hide);
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),
@@ -2230,7 +2230,7 @@ OpenBuffer::OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior,
 
 LineColumn OpenBuffer::end_position() const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
-  return LineColumn(contents_.EndLine(), contents_.back().EndColumn());
+  return LineColumn(contents_.EndLine(), contents_.back()->EndColumn());
 }
 
 std::unique_ptr<OpenBuffer::DiskState,

@@ -191,7 +191,7 @@ const bool buffer_tests_registration = tests::Register(
                buffer->editor().work_queue()->Execute();
                CHECK(buffer->contents()
                          .back()
-                         .metadata()
+                         ->metadata()
                          .get()
                          .at(LineMetadataKey{})
                          .current() == SINGLE_LINE_CONSTANT(L"quux"));

@@ -66,11 +66,12 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
     : SortedLineSequenceUniqueLines(
           TrustedConstructorTag{}, std::invoke([&] {
             MutableLineSequence builder;
-            sorted_lines.lines().ForEach([&builder](
-                                             const staging::Value<Line>& line) {
-              if (builder.size().IsZero() || !(builder.back() == line.value))
-                builder.push_back(line);
-            });
+            sorted_lines.lines().ForEach(
+                [&builder](const staging::Value<Line>& line) {
+                  if (builder.size().IsZero() ||
+                      !(builder.back().value == line.value))
+                    builder.push_back(line);
+                });
             builder.MaybeEraseEmptyFirstLine();
             return SortedLineSequence(
                 SortedLineSequence::TrustedConstructorTag{}, builder.snapshot(),

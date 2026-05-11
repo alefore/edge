@@ -853,7 +853,7 @@ class InsertMode : public InputReceiver,
         });
     switch (direction) {
       case Direction::Backwards:
-        if (current_insertion_->back().empty()) {
+        if (current_insertion_->back()->empty()) {
           StartNewInsertion();
         } else {
           current_insertion_->DeleteToLineEnd(

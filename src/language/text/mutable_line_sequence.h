@@ -90,9 +90,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     return at_with_origin(line_number).value;
   }
 
-  const value_type& back() const { return at(EndLine()); }
+  const staging::Value<Line>& back() const { return at_with_origin(EndLine()); }
 
-  const value_type& front() const { return at(language::text::LineNumber(0)); }
+  const staging::Value<Line>& front() const {
+    return at_with_origin(language::text::LineNumber(0));
+  }
 
   // Iterates: runs the callback on every line in the buffer, passing as the
   // first argument the line count (starts counting at 0). Stops the iteration
@@ -178,7 +180,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
                     staging::Origin origin,
                     infrastructure::screen::Style modifiers);
 
-  void InsertCharacter(language::text::LineColumn position);
+  void InsertCharacter(language::text::LineColumn position,
+                       staging::Origin origin);
   void AppendToLine(
       LineNumber line, staging::Value<Line> line_to_append,
       ObserverBehavior observer_behavior = ObserverBehavior::Show);
