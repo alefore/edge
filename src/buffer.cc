@@ -1300,7 +1300,10 @@ void OpenBuffer::AppendLine(SingleLine str) {
   if (reading_from_parser_) {
     switch (str.get(ColumnNumber(0))) {
       case 'E':
-        return AppendRawLine(str.Substring(ColumnNumber(1)));
+        // TODO(2026-05-08, P1): Don't assume clean, force customer to pass
+        // origin.
+        return AppendRawLine(
+            staging::CleanValue(str.Substring(ColumnNumber(1))));
     }
     return;
   }
@@ -1313,15 +1316,17 @@ void OpenBuffer::AppendLine(SingleLine str) {
     }
   }
 
-  AppendRawLine(std::move(str));
+  // TODO(2026-05-08, P1): Don't assume clean, force customer to pass origin.
+  AppendRawLine(staging::CleanValue(std::move(str)));
 }
 
 void OpenBuffer::AppendRawLine(
-    SingleLine str, MutableLineSequence::ObserverBehavior observer_behavior) {
-  // TODO(2026-05-08, P1): Don't assume staging::Clean. Force customers to pass
-  // it.
-  AppendRawLine(staging::CleanValue(LineBuilder{std::move(str)}.Build()),
-                observer_behavior);
+    staging::Value<SingleLine> str,
+    MutableLineSequence::ObserverBehavior observer_behavior) {
+  AppendRawLine(
+      staging::Value{.origin = str.origin,
+                     .value = LineBuilder{std::move(str.value)}.Build()},
+      observer_behavior);
 }
 
 void OpenBuffer::AppendRawLine(

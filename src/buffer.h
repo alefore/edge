@@ -236,7 +236,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   void AppendLine(language::lazy_string::SingleLine line);
   void AppendRawLine(
-      language::lazy_string::SingleLine line,
+      language::staging::Value<language::lazy_string::SingleLine> line,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::Show);
 
