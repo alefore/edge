@@ -230,10 +230,6 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last);
 
-  // Inserts a new line into the buffer at a given position.
-  void InsertLine(language::text::LineNumber line_position,
-                  language::text::Line line);
-
   void AppendLine(
       language::staging::Value<language::lazy_string::SingleLine> line);
   void AppendRawLine(
