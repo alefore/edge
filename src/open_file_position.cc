@@ -188,7 +188,11 @@ ValueOrError<Spec> SpecFromLineMetadataInternal(
     const language::text::LineMetadataMap& values) {
   if (auto it = values.find(kLineKey); it != values.end()) {
     DECLARE_OR_RETURN(int line_int, AsInt(ToLazyString(it->second.current())));
-    return LineColumn{LineNumber{static_cast<size_t>(line_int)}};
+    DECLARE_OR_RETURN(
+        int column_int,
+        AsInt(ToLazyString(values.find(kColumnKey)->second.current())));
+    return LineColumn{LineNumber{static_cast<size_t>(line_int)},
+                      ColumnNumber{static_cast<size_t>(column_int)}};
   }
   if (auto it = values.find(kSearchKey); it != values.end()) {
     DECLARE_OR_RETURN(NonEmptySingleLine pattern,
