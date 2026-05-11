@@ -52,7 +52,9 @@ namespace {
 class FunctionTransformation : public CompositeTransformation {
  public:
   FunctionTransformation(gc::Pool& pool, vm::Value& function)
-      : pool_(pool), function_(function) {}
+      : pool_(pool), function_(function) {
+    CHECK(std::holds_alternative<vm::types::Function>(function_.type()));
+  }
 
   std::wstring Serialize() const override {
     return L"FunctionTransformation()";
