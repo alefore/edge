@@ -239,7 +239,7 @@ ValueOrError<futures::Progressive<SingleLine>> LineMetadataCompilation(
 void SetMutableLineSequenceLineMetadata(
     OpenBuffer& buffer, const LineProcessorMap& line_processor_map,
     MutableLineSequence& contents, LineNumber position) {
-  staging::Value<Line> line = buffer.contents().at_with_origin(position);
+  staging::Value<Line> line = buffer.contents().at(position);
   contents.set_line(
       position,
       staging::Value<Line>{.origin = line.origin,

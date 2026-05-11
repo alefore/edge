@@ -78,9 +78,6 @@ class LineSequence {
   size_t CountCharacters() const;
 
   const staging::Value<Line>& at(LineNumber line_number) const;
-  // TODO(2026-05-08, P2): Convert all customers from `at` into `at_with_origin`
-  // and then delete `at` and then rename `at_with_origin` into `at`.
-  const staging::Value<Line>& at_with_origin(LineNumber line_number) const;
   const staging::Value<Line>& back() const;
   const staging::Value<Line>& front() const;
 

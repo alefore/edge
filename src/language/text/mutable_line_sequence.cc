@@ -75,6 +75,12 @@ NonNull<std::unique_ptr<MutableLineSequence>> MutableLineSequence::copy()
   return output;
 }
 
+const staging::Value<Line>& MutableLineSequence::at(
+    language::text::LineNumber line_number) const {
+  CHECK_LT(line_number, language::text::LineNumber(0) + size());
+  return lines_->Get(line_number.read());
+}
+
 void MutableLineSequence::insert(
     LineNumber position_line, const LineSequence& source,
     const std::optional<Style>& optional_modifiers) {
@@ -257,7 +263,7 @@ bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
 
 void MutableLineSequence::SplitLine(LineColumn position,
                                     staging::Origin origin) {
-  staging::Value<Line> original_line = at_with_origin(position.line);
+  staging::Value<Line> original_line = at(position.line);
 
   LineBuilder builder(original_line.value);
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
@@ -305,7 +311,7 @@ void MutableLineSequence::FoldNextLine(LineNumber position,
     EraseLines(position_next, position_next + LineNumberDelta(1),
                ObserverBehavior::Hide);
   } else {
-    staging::Value<Line> line_next = at_with_origin(position_next);
+    staging::Value<Line> line_next = at(position_next);
     line_next.origin = MergeOrigins(origin, line_next.origin);
     AppendToLine(position, line_next, ObserverBehavior::Hide);
     EraseLines(position_next, position + LineNumberDelta(2),

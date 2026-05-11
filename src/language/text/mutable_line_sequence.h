@@ -78,21 +78,12 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // This is dirt cheap. The updates listener isn't copied.
   language::NonNull<std::unique_ptr<MutableLineSequence>> copy() const;
 
-  // TODO(2026-05-08, P2): Inline in `at` and delete.
-  const value_and_origin_type& at_with_origin(
-      language::text::LineNumber line_number) const {
-    CHECK_LT(line_number, language::text::LineNumber(0) + size());
-    return lines_->Get(line_number.read());
-  }
+  const staging::Value<Line>& at(language::text::LineNumber line_number) const;
 
-  const staging::Value<Line>& at(language::text::LineNumber line_number) const {
-    return at_with_origin(line_number);
-  }
-
-  const staging::Value<Line>& back() const { return at_with_origin(EndLine()); }
+  const staging::Value<Line>& back() const { return at(EndLine()); }
 
   const staging::Value<Line>& front() const {
-    return at_with_origin(language::text::LineNumber(0));
+    return at(language::text::LineNumber(0));
   }
 
   // Iterates: runs the callback on every line in the buffer, passing as the
@@ -251,7 +242,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
                      staging::Origin origin, Callback callback) {
     TRACK_OPERATION(MutableLineSequence_TransformLine);
     CHECK_LE(line_number, EndLine());
-    staging::Value<Line> line = at_with_origin(line_number);
+    staging::Value<Line> line = at(line_number);
     LineBuilder options(line.value);
     callback(options);
     set_line(line_number,

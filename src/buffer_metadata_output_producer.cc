@@ -404,7 +404,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   std::list<MetadataLine> output;
   const staging::Value<Line>& contents =
-      options.buffer.contents().at_with_origin(range.line());
+      options.buffer.contents().at(range.line());
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
   NonNull<const OpenBuffer*> target_buffer =
       NonNull<const OpenBuffer*>::AddressOf(options.buffer);

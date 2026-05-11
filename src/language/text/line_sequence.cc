@@ -287,11 +287,6 @@ const staging::Value<Line>& LineSequence::at(LineNumber line_number) const {
   return lines_->Get(line_number.read());
 }
 
-const staging::Value<Line>& LineSequence::at_with_origin(
-    LineNumber line_number) const {
-  return at(line_number);
-}
-
 const staging::Value<Line>& LineSequence::back() const { return at(EndLine()); }
 
 const staging::Value<Line>& LineSequence::front() const {
