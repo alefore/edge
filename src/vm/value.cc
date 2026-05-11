@@ -67,17 +67,25 @@ Value::Value(ConstructorAccessTag, const Type& type, ValueVariant value_variant,
       ObjectInstance{.value = std::move(value)}, std::move(expand_callback)));
 }
 
+/* static */ language::gc::Root<Value> Value::NewFunction(
+    language::gc::Pool& pool, PurityType purity_type, Type type_output,
+    std::vector<Type> inputs, Callback callback) {
+  return NewFunction(
+      pool, purity_type, type_output, std::move(inputs),
+      Value::CallbackWithDependencies::New(pool, std::move(callback), {})
+          .ptr());
+}
+
 /* static */ gc::Root<Value> Value::NewFunction(
     gc::Pool& pool, PurityType purity_type, Type type_output,
-    std::vector<Type> type_inputs, Value::Callback callback,
-    ExpandCallback expand_callback) {
-  CHECK(callback != nullptr);
-  return pool.NewRoot(MakeNonNullUnique<Value>(
-      ConstructorAccessTag(),
-      types::Function{.output = std::move(type_output),
-                      .inputs = std::move(type_inputs),
-                      .function_purity = purity_type},
-      std::move(callback), std::move(expand_callback)));
+    std::vector<Type> type_inputs,
+    gc::Ptr<Value::CallbackWithDependencies> callback) {
+  return pool.NewRoot(
+      MakeNonNullUnique<Value>(ConstructorAccessTag(),
+                               types::Function{.output = std::move(type_output),
+                                               .inputs = std::move(type_inputs),
+                                               .function_purity = purity_type},
+                               std::move(callback)));
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
@@ -110,7 +118,7 @@ bool Value::IsSymbol() const {
 }
 bool Value::IsFunction() const {
   if (!std::holds_alternative<types::Function>(type_)) return false;
-  CHECK(std::holds_alternative<Callback>(value_));
+  CHECK(std::holds_alternative<gc::Ptr<CallbackWithDependencies>>(value_));
   return true;
 }
 bool Value::IsObject() const {
@@ -151,7 +159,8 @@ const Identifier& Value::get_symbol() const {
 
 futures::ValueOrError<language::gc::Root<Value>> Value::RunFunction(
     std::vector<language::gc::Root<Value>> arguments, Trampoline& trampoline) {
-  return std::get<Callback>(value_)(std::move(arguments), trampoline);
+  return std::get<gc::Ptr<CallbackWithDependencies>>(value_)->value()(
+      std::move(arguments), trampoline);
 }
 
 ValueOrError<double> Value::ToDouble() const {
@@ -184,6 +193,12 @@ ValueOrError<double> Value::ToDouble() const {
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
 Value::Expand() const {
+  if (const gc::Ptr<CallbackWithDependencies>* value =
+          std::get_if<gc::Ptr<CallbackWithDependencies>>(&value_);
+      value) {
+    CHECK(!expand_callback_);
+    return {value->object_metadata()};
+  }
   return expand_callback_ == nullptr
              ? std::vector<language::NonNull<
                    std::shared_ptr<language::gc::ObjectMetadata>>>()
@@ -215,57 +230,63 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
 }
 
 namespace {
+struct Node {
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const {
+    return {};
+  }
+};
 bool value_gc_tests_registration = tests::Register(
     L"ValueVMMemory",
     {{.name = L"Dependency", .callback = [] {
         using vm::Value;
         gc::Pool pool({});
-        // We use `nested_weak` to validate whether all the dependencies are
+        std::optional<gc::Root<Node>> node =
+            pool.NewRoot(MakeNonNullUnique<Node>());
+        // We use `node_weak` to validate whether all the dependencies are
         // being preserved correctly.
-        std::shared_ptr<bool> nested = std::make_shared<bool>();
-        std::weak_ptr<bool> nested_weak = nested;
+        gc::WeakPtr<Node> node_weak = node->ptr().ToWeakPtr();
 
         std::optional<gc::Root<Value>> callback = std::invoke([&] {
           gc::Root<Value> parent = std::invoke([&] {
             gc::Root<Value> child = Value::NewFunction(
                 pool, kPurityTypePure, types::Void{}, {},
-                [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
-                  return Value::NewVoid(pool);
-                },
-                [nested] {
-                  return std::vector<
-                      NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
-                });
+                Value::CallbackWithDependencies::New(
+                    pool,
+                    [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
+                      return Value::NewVoid(pool);
+                    },
+                    std::vector{node->ptr().object_metadata()})
+                    .ptr());
             return Value::NewFunction(
                 pool, kPurityTypePure, types::Void{}, {},
-                [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
-                                          Trampoline&) {
-                  return Error(L"Some error.");
-                },
-                [child_frame = child.ptr().object_metadata()] {
-                  return std::vector<
-                      NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
-                      {child_frame});
-                });
+                Value::CallbackWithDependencies::New(
+                    child.pool(),
+                    [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
+                                              Trampoline&) {
+                      return Error(L"Some error.");
+                    },
+                    {child.ptr().object_metadata()})
+                    .ptr());
           });
 
-          nested = nullptr;
-          CHECK(nested_weak.lock() != nullptr);
+          node = std::nullopt;
+          CHECK(node_weak.Lock());
 
           pool.FullCollect();
-          CHECK(nested_weak.lock() != nullptr);
+          CHECK(node_weak.Lock());
 
           return parent;
         });
 
-        CHECK(nested_weak.lock() != nullptr);
+        CHECK(node_weak.Lock());
         pool.FullCollect();
 
-        CHECK(nested_weak.lock() != nullptr);
+        CHECK(node_weak.Lock());
 
         callback = std::nullopt;
         pool.FullCollect();
-        CHECK(nested_weak.lock() == nullptr);
+        CHECK(!node_weak.Lock());
       }}});
 }  // namespace
 }  // namespace afc::vm

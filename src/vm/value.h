@@ -18,13 +18,20 @@ namespace afc::vm {
 class Trampoline;
 
 class Value {
+ public:
   using Callback =
       std::function<futures::ValueOrError<language::gc::Root<Value>>(
           std::vector<language::gc::Root<Value>>, Trampoline&)>;
+  using CallbackWithDependencies = language::gc::WithDependencies<Callback>;
 
+ private:
+  // TODO(2026-05-11, GC, medium): Get rid of this. That requires changing
+  // ObjectInstance to a gc::WithDependencies<NonNull<shared<void>>> or such.
+  // Or maybe ObjectInstance should use gc::Ptr somehow.
   using ExpandCallback = std::function<std::vector<
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
 
+  // TODO(2026-05-11, AccessKey): Convert to language::AccessKey.
   class ConstructorAccessTag {
     ConstructorAccessTag() {};
     friend Value;
@@ -36,9 +43,10 @@ class Value {
     language::NonNull<std::shared_ptr<void>> value;
   };
 
-  using ValueVariant = std::variant<bool, math::numbers::Number,
-                                    language::lazy_string::LazyString,
-                                    Identifier, ObjectInstance, Callback>;
+  using ValueVariant =
+      std::variant<bool, math::numbers::Number,
+                   language::lazy_string::LazyString, Identifier,
+                   ObjectInstance, language::gc::Ptr<CallbackWithDependencies>>;
 
   ValueVariant value_;
 
@@ -68,14 +76,15 @@ class Value {
           language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> {
         return {};
       });
+  static language::gc::Root<Value> NewFunction(language::gc::Pool& pool,
+                                               PurityType purity_type,
+                                               Type output,
+                                               std::vector<Type> inputs,
+                                               Callback callback);
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, PurityType purity_type, Type output,
-      std::vector<Type> inputs, Callback callback,
-      ExpandCallback expand_callback = []
-      -> std::vector<
-          language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> {
-        return {};
-      });
+      std::vector<Type> inputs,
+      language::gc::Ptr<CallbackWithDependencies> callback);
 
   // Convenience wrapper.
   static language::gc::Root<Value> NewFunction(

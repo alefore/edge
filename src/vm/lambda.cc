@@ -92,35 +92,38 @@ class LambdaExpression : public Expression {
     const types::Function& function_type = std::get<types::Function>(type_);
     return Value::NewFunction(
         pool, body_->purity(), function_type.output.get(), function_type.inputs,
-        [body = body_, parent_environment, argument_names = argument_names_,
-         promotion_function = promotion_function_](
-            std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
-          CHECK_EQ(args.size(), argument_names->size())
-              << "Invalid number of arguments for function.";
-          gc::Root<Trampoline> original_trampoline = trampoline.Copy();
-          trampoline.stack().Push(
-              StackFrame::New(trampoline.pool(), container::MaterializeVector(
-                                                     args | gc::view::Ptr))
-                  .ptr());
-          gc::Root<Environment> environment =
-              Environment::New(parent_environment);
-          for (size_t i = 0; i < args.size(); i++)
-            environment->Define(argument_names->at(i), std::move(args.at(i)));
-          trampoline.SetEnvironment(std::move(environment).ptr());
-          return trampoline.Bounce(body, body->Types()[0])
-              .Transform([original_trampoline, &trampoline, promotion_function](
-                             EvaluationOutput body_output) mutable {
-                gc::Root<Value> promoted_value =
-                    promotion_function(std::move(body_output.value));
-                trampoline.stack().Pop();
-                trampoline = std::move(original_trampoline.value());
-                return Success(promoted_value);
-              });
-        },
-        [parent_environment_metadata = parent_environment.object_metadata(),
-         body_metadata = body_.object_metadata()] {
-          return std::vector({parent_environment_metadata, body_metadata});
-        });
+        Value::CallbackWithDependencies::New(
+            pool,
+            [body = body_, parent_environment, argument_names = argument_names_,
+             promotion_function = promotion_function_](
+                std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
+              CHECK_EQ(args.size(), argument_names->size())
+                  << "Invalid number of arguments for function.";
+              gc::Root<Trampoline> original_trampoline = trampoline.Copy();
+              trampoline.stack().Push(
+                  StackFrame::New(
+                      trampoline.pool(),
+                      container::MaterializeVector(args | gc::view::Ptr))
+                      .ptr());
+              gc::Root<Environment> environment =
+                  Environment::New(parent_environment);
+              for (size_t i = 0; i < args.size(); i++)
+                environment->Define(argument_names->at(i),
+                                    std::move(args.at(i)));
+              trampoline.SetEnvironment(std::move(environment).ptr());
+              return trampoline.Bounce(body, body->Types()[0])
+                  .Transform(
+                      [original_trampoline, &trampoline, promotion_function](
+                          EvaluationOutput body_output) mutable {
+                        gc::Root<Value> promoted_value =
+                            promotion_function(std::move(body_output.value));
+                        trampoline.stack().Pop();
+                        trampoline = std::move(original_trampoline.value());
+                        return Success(promoted_value);
+                      });
+            },
+            {parent_environment.object_metadata(), body_.object_metadata()})
+            .ptr());
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
