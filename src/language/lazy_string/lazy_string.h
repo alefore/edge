@@ -1,3 +1,12 @@
+// This header forward-declares Error (through ghost_type_class). Our customers
+// must include src/language/error/value_or_error.h to get the actual definition
+// of Error (which is needed for the definition of ColumnNumber). This allows
+// lazy_string to depend on GhostTypeClass (which depends on
+// //src/language/error:base); and Error to depend on LazyString.
+//
+// TODO(2026-05-11, P2): Find a better approach to this ~circular dependency
+// hack.
+
 #ifndef __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__
 #define __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__
 
