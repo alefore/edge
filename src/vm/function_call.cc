@@ -396,7 +396,8 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
 futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
-  CHECK(std::holds_alternative<types::Function>(func.type()));
+  CHECK(std::holds_alternative<types::Function>(func.type()))
+      << "Invalid type passed to `Call`: " << func.type();
   CHECK_EQ(std::get<types::Function>(func.type()).inputs.size(), args.size());
   std::vector<gc::Root<Expression>> args_expr =
       args | std::views::transform([](gc::Root<Value> value) {
