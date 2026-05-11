@@ -1,5 +1,6 @@
 #include "src/vm/value.h"
 
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -236,57 +237,107 @@ struct Node {
     return {};
   }
 };
+
 bool value_gc_tests_registration = tests::Register(
     L"ValueVMMemory",
-    {{.name = L"Dependency", .callback = [] {
+    {{.name = L"CallbackWithDependency",
+      .callback =
+          [] {
+            using vm::Value;
+            gc::Pool pool({});
+            std::optional<gc::Root<Node>> node =
+                pool.NewRoot(MakeNonNullUnique<Node>());
+            // We use `node_weak` to validate whether all the dependencies are
+            // preserved correctly.
+            gc::WeakPtr<Node> node_weak = node->ptr().ToWeakPtr();
+
+            std::optional<gc::Root<Value>> callback = std::invoke([&] {
+              gc::Root<Value> parent = std::invoke([&] {
+                gc::Root<Value> child = Value::NewFunction(
+                    pool, kPurityTypePure, types::Void{}, {},
+                    Value::CallbackWithDependencies::New(
+                        pool,
+                        [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
+                          return Value::NewVoid(pool);
+                        },
+                        std::vector{node->ptr().object_metadata()})
+                        .ptr());
+                return Value::NewFunction(
+                    pool, kPurityTypePure, types::Void{}, {},
+                    Value::CallbackWithDependencies::New(
+                        child.pool(),
+                        [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
+                                                  Trampoline&) {
+                          return Error(L"Some error.");
+                        },
+                        {child.ptr().object_metadata()})
+                        .ptr());
+              });
+
+              node = std::nullopt;
+              CHECK(node_weak.Lock());
+
+              pool.FullCollect();
+              pool.BlockUntilDone();
+              CHECK(node_weak.Lock());
+
+              return parent;
+            });
+
+            CHECK(node_weak.Lock());
+            pool.FullCollect();
+            pool.BlockUntilDone();
+
+            CHECK(node_weak.Lock());
+
+            callback = std::nullopt;
+            pool.FullCollect();
+            pool.BlockUntilDone();
+            CHECK(!node_weak.Lock());
+          }},
+     {.name = L"ObjectWithDependency", .callback = [] {
         using vm::Value;
         gc::Pool pool({});
         std::optional<gc::Root<Node>> node =
             pool.NewRoot(MakeNonNullUnique<Node>());
+
         // We use `node_weak` to validate whether all the dependencies are
-        // being preserved correctly.
+        // preserved correctly.
         gc::WeakPtr<Node> node_weak = node->ptr().ToWeakPtr();
 
-        std::optional<gc::Root<Value>> callback = std::invoke([&] {
-          gc::Root<Value> parent = std::invoke([&] {
-            gc::Root<Value> child = Value::NewFunction(
-                pool, kPurityTypePure, types::Void{}, {},
-                Value::CallbackWithDependencies::New(
-                    pool,
-                    [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
-                      return Value::NewVoid(pool);
-                    },
-                    std::vector{node->ptr().object_metadata()})
-                    .ptr());
-            return Value::NewFunction(
-                pool, kPurityTypePure, types::Void{}, {},
-                Value::CallbackWithDependencies::New(
-                    child.pool(),
-                    [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
-                                              Trampoline&) {
-                      return Error(L"Some error.");
-                    },
-                    {child.ptr().object_metadata()})
-                    .ptr());
-          });
-
+        std::optional<gc::Root<Value>> object = std::invoke([&] {
+          gc::Root<Value> intermediate = Value::NewFunction(
+              pool, kPurityTypePure, vm::types::Void{}, {},
+              Value::CallbackWithDependencies::New(
+                  pool,
+                  [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
+                    return Value::NewVoid(pool);
+                  },
+                  {node->ptr().object_metadata()})
+                  .ptr());
           node = std::nullopt;
-          CHECK(node_weak.Lock());
 
-          pool.FullCollect();
-          CHECK(node_weak.Lock());
-
-          return parent;
+          return Value::NewObject(
+              pool, types::ObjectName{IDENTIFIER_CONSTANT(L"TestNode")},
+              NonNull<std::unique_ptr<Node>>(),
+              [intermediate_ptr = intermediate.ptr()]
+              -> std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> {
+                return {intermediate_ptr.object_metadata()};
+              });
         });
 
         CHECK(node_weak.Lock());
-        pool.FullCollect();
 
+        pool.FullCollect();
+        pool.BlockUntilDone();
         CHECK(node_weak.Lock());
 
-        callback = std::nullopt;
+        object = std::nullopt;
+
         pool.FullCollect();
+        pool.BlockUntilDone();
         CHECK(!node_weak.Lock());
       }}});
+
 }  // namespace
 }  // namespace afc::vm
