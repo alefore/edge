@@ -16,9 +16,10 @@
 namespace container = afc::language::container;
 
 using afc::editor::parsers::ParseQuotedString;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::HashToStyle;
 using afc::infrastructure::screen::HashToStyleBold;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -69,7 +70,8 @@ static const std::unordered_set<wchar_t> identifier_chars =
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view{L"1234567890"});
 static const Style BAD_PARSE_MODIFIERS =
-    Style({.background_color = StandardColor::Red, .attributes = StyleAttribute::Bold});
+    Style({.background_color = StandardColor::Red,
+           .attributes = StyleAttribute::Bold});
 
 class CppTreeParser : public parsers::LineOrientedTreeParser {
   const ParserId parser_id_;
