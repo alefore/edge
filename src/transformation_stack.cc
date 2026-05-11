@@ -5,6 +5,7 @@
 #include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/trim.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/log.h"
@@ -38,6 +39,7 @@ using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::ToLazyString;
+using afc::language::lazy_string::Trim;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -400,7 +402,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters_ref, Input input) {
                 ->WriteTmpFile(LazyString{L"edge-commands"},
                                contents.ToLazyString())
                 .Transform([buffer_root = input.buffer.RootFromThis(),
-                            parameters, output](Path tmp_path) {
+                            parameters, output, contents](Path tmp_path) {
                   RunCommand(
                       buffer_root->editor(),
                       RunCommandOptions{
@@ -409,6 +411,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters_ref, Input input) {
                                                LazyString{L" $EDGE_INPUT"}
                                          : buffer_root->Read(
                                                buffer_variables::shell_command),
+                          .name = CommandBufferName{Trim(
+                              contents.ToLazyString(), {L' ', L'\t', L'\n'})},
                           .environment =
                               {{L"EDGE_INPUT", ToLazyString(tmp_path)},
                                {L"EDGE_PARENT_BUFFER_PATH",
