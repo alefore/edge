@@ -199,10 +199,10 @@ Value::Expand() const {
     CHECK(!expand_callback_);
     return {value->object_metadata()};
   }
-  return expand_callback_ == nullptr
-             ? std::vector<language::NonNull<
-                   std::shared_ptr<language::gc::ObjectMetadata>>>()
-             : expand_callback_();
+  return expand_callback_
+             ? expand_callback_()
+             : std::vector<language::NonNull<
+                   std::shared_ptr<language::gc::ObjectMetadata>>>{};
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
