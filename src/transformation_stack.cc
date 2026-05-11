@@ -332,15 +332,16 @@ const bool analyze_content_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
+futures::Value<Result> ApplyBase(const Stack& parameters_ref, Input input) {
   NonNull<std::shared_ptr<Result>> output =
       MakeNonNullShared<Result>(input.position);
-  NonNull<std::shared_ptr<Stack>> copy = MakeNonNullShared<Stack>(parameters);
+  NonNull<std::shared_ptr<Stack>> parameters =
+      MakeNonNullShared<Stack>(parameters_ref);
   NonNull<std::shared_ptr<Log>> trace =
       input.buffer.log().NewChild(LazyString{L"ApplyBase(Stack)"});
-  return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
-                            trace, output)
-      .Transform([output, input, copy,
+  return ApplyStackDirectly(parameters->stack.begin(), parameters->stack.end(),
+                            input, trace, output)
+      .Transform([output, input, parameters,
                   trace](EmptyValue) -> futures::Value<transformation::Result> {
         Range range{input.adapter.contents().AdjustLineColumn(
                         std::min(input.position, output->position)),
@@ -352,7 +353,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                            : Direction::Backwards},
             .range = range,
             .initiator = transformation::Delete::Initiator::Internal};
-        switch (copy->post_transformation_behavior) {
+        switch (parameters->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::None: {
             LineSequence contents = input.adapter.contents().ViewRange(range);
             input.buffer.status().Reset();
@@ -398,13 +399,13 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             return input.buffer.file_system_driver()
                 ->WriteTmpFile(LazyString{L"edge-commands"},
                                contents.ToLazyString())
-                .Transform([buffer_root = input.buffer.RootFromThis(), copy,
-                            output](Path tmp_path) {
+                .Transform([buffer_root = input.buffer.RootFromThis(),
+                            parameters, output](Path tmp_path) {
                   RunCommand(
                       buffer_root->editor(),
                       RunCommandOptions{
-                          .command = copy->shell.has_value()
-                                         ? copy->shell->read() +
+                          .command = parameters->shell.has_value()
+                                         ? parameters->shell->read() +
                                                LazyString{L" $EDGE_INPUT"}
                                          : buffer_root->Read(
                                                buffer_variables::shell_command),
