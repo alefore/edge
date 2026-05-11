@@ -226,6 +226,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   language::gc::Ptr<MapModeCommands> default_commands();
 
+  bool MaybeEraseEmptyFirstLine();
+
   // Erases all lines in range [first, last).
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last);

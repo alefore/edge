@@ -1276,6 +1276,10 @@ gc::Ptr<MapModeCommands> OpenBuffer::default_commands() {
   return default_commands_;
 }
 
+bool OpenBuffer::MaybeEraseEmptyFirstLine() {
+  return contents_.MaybeEraseEmptyFirstLine();
+}
+
 void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
   CHECK_LE(first, last);
   CHECK_LE(last, LineNumber(0) + contents_.size());
