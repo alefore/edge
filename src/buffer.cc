@@ -174,7 +174,7 @@ std::vector<staging::Value<Line>> UpdateLineMetadata(
           << " lines: " << lines.size();
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
   std::ranges::for_each(lines, [&](staging::Value<Line>& line_with_origin) {
-    line_with_origin.transform([&](Line line) {
+    line_with_origin = line_with_origin.transform([&](Line line) {
       if (line.empty() ||
           (line.metadata().has_value() && !line.metadata().get().empty()))
         return line;
