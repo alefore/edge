@@ -767,23 +767,22 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             gc::Root<vm::Expression> callback =
                 NewFunctionCall(NewConstantExpression(args[2].ptr()).ptr(),
                                 std::vector<gc::Ptr<vm::Expression>>{});
-            buffer->AddSaveHook(
-                hook_name,
-                BufferHooks::SaveRegistry::HookCallback::New(
-                    pool,
-                    [buffer,
-                     callback_ptr = callback.ptr()] -> futures::PossibleError {
-                      return buffer
-                          ->EvaluateExpression(callback_ptr,
-                                               buffer->environment())
-                          .Transform([](gc::Root<vm::Value>)
-                                         -> futures::PossibleError {
-                            return EmptyValue{};
-                          });
-                    },
-                    std::vector{callback.ptr().object_metadata(),
-                                buffer.object_metadata()})
-                    .ptr());
+            RETURN_IF_ERROR(buffer->AddSaveHook(
+                hook_name, BufferHooks::SaveRegistry::HookCallback::New(
+                               pool,
+                               [buffer, callback_ptr = callback.ptr()]
+                               -> futures::PossibleError {
+                                 return buffer
+                                     ->EvaluateExpression(callback_ptr,
+                                                          buffer->environment())
+                                     .Transform([](gc::Root<vm::Value>)
+                                                    -> futures::PossibleError {
+                                       return EmptyValue{};
+                                     });
+                               },
+                               std::vector{callback.ptr().object_metadata(),
+                                           buffer.object_metadata()})
+                               .ptr()));
             return vm::Value::NewVoid(pool);
           })
           .ptr());

@@ -399,8 +399,8 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
                             language::text::LineProcessorInput)>
                             callback);
 
-  void AddSaveHook(HookName name,
-                   BufferHooks::SaveRegistry::HookCallbackPtr callback);
+  language::PossibleError AddSaveHook(
+      HookName name, BufferHooks::SaveRegistry::HookCallbackPtr callback);
 
   //////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
