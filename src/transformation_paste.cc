@@ -18,7 +18,7 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -56,7 +56,7 @@ futures::Value<CompositeTransformation::Output> Paste::Apply(
                         case transformation::Input::Mode::Final:
                           return std::nullopt;
                         case transformation::Input::Mode::Preview:
-                          return Style{Color::Cyan};
+                          return Style{StandardColor::Cyan};
                       }
                       LOG(FATAL) << "Invalid input mode.";
                       return std::nullopt;

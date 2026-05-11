@@ -32,6 +32,7 @@ using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;

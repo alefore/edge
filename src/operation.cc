@@ -36,7 +36,7 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlayMap;
@@ -68,7 +68,7 @@ using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
                    LineBuilder& output) {
-  output.AppendString(name.read(), Style{Color::Cyan});
+  output.AppendString(name.read(), Style{StandardColor::Cyan});
   output.AppendString(SingleLine::Char<L'('>(),
                       Style{.attributes = StyleAttribute::Dim});
   SingleLine separator;
@@ -1251,38 +1251,38 @@ class OperationMode : public EditorMode {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::None:
         output.AppendString(SINGLE_LINE_CONSTANT(L"🦋 Move"),
-                            Style{.foreground_color = Color::Cyan,
+                            Style{.foreground_color = StandardColor::Cyan,
                                   .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::DeleteRegion:
         output.AppendString(SINGLE_LINE_CONSTANT(L"✂️  Delete"),
-                            Style{.background_color = Color::Red,
+                            Style{.background_color = StandardColor::Red,
                                   .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CopyRegion:
         output.AppendString(SINGLE_LINE_CONSTANT(L"📋 Copy"),
-                            Style{.foreground_color = Color::Yellow,
+                            Style{.foreground_color = StandardColor::Yellow,
                                   .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandSystem:
         output.AppendString(SINGLE_LINE_CONSTANT(L"🐚 System"),
-                            Style{.foreground_color = Color::Green,
+                            Style{.foreground_color = StandardColor::Green,
                                   .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandCpp:
         output.AppendString(SINGLE_LINE_CONSTANT(L"🤖 Cpp"),
-                            Style{.foreground_color = Color::Green,
+                            Style{.foreground_color = StandardColor::Green,
                                   .attributes = StyleAttribute::Bold |
                                                 StyleAttribute::Underline});
         return;
       case transformation::Stack::PostTransformationBehavior::CapitalsSwitch:
         output.AppendString(SINGLE_LINE_CONSTANT(L"🔠 Aa"),
-                            Style{.foreground_color = Color::Magenta,
+                            Style{.foreground_color = StandardColor::Magenta,
                                   .attributes = StyleAttribute::Bold});
         return;
       case transformation::Stack::PostTransformationBehavior::CursorOnEachLine:
         output.AppendString(SINGLE_LINE_CONSTANT(L"Ꮖ Cursor"),
-                            Style{.foreground_color = Color::Magenta,
+                            Style{.foreground_color = StandardColor::Magenta,
                                   .attributes = StyleAttribute::Bold});
         return;
     }

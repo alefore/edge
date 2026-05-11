@@ -14,7 +14,7 @@
 namespace staging = afc::language::staging;
 
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
@@ -114,7 +114,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
       category_line.AppendString(SingleLine::Char<L' '>());
-      category_line.AppendString(entry.first.read().read(), Style{Color::Cyan});
+      category_line.AppendString(entry.first.read().read(), Style{StandardColor::Cyan});
       category_line.AppendString(SingleLine::Char<L':'>(),
                                  Style{.attributes = StyleAttribute::Dim});
       for (ExtendedChar c : entry.second)

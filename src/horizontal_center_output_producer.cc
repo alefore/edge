@@ -11,7 +11,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 
 namespace container = afc::language::container;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumberDelta;

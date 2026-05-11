@@ -21,7 +21,7 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -83,16 +83,16 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
           static const std::unordered_map<int, FileType> types = {
               {DT_BLK,
                FileType{.description = SingleLine{LazyString{L" (block dev)"}},
-                        .modifiers = Style{.foreground_color = Color::Green}}},
+                        .modifiers = Style{.foreground_color = StandardColor::Green}}},
               {DT_CHR,
                FileType{.description = SingleLine{LazyString{L" (char dev)"}},
-                        .modifiers = Style{.foreground_color = Color::Red}}},
+                        .modifiers = Style{.foreground_color = StandardColor::Red}}},
               {DT_DIR,
                FileType{.description = SingleLine{LazyString{L"/"}},
-                        .modifiers = Style{.foreground_color = Color::Cyan}}},
+                        .modifiers = Style{.foreground_color = StandardColor::Cyan}}},
               {DT_FIFO,
                FileType{.description = SingleLine{LazyString{L" (named pipe)"}},
-                        .modifiers = Style{.foreground_color = Color::Blue}}},
+                        .modifiers = Style{.foreground_color = StandardColor::Blue}}},
               {DT_LNK,
                FileType{
                    .description = SingleLine{LazyString{L"@"}},
@@ -102,7 +102,7 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
               {DT_SOCK,
                FileType{
                    .description = SingleLine{LazyString{L" (unix sock)"}},
-                   .modifiers = Style{.foreground_color = Color::Magenta}}}};
+                   .modifiers = Style{.foreground_color = StandardColor::Magenta}}}};
           FileType file_type = GetValueOrDefault(types, entry->d_type,
                                                  GetValueOrDie(types, DT_REG));
 

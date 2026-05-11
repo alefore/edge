@@ -5,6 +5,7 @@ extern "C" {
 }
 
 #include "src/infrastructure/extended_char.h"
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/terminal.h"
@@ -12,11 +13,15 @@ extern "C" {
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::ColorCube;
+using afc::infrastructure::screen::ColorGrayscale;
 using afc::infrastructure::screen::Screen;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
@@ -29,7 +34,20 @@ class ColorRegistry {
   std::map<std::pair<short, short>, int> pair_cache_;
   int next_pair_id_ = 1;
 
-  short GetColorIndex(Color c) { return static_cast<size_t>(c); }
+  short GetColorIndex(Color color) {
+    return std::visit(
+        overload{[](StandardColor c) -> uint8_t {
+                   return static_cast<uint8_t>(std::to_underlying(c));
+                 },
+                 [](ColorCube c) -> uint8_t {
+                   CHECK_LE(c.r, 5);
+                   CHECK_LE(c.g, 5);
+                   CHECK_LE(c.b, 5);
+                   return 16 + (36 * c.r) + (6 * c.g) + c.b;
+                 },
+                 [](ColorGrayscale g) -> uint8_t { return 232 + g.read(); }},
+        color);
+  }
 
  public:
   int GetPair(Color foreground, Color background) {
@@ -102,9 +120,9 @@ class ScreenCurses : public Screen {
     if (has_attribute(style.attributes, StyleAttribute::Reverse))
       n_attrs |= A_REVERSE;
 
-    int pair_id =
-        color_registry_.GetPair(style.foreground_color.value_or(Color::White),
-                                style.background_color.value_or(Color::Black));
+    int pair_id = color_registry_.GetPair(
+        style.foreground_color.value_or(StandardColor::White),
+        style.background_color.value_or(StandardColor::Black));
     attr_set(n_attrs, pair_id, nullptr);
   }
 

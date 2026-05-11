@@ -15,7 +15,7 @@
 
 namespace container = afc::language::container;
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::HashToStyle;
 using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
@@ -57,7 +57,7 @@ static const std::unordered_set<wchar_t> identifier_chars =
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view{L"1234567890"});
 static const Style BAD_PARSE_MODIFIERS =
-    Style{.background_color = Color::Red, .attributes = StyleAttribute::Bold};
+    Style{.background_color = StandardColor::Red, .attributes = StyleAttribute::Bold};
 
 static const std::unordered_set<NonEmptySingleLine>
     kPythonBuiltinFunctionsAndTypes =
@@ -183,13 +183,13 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     if (str == SINGLE_LINE_CONSTANT(L"f") && result->seek().read() == L'"') {
       result->seek().Once();
       CHECK(ParseQuotedString(
-                result, L'"', Style{.foreground_color = Color::Yellow}, {},
+                result, L'"', Style{.foreground_color = StandardColor::Yellow}, {},
                 NestedExpressionSyntax{
                     .prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"{"),
                     .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
                     .prefix_suffix_modifiers =
                         Style{.attributes = StyleAttribute::Dim},
-                    .modifiers = Style{.foreground_color = Color::Green}},
+                    .modifiers = Style{.foreground_color = StandardColor::Green}},
                 MultipleLinesSupport::kReject,
                 CurrentState::kStart) == ParseQuotedStringState::Done);
       return;
@@ -197,11 +197,11 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
 
     Style modifiers;
     if (Contains(kPythonBuiltinFunctionsAndTypes, str)) {
-      modifiers.foreground_color = Color::Blue;
+      modifiers.foreground_color = StandardColor::Blue;
     } else if (Contains(keywords_, str)) {
-      modifiers.foreground_color = Color::Cyan;
+      modifiers.foreground_color = StandardColor::Cyan;
     } else if (Contains(typos_, str)) {
-      modifiers.foreground_color = Color::Red;
+      modifiers.foreground_color = StandardColor::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers =
           HashToStyle(std::hash<SingleLine>{}(str), HashToStyleBold::Never);
@@ -233,7 +233,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       ColumnNumberDelta length =
           result->position().column - decorator_name_start_position.column;
 
-      result->PushAndPop(length + ColumnNumberDelta(1), {Color::Green});
+      result->PushAndPop(length + ColumnNumberDelta(1), {StandardColor::Green});
       return;
     }
 
@@ -242,7 +242,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
       result->seek().ToEndOfLine();
       result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
                              original_position.column,
-                         {Color::Blue});
+                         {StandardColor::Blue});
       return;
     }
 
@@ -259,12 +259,12 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
           seek.Once();
           result->Push(c == L'"' ? IN_TRIPLE_DOUBLE_QUOTE_STRING
                                  : IN_TRIPLE_SINGLE_QUOTE_STRING,
-                       ColumnNumberDelta(3), {Color::Yellow}, {});
+                       ColumnNumberDelta(3), {StandardColor::Yellow}, {});
           return;
         }
       }
       result->set_position(position_after_first_quote);
-      ParseQuotedString(result, c, {Color::Yellow}, {});
+      ParseQuotedString(result, c, {StandardColor::Yellow}, {});
       return;
     }
 
@@ -303,7 +303,7 @@ class PyTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {Color::Yellow}, {});
+      parsers::ParseNumber(result, {StandardColor::Yellow}, {});
       return;
     }
   }

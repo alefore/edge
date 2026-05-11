@@ -22,6 +22,7 @@ extern "C" {
 namespace staging = afc::language::staging;
 
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -198,39 +199,39 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
         static const std::unordered_map<std::string, Style> on{
             {"", Style{}},
             {"0", Style{}},
-            {"0;30", Style{.foreground_color = Color::Black}},
-            {"0;31", Style{.foreground_color = Color::Red}},
-            {"0;32", Style{.foreground_color = Color::Green}},
-            {"0;33", Style{.foreground_color = Color::Yellow}},
-            {"0;34", Style{.foreground_color = Color::Blue}},
-            {"0;35", Style{.foreground_color = Color::Magenta}},
-            {"0;36", Style{.foreground_color = Color::Cyan}},
+            {"0;30", Style{.foreground_color = StandardColor::Black}},
+            {"0;31", Style{.foreground_color = StandardColor::Red}},
+            {"0;32", Style{.foreground_color = StandardColor::Green}},
+            {"0;33", Style{.foreground_color = StandardColor::Yellow}},
+            {"0;34", Style{.foreground_color = StandardColor::Blue}},
+            {"0;35", Style{.foreground_color = StandardColor::Magenta}},
+            {"0;36", Style{.foreground_color = StandardColor::Cyan}},
             {"1", Style{.attributes = StyleAttribute::Bold}},
-            {"1;30", Style{.foreground_color = Color::Black,
+            {"1;30", Style{.foreground_color = StandardColor::Black,
                            .attributes = StyleAttribute::Bold}},
-            {"1;31", Style{.foreground_color = Color::Red,
+            {"1;31", Style{.foreground_color = StandardColor::Red,
                            .attributes = StyleAttribute::Bold}},
-            {"1;32", Style{.foreground_color = Color::Green,
+            {"1;32", Style{.foreground_color = StandardColor::Green,
                            .attributes = StyleAttribute::Bold}},
-            {"1;33", Style{.foreground_color = Color::Yellow,
+            {"1;33", Style{.foreground_color = StandardColor::Yellow,
                            .attributes = StyleAttribute::Bold}},
-            {"1;34", Style{.foreground_color = Color::Blue,
+            {"1;34", Style{.foreground_color = StandardColor::Blue,
                            .attributes = StyleAttribute::Bold}},
-            {"1;35", Style{.foreground_color = Color::Magenta,
+            {"1;35", Style{.foreground_color = StandardColor::Magenta,
                            .attributes = StyleAttribute::Bold}},
-            {"1;36", Style{.foreground_color = Color::Cyan,
+            {"1;36", Style{.foreground_color = StandardColor::Cyan,
                            .attributes = StyleAttribute::Bold}},
             // TODO(alejo): Support italic (3) on. "23" is Fraktur off, italic
             // off.
             {"3", Style{}},
             {"4", Style{.attributes = StyleAttribute::Underline}},
-            {"30", Style{.foreground_color = Color::Black}},
-            {"31", Style{.foreground_color = Color::Red}},
-            {"32", Style{.foreground_color = Color::Green}},
-            {"33", Style{.foreground_color = Color::Yellow}},
-            {"34", Style{.foreground_color = Color::Blue}},
-            {"35", Style{.foreground_color = Color::Magenta}},
-            {"36", Style{.foreground_color = Color::Cyan}},
+            {"30", Style{.foreground_color = StandardColor::Black}},
+            {"31", Style{.foreground_color = StandardColor::Red}},
+            {"32", Style{.foreground_color = StandardColor::Green}},
+            {"33", Style{.foreground_color = StandardColor::Yellow}},
+            {"34", Style{.foreground_color = StandardColor::Blue}},
+            {"35", Style{.foreground_color = StandardColor::Magenta}},
+            {"36", Style{.foreground_color = StandardColor::Cyan}},
         };
         static const std::unordered_map<std::string, StyleAttribute> off{
             {"24", StyleAttribute::Underline}};

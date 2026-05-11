@@ -30,6 +30,7 @@ namespace container = afc::language::container;
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::CursorsSet;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::CaptureAndHash;
@@ -234,7 +235,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   }
   if (range.Contains(*cursors.active())) {
     modifiers.attributes |= StyleAttribute::Bold;
-    modifiers.foreground_color = Color::Cyan;
+    modifiers.foreground_color = StandardColor::Cyan;
   }
   LineBuilder line_options;
   line_options.AppendString(output_str, modifiers);
@@ -320,8 +321,8 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                   LineColumn(LineNumber(initial_line(options) + lines_shown))),
             line, options.buffer.lines_size())
                 .Contains(options.buffer.position())
-            ? Style({Color::Yellow})
-            : Style({Color::Cyan});
+            ? Style({StandardColor::Yellow})
+            : Style({StandardColor::Cyan});
 
   if (!marks.empty() || !expired_marks.empty()) {
     double buffer_lines_per_row =
@@ -345,7 +346,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
         base_char |= (1 << (row * 2 + 1));
       }
     }
-    if (active_marks) modifiers = {Color::Red};
+    if (active_marks) modifiers = {StandardColor::Red};
   }
 
   CHECK_LT(base_char, chars.size());
@@ -437,7 +438,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                         contents.origin)) {
     info_char_modifier = Style{.attributes = StyleAttribute::Dim};
   } else {
-    info_char_modifier = Style{.foreground_color = Color::Green};
+    info_char_modifier = Style{.foreground_color = StandardColor::Green};
     info_char = L'•';
   }
 
@@ -455,9 +456,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
               }) |
           std::views::filter(std::not_fn(&SingleLine::empty)));
       !metadata.empty())
-    output.push_back(MetadataLine{L'>', Style{.foreground_color = Color::Green},
-                                  LineBuilder{metadata}.Build(),
-                                  MetadataLine::Type::LineContents});
+    output.push_back(MetadataLine{
+        L'>', Style{.foreground_color = StandardColor::Green},
+        LineBuilder{metadata}.Build(), MetadataLine::Type::LineContents});
 
   auto call_generic_marks_logic =
       INLINE_TRACKER(BufferMetadataOutput_Prepare_GenericMarksLogic);
@@ -474,7 +475,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         options.buffer.editor().buffer_registry().Find(mark.source_buffer);
     output.push_back(MetadataLine{
         output.empty() ? L'!' : L' ',
-        output.empty() ? Style{.foreground_color = Color::Red}
+        output.empty() ? Style{.foreground_color = StandardColor::Red}
                        : Style{.attributes = StyleAttribute::Dim},
         (source.has_value() &&
          mark.source_line < LineNumber(0) + source->ptr()->contents().size())
@@ -505,9 +506,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         !marks_strings.contains(mark_contents.contents())) {
       LineBuilder wrapper{SingleLine{LazyString{L"👻 "}}};
       wrapper.Append(LineBuilder(mark_contents));
-      output.push_back(MetadataLine{'!', Style{.foreground_color = Color::Red},
-                                    std::move(wrapper).Build(),
-                                    MetadataLine::Type::Mark});
+      output.push_back(
+          MetadataLine{'!', Style{.foreground_color = StandardColor::Red},
+                       std::move(wrapper).Build(), MetadataLine::Type::Mark});
     }
   }
 
@@ -602,10 +603,10 @@ std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
         LineNumber() + sum_sizes,
         std::min(box.reference, LineNumber() + screen_size - box.size));
     static const std::vector<Style> modifiers = {
-        Style{Color::Yellow},
-        Style{Color::Cyan},
-        Style{Color::Green},
-        Style{Color::Blue},
+        Style{StandardColor::Yellow},
+        Style{StandardColor::Cyan},
+        Style{StandardColor::Green},
+        Style{StandardColor::Blue},
     };
     output.push_front(
         BoxWithPosition{.box = box,
@@ -905,7 +906,7 @@ ColumnsVector::Column BufferMetadataOutput(
     output.padding.push_back(
         lines_referenced.contains(i)
             ? ColumnsVector::Padding{.style = Style{.foreground_color =
-                                                        Color::Yellow},
+                                                        StandardColor::Yellow},
                                      .head = SINGLE_LINE_CONSTANT(L"  ←"),
                                      .body = SingleLine::Char<L'-'>()}
             : std::optional<ColumnsVector::Padding>{});

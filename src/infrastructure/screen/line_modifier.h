@@ -6,12 +6,13 @@
 #include <unordered_set>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 
 namespace afc::infrastructure::screen {
-enum class Color {
+enum class StandardColor {
   Black,
   Red,
   Green,
@@ -20,32 +21,30 @@ enum class Color {
   Magenta,
   Cyan,
   White,
-  // Grayscale Ramp (xterm 256-color palette)
-  Gray0 = 232,  // Darkest
-  Gray1 = 233,
-  Gray2 = 234,
-  Gray3 = 235,
-  Gray4 = 236,
-  Gray5 = 237,
-  Gray6 = 238,
-  Gray7 = 239,
-  Gray8 = 240,
-  Gray9 = 241,
-  Gray10 = 242,
-  Gray11 = 243,
-  Gray12 = 244,  // Neutral
-  Gray13 = 245,
-  Gray14 = 246,
-  Gray15 = 247,
-  Gray16 = 248,
-  Gray17 = 249,
-  Gray18 = 250,
-  Gray19 = 251,
-  Gray20 = 252,
-  Gray21 = 253,
-  Gray22 = 254,
-  Gray23 = 255  // Lightest
+  BrightBlack,
+  BrightRed,
+  BrightGreen,
+  BrightYellow,
+  BrightBlue,
+  BrightMagenta,
+  BrightCyan,
+  BrightWhite
 };
+
+// TODO(2026-05-11, easy): Validate at construction that all coordinates are
+// between 0 and 5?
+struct ColorCube {
+  uint8_t r, g, b;
+
+  bool operator==(const ColorCube&) const = default;
+};
+
+// TODO(2026-05-11, trivial): Add validator that it's between 0 and 23.
+struct ColorGrayscale : public language::GhostType<ColorGrayscale, uint8_t> {
+  using GhostType::GhostType;
+};
+
+using Color = std::variant<StandardColor, ColorCube, ColorGrayscale>;
 
 std::expected<Color, language::Error> ColorFromString(
     const language::lazy_string::NonEmptySingleLine&);
@@ -137,6 +136,10 @@ namespace std {
 template <>
 struct hash<afc::infrastructure::screen::Style> {
   std::size_t operator()(const afc::infrastructure::screen::Style& style) const;
+};
+template <>
+struct hash<afc::infrastructure::screen::ColorCube> {
+  std::size_t operator()(const afc::infrastructure::screen::ColorCube&) const;
 };
 }  // namespace std
 

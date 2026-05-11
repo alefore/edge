@@ -11,7 +11,7 @@
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -34,9 +34,9 @@ void CheckSingleton(C const container, V value) {
 void TestLineDeleteCharacters() {
   // Preparation.
   LineBuilder builder{SingleLine{LazyString{L"alejo"}}};
-  builder.InsertModifier(ColumnNumber(0), Color::Red);
-  builder.InsertModifier(ColumnNumber(1), Color::Green);
-  builder.InsertModifier(ColumnNumber(2), Color::Blue);
+  builder.InsertModifier(ColumnNumber(0), StandardColor::Red);
+  builder.InsertModifier(ColumnNumber(1), StandardColor::Green);
+  builder.InsertModifier(ColumnNumber(2), StandardColor::Blue);
   builder.InsertModifier(ColumnNumber(3), StyleAttribute::Bold);
   builder.InsertModifier(ColumnNumber(4), StyleAttribute::Dim);
   Line line = builder.Copy().Build();
@@ -47,9 +47,9 @@ void TestLineDeleteCharacters() {
     CHECK_EQ(line_copy.Copy().Build().contents().ToBytes(), "al");
     CHECK_EQ(line_copy.modifiers_size(), 2ul);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
-                   Color::Red);
+                   StandardColor::Red);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(1)),
-                   Color::Green);
+                   StandardColor::Green);
   }
 
   {
@@ -58,7 +58,7 @@ void TestLineDeleteCharacters() {
     CHECK_EQ(line_copy.Copy().Build().contents().ToBytes(), "ajo");
     CHECK_EQ(line_copy.modifiers_size(), 3ul);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
-                   Color::Red);
+                   StandardColor::Red);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(1)),
                    StyleAttribute::Bold);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(2)),
@@ -68,16 +68,16 @@ void TestLineDeleteCharacters() {
   // Original isn't modified.
   CHECK_EQ(line.EndColumn(), ColumnNumber(5));
   CHECK_EQ(line.modifiers().size(), 5ul);
-  CheckSingleton(line.modifiers().at(ColumnNumber(0)), Color::Red);
-  CheckSingleton(line.modifiers().at(ColumnNumber(1)), Color::Green);
-  CheckSingleton(line.modifiers().at(ColumnNumber(2)), Color::Blue);
+  CheckSingleton(line.modifiers().at(ColumnNumber(0)), StandardColor::Red);
+  CheckSingleton(line.modifiers().at(ColumnNumber(1)), StandardColor::Green);
+  CheckSingleton(line.modifiers().at(ColumnNumber(2)), StandardColor::Blue);
   CheckSingleton(line.modifiers().at(ColumnNumber(3)), StyleAttribute::Bold);
   CheckSingleton(line.modifiers().at(ColumnNumber(4)), StyleAttribute::Dim);
 }
 
 void TestLineAppend() {
   LineBuilder line{SingleLine{LazyString{L"abc"}}};
-  line.modifiers().at(ColumnNumber(1)).insert(Color::Red);
+  line.modifiers().at(ColumnNumber(1)).insert(StandardColor::Red);
   line.modifiers().at(ColumnNumber(2));
 
   LineBuilder suffix{SingleLine{LazyString{L"def"}}};
@@ -87,7 +87,7 @@ void TestLineAppend() {
 
   CHECK_EQ(line.modifiers().size(), 4ul);
   CHECK(line.modifiers().at(ColumnNumber(1)) ==
-        Style({Color::Red}));
+        Style({StandardColor::Red}));
   CHECK(line.modifiers().at(ColumnNumber(2)) == Style());
   CHECK(line.modifiers().at(ColumnNumber(4)) ==
         Style({StyleAttribute::Bold}));
@@ -96,19 +96,19 @@ void TestLineAppend() {
 
 void TestLineAppendEmpty() {
   LineBuilder line{SingleLine{LazyString{L"abc"}}};
-  line.InsertModifier(ColumnNumber(0), Color::Red);
+  line.InsertModifier(ColumnNumber(0), StandardColor::Red);
 
   line.Append(LineBuilder());
 
   CHECK_EQ(line.modifiers_size(), 1ul);
   CHECK(line.modifiers().at(ColumnNumber(0)) ==
-        Style({Color::Red}));
+        Style({StandardColor::Red}));
 
   line.Append(LineBuilder{SingleLine{LazyString{L"def"}}});
 
   CHECK_EQ(line.modifiers_size(), 2ul);
   CHECK(line.modifiers().at(ColumnNumber(0)) ==
-        Style({Color::Red}));
+        Style({StandardColor::Red}));
   CHECK(line.modifiers().at(ColumnNumber(3)) == Style());
   CHECK_EQ(line.modifiers_size(), 2ul);
 }

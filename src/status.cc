@@ -17,6 +17,7 @@
 using afc::concurrent::Protected;
 using afc::concurrent::VersionPropertyReceiver;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -263,7 +264,7 @@ void Status::Set(Error error) {
     }
     LineBuilder text;
     text.AppendString(LineSequence::BreakLines(error.read()).FoldLines(),
-                      Style{.foreground_color = Color::Red,
+                      Style{.foreground_color = StandardColor::Red,
                             .attributes = StyleAttribute::Bold});
     data = MakeNonNullShared<Data>(Data{
         .type = Type::Warning,
@@ -314,8 +315,9 @@ void Status::Bell() {
       }
 
       static const std::vector<Color> colors = {
-          Color::Red,    Color::Green,   Color::Blue, Color::Cyan,
-          Color::Yellow, Color::Magenta, Color::White};
+          StandardColor::Red,  StandardColor::Green,  StandardColor::Blue,
+          StandardColor::Cyan, StandardColor::Yellow, StandardColor::Magenta,
+          StandardColor::White};
       static const std::vector<StyleAttribute> effects = {
           StyleAttribute::Bold, StyleAttribute::Italic,
           StyleAttribute::Reverse};

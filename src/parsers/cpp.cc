@@ -16,7 +16,7 @@
 namespace container = afc::language::container;
 
 using afc::editor::parsers::ParseQuotedString;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::HashToStyle;
 using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
@@ -69,7 +69,7 @@ static const std::unordered_set<wchar_t> identifier_chars =
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view{L"1234567890"});
 static const Style BAD_PARSE_MODIFIERS =
-    Style({.background_color = Color::Red, .attributes = StyleAttribute::Bold});
+    Style({.background_color = StandardColor::Red, .attributes = StyleAttribute::Bold});
 
 class CppTreeParser : public parsers::LineOrientedTreeParser {
   const ParserId parser_id_;
@@ -187,7 +187,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
         CommentToEndOfLine(result);
         break;
       case '*':
-        result->Push(COMMENT, ColumnNumberDelta(1), {Color::Blue}, {});
+        result->Push(COMMENT, ColumnNumberDelta(1), {StandardColor::Blue}, {});
         seek.Once();
         break;
       default:
@@ -201,7 +201,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
                            original_position.column,
-                       {Color::Blue});
+                       {StandardColor::Blue});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
@@ -230,7 +230,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     if (seek.read() == '\'') {
       seek.Once();
       ++rewind_column;
-      result->PushAndPop(rewind_column, {Color::Yellow});
+      result->PushAndPop(rewind_column, {StandardColor::Yellow});
     } else {
       result->set_position(original_position);
       result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
@@ -238,7 +238,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
   }
 
   void LiteralString(ParseData* result) {
-    ParseQuotedString(result, L'\"', {Color::Yellow}, {});
+    ParseQuotedString(result, L'\"', {StandardColor::Yellow}, {});
   }
 
   void PreprocessorDirective(ParseData* result) {
@@ -249,7 +249,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     result->seek().ToEndOfLine();
     CHECK_GT(result->position().column, original_position.column);
     result->PushAndPop(result->position().column - original_position.column,
-                       {Color::Yellow});
+                       {StandardColor::Yellow});
   }
 
   void Identifier(ParseData* result) {
@@ -272,9 +272,9 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                          .Substring(original_position.column, length);
     Style modifiers;
     if (Contains(keywords_, str)) {
-      modifiers.foreground_color = Color::Cyan;
+      modifiers.foreground_color = StandardColor::Cyan;
     } else if (Contains(typos_, str)) {
-      modifiers.foreground_color = Color::Red;
+      modifiers.foreground_color = StandardColor::Red;
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers =
           HashToStyle(std::hash<SingleLine>{}(str), HashToStyleBold::Never);
@@ -285,12 +285,12 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
   void ParseJavaScriptString(ParseData* result, CurrentState state) {
     CHECK_EQ(parser_id_, ParserId::JavaScript());
     switch (ParseQuotedString(
-        result, L'`', {Color::Yellow}, {},
+        result, L'`', {StandardColor::Yellow}, {},
         NestedExpressionSyntax{
             .prefix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"${"),
             .suffix = NON_EMPTY_SINGLE_LINE_CONSTANT(L"}"),
             .prefix_suffix_modifiers = Style{.attributes = StyleAttribute::Dim},
-            .modifiers = Style{.foreground_color = Color::Green}},
+            .modifiers = Style{.foreground_color = StandardColor::Green}},
         MultipleLinesSupport::kAccept, state)) {
       case ParseQuotedStringState::Done:
         return;
@@ -336,7 +336,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
       ColumnNumberDelta length =
           result->position().column - annotation_name_start_position.column;
 
-      result->PushAndPop(length + ColumnNumberDelta(1), {Color::Green});
+      result->PushAndPop(length + ColumnNumberDelta(1), {StandardColor::Green});
       return;
     }
 
@@ -368,7 +368,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 
     if (c == L'\'') {
       if (parser_id_ == ParserId::JavaScript()) {
-        ParseQuotedString(result, L'\'', {Color::Yellow}, {});
+        ParseQuotedString(result, L'\'', {StandardColor::Yellow}, {});
       } else {
         LiteralCharacter(result);
       }
@@ -404,7 +404,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {Color::Yellow}, {});
+      parsers::ParseNumber(result, {StandardColor::Yellow}, {});
       return;
     }
   }

@@ -4,7 +4,7 @@
 
 #include "src/language/hash.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::language::compute_hash;
 
 namespace afc::editor::flags {

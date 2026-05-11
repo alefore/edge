@@ -25,6 +25,7 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlay;
@@ -92,7 +93,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
             line_options.modifiers();
         modifiers.erase(modifiers.lower_bound(begin),
                         modifiers.lower_bound(end));
-        modifiers[begin] = {Color::Blue};
+        modifiers[begin] = {StandardColor::Blue};
         line_options.set_modifiers(std::move(modifiers));
         output.line = std::move(line_options).Build();
         return output;
@@ -139,7 +140,9 @@ Style MergeSets(const Style& parent, const Style& child) {
   if (parent.foreground_color == child.foreground_color &&
       parent.foreground_color.has_value())
     output.foreground_color =
-        output.foreground_color == Color::White ? Color::Cyan : Color::White;
+        output.foreground_color == Color{StandardColor::White}
+            ? StandardColor::Cyan
+            : StandardColor::White;
   return output;
 }
 
@@ -274,20 +277,21 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     switch (cursor_mode) {
                       case EditorMode::CursorMode::Default:
                         options.modifiers_main_cursor = {
-                            multiple_cursors ? Color::Green : Color::White};
+                            multiple_cursors ? StandardColor::Green
+                                             : StandardColor::White};
                         break;
                       case EditorMode::CursorMode::Inserting:
-                        options.modifiers_main_cursor = {Color::Yellow};
+                        options.modifiers_main_cursor = {StandardColor::Yellow};
                         break;
                       case EditorMode::CursorMode::Overwriting:
                         options.modifiers_main_cursor =
-                            Style{.foreground_color = Color::Red,
+                            Style{.foreground_color = StandardColor::Red,
                                   .attributes = StyleAttribute::Underline};
                         break;
                     }
                     options.modifiers_inactive_cursors =
                         multiple_cursors ? options.modifiers_main_cursor
-                                         : Style({Color::Blue});
+                                         : Style({StandardColor::Blue});
                     // The inactive cursors need the REVERSE modifier to ensure
                     // they get highlighted. The active one doesn't need it,
                     // since the terminal handler actually places the real
@@ -297,8 +301,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     break;
                   case Widget::OutputProducerOptions::MainCursorDisplay::
                       kInactive:
-                    options.modifiers_main_cursor = {Color::Blue};
-                    options.modifiers_inactive_cursors = {Color::Blue};
+                    options.modifiers_main_cursor = {StandardColor::Blue};
+                    options.modifiers_inactive_cursors = {StandardColor::Blue};
                     break;
                 }
               }

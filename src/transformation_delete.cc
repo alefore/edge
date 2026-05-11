@@ -29,7 +29,7 @@
 namespace gc = afc::language::gc;
 namespace staging = afc::language::staging;
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -248,7 +248,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         insert_options.modifiers_set =
             options.modifiers.text_delete_behavior ==
                     Modifiers::TextDeleteBehavior::kKeep
-                ? Style{.foreground_color = Color::Yellow,
+                ? Style{.foreground_color = StandardColor::Yellow,
                         .attributes = StyleAttribute::Underline}
                 : options.preview_modifiers;
         input.position = range.begin();

@@ -15,7 +15,7 @@
 #include "src/parse_tree.h"
 #include "src/tests/tests.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumber;
@@ -134,7 +134,7 @@ static const Style kContentModifiers = {.attributes = StyleAttribute::Bold};
 static const ParseTree::PropertyMap kContentProperties = {
     {ParseTreePropertyName::StringValue(), LazyString{}}};
 Style kNestedPrefixSuffixModifiers = {.attributes = StyleAttribute::Dim};
-Style kNestedContentModifiers = {Color::Green};
+Style kNestedContentModifiers = {StandardColor::Green};
 
 bool parse_quoted_string_tests = afc::tests::Register(
     L"ParseQuotedString",

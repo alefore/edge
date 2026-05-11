@@ -22,14 +22,14 @@ namespace afc::infrastructure::screen {
 namespace {
 const std::unordered_map<NonEmptySingleLine, Color>& ColorNames() {
   static const std::unordered_map<NonEmptySingleLine, Color> values = {
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), Color::Black},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), Color::Red},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), Color::Green},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), Color::Blue},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), Color::Cyan},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), Color::Yellow},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), Color::Magenta},
-      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"WHITE"), Color::White}};
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"), StandardColor::Black},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"), StandardColor::Red},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"), StandardColor::Green},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"), StandardColor::Blue},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"), StandardColor::Cyan},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"), StandardColor::Yellow},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"), StandardColor::Magenta},
+      {NON_EMPTY_SINGLE_LINE_CONSTANT(L"WHITE"), StandardColor::White}};
   return values;
 }
 }  // namespace
@@ -93,21 +93,21 @@ const std::unordered_map<NonEmptySingleLine, Style>& Style::Names() {
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"REVERSE"),
        Style{.attributes = StyleAttribute::Reverse}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLACK"),
-       Style{.foreground_color = Color::Black}},
+       Style{.foreground_color = StandardColor::Black}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"RED"),
-       Style{.foreground_color = Color::Red}},
+       Style{.foreground_color = StandardColor::Red}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"GREEN"),
-       Style{.foreground_color = Color::Green}},
+       Style{.foreground_color = StandardColor::Green}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BLUE"),
-       Style{.foreground_color = Color::Blue}},
+       Style{.foreground_color = StandardColor::Blue}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"CYAN"),
-       Style{.foreground_color = Color::Cyan}},
+       Style{.foreground_color = StandardColor::Cyan}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"YELLOW"),
-       Style{.foreground_color = Color::Yellow}},
+       Style{.foreground_color = StandardColor::Yellow}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"MAGENTA"),
-       Style{.foreground_color = Color::Magenta}},
+       Style{.foreground_color = StandardColor::Magenta}},
       {NON_EMPTY_SINGLE_LINE_CONSTANT(L"BG_RED"),
-       Style{.background_color = Color::Red}}};
+       Style{.background_color = StandardColor::Red}}};
   return values;
 }
 
@@ -171,13 +171,14 @@ std::ostream& operator<<(std::ostream& os, const Style& s) {
 Style HashToStyle(const size_t hash_value,
                   const HashToStyleBold bold_behavior) {
   static const std::vector<Color> foreground_colors = {
-      Color::Cyan, Color::Yellow, Color::Red,
-      Color::Blue, Color::Green,  Color::Magenta};
-  static const std::vector<Color> background_colors = {
-      Color::Gray0, Color::Gray1, Color::Gray2,  Color::Gray3,
-      Color::Gray4, Color::Gray5, Color::Gray6,  Color::Gray7,
-      Color::Gray8, Color::Gray9, Color::Gray10, Color::Gray11,
-  };
+      StandardColor::Cyan, StandardColor::Yellow, StandardColor::Red,
+      StandardColor::Blue, StandardColor::Green,  StandardColor::Magenta};
+  static const auto background_colors =
+      std::views::iota(0, 12) | std::views::transform([](int i) -> Color {
+        return ColorGrayscale{static_cast<uint8_t>(i)};
+      }) |
+      std::ranges::to<std::vector<Color>>();
+
   Style output{.foreground_color =
                    foreground_colors[hash_value % foreground_colors.size()],
                .background_color =
@@ -195,5 +196,10 @@ std::size_t hash<afc::infrastructure::screen::Style>::operator()(
     const afc::infrastructure::screen::Style& style) const {
   return compute_hash(style.foreground_color, style.background_color,
                       style.attributes);
+}
+
+std::size_t hash<afc::infrastructure::screen::ColorCube>::operator()(
+    const afc::infrastructure::screen::ColorCube& c) const {
+  return compute_hash(c.r, c.g, c.b);
 }
 }  // namespace std

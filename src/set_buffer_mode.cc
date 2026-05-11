@@ -14,6 +14,7 @@ using afc::concurrent::ChannelLast;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -191,23 +192,23 @@ Line BuildStatus(const Data& data) {
         break;
       case Operation::Type::kFilter:
         output.AppendString(SingleLine::Char<L'w'>(),
-                            Style{.foreground_color = Color::Cyan});
+                            Style{.foreground_color = StandardColor::Cyan});
         output.AppendString(SingleLine::Char<L':'>(),
                             Style{.attributes = StyleAttribute::Dim});
         output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::ReadingFilter) {
           output.AppendString(SingleLine::Char<L'…'>(),
-                              Style{.foreground_color = Color::Yellow});
+                              Style{.foreground_color = StandardColor::Yellow});
         }
         break;
       case Operation::Type::WarningFilter:
         output.AppendString(SINGLE_LINE_CONSTANT(L" !"),
-                            Style{.foreground_color = Color::Red});
+                            Style{.foreground_color = StandardColor::Red});
         break;
       case Operation::Type::kSearch:
         output.AppendString(SingleLine::Char<L'/'>(),
-                            Style{.foreground_color = Color::Green});
+                            Style{.foreground_color = StandardColor::Green});
         output.AppendString(SingleLine::Char<L':'>(),
                             Style{.attributes = StyleAttribute::Dim});
 
@@ -215,7 +216,7 @@ Line BuildStatus(const Data& data) {
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::ReadingSearch) {
           output.AppendString(SingleLine::Char<L'…'>(),
-                              Style{.foreground_color = Color::Yellow});
+                              Style{.foreground_color = StandardColor::Yellow});
         }
         break;
     }

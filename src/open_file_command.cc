@@ -30,7 +30,7 @@ namespace gc = afc::language::gc;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -116,13 +116,13 @@ ColorizePromptOptions DrawPath(
           }
           if (results.matches == 0 &&
               column.ToDelta() >= results.predictor_output.longest_prefix) {
-            modifiers.foreground_color = Color::Red;
+            modifiers.foreground_color = StandardColor::Red;
           } else if (results.matches == 1) {
-            modifiers.foreground_color = Color::Green;
+            modifiers.foreground_color = StandardColor::Green;
           } else if (results.common_prefix.has_value() &&
                      line.size() < ColumnNumberDelta(
                                        results.common_prefix.value().size())) {
-            modifiers.foreground_color = Color::Yellow;
+            modifiers.foreground_color = StandardColor::Yellow;
           }
         }
     }

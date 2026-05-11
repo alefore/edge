@@ -20,6 +20,7 @@ namespace staging = afc::language::staging;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;
@@ -408,8 +409,8 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
                             std::views::transform([](const Token& token) {
                               VLOG(6) << "Add token BOLD: " << token;
                               return TokenAndModifiers{
-                                  token,
-                                  Style{.foreground_color = Color::Cyan}};
+                                  token, Style{.foreground_color =
+                                                   StandardColor::Cyan}};
                             }))),
                     .data = LineSequence::BreakLines(data.OriginalString())};
               }) |
@@ -495,7 +496,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview{SingleLine{LazyString{L"foo\\"}}};
                expected_preview.AppendString(
                    SingleLine{LazyString{L"nbar"}},
-                   Style{.foreground_color = Color::Cyan});
+                   Style{.foreground_color = StandardColor::Cyan});
                expected_preview.AppendString(SingleLine{LazyString{L"do"}});
 
                CHECK_EQ(
@@ -570,7 +571,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                LineBuilder expected_preview;
                expected_preview.AppendString(
                    SingleLine{LazyString{L"ls"}},
-                   Style{.foreground_color = Color::Cyan});
+                   Style{.foreground_color = StandardColor::Cyan});
                expected_preview.AppendString(SingleLine{LazyString{L"\\n"}});
 
                CHECK_EQ(output.matches[0],

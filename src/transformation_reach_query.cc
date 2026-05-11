@@ -8,7 +8,7 @@
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/wstring.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlayKey;
@@ -195,7 +195,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
           infrastructure::screen::VisualOverlay{
               .content =
                   SingleLine{LazyString{ColumnNumberDelta{1}, match.first}},
-              .modifiers = Style{.foreground_color = Color::White,
+              .modifiers = Style{.foreground_color = StandardColor::White,
                                  .attributes = StyleAttribute::Reverse},
               .behavior =
                   infrastructure::screen::VisualOverlay::Behavior::Toggle}));

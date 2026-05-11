@@ -10,7 +10,7 @@
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/text/line_builder.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::NonNull;
@@ -26,11 +26,11 @@ Line FrameLine(FrameOutputProducerOptions options) {
   Style line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::Inactive
           ? Style{.attributes = StyleAttribute::Dim}
-          : Style{.foreground_color = Color::Cyan,
+          : Style{.foreground_color = StandardColor::Cyan,
                   .attributes = StyleAttribute::Bold};
   Style title_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::Active
-          ? Style{.foreground_color = Color::Cyan,
+          ? Style{.foreground_color = StandardColor::Cyan,
                   .attributes = StyleAttribute::Bold | StyleAttribute::Reverse}
           : Style();
   LineBuilder output;
@@ -48,7 +48,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
     // typically start counting from 1.
     output.AppendString(SingleLine{LazyString{std::to_wstring(
                             1 + options.position_in_parent.value())}},
-                        Style{.foreground_color = Color::Cyan,
+                        Style{.foreground_color = StandardColor::Cyan,
                               .attributes = StyleAttribute::Bold});
     output.AppendString(SingleLine::Char<L')'>(), line_modifiers);
   }

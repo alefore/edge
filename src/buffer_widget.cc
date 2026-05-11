@@ -30,7 +30,7 @@
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::HasValue;
@@ -514,7 +514,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
           if (add_left_frame) {
             output.lines = AddLeftFrame(
                 std::move(output.lines),
-                options_.is_active ? Style{.foreground_color = Color::Cyan,
+                options_.is_active ? Style{.foreground_color = StandardColor::Cyan,
                                            .attributes = StyleAttribute::Bold}
                                    : Style{.attributes = StyleAttribute::Dim});
           }

@@ -20,7 +20,7 @@ using afc::editor::parsers::MultipleLinesSupport;
 using afc::editor::parsers::NestedExpressionSyntax;
 using afc::editor::parsers::ParseQuotedString;
 using afc::editor::parsers::ParseQuotedStringState;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::HashToStyle;
 using afc::infrastructure::screen::HashToStyleBold;
 using afc::infrastructure::screen::Style;
@@ -209,14 +209,14 @@ const std::set<State> PropertiesValueStates() {
 }
 
 static const Style BAD_PARSE_MODIFIERS =
-    Style{.background_color = Color::Red, .attributes = StyleAttribute::Bold};
+    Style{.background_color = StandardColor::Red, .attributes = StyleAttribute::Bold};
 
 static const Style RECOGNIZED_RULE_MODIFIERS = Style{
-    .foreground_color = Color::Magenta, .attributes = StyleAttribute::Bold};
+    .foreground_color = StandardColor::Magenta, .attributes = StyleAttribute::Bold};
 
-static const Style VALID_BORDER_STYLE_VALUE_MODIFIERS = Style({Color::Green});
+static const Style VALID_BORDER_STYLE_VALUE_MODIFIERS = Style({StandardColor::Green});
 
-static const Style VALID_DISPLAY_VALUE_MODIFIERS = Style({Color::Green});
+static const Style VALID_DISPLAY_VALUE_MODIFIERS = Style({StandardColor::Green});
 
 class CssTreeParser : public parsers::LineOrientedTreeParser {
   const ParserId parser_id_;
@@ -325,7 +325,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     if (c == L'/') {
       if (seek.read() == L'*') {
         seek.Once();
-        result->Push(IN_MULTI_LINE_COMMENT, ColumnNumberDelta(2), {Color::Blue},
+        result->Push(IN_MULTI_LINE_COMMENT, ColumnNumberDelta(2), {StandardColor::Blue},
                      {});
       } else
         result->PushAndPop(ColumnNumberDelta(1), {});
@@ -333,7 +333,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (c == L'\'' || c == L'"') {
-      if (ParseQuotedString(result, c, {Color::Yellow}, {}, std::nullopt,
+      if (ParseQuotedString(result, c, {StandardColor::Yellow}, {}, std::nullopt,
                             MultipleLinesSupport::kAccept,
                             parsers::CurrentState::kStart) !=
           ParseQuotedStringState::Done) {
@@ -388,7 +388,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
                                   L"*"});
         if (css_selector_chars.contains(c)) {
           ParseWordLikeToken(result, css_selector_chars,
-                             Style{.foreground_color = Color::Cyan});
+                             Style{.foreground_color = StandardColor::Cyan});
           return;
         }
         break;
@@ -401,7 +401,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     }
 
     if (isdigit(c)) {
-      parsers::ParseNumber(result, {Color::Yellow}, {});
+      parsers::ParseNumber(result, {StandardColor::Yellow}, {});
       return;
     }
   }
@@ -445,7 +445,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->PushAndPop(length, RECOGNIZED_RULE_MODIFIERS);
         result->SetState(it->second.post_name_state);
       } else {
-        result->PushAndPop(length, {Color::White});
+        result->PushAndPop(length, {StandardColor::White});
         result->SetState(IN_DECLARATION_BLOCK_EXPECT_COLON);
       }
       return;
@@ -468,7 +468,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
     if (result->state() == INVALID_PROPERTY_VALUE) {
       result->PushAndPop(length, BAD_PARSE_MODIFIERS);
     } else {  // IN_DECLARATION_BLOCK_EXPECT_VALUE
-      result->PushAndPop(length, {Color::White});
+      result->PushAndPop(length, {StandardColor::White});
     }
   }
   void ParseMultiLineComment(ParseData* result) {
@@ -483,12 +483,12 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
         result->PopBack();
         result->PushAndPop(
             result->position().column - start_column_for_highlight,
-            {Color::Blue});
+            {StandardColor::Blue});
         return;
       }
     }
     result->PushAndPop(result->position().column - start_column_for_highlight,
-                       {Color::Blue});
+                       {StandardColor::Blue});
   }
 
   void ParseMultipleLineString(ParseData* result) {
@@ -501,7 +501,7 @@ class CssTreeParser : public parsers::LineOrientedTreeParser {
             result,
             original_state == IN_MULTIPLE_LINE_STRING_SINGLE_QUOTE ? L'\''
                                                                    : L'"',
-            {Color::Yellow}, {}, std::nullopt, MultipleLinesSupport::kAccept,
+            {StandardColor::Yellow}, {}, std::nullopt, MultipleLinesSupport::kAccept,
             CurrentState::kContinuationInDefault) ==
         ParseQuotedStringState::Done)
       return;

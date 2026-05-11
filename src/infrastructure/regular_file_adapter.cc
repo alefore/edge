@@ -4,7 +4,9 @@
 #include "src/language/text/line_builder.h"
 
 using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;

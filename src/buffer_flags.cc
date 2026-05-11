@@ -11,6 +11,7 @@
 
 namespace container = afc::language::container;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::CaptureAndHash;
@@ -30,8 +31,9 @@ std::vector<Color> GetBufferFlag(const OpenBuffer& buffer) {
   static const InputKey path{NON_EMPTY_SINGLE_LINE_CONSTANT(L"path")};
 
   static const std::vector<Color> colors = {
-      Color::Red,    Color::Green,   Color::Blue, Color::Cyan,
-      Color::Yellow, Color::Magenta, Color::White};
+      StandardColor::Red,  StandardColor::Green,  StandardColor::Blue,
+      StandardColor::Cyan, StandardColor::Yellow, StandardColor::Magenta,
+      StandardColor::White};
   std::vector<InputKey> spec = {path, path, path};
   return flags::GenerateFlags(
       spec, colors, {{path, InputValue{buffer.Read(buffer_variables::path)}}});

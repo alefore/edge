@@ -4,7 +4,7 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/functional.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::NonNull;
@@ -23,7 +23,7 @@ namespace afc::editor::parsers {
 
 // TODO(easy, 2023-09-16): Reuse these symbosl in cpp_parse_tree.
 static const Style BAD_PARSE_MODIFIERS =
-    Style{.background_color = Color::Red, .attributes = StyleAttribute::Bold};
+    Style{.background_color = StandardColor::Red, .attributes = StyleAttribute::Bold};
 
 static const std::unordered_set<wchar_t> digit_chars =
     MaterializeUnorderedSet(std::wstring_view(L"1234567890."));

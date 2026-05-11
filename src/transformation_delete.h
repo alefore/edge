@@ -24,7 +24,7 @@ struct Delete {
   // When mode is Preview, what colors should the deleted text be previewed in?
   infrastructure::screen::Style preview_modifiers =
       infrastructure::screen::Style{
-          .foreground_color = infrastructure::screen::Color::Red,
+          .foreground_color = infrastructure::screen::StandardColor::Red,
           .attributes = infrastructure::screen::StyleAttribute::Underline};
 
   // If set, overrides the mode passed when the transformation is executed. This

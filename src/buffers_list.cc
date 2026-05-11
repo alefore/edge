@@ -26,7 +26,7 @@ namespace container = afc::language::container;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EraseIf;
@@ -303,7 +303,7 @@ Style GetNumberModifiers(const BuffersListOptions& options,
                          FilterResult filter_result) {
   Style output;
   if (buffer.status().GetType() == Status::Type::Warning) {
-    output.foreground_color = Color::Red;
+    output.foreground_color = StandardColor::Red;
     const double kSecondsWarningHighlight = 5;
     if (GetElapsedSecondsSince(buffer.status().last_change_time()) <
         kSecondsWarningHighlight) {
@@ -312,16 +312,16 @@ Style GetNumberModifiers(const BuffersListOptions& options,
   } else if (filter_result == FilterResult::Excluded) {
     output.attributes |= StyleAttribute::Dim;
   } else if (child_process.pid()) {
-    output.foreground_color = Color::Yellow;
+    output.foreground_color = StandardColor::Yellow;
   } else if (child_process.exit_status()) {
     auto status = child_process.exit_status().value();
     if (!WIFEXITED(status)) {
-      output.foreground_color = Color::Red;
+      output.foreground_color = StandardColor::Red;
       output.attributes |= StyleAttribute::Bold;
     } else if (WEXITSTATUS(status) == 0) {
-      output.foreground_color = Color::Green;
+      output.foreground_color = StandardColor::Green;
     } else {
-      output.foreground_color = Color::Red;
+      output.foreground_color = StandardColor::Red;
     }
     if (GetElapsedSecondsSince(child_process.time_last_exit()) < 5.0) {
       output.attributes |= StyleAttribute::Reverse;
@@ -330,7 +330,7 @@ Style GetNumberModifiers(const BuffersListOptions& options,
     if (buffer.dirty()) {
       output.attributes |= StyleAttribute::Italic;
     }
-    output.foreground_color = Color::Cyan;
+    output.foreground_color = StandardColor::Cyan;
   }
   if (options.active_buffer.has_value() &&
       &buffer == &options.active_buffer.value().ptr().value()) {
@@ -485,7 +485,7 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
       break;
     case SelectionState::ReceivingInput:
       modifiers.attributes |= StyleAttribute::Reverse;
-      modifiers.foreground_color = Color::Cyan;
+      modifiers.foreground_color = StandardColor::Cyan;
       bold = dim = modifiers;
       bold.attributes |= StyleAttribute::Bold;
       break;
@@ -700,7 +700,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             Style progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
               progress = SingleLine::Char<L'!'>();
-              progress_modifier.foreground_color = Color::Red;
+              progress_modifier.foreground_color = StandardColor::Red;
             } else if (!buffer.GetExpiredLineMarks().empty()) {
               progress = SingleLine::Char<L'!'>();
             } else if (buffer.ShouldDisplayProgress()) {

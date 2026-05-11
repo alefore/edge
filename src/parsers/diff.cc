@@ -12,7 +12,7 @@
 namespace afc::editor::parsers {
 namespace {
 using afc::infrastructure::screen::StyleAttribute;
-using infrastructure::screen::Color;
+using infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using infrastructure::screen::Style;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
@@ -38,25 +38,25 @@ class DiffParser : public LineOrientedTreeParser {
       case L'+':
         if (result->state() == HEADERS || result->state() == DEFAULT) {
           if (!HandlePath(result))
-            AdvanceLine(result, Style{.foreground_color = Color::Green,
+            AdvanceLine(result, Style{.foreground_color = StandardColor::Green,
                                       .attributes = StyleAttribute::Bold});
           return;
         }
         // Fall through.
       case L'>':
-        InContents(result, {Color::Green});
+        InContents(result, {StandardColor::Green});
         return;
 
       case L'-':
         if (result->state() == HEADERS || result->state() == DEFAULT) {
           if (!HandlePath(result))
-            AdvanceLine(result, Style{.foreground_color = Color::Red,
+            AdvanceLine(result, Style{.foreground_color = StandardColor::Red,
                                       .attributes = StyleAttribute::Bold});
           return;
         }
         // Fall through.
       case L'<':
-        InContents(result, {Color::Red});
+        InContents(result, {StandardColor::Red});
         return;
 
       case L'@':
@@ -67,7 +67,7 @@ class DiffParser : public LineOrientedTreeParser {
           result->PopBack();
         }
         result->Push(SECTION, ColumnNumberDelta(), {}, {});
-        AdvanceLine(result, {Color::Cyan});
+        AdvanceLine(result, {StandardColor::Cyan});
         return;
 
       default:
@@ -113,7 +113,7 @@ class DiffParser : public LineOrientedTreeParser {
     result->Push(
         FILE_LINE, path_start.ToDelta(),
         Style{
-            .foreground_color = c == '+' ? Color::Green : Color::Red,
+            .foreground_color = c == '+' ? StandardColor::Green : StandardColor::Red,
             .attributes = StyleAttribute::Bold,
         },
         ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}}});

@@ -21,7 +21,7 @@ namespace staging = afc::language::staging;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;

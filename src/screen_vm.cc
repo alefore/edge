@@ -24,6 +24,7 @@ using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::Screen;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;

@@ -15,7 +15,7 @@
 
 namespace container = afc::language::container;
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
@@ -128,7 +128,7 @@ class MarkdownParser : public LineOrientedTreeParser {
                                dictionary_.lines().range().empty() ||
                                        dictionary_.contains(LowerCase(str))
                                    ? Style{}
-                                   : Style{Color::Red});
+                                   : Style{StandardColor::Red});
           } else {
             seek.Once();
           }
@@ -147,7 +147,7 @@ class MarkdownParser : public LineOrientedTreeParser {
         ParseTree::PropertyMap{{ParseTreePropertyName::Link(), LazyString{}}});
     result->seek().Once();
     result->Push(LINK_TEXT, ColumnNumberDelta(),
-                 Style{.foreground_color = Color::Cyan}, {});
+                 Style{.foreground_color = StandardColor::Cyan}, {});
   }
 
   void HandleCloseLink(ParseData* result) {
@@ -200,25 +200,25 @@ class MarkdownParser : public LineOrientedTreeParser {
     Style modifiers;
     switch (spaces_prefix / 2) {
       case 0:
-        modifiers = Style{.foreground_color = Color::Cyan,
+        modifiers = Style{.foreground_color = StandardColor::Cyan,
                           .attributes = StyleAttribute::Bold};
         break;
       case 1:
-        modifiers = Style{.foreground_color = Color::Yellow,
+        modifiers = Style{.foreground_color = StandardColor::Yellow,
                           .attributes = StyleAttribute::Bold};
         break;
       case 2:
-        modifiers = Style{.foreground_color = Color::Green,
+        modifiers = Style{.foreground_color = StandardColor::Green,
                           .attributes = StyleAttribute::Bold};
         break;
       case 3:
-        modifiers = Style{.foreground_color = Color::Cyan};
+        modifiers = Style{.foreground_color = StandardColor::Cyan};
         break;
       case 4:
-        modifiers = Style{.foreground_color = Color::Yellow};
+        modifiers = Style{.foreground_color = StandardColor::Yellow};
         break;
       case 5:
-        modifiers = Style{.foreground_color = Color::Green};
+        modifiers = Style{.foreground_color = StandardColor::Green};
         break;
     }
     result->PushAndPop(ColumnNumberDelta(1), modifiers);
@@ -233,7 +233,7 @@ class MarkdownParser : public LineOrientedTreeParser {
       result->PopBack();
     } else {
       result->Push(CODE, ColumnNumberDelta(1),
-                   Style{.foreground_color = Color::Cyan}, {});
+                   Style{.foreground_color = StandardColor::Cyan}, {});
     }
   }
 
@@ -279,10 +279,10 @@ class MarkdownParser : public LineOrientedTreeParser {
 
     static const auto modifiers_by_depth = new std::vector<Style>(
         {Style{
-             .foreground_color = Color::White,
+             .foreground_color = StandardColor::White,
              .attributes = StyleAttribute::Reverse | StyleAttribute::Underline},
          Style{
-             .foreground_color = Color::Cyan,
+             .foreground_color = StandardColor::Cyan,
              .attributes = StyleAttribute::Reverse | StyleAttribute::Underline},
          Style{.attributes = StyleAttribute::Bold | StyleAttribute::Underline},
          Style{.attributes = StyleAttribute::Bold}});

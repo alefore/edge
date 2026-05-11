@@ -21,7 +21,7 @@
 #include "src/language/wstring.h"
 #include "src/widget.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::CaptureAndHash;
@@ -52,10 +52,10 @@ Style LineModifiers(const BufferContentsViewLayout::Line& line,
     return Style{.attributes = StyleAttribute::Dim};
   } else if (line.has_active_cursor ||
              buffer.Read(buffer_variables::multiple_cursors)) {
-    return Style{.foreground_color = Color::Cyan,
+    return Style{.foreground_color = StandardColor::Cyan,
                  .attributes = StyleAttribute::Bold};
   } else {
-    return Style{.foreground_color = Color::Blue};
+    return Style{.foreground_color = StandardColor::Blue};
   }
 }
 

@@ -21,7 +21,7 @@ using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
 using afc::futures::IterationControlCommand;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -119,14 +119,14 @@ ColorizePromptOptions SearchResultsModifiers(
           case 0:
             return {};
           case 1:
-            return {Color::Cyan};
+            return {StandardColor::Cyan};
           case 2:
-            return {Color::Yellow};
+            return {StandardColor::Yellow};
           default:
-            return {Color::Green};
+            return {StandardColor::Green};
         }
       },
-      [&](Error) { return Style{Color::Red}; });
+      [&](Error) { return Style{StandardColor::Red}; });
 
   return Visit(
       NonEmptySingleLine::New(line),

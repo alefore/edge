@@ -16,6 +16,7 @@
 #include "src/tests/tests.h"
 
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
@@ -35,24 +36,24 @@ const bool line_tests_registration = tests::Register(
           [] {
             LineBuilder options;
             options.insert_end_of_line_modifiers(
-                Style{.foreground_color = Color::Red});
+                Style{.foreground_color = StandardColor::Red});
             CHECK_EQ(std::move(options)
                          .Build()
                          .end_of_line_modifiers()
                          .foreground_color.value(),
-                     Color::Red);
+                     Color(StandardColor::Red));
           }},
      {.name = L"CopyOfEmptyPreservesEndOfLine",
       .callback =
           [] {
             LineBuilder options;
             options.insert_end_of_line_modifiers(
-                Style{.foreground_color = Color::Red});
+                Style{.foreground_color = StandardColor::Red});
             Line initial_line = std::move(options).Build();
             Line final_line(std::move(initial_line));
             CHECK_EQ(
                 final_line.end_of_line_modifiers().foreground_color.value(),
-                Color::Red);
+                Color(StandardColor::Red));
           }},
      {.name = L"EndOfLineModifiersChangesHash",
       .callback =
@@ -60,7 +61,7 @@ const bool line_tests_registration = tests::Register(
             LineBuilder options;
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.insert_end_of_line_modifiers(
-                Style{.foreground_color = Color::Red});
+                Style{.foreground_color = StandardColor::Red});
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
@@ -77,8 +78,8 @@ const bool line_tests_registration = tests::Register(
           [] {
             LineBuilder options{SINGLE_LINE_CONSTANT(L"alejo")};
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
-            options.InsertModifiers(ColumnNumber(2),
-                                    Style{.foreground_color = Color::Red});
+            options.InsertModifiers(
+                ColumnNumber(2), Style{.foreground_color = StandardColor::Red});
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
@@ -120,22 +121,24 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-            builder.InsertModifiers(ColumnNumber(2),
-                                    Style{.foreground_color = Color::Red});
-            builder.InsertModifiers(ColumnNumber(5),
-                                    Style{.foreground_color = Color::Blue});
+            builder.InsertModifiers(
+                ColumnNumber(2), Style{.foreground_color = StandardColor::Red});
+            builder.InsertModifiers(
+                ColumnNumber(5),
+                Style{.foreground_color = StandardColor::Blue});
             Line line = std::move(builder).Build();
             CHECK(line.modifiers_at_position(ColumnNumber{2}) ==
-                  Style{Color::Red});
+                  Style{StandardColor::Red});
             CHECK(line.modifiers_at_position(ColumnNumber{5}) ==
-                  Style{Color::Blue});
+                  Style{StandardColor::Blue});
           }},
      {.name = L"PositionBeforeModifiers",
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-            builder.InsertModifiers(ColumnNumber(5),
-                                    Style{.foreground_color = Color::Blue});
+            builder.InsertModifiers(
+                ColumnNumber(5),
+                Style{.foreground_color = StandardColor::Blue});
             CHECK(std::move(builder)
                       .Build()
                       .modifiers_at_position(ColumnNumber{2})
@@ -145,19 +148,21 @@ const bool line_modifiers_at_position_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
-            builder.InsertModifiers(ColumnNumber(2),
-                                    Style{.foreground_color = Color::Green});
-            builder.InsertModifiers(ColumnNumber(5),
-                                    Style{.foreground_color = Color::Blue});
+            builder.InsertModifiers(
+                ColumnNumber(2),
+                Style{.foreground_color = StandardColor::Green});
+            builder.InsertModifiers(
+                ColumnNumber(5),
+                Style{.foreground_color = StandardColor::Blue});
             CHECK(std::move(builder).Build().modifiers_at_position(
-                      ColumnNumber{4}) == Style{Color::Green});
+                      ColumnNumber{4}) == Style{StandardColor::Green});
           }},
      {.name = L"InexactMatchAfterLast", .callback = [] {
         LineBuilder builder{SINGLE_LINE_CONSTANT(L"alejandro")};
         builder.InsertModifiers(ColumnNumber(5),
-                                Style{.foreground_color = Color::Blue});
+                                Style{.foreground_color = StandardColor::Blue});
         CHECK(std::move(builder).Build().modifiers_at_position(
-                  ColumnNumber{8}) == Style{Color::Blue});
+                  ColumnNumber{8}) == Style{StandardColor::Blue});
       }}});
 }  // namespace
 
@@ -279,7 +284,7 @@ const bool line_set_character_tests_registration = tests::Register(
                  Style{.attributes = StyleAttribute::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second, Style{});
 
-        options.SetCharacter(ColumnNumber(5), L'n', Style{Color::Blue});
+        options.SetCharacter(ColumnNumber(5), L'n', Style{StandardColor::Blue});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejAnDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
@@ -288,10 +293,10 @@ const bool line_set_character_tests_registration = tests::Register(
                  Style{.attributes = StyleAttribute::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second, Style{});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 Style{Color::Blue});
+                 Style{StandardColor::Blue});
         CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second, Style{});
 
-        options.SetCharacter(ColumnNumber(4), L'a', Style{Color::Red});
+        options.SetCharacter(ColumnNumber(4), L'a', Style{StandardColor::Red});
         CHECK_EQ(options.contents(), SINGLE_LINE_CONSTANT(L"AlejanDRO"));
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
@@ -299,9 +304,9 @@ const bool line_set_character_tests_registration = tests::Register(
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
                  Style{.attributes = StyleAttribute::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
-                 Style{Color::Red});
+                 Style{StandardColor::Red});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 Style{Color::Blue});
+                 Style{StandardColor::Blue});
         CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second, Style{});
 
         options.SetCharacter(ColumnNumber(0), L'a',
@@ -313,9 +318,9 @@ const bool line_set_character_tests_registration = tests::Register(
         CHECK_EQ(options.modifiers().find(ColumnNumber(3))->second,
                  Style{.attributes = StyleAttribute::Underline});
         CHECK_EQ(options.modifiers().find(ColumnNumber(4))->second,
-                 Style{Color::Red});
+                 Style{StandardColor::Red});
         CHECK_EQ(options.modifiers().find(ColumnNumber(5))->second,
-                 Style{Color::Blue});
+                 Style{StandardColor::Blue});
         CHECK_EQ(options.modifiers().find(ColumnNumber(6))->second, Style{});
       }}});
 }  // namespace

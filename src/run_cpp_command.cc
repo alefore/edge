@@ -32,7 +32,7 @@ namespace gc = afc::language::gc;
 using afc::concurrent::Protected;
 using afc::concurrent::VersionPropertyKey;
 using afc::futures::DeleteNotification;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -352,7 +352,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             [&](gc::Root<ExecutionContext::CompilationResult>
                     compilation_result)
                 -> futures::Value<ColorizePromptOptions> {
-              modifiers.foreground_color = Color::Cyan;
+              modifiers.foreground_color = StandardColor::Cyan;
               progress_channel->Push(ProgressInformation{
                   .values = {
                       {VersionPropertyKey{
@@ -425,7 +425,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
   VisitValue(Parse(editor.gc_pool(), line, environment, search_namespaces),
              [&](ParsedCommand) {
-               MaybePushTokenAndModifiers(line, Style{Color::Cyan},
+               MaybePushTokenAndModifiers(line, Style{StandardColor::Cyan},
                                           output->tokens);
              });
 

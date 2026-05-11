@@ -12,7 +12,7 @@
 #include "src/transformation_type.h"
 #include "src/transformation_vm.h"
 
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullUnique;
@@ -70,7 +70,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
                             ? transformation::Insert::FinalPosition::Start
                             : transformation::Insert::FinalPosition::End,
       .modifiers_set = input.mode == transformation::Input::Mode::Preview
-                           ? Style{.foreground_color = Color::Blue,
+                           ? Style{.foreground_color = StandardColor::Blue,
                                    .attributes = StyleAttribute::Underline}
                            : std::optional<Style>()});
 

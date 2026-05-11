@@ -40,7 +40,7 @@ using afc::infrastructure::HumanReadableDate;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -201,7 +201,7 @@ LineSequence PrepareCardContents(LineSequence original, SingleLine answer,
     for (ColumnNumber index; index.ToDelta() < input.size(); ++index) {
       if (StartsWith(input.Substring(index), answer)) {
         output.AppendString(answer_cover,
-                            Style{.foreground_color = Color::Cyan,
+                            Style{.foreground_color = StandardColor::Cyan,
                                   .attributes = StyleAttribute::Reverse});
         index += answer.size();
       } else

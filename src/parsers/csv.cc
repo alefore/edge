@@ -12,7 +12,7 @@
 namespace afc::editor::parsers {
 namespace {
 using afc::infrastructure::screen::StyleAttribute;
-using infrastructure::screen::Color;
+using infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using infrastructure::screen::Style;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
@@ -51,7 +51,7 @@ class CsvParser : public LineOrientedTreeParser {
 
   void ParseRow(ParseData* result, size_t csv_column) {
     static const std::vector<Color> csv_column_colors = {
-        Color::Cyan, Color::Yellow, Color::Green, Color::Blue, Color::Magenta};
+        StandardColor::Cyan, StandardColor::Yellow, StandardColor::Green, StandardColor::Blue, StandardColor::Magenta};
     result->Push(CSV_CELL, ColumnNumberDelta(), {}, {});
     Style modifiers{
         .foreground_color =

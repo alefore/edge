@@ -14,6 +14,7 @@
 namespace gc = afc::language::gc;
 
 using afc::infrastructure::screen::ColorToString;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::Error;

@@ -20,7 +20,7 @@ namespace container = afc::language::container;
 
 using afc::concurrent::MakeProtected;
 using afc::concurrent::Protected;
-using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::compute_hash;
@@ -401,7 +401,7 @@ class WordsTreeParser : public TreeParser {
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
         if (Contains(typos_, keyword))
-          child.set_modifiers(Style{.foreground_color = Color::Red});
+          child.set_modifiers(Style{.foreground_color = StandardColor::Red});
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));
       }

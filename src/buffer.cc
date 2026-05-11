@@ -95,7 +95,6 @@ using afc::infrastructure::RegularFileAdapter;
 using afc::infrastructure::TerminalAdapter;
 using afc::infrastructure::UnixSignal;
 using afc::infrastructure::UpdateIfMillisecondsHavePassed;
-using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::CursorsTracker;
 using afc::infrastructure::screen::Style;

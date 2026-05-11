@@ -24,6 +24,7 @@ namespace staging = afc::language::staging;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -90,11 +91,11 @@ futures::Value<PossibleError> PreviewCppExpression(
                      LineBuilder builder;
                      builder.AppendString(
                          SINGLE_LINE_CONSTANT(L"💣 E:"),
-                         Style{.background_color = Color::Red});
+                         Style{.background_color = StandardColor::Red});
                      builder.AppendString(SINGLE_LINE_CONSTANT(L" "));
                      builder.AppendString(
                          LineSequence::BreakLines(error.read()).FoldLines(),
-                         Style{Color::Red});
+                         Style{StandardColor::Red});
                      buffer.status().SetInformationText(
                          std::move(builder).Build());
                      return EmptyValue{};
@@ -109,12 +110,12 @@ futures::Value<Result> HandleCommandCpp(Input input,
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers =
-        Style{.foreground_color = Color::Green,
+        Style{.foreground_color = StandardColor::Green,
               .attributes = StyleAttribute::Underline};
     return PreviewCppExpression(input.buffer, contents)
         .ConsumeErrors([input, delete_transformation](Error error) {
           delete_transformation->preview_modifiers =
-              Style{.foreground_color = Color::Red,
+              Style{.foreground_color = StandardColor::Red,
                     .attributes = StyleAttribute::Underline};
           input.adapter.AddError(error);
           return EmptyValue{};
@@ -390,7 +391,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters_ref, Input input) {
           case Stack::PostTransformationBehavior::CommandSystem: {
             if (input.mode == Input::Mode::Preview) {
               delete_transformation.preview_modifiers =
-                  Style{.foreground_color = Color::Green,
+                  Style{.foreground_color = StandardColor::Green,
                         .attributes = StyleAttribute::Underline};
               return Apply(delete_transformation,
                            input.NewChild(range.begin()));
