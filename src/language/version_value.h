@@ -37,6 +37,16 @@ struct Value {
 
   const T* operator->() const { return &value; }
   T* operator->() { return &value; }
+
+  template <typename Self, typename Callable>
+  auto transform(this Self&& self, Callable&& callable) {
+    using NewT = std::invoke_result_t<Callable,
+                                      decltype(std::forward<Self>(self).value)>;
+    Origin origin_copy = self.origin;
+    return Value<NewT>{.origin = origin_copy,
+                       .value = std::forward<Callable>(callable)(
+                           std::forward<Self>(self).value)};
+  }
 };
 
 template <typename T>
