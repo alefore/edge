@@ -34,6 +34,9 @@ template <typename T>
 struct Value {
   Origin origin;
   T value;
+
+  const T* operator->() const { return &value; }
+  T* operator->() { return &value; }
 };
 
 template <typename T>

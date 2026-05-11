@@ -272,8 +272,8 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
                     gc::Root<OpenBuffer> buffer) -> futures::Value<EmptyValue> {
             auto disk_state_freezer = buffer->FreezeDiskState();
             buffer->status().InsertError(error);
-            buffer->AppendLine(
-                LineSequence::BreakLines(std::move(error).read()).FoldLines());
+            buffer->AppendLine(staging::CleanValue(
+                LineSequence::BreakLines(std::move(error).read()).FoldLines()));
             return EmptyValue{};
           },
           [](Error) -> futures::Value<EmptyValue> { return EmptyValue{}; },

@@ -683,7 +683,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
       GetHistoryBuffer(editor, history_file)
           .Transform([history_line = BuildHistoryLine(editor, input)](
                          gc::Root<OpenBuffer> history) {
-            history.ptr()->AppendLine(history_line);
+            history.ptr()->AppendLine(staging::CleanValue(history_line));
             return Success();
           });
       return;

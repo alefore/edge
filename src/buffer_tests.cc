@@ -545,14 +545,15 @@ const bool buffer_reloads_tests_registration = tests::Register(
                       << editor->buffer_registry().buffers().size();
             std::optional<gc::WeakPtr<OpenBuffer>> weak_buffer;
             std::move(future_buffer)
-                .Transform(
-                    [&editor, &weak_buffer](gc::Root<OpenBuffer> buffer) {
-                      LOG(INFO) << "File is opened.";
-                      weak_buffer = buffer.ptr().ToWeakPtr();
-                      buffer->Reload();
-                      buffer->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
-                      return Success();
-                    });
+                .Transform([&editor,
+                            &weak_buffer](gc::Root<OpenBuffer> buffer) {
+                  LOG(INFO) << "File is opened.";
+                  weak_buffer = buffer.ptr().ToWeakPtr();
+                  buffer->Reload();
+                  buffer->AppendLine(
+                      staging::CleanValue(SINGLE_LINE_CONSTANT(L"alejandro")));
+                  return Success();
+                });
 
             CHECK(weak_buffer->Lock().has_value());
             editor->CloseBuffer(weak_buffer->Lock()->ptr().value());
@@ -586,7 +587,8 @@ const bool buffer_reloads_tests_registration = tests::Register(
               LOG(INFO) << "File is opened.";
               weak_buffer = buffer.ptr().ToWeakPtr();
               buffer->Reload();
-              buffer->AppendLine(SINGLE_LINE_CONSTANT(L"alejandro"));
+              buffer->AppendLine(
+                  staging::CleanValue(SINGLE_LINE_CONSTANT(L"alejandro")));
               return Success();
             });
 

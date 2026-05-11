@@ -889,7 +889,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                     }) |
                     std::ranges::to<std::vector>(),
                 staging::Clean);
-            buffer->AppendLine(SingleLine{});
+            buffer->AppendLine(staging::CleanValue(SingleLine{}));
           })
           .ptr());
 

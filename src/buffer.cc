@@ -1296,28 +1296,25 @@ void OpenBuffer::InsertLine(LineNumber line_position, Line line) {
                             *this, line_processor_map_, {std::move(line)})[0]));
 }
 
-void OpenBuffer::AppendLine(SingleLine str) {
+void OpenBuffer::AppendLine(staging::Value<SingleLine> str) {
   if (reading_from_parser_) {
-    switch (str.get(ColumnNumber(0))) {
+    switch (str->get(ColumnNumber(0))) {
       case 'E':
-        // TODO(2026-05-08, P1): Don't assume clean, force customer to pass
-        // origin.
-        return AppendRawLine(
-            staging::CleanValue(str.Substring(ColumnNumber(1))));
+        return AppendRawLine(staging::Value{
+            .origin = str.origin, .value = str->Substring(ColumnNumber(1))});
     }
     return;
   }
 
   if (contents_.size() == LineNumberDelta(1) &&
       contents_.back().EndColumn().IsZero()) {
-    if (str == LazyString{L"EDGE PARSER v1.0"}) {
+    if (str.value == LazyString{L"EDGE PARSER v1.0"}) {
       reading_from_parser_ = true;
       return;
     }
   }
 
-  // TODO(2026-05-08, P1): Don't assume clean, force customer to pass origin.
-  AppendRawLine(staging::CleanValue(std::move(str)));
+  AppendRawLine(std::move(str));
 }
 
 void OpenBuffer::AppendRawLine(

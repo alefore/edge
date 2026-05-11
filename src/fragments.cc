@@ -10,8 +10,10 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
+#include "src/language/version_value.h"
 #include "src/vm/escape.h"
 
+namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 
 using afc::futures::DeleteNotification;
@@ -70,11 +72,10 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
 void AddFragment(EditorState& editor, LineSequence fragment) {
   GetFragmentsBuffer(editor).Transform(
       [fragment](gc::Root<OpenBuffer> fragments_buffer) {
-        fragments_buffer.ptr()->AppendLine(
-            vm::EscapedMap{std::multimap<vm::Identifier, EscapedString>{
-                               {HistoryIdentifierValue(),
-                                EscapedString{fragment.ToLazyString()}}}}
-                .Serialize());
+        fragments_buffer.ptr()->AppendLine(staging::CleanValue(vm::EscapedMap{
+            std::multimap<vm::Identifier, EscapedString>{
+                {HistoryIdentifierValue(),
+                 EscapedString{fragment.ToLazyString()}}}}.Serialize()));
         return EmptyValue{};
       });
 }
