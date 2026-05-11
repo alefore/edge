@@ -106,7 +106,7 @@ PossibleError OpenLogLine(OpenBuffer& buffer) {
         LOG(INFO) << "OpenLogLine: " << buffer.name() << ":" << line_number;
         DECLARE_OR_RETURN(
             LogLine log_line,
-            log_type->Parse(buffer.contents().at(line_number).contents()));
+            log_type->Parse(buffer.contents().at(line_number)->contents()));
         LOG(INFO) << "Creating buffer for log line";
         // TODO(trivial, 2024-08-28): Declare a new buffer name?
         BufferName name{LazyString{L"Line Details: "} +

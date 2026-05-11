@@ -50,18 +50,19 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
     marks_by_source[data.second.source_buffer].push_back(MarkView{
         .expired = false,
         .target = data.first.first,
-        .text = (source.has_value() &&
-                 data.second.source_line <
-                     LineNumber(0) + source->ptr()->contents().size())
-                    ? source->ptr()->contents().at(data.second.source_line)
-                    : Line{SingleLine{LazyString{L"(dead mark, source "} +
-                                      (source.has_value()
-                                           ? LazyString{L"alive"}
-                                           : LazyString{L"expired"}) +
-                                      LazyString{L", line: "} +
-                                      ToLazyString(NonEmptySingleLine{
-                                          data.second.source_line.read()}) +
-                                      LazyString{L")"}}}});
+        .text =
+            (source.has_value() &&
+             data.second.source_line <
+                 LineNumber(0) + source->ptr()->contents().size())
+                ? source->ptr()->contents().at(data.second.source_line).value
+                : Line{
+                      SingleLine{LazyString{L"(dead mark, source "} +
+                                 (source.has_value() ? LazyString{L"alive"}
+                                                     : LazyString{L"expired"}) +
+                                 LazyString{L", line: "} +
+                                 ToLazyString(NonEmptySingleLine{
+                                     data.second.source_line.read()}) +
+                                 LazyString{L")"}}}});
   }
   for (const std::pair<const LineMarks::MarkMapKey, LineMarks::Mark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))

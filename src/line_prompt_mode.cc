@@ -429,7 +429,7 @@ NonNull<std::unique_ptr<ProgressChannel>> PromptState::NewProgressChannel(
 }
 
 futures::Value<EmptyValue> PromptState::OnModify() {
-  Line line = prompt_buffer_.ptr()->contents().at(LineNumber());
+  const Line line = prompt_buffer_.ptr()->contents().at(LineNumber()).value;
 
   abort_notification_ = MakeNonNullShared<DeleteNotification>();
   auto abort_notification_value = abort_notification_->listenable_value();
@@ -591,7 +591,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
       DeleteNotification::Value abort_value) override {
     OpenBuffer& buffer = prompt_state_->prompt_buffer().ptr().value();
     CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
-    Line input = buffer.contents().at(LineNumber(0));
+    const Line input = buffer.contents().at(LineNumber(0)).value;
     return MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),

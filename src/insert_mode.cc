@@ -951,13 +951,13 @@ class InsertMode : public InputReceiver,
   static LineRange GetTokenRange(OpenBuffer& buffer) {
     const LineColumn position =
         buffer.contents().AdjustLineColumn(buffer.position());
-    const Line line = buffer.contents().at(position.line);
+    const staging::Value<Line> line = buffer.contents().at(position.line);
 
     ColumnNumber start = position.column;
-    CHECK_LE(start.ToDelta(), line.contents().size());
+    CHECK_LE(start.ToDelta(), line->contents().size());
     while (!start.IsZero() &&
-           (std::isalpha(line.get(start - ColumnNumberDelta(1))) ||
-            line.get(start - ColumnNumberDelta(1)) == L'\''))
+           (std::isalpha(line->get(start - ColumnNumberDelta(1))) ||
+            line->get(start - ColumnNumberDelta(1)) == L'\''))
       --start;
     return LineRange(LineColumn(position.line, start), position.column - start);
   }
@@ -1006,7 +1006,7 @@ class InsertMode : public InputReceiver,
       return output;
     }
 
-    const Line line = buffer.value.contents().at(position.line);
+    const Line line = buffer.value.contents().at(position.line).value;
 
     auto buffer_root = buffer.value.RootFromThis();
     if (token_range.empty()) {

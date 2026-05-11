@@ -1417,10 +1417,10 @@ LineColumn OpenBuffer::InsertInPosition(const LineSequence& contents_to_insert,
   LineColumn position = input_position;
   if (position.line > contents_.EndLine()) {
     position.line = contents_.EndLine();
-    position.column = contents_.at(position.line).EndColumn();
+    position.column = contents_.at(position.line)->EndColumn();
   }
-  if (position.column > contents_.at(position.line).EndColumn()) {
-    position.column = contents_.at(position.line).EndColumn();
+  if (position.column > contents_.at(position.line)->EndColumn()) {
+    position.column = contents_.at(position.line)->EndColumn();
   }
 
   if (position.column.IsZero()) {
@@ -1458,12 +1458,12 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LE(position.line, contents_.EndLine());
-  const Line& line = contents_.at(position.line);
-  if (line.EndColumn() > position.column + ColumnNumberDelta(1)) return;
+  const staging::Value<Line>& line = contents_.at(position.line);
+  if (line->EndColumn() > position.column + ColumnNumberDelta(1)) return;
 
-  LineBuilder options(line);
+  LineBuilder options(line.value);
   options.Append(LineBuilder{SingleLine{LazyString{
-      position.column - line.EndColumn() + ColumnNumberDelta(1), L' '}}});
+      position.column - line->EndColumn() + ColumnNumberDelta(1), L' '}}});
   contents_.set_line(position.line, line_origin_tracker().NewStagingValue(
                                         std::move(options).Build()));
 }
@@ -1885,7 +1885,7 @@ std::optional<Line> OpenBuffer::OptionalCurrentLine() const {
 
 std::optional<Line> OpenBuffer::LineAt(LineNumber line_number) const {
   if (line_number > contents_.EndLine()) return std::nullopt;
-  return contents_.at(line_number);
+  return contents_.at(line_number).value;
 }
 
 LazyString OpenBuffer::ToString() const {

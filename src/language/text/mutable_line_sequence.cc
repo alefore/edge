@@ -164,7 +164,7 @@ void MutableLineSequence::DeleteCharactersFromLine(
     ObserverBehavior observer_behavior) {
   if (amount.IsZero()) return;
   CHECK_GT(amount, ColumnNumberDelta(0));
-  CHECK_LE(position.column + amount, at(position.line).EndColumn());
+  CHECK_LE(position.column + amount, at(position.line)->EndColumn());
 
   TransformLine(position.line, origin, [&](LineBuilder& options) {
     options.DeleteCharacters(position.column, amount);
@@ -181,9 +181,9 @@ void MutableLineSequence::DeleteCharactersFromLine(
 void MutableLineSequence::DeleteToLineEnd(LineColumn position,
                                           staging::Origin origin,
                                           ObserverBehavior observer_behavior) {
-  if (position.column < at(position.line).EndColumn())
+  if (position.column < at(position.line)->EndColumn())
     return DeleteCharactersFromLine(
-        position, at(position.line).EndColumn() - position.column, origin,
+        position, at(position.line)->EndColumn() - position.column, origin,
         observer_behavior);
 }
 
@@ -211,7 +211,7 @@ void MutableLineSequence::AppendToLine(LineNumber line,
                                        staging::Value<Line> line_to_append,
                                        ObserverBehavior observer_behavior) {
   const LineColumn position = LineColumn(
-      std::min(line, EndLine()), at(std::min(line, EndLine())).EndColumn());
+      std::min(line, EndLine()), at(std::min(line, EndLine()))->EndColumn());
   TransformLine(position.line, line_to_append.origin,
                 [&](LineBuilder& options) {
                   options.Append(LineBuilder(std::move(line_to_append.value)));
@@ -250,7 +250,7 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
 }
 
 bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
-  if (EndLine() == LineNumber(0) || !at(LineNumber()).empty()) return false;
+  if (EndLine() == LineNumber(0) || !at(LineNumber())->empty()) return false;
   EraseLines(LineNumber(0), LineNumber(1));
   return true;
 }
@@ -298,10 +298,10 @@ void MutableLineSequence::FoldNextLine(LineNumber position,
   auto position_next = position.next();
   if (position_next.ToDelta() >= size()) return;
 
-  ColumnNumber initial_size = at(position).EndColumn();
+  ColumnNumber initial_size = at(position)->EndColumn();
   if (initial_size.IsZero()) {
     EraseLines(position, position + LineNumberDelta(1), ObserverBehavior::Hide);
-  } else if (at(position_next).EndColumn().IsZero()) {
+  } else if (at(position_next)->EndColumn().IsZero()) {
     EraseLines(position_next, position_next + LineNumberDelta(1),
                ObserverBehavior::Hide);
   } else {
@@ -374,7 +374,7 @@ void MutableLineSequence::pop_back() {
 LineColumn MutableLineSequence::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(size(), LineNumberDelta(0));
   position.line = std::min(position.line, EndLine());
-  position.column = std::min(at(position.line).EndColumn(), position.column);
+  position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
 
@@ -432,7 +432,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
   output.push_back(
       Call(std::function<void(LineColumn)>([this](LineColumn position) {
         position.line = LineNumber(position.line % size());
-        const Line& line = at(position.line);
+        const Line& line = at(position.line).value;
         if (line.empty()) {
           position.column = ColumnNumber(0);
         } else {

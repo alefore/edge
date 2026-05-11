@@ -478,7 +478,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                        : Style{.attributes = StyleAttribute::Dim},
         (source.has_value() &&
          mark.source_line < LineNumber(0) + source->ptr()->contents().size())
-            ? source->ptr()->contents().at(mark.source_line)
+            ? source->ptr()->contents().at(mark.source_line).value
             : Line(Parenthesize(SINGLE_LINE_CONSTANT(L"dead mark: ") +
                                 ToSingleLine(mark.source_buffer))),
         MetadataLine::Type::Mark});
@@ -494,7 +494,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
           if (mark.source_line <
               LineNumber(0) + source.ptr()->contents().size())
             marks_strings.insert(
-                source.ptr()->contents().at(mark.source_line).contents());
+                source.ptr()->contents().at(mark.source_line)->contents());
         },
         [] {},
         options.buffer.editor().buffer_registry().Find(mark.source_buffer));

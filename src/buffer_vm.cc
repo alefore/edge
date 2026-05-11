@@ -308,8 +308,9 @@ void DefineSortLinesByKey(
                              .Transform([data, get_key, line_number](
                                             gc::Root<vm::Value> output)
                                             -> ValueOrError<ICC> {
-                               Line line =
-                                   data->buffer->contents().at(line_number);
+                               Line line = data->buffer->contents()
+                                               .at(line_number)
+                                               .value;
                                ASSIGN_OR_RETURN(auto key_value,
                                                 get_key(output.ptr().value()));
                                data->keys.insert(
@@ -481,7 +482,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                             std::min(LineNumber(std::max(line_input, 0)),
                                      LineNumber(0) + buffer->lines_size() -
                                          LineNumberDelta(1));
-                        return buffer->contents().at(line).contents().read();
+                        return buffer->contents().at(line)->contents().read();
                       })
           .ptr());
 
@@ -933,8 +934,10 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           pool, kPurityTypeReader,
           [](gc::Ptr<OpenBuffer> buffer,
              int line_number) -> futures::ValueOrError<LazyString> {
-            LineMetadataMap metadata_map =
-                buffer->contents().at(LineNumber(line_number)).metadata().get();
+            LineMetadataMap metadata_map = buffer->contents()
+                                               .at(LineNumber(line_number))
+                                               ->metadata()
+                                               .get();
             if (const auto metadata_it = metadata_map.find(LineMetadataKey{});
                 metadata_it != metadata_map.end())
               return metadata_it->second.final().Transform(

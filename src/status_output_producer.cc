@@ -62,7 +62,7 @@ SingleLine GetBufferContext(const OpenBuffer& buffer) {
             buffer.editor().buffer_registry().Find(mark.source_buffer);
         source.has_value() &&
         LineNumber(0) + source->ptr()->contents().size() > mark.source_line)
-      return source->ptr()->contents().at(mark.source_line).contents();
+      return source->ptr()->contents().at(mark.source_line)->contents();
   }
   return LineSequence::BreakLines(buffer.Read(buffer_variables::name))
       .FoldLines();

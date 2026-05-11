@@ -37,7 +37,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin();
   while (i < input.range.end()) {
-    Line line = input.buffer.contents().at(i.line);
+    Line line = input.buffer.contents().at(i.line).value;
     if (i.column >= line.EndColumn()) {  // Switch to the next line.
       contents_to_insert.push_back(
           input.buffer.line_origin_tracker().NewStagingValue(Line{}));

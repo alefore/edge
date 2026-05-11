@@ -78,16 +78,15 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // This is dirt cheap. The updates listener isn't copied.
   language::NonNull<std::unique_ptr<MutableLineSequence>> copy() const;
 
-  // TODO(2026-05-08, P2): Replace `at` with this one (after converting all
-  // customers).
+  // TODO(2026-05-08, P2): Inline in `at` and delete.
   const value_and_origin_type& at_with_origin(
       language::text::LineNumber line_number) const {
     CHECK_LT(line_number, language::text::LineNumber(0) + size());
     return lines_->Get(line_number.read());
   }
 
-  const value_type& at(language::text::LineNumber line_number) const {
-    return at_with_origin(line_number).value;
+  const staging::Value<Line>& at(language::text::LineNumber line_number) const {
+    return at_with_origin(line_number);
   }
 
   const staging::Value<Line>& back() const { return at_with_origin(EndLine()); }
