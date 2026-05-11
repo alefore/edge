@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <cmath>
 #include <ostream>
 
 #include "src/language/container.h"
@@ -19,6 +20,21 @@ using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
 
 namespace afc::infrastructure::screen {
+ColorCube ColorCube::InterpolateTo(ColorCube target, double transition) const {
+  // Standard linear interpolation: (1 - t) * a + t * b
+  // Using std::lerp for better numerical stability
+  auto interpolate = [&](uint8_t s, uint8_t t) -> uint8_t {
+    double exact =
+        std::lerp(static_cast<double>(s), static_cast<double>(t), transition);
+
+    // Round to nearest integer and clamp to the 0-5 range
+    int rounded = static_cast<int>(std::round(exact));
+    return static_cast<uint8_t>(std::clamp(rounded, 0, 5));
+  };
+
+  return ColorCube{interpolate(r, target.r), interpolate(g, target.g),
+                   interpolate(b, target.b)};
+}
 namespace {
 const std::unordered_map<NonEmptySingleLine, Color>& ColorNames() {
   static const std::unordered_map<NonEmptySingleLine, Color> values = {

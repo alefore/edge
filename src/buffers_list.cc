@@ -26,7 +26,9 @@ namespace container = afc::language::container;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::ColorCube;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EraseIf;
@@ -297,45 +299,55 @@ struct BuffersListOptions {
 
 enum class FilterResult { Excluded, Included };
 
+void SetFadingOutput(double elapsed_seconds, ColorCube color, Style& output) {
+  if ((output.attributes & StyleAttribute::Reverse) != StyleAttribute::None) {
+    output.foreground_color = color;
+    return;
+  }
+
+  static constexpr double kSecondsWarningHighlight = 5;
+  const double t = std::clamp(
+      2 * elapsed_seconds / kSecondsWarningHighlight - 1.0, 0.0, 1.0);
+  if (t < 1.0)
+    output.background_color = color.InterpolateTo(ColorCube{0, 0, 0}, t);
+  output.foreground_color =
+      ColorCube{0, 0, 0}.InterpolateTo(color, std::clamp(t * 3 - 2, 0.0, 1.0));
+}
+
 Style GetNumberModifiers(const BuffersListOptions& options,
                          const OpenBuffer& buffer,
                          const ChildProcessTracker& child_process,
                          FilterResult filter_result) {
   Style output;
+  if (options.active_buffer.has_value() &&
+      &buffer == &options.active_buffer.value().ptr().value()) {
+    output.attributes |= StyleAttribute::Bold;
+    output.attributes |= StyleAttribute::Reverse;
+  }
   if (buffer.status().GetType() == Status::Type::Warning) {
-    output.foreground_color = StandardColor::Red;
-    const double kSecondsWarningHighlight = 5;
-    if (GetElapsedSecondsSince(buffer.status().last_change_time()) <
-        kSecondsWarningHighlight) {
-      output.attributes |= StyleAttribute::Reverse;
-    }
+    SetFadingOutput(GetElapsedSecondsSince(buffer.status().last_change_time()),
+                    ColorCube{5, 0, 0}, output);
   } else if (filter_result == FilterResult::Excluded) {
     output.attributes |= StyleAttribute::Dim;
   } else if (child_process.pid()) {
     output.foreground_color = StandardColor::Yellow;
   } else if (child_process.exit_status()) {
     auto status = child_process.exit_status().value();
+    double elapsed_seconds =
+        GetElapsedSecondsSince(child_process.time_last_exit());
     if (!WIFEXITED(status)) {
-      output.foreground_color = StandardColor::Red;
+      SetFadingOutput(elapsed_seconds, ColorCube{5, 0, 0}, output);
       output.attributes |= StyleAttribute::Bold;
     } else if (WEXITSTATUS(status) == 0) {
-      output.foreground_color = StandardColor::Green;
+      SetFadingOutput(elapsed_seconds, ColorCube{0, 5, 0}, output);
     } else {
-      output.foreground_color = StandardColor::Red;
-    }
-    if (GetElapsedSecondsSince(child_process.time_last_exit()) < 5.0) {
-      output.attributes |= StyleAttribute::Reverse;
+      SetFadingOutput(elapsed_seconds, ColorCube{5, 0, 0}, output);
     }
   } else {
     if (buffer.dirty()) {
       output.attributes |= StyleAttribute::Italic;
     }
     output.foreground_color = StandardColor::Cyan;
-  }
-  if (options.active_buffer.has_value() &&
-      &buffer == &options.active_buffer.value().ptr().value()) {
-    output.attributes |= StyleAttribute::Bold;
-    output.attributes |= StyleAttribute::Reverse;
   }
   return output;
 }

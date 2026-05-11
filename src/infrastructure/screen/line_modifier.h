@@ -36,6 +36,8 @@ enum class StandardColor {
 struct ColorCube {
   uint8_t r, g, b;
 
+  ColorCube InterpolateTo(ColorCube target, double transition) const;
+
   bool operator==(const ColorCube&) const = default;
 };
 
@@ -81,6 +83,7 @@ constexpr StyleAttribute& operator^=(StyleAttribute& lhs, StyleAttribute rhs) {
   return lhs;
 }
 
+// Example: if ((attributes & StyleAttribute::Reverse) != StyleAttribute::None)
 constexpr StyleAttribute operator&(StyleAttribute lhs, StyleAttribute rhs) {
   return static_cast<StyleAttribute>(static_cast<uint16_t>(lhs) &
                                      static_cast<uint16_t>(rhs));
