@@ -385,7 +385,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters_ref, Input input) {
                          input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::CopyRegion:
             delete_transformation.modifiers.text_delete_behavior =
-                Modifiers::TextDeleteBehavior::kKeep;
+                Modifiers::TextDeleteBehavior::Keep;
             return Apply(delete_transformation,
                          input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::CommandSystem: {

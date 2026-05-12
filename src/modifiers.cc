@@ -113,8 +113,8 @@ void Modifiers::Register(language::gc::Pool& pool,
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Modifiers>> output, bool delete_behavior) {
             output->text_delete_behavior =
-                delete_behavior ? Modifiers::TextDeleteBehavior::kDelete
-                                : Modifiers::TextDeleteBehavior::kKeep;
+                delete_behavior ? Modifiers::TextDeleteBehavior::Delete
+                                : Modifiers::TextDeleteBehavior::Keep;
             return output;
           })
           .ptr());

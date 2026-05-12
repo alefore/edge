@@ -29,7 +29,9 @@
 namespace gc = afc::language::gc;
 namespace staging = afc::language::staging;
 
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::ColorCube;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -194,7 +196,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   }
 
   if (options.modifiers.text_delete_behavior ==
-          Modifiers::TextDeleteBehavior::kDelete &&
+          Modifiers::TextDeleteBehavior::Delete &&
       input.mode == Input::Mode::Final &&
       options.initiator == Delete::Initiator::User) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
@@ -217,7 +219,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   }
 
   if (options.modifiers.text_delete_behavior ==
-          Modifiers::TextDeleteBehavior::kKeep &&
+          Modifiers::TextDeleteBehavior::Keep &&
       input.mode == Input::Mode::Final) {
     LOG(INFO) << "Not actually deleting region.";
     output->position = range.end();
@@ -247,9 +249,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
         LOG(INFO) << "Inserting preview at: " << range.begin();
         insert_options.modifiers_set =
             options.modifiers.text_delete_behavior ==
-                    Modifiers::TextDeleteBehavior::kKeep
-                ? Style{.foreground_color = StandardColor::Yellow,
-                        .attributes = StyleAttribute::Underline}
+                    Modifiers::TextDeleteBehavior::Keep
+                ? Style{.background_color = ColorCube{1, 1, 0}}
                 : options.preview_modifiers;
         input.position = range.begin();
         return Apply(std::move(insert_options), input)

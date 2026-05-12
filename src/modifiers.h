@@ -96,8 +96,8 @@ struct Modifiers {
 
   std::optional<size_t> repetitions = std::nullopt;
 
-  enum class TextDeleteBehavior { kDelete, kKeep };
-  TextDeleteBehavior text_delete_behavior = TextDeleteBehavior::kDelete;
+  enum class TextDeleteBehavior { Delete, Keep };
+  TextDeleteBehavior text_delete_behavior = TextDeleteBehavior::Delete;
 
   enum class PasteBufferBehavior { DeleteInto, DoNothing };
   PasteBufferBehavior paste_buffer_behavior = PasteBufferBehavior::DeleteInto;
