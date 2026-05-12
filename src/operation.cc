@@ -36,7 +36,8 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlayMap;
@@ -1261,8 +1262,7 @@ class OperationMode : public EditorMode {
         return;
       case transformation::Stack::PostTransformationBehavior::CopyRegion:
         output.AppendString(SINGLE_LINE_CONSTANT(L"📋 Copy"),
-                            Style{.foreground_color = StandardColor::Yellow,
-                                  .attributes = StyleAttribute::Bold});
+                            Style{.background_color = StandardColor::Yellow});
         return;
       case transformation::Stack::PostTransformationBehavior::CommandSystem:
         output.AppendString(SINGLE_LINE_CONSTANT(L"🐚 System"),
