@@ -167,7 +167,6 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 
 futures::Value<std::optional<PredictResults>> Predict(
     const Predictor& predictor, PredictorInput options) {
-  futures::Future<std::optional<PredictResults>> output;
   CHECK(!options.abort_value.has_value());
 
   return predictor(PredictorInput{.editor = options.editor,
