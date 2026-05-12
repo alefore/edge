@@ -11,34 +11,41 @@
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LinePartMetadata;
 
-namespace afc {
-namespace editor {
-namespace testing {
+namespace afc::editor::testing {
 namespace {
-
-template <typename C, typename V>
-void CheckSingleton(C const container, V value) {
-  CHECK_EQ(container.size(), 1ul);
-  CHECK(container.contains(value));
-}
 
 void TestLineDeleteCharacters() {
   // Preparation.
   LineBuilder builder{SingleLine{LazyString{L"alejo"}}};
-  builder.InsertModifier(ColumnNumber(0), StandardColor::Red);
-  builder.InsertModifier(ColumnNumber(1), StandardColor::Green);
-  builder.InsertModifier(ColumnNumber(2), StandardColor::Blue);
-  builder.InsertModifier(ColumnNumber(3), StyleAttribute::Bold);
-  builder.InsertModifier(ColumnNumber(4), StyleAttribute::Dim);
+  builder.InsertModifiers(
+      ColumnNumber(0),
+      LinePartMetadata{.style = Style{.foreground_color = StandardColor::Red}});
+  builder.InsertModifiers(
+      ColumnNumber(1),
+      LinePartMetadata{.style =
+                           Style{.foreground_color = StandardColor::Green}});
+  builder.InsertModifiers(
+      ColumnNumber(2),
+      LinePartMetadata{.style =
+                           Style{.foreground_color = StandardColor::Blue}});
+  builder.InsertModifiers(
+      ColumnNumber(3),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Bold}});
+  builder.InsertModifiers(
+      ColumnNumber(4),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Dim}});
   Line line = builder.Copy().Build();
 
   {
@@ -46,10 +53,9 @@ void TestLineDeleteCharacters() {
     line_copy.DeleteSuffix(ColumnNumber(2));
     CHECK_EQ(line_copy.Copy().Build().contents().ToBytes(), "al");
     CHECK_EQ(line_copy.modifiers_size(), 2ul);
-    CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
-                   StandardColor::Red);
-    CheckSingleton(line_copy.modifiers().at(ColumnNumber(1)),
-                   StandardColor::Green);
+    CHECK_EQ(line_copy.modifiers().at(ColumnNumber(0)).style,
+             Style{.foreground_color = StandardColor::Red});
+    (line_copy.modifiers().at(ColumnNumber(1)), StandardColor::Green);
   }
 
   {
@@ -57,59 +63,69 @@ void TestLineDeleteCharacters() {
     line_copy.DeleteCharacters(ColumnNumber(1), ColumnNumberDelta(2));
     CHECK_EQ(line_copy.Copy().Build().contents().ToBytes(), "ajo");
     CHECK_EQ(line_copy.modifiers_size(), 3ul);
-    CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
-                   StandardColor::Red);
-    CheckSingleton(line_copy.modifiers().at(ColumnNumber(1)),
-                   StyleAttribute::Bold);
-    CheckSingleton(line_copy.modifiers().at(ColumnNumber(2)),
-                   StyleAttribute::Dim);
+    CHECK_EQ(line_copy.modifiers().at(ColumnNumber(0)).style,
+             Style{.foreground_color = StandardColor::Red});
+    CHECK_EQ(line_copy.modifiers().at(ColumnNumber(1)).style,
+             Style{.attributes = StyleAttribute::Bold});
+    CHECK_EQ(line_copy.modifiers().at(ColumnNumber(2)).style,
+             Style{.attributes = StyleAttribute::Dim});
   }
 
   // Original isn't modified.
   CHECK_EQ(line.EndColumn(), ColumnNumber(5));
   CHECK_EQ(line.modifiers().size(), 5ul);
-  CheckSingleton(line.modifiers().at(ColumnNumber(0)), StandardColor::Red);
-  CheckSingleton(line.modifiers().at(ColumnNumber(1)), StandardColor::Green);
-  CheckSingleton(line.modifiers().at(ColumnNumber(2)), StandardColor::Blue);
-  CheckSingleton(line.modifiers().at(ColumnNumber(3)), StyleAttribute::Bold);
-  CheckSingleton(line.modifiers().at(ColumnNumber(4)), StyleAttribute::Dim);
+  CHECK_EQ(line.modifiers().at(ColumnNumber(0)).style,
+           Style{.foreground_color = StandardColor::Red});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(1)).style,
+           Style{.foreground_color = StandardColor::Green});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(2)).style,
+           Style{.foreground_color = StandardColor::Blue});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(3)).style,
+           Style{.attributes = StyleAttribute::Bold});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(4)).style,
+           Style{.attributes = StyleAttribute::Dim});
 }
 
 void TestLineAppend() {
   LineBuilder line{SingleLine{LazyString{L"abc"}}};
-  line.modifiers().at(ColumnNumber(1)).insert(StandardColor::Red);
+  line.modifiers().at(ColumnNumber(1)).style.foreground_color =
+      StandardColor::Red;
   line.modifiers().at(ColumnNumber(2));
 
   LineBuilder suffix{SingleLine{LazyString{L"def"}}};
-  suffix.InsertModifier(ColumnNumber(1), StyleAttribute::Bold);
+  suffix.InsertModifiers(
+      ColumnNumber(1),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Bold}});
   suffix.set_modifiers(ColumnNumber(2), {});
   line.Append(std::move(suffix));
 
   CHECK_EQ(line.modifiers().size(), 4ul);
-  CHECK(line.modifiers().at(ColumnNumber(1)) ==
-        Style({StandardColor::Red}));
-  CHECK(line.modifiers().at(ColumnNumber(2)) == Style());
-  CHECK(line.modifiers().at(ColumnNumber(4)) ==
-        Style({StyleAttribute::Bold}));
-  CHECK(line.modifiers().at(ColumnNumber(5)) == Style());
+  CHECK_EQ(line.modifiers().at(ColumnNumber(1)).style,
+           Style({StandardColor::Red}));
+  CHECK_EQ(line.modifiers().at(ColumnNumber(2)).style, Style{});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(4)).style,
+           Style{.attributes = StyleAttribute::Bold});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(5)).style, Style{});
 }
 
 void TestLineAppendEmpty() {
   LineBuilder line{SingleLine{LazyString{L"abc"}}};
-  line.InsertModifier(ColumnNumber(0), StandardColor::Red);
+  line.InsertModifiers(
+      ColumnNumber(0),
+      LinePartMetadata{.style = Style{.foreground_color = StandardColor::Red}});
 
   line.Append(LineBuilder());
 
   CHECK_EQ(line.modifiers_size(), 1ul);
-  CHECK(line.modifiers().at(ColumnNumber(0)) ==
-        Style({StandardColor::Red}));
+  CHECK_EQ(line.modifiers().at(ColumnNumber(0)).style,
+           Style{.foreground_color = StandardColor::Red});
 
   line.Append(LineBuilder{SingleLine{LazyString{L"def"}}});
 
   CHECK_EQ(line.modifiers_size(), 2ul);
-  CHECK(line.modifiers().at(ColumnNumber(0)) ==
-        Style({StandardColor::Red}));
-  CHECK(line.modifiers().at(ColumnNumber(3)) == Style());
+  CHECK_EQ(line.modifiers().at(ColumnNumber(0)).style,
+           Style{.foreground_color = StandardColor::Red});
+  CHECK_EQ(line.modifiers().at(ColumnNumber(3)).style, Style{});
   CHECK_EQ(line.modifiers_size(), 2ul);
 }
 }  // namespace
@@ -122,6 +138,4 @@ void LineTests() {
   LOG(INFO) << "Line tests: done.";
 }
 
-}  // namespace testing
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor::testing
