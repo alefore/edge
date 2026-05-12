@@ -24,6 +24,7 @@ namespace staging = afc::language::staging;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::ColorCube;
 using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
@@ -52,23 +53,27 @@ using afc::language::text::Range;
 namespace afc::editor {
 namespace transformation {
 namespace {
+static const ColorCube kCppCommandColor{0, 2, 0};
+
 void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
                const vm::Value& value) {
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
-  buffer.status().SetInformationText(LineBuilder{
-      SingleLine{LazyString{L"Value: "}} +
-      SingleLine{LazyString{
-          FromByteString(oss.str())}}}.Build());
-  if (delete_buffer != nullptr) {
-    std::istringstream iss(oss.str());
-    for (std::string line_str; std::getline(iss, line_str);) {
-      delete_buffer->AppendToLastLine(LineBuilder{
-          SingleLine{LazyString{
-              FromByteString(line_str)}}}.Build());
-      delete_buffer->AppendRawLine(staging::CleanValue(Line{}));
-    }
+  buffer.status().SetInformationText(std::invoke([&oss] {
+    LineBuilder flag;
+    flag.AppendString(SINGLE_LINE_CONSTANT(L"Value: "),
+                      Style{.attributes = StyleAttribute::Bold});
+    flag.AppendString(SingleLine{LazyString{FromByteString(oss.str())}},
+                      Style{.background_color = kCppCommandColor});
+    return std::move(flag).Build();
+  }));
+  if (!delete_buffer) return;
+  std::istringstream iss(oss.str());
+  for (std::string line_str; std::getline(iss, line_str);) {
+    delete_buffer->AppendToLastLine(
+        LineBuilder{SingleLine{LazyString{FromByteString(line_str)}}}.Build());
+    delete_buffer->AppendRawLine(staging::CleanValue(Line{}));
   }
 }
 
@@ -110,13 +115,11 @@ futures::Value<Result> HandleCommandCpp(Input input,
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers =
-        Style{.foreground_color = StandardColor::Green,
-              .attributes = StyleAttribute::Underline};
+        Style{.background_color = kCppCommandColor};
     return PreviewCppExpression(input.buffer, contents)
         .ConsumeErrors([input, delete_transformation](Error error) {
           delete_transformation->preview_modifiers =
-              Style{.foreground_color = StandardColor::Red,
-                    .attributes = StyleAttribute::Underline};
+              Style{.background_color = ColorCube{1, 0, 0}};
           input.adapter.AddError(error);
           return EmptyValue{};
         })
@@ -391,8 +394,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters_ref, Input input) {
           case Stack::PostTransformationBehavior::CommandSystem: {
             if (input.mode == Input::Mode::Preview) {
               delete_transformation.preview_modifiers =
-                  Style{.foreground_color = StandardColor::Green,
-                        .attributes = StyleAttribute::Underline};
+                  Style{.background_color = ColorCube{0, 1, 0}};
               return Apply(delete_transformation,
                            input.NewChild(range.begin()));
             }
