@@ -198,6 +198,7 @@ src/language/lazy_string/convert.h \
 src/language/lazy_string/column_number.h \
 src/language/lazy_string/functional_tests.cc \
 src/language/lazy_string/functional.h \
+src/language/lazy_string/functional.cc \
 src/language/lazy_string/lazy_string_tests.cc \
 src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
@@ -502,6 +503,8 @@ src/language/lazy_string/single_line.cc \
 src/language/lazy_string/single_line.h \
 src/tests/concurrent_interfaces.cc \
 src/tests/concurrent_interfaces.h \
+src/infrastructure/glob.cc \
+src/infrastructure/glob.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/language/wstring.cc \
