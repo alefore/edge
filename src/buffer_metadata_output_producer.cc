@@ -330,7 +330,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       const bool has_active_marks = HasMarksInRange(active_marks, row_delta);
       const bool has_expired_marks = HasMarksInRange(expired_marks, row_delta);
       if (has_active_marks || has_expired_marks)
-        Flip(SextantColumn::Right, current + row_delta);
+        Flip(SextantColumn::Right, row_delta);
       if (has_active_marks) modifiers = {StandardColor::Red};
     });
   }
