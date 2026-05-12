@@ -37,7 +37,7 @@ bool IsEmpty(EditorState* editor_state) {
              ->ptr()
              ->contents()
              .back()
-             .EndColumn()
+             ->EndColumn()
              .IsZero();
 }
 

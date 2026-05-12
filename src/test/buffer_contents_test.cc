@@ -16,8 +16,9 @@
 #include "src/test/line_test.h"
 
 namespace staging = afc::language::staging;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::CursorsTracker;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::MakeNonNullShared;
@@ -31,6 +32,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LinePartMetadata;
 using afc::language::text::MutableLineSequence;
 
 namespace afc {
@@ -42,7 +44,8 @@ using ::operator<<;
 void TestMutableLineSequenceSnapshot() {
   MutableLineSequence contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
-    contents.push_back(LineBuilder{SingleLine{LazyString{s}}}.Build());
+    contents.push_back(
+        staging::CleanValue(LineBuilder{SingleLine{LazyString{s}}}.Build()));
   }
   auto copy = contents.copy();
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
@@ -50,7 +53,8 @@ void TestMutableLineSequenceSnapshot() {
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
            copy->snapshot().ToLazyString());
 
-  contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
+  contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)),
+                     staging::Clean);
   CHECK_EQ(LazyString{L"\nalejandro\nfor\nero\ncuervo"},
            contents.snapshot().ToLazyString());
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
@@ -60,15 +64,25 @@ void TestMutableLineSequenceSnapshot() {
 void TestBufferInsertModifiers() {
   MutableLineSequence contents;
   LineBuilder options{SingleLine{LazyString{L"alejo"}}};
-  options.set_modifiers(ColumnNumber(0), Style{StandardColor::Cyan});
+  options.set_modifiers(
+      ColumnNumber(0),
+      LinePartMetadata{.style =
+                           Style{.foreground_color = StandardColor::Cyan}});
 
-  contents.push_back(options.Copy().Build());  // LineNumber(1).
-  contents.push_back(options.Copy().Build());  // LineNumber(2).
-  options.set_modifiers(ColumnNumber(2), {StyleAttribute::Bold});
-  contents.push_back(options.Copy().Build());  // LineNumber(3).
-  LineBuilder new_line(contents.at(LineNumber(1)));
-  new_line.SetAllModifiers(Style({StyleAttribute::Dim}));
-  contents.push_back(std::move(new_line).Build());  // LineNumber(4).
+  contents.push_back(
+      staging::CleanValue(options.Copy().Build()));  // LineNumber(1).
+  contents.push_back(
+      staging::CleanValue(options.Copy().Build()));  // LineNumber(2).
+  options.set_modifiers(
+      ColumnNumber(2),
+      LinePartMetadata{.style = Style{.attributes = StyleAttribute::Bold}});
+  contents.push_back(
+      staging::CleanValue(options.Copy().Build()));  // LineNumber(3).
+  LineBuilder new_line(contents.at(LineNumber(1)).value);
+  new_line.SetAllModifiers(
+      LinePartMetadata{.style = Style{.attributes = {StyleAttribute::Dim}}});
+  contents.push_back(
+      staging::CleanValue(std::move(new_line).Build()));  // LineNumber(4).
 
   for (int i = 0; i < 2; i++) {
     LOG(INFO) << "Start iteration: " << i;
@@ -76,33 +90,36 @@ void TestBufferInsertModifiers() {
 
     {
       // Check line 1: 0:CYAN
-      auto modifiers_1 = contents.at(LineNumber(1)).modifiers();
+      auto modifiers_1 = contents.at(LineNumber(1))->modifiers();
       CHECK_EQ(modifiers_1.size(), 1ul);
-      CHECK(modifiers_1.find(ColumnNumber(0))->second == Style({StandardColor::Cyan}));
+      CHECK_EQ(modifiers_1.find(ColumnNumber(0))->second.style,
+               Style{.foreground_color = StandardColor::Cyan});
     }
 
     {
       // Check line 2: 0:CYAN
-      auto modifiers_2 = contents.at(LineNumber(2)).modifiers();
+      auto modifiers_2 = contents.at(LineNumber(2))->modifiers();
       CHECK_EQ(modifiers_2.size(), 1ul);
-      CHECK(modifiers_2.find(ColumnNumber(0))->second == Style({StandardColor::Cyan}));
+      CHECK_EQ(modifiers_2.find(ColumnNumber(0))->second.style,
+               Style{.foreground_color = StandardColor::Cyan});
     }
 
     {
       // Check line 3: 0:CYAN, 2:BOLD
-      auto modifiers_3 = contents.at(LineNumber(3)).modifiers();
+      auto modifiers_3 = contents.at(LineNumber(3))->modifiers();
       CHECK_EQ(modifiers_3.size(), 2ul);
-      CHECK(modifiers_3.find(ColumnNumber(0))->second == Style({StandardColor::Cyan}));
-      CHECK(modifiers_3.find(ColumnNumber(2))->second ==
-            Style({StyleAttribute::Bold}));
+      CHECK_EQ(modifiers_3.find(ColumnNumber(0))->second.style,
+               Style{.foreground_color = StandardColor::Cyan});
+      CHECK_EQ(modifiers_3.find(ColumnNumber(2))->second.style,
+               Style{.attributes = StyleAttribute::Bold});
     }
 
     {
       // Check line 4: 0:DIM
-      auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
+      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
-      CHECK(modifiers_4.find(ColumnNumber(0))->second ==
-            Style({StyleAttribute::Dim}));
+      CHECK_EQ(modifiers_4.find(ColumnNumber(0))->second.style,
+               Style{.attributes = StyleAttribute::Dim});
     }
 
     // Contents:
@@ -111,7 +128,8 @@ void TestBufferInsertModifiers() {
     // alejo 0:C
     // alejo 0:C 2:B
     // alejo 0:D
-    contents.SplitLine(LineColumn(LineNumber(1), ColumnNumber(2)));
+    contents.SplitLine(LineColumn(LineNumber(1), ColumnNumber(2)),
+                       staging::Clean);
 
     // Contents:
     //
@@ -132,7 +150,8 @@ void TestBufferInsertModifiers() {
 
     CHECK_EQ(contents.size(), LineNumberDelta(5));
 
-    contents.SplitLine(LineColumn(LineNumber(4), ColumnNumber(2)));
+    contents.SplitLine(LineColumn(LineNumber(4), ColumnNumber(2)),
+                       staging::Clean);
     // Contents:
     //
     // alejo 0:C
@@ -143,7 +162,7 @@ void TestBufferInsertModifiers() {
 
     CHECK_EQ(contents.size(), LineNumberDelta(6));
     {
-      auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
+      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
     }
 
@@ -157,11 +176,9 @@ void TestBufferInsertModifiers() {
 
     CHECK_EQ(contents.size(), LineNumberDelta(5));
     {
-      auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
-      for (auto& c : modifiers_4) {
-        LOG(INFO) << "At: " << c.first << " "
-                  << ModifierToString(*c.second.begin());
-      }
+      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      for (auto& c : modifiers_4)
+        LOG(INFO) << "At: " << c.first << " " << c.second.style;
       CHECK_EQ(modifiers_4.size(), 1ul);
     }
   }
@@ -245,14 +262,16 @@ void TestCursorsMove() {
                     staging::CleanValue(Line{
                         SingleLine{LazyString{L"aleandro forero cuervo"}}}));
   CHECK_EQ(messages.size(), 0ul);
-  contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
+  contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)),
+                           staging::Clean);
   CHECK_EQ(messages.size(), 1ul);
   CHECK_EQ(
       std::get<TestObserver::MessageInsertedCharacter>(messages[0]).position,
       LineColumn(LineNumber(0), ColumnNumber(3)));
   messages.clear();
 
-  contents.SetCharacter(LineColumn(LineNumber(0), ColumnNumber(2)), 'j', {});
+  contents.SetCharacter(LineColumn(LineNumber(0), ColumnNumber(2)), 'j',
+                        staging::Clean, {});
   CHECK_EQ(messages.size(), 1ul);
   CHECK_EQ(std::get<TestObserver::MessageSetCharacter>(messages[0]).position,
            LineColumn(LineNumber(0), ColumnNumber(2)));

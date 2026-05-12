@@ -49,7 +49,7 @@ int main(int, char** argv) {
     LineBuilder options{SingleLine{LazyString{line}}};
     contents.AppendToLine(contents.EndLine(),
                           staging::CleanValue(std::move(options).Build()));
-    contents.push_back(Line());
+    contents.push_back(staging::CleanValue(Line{}));
   }
 
   std::cout << "Parsing input: " << contents.snapshot().ToString();

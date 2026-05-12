@@ -34,10 +34,10 @@ int main(int, char** argv) {
   afc::language::gc::Pool pool(afc::language::gc::Pool::Options{
       .collect_duration_threshold = std::nullopt,
       .operation_factory = std::make_shared<OperationFactory>(
-          MakeNonNullShared<ThreadPool>(6))});
+          MakeNonNullShared<ThreadPool>(L"Test", 6))});
   gc::Root<afc::vm::Environment> environment = afc::vm::Environment::New(pool);
   DECLARE_OR_RETURN_OTHER(
-      gc::Root < Expression >> expr,
+      gc::Root<Expression> expr,
       afc::vm::CompileFile(
           ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
                                                          "stdin")})),
