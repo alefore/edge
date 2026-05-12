@@ -2121,9 +2121,15 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 
         // If there are only slashes, colons or dots ... it's probably not very
         // useful to show the contents of this path.
-        return FindFirstOf(line,
-                           buffer.Read(buffer_variables::path_characters) |
-                               std::ranges::to<std::unordered_set>())
+        return FindFirstOf(
+                   line,
+                   buffer.Read(buffer_variables::path_characters) |
+                       std::views::filter([](wchar_t c) {
+                         static const std::unordered_set<wchar_t> exclude = {
+                             L'-', L'_', L'*', L'.', L'?', L':', L'/'};
+                         return !exclude.contains(c);
+                       }) |
+                       std::ranges::to<std::unordered_set>())
             .and_then(
                 [&line](ColumnNumber) { return OptionalFrom(Path::New(line)); })
             .transform([](Path path) { return URL::FromPath(path); });
