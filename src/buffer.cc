@@ -27,7 +27,6 @@ extern "C" {
 #include "src/buffer_vm.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
-#include "src/file_predictor.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_descriptor_reader.h"
