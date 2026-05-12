@@ -29,6 +29,7 @@ namespace container = afc::language::container;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::ColorCube;
 using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
@@ -250,41 +251,90 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                                    LineNumber line) {
   TRACK_OPERATION(BufferMetadataOutput_ComputeScrollBarSuffix);
 
-  LineNumberDelta lines_size = options.buffer.lines_size();
-  LineNumberDelta lines_shown = LineNumberDelta(options.screen_lines.size());
-  DCHECK_GE(line, initial_line(options));
-  DCHECK_LE(line - initial_line(options), lines_shown)
-      << "Line is " << line << " and view_start is " << initial_line(options)
+  const LineNumberDelta lines_size = options.buffer.lines_size();
+  const LineNumberDelta lines_shown =
+      LineNumberDelta(options.screen_lines.size());
+  const LineNumber view_start = initial_line(options);
+  DCHECK_GE(line, view_start);
+  DCHECK_LE(line - view_start, lines_shown)
+      << "Line is " << line << " and view_start is " << view_start
       << ", which exceeds lines_shown_ of " << lines_shown;
-  DCHECK_LT(initial_line(options), LineNumber(0) + lines_size);
+  DCHECK_LT(view_start, LineNumber(0) + lines_size);
 
   static const Rows kRowsPerScreenLine(3);
   Rows total_rows = size_t(lines_shown.read()) * kRowsPerScreenLine;
 
-  // Number of rows the bar should take.
-  Rows bar_size = std::max(
-      Rows(1), Rows(std::round(static_cast<double>(total_rows.read()) *
-                               static_cast<double>(lines_shown.read()) /
-                               lines_size.read())));
+  auto ScaleToRows = [&](LineNumberDelta buffer_lines) {
+    return Rows(static_cast<size_t>(
+        std::round(static_cast<double>(total_rows.read()) *
+                   buffer_lines.read() / lines_size.read())));
+  };
 
   // Bar will be shown in lines in interval [start, end] (units are rows).
-  Rows start = Rows(std::round(
-      static_cast<double>(total_rows.read()) *
-      static_cast<double>(initial_line(options).read()) / lines_size.read()));
-  Rows end = start + bar_size;
+  const Rows bar_start = ScaleToRows(view_start.ToDelta());
+  const Rows bar_size = std::max(Rows(1), ScaleToRows(lines_shown));
+  const Rows bar_end = bar_start + bar_size;
 
   Style modifiers;
 
-  LineBuilder line_options;
-  DCHECK_GE(line, initial_line(options));
-  Rows current = kRowsPerScreenLine *
-                 static_cast<size_t>((line - initial_line(options)).read());
+  const Rows current =
+      kRowsPerScreenLine * static_cast<size_t>((line - view_start).read());
 
-  // Characters:
-  // 01
-  // 23
-  // 45
-  static const std::wstring chars =
+  size_t base_char = 0;
+  enum class SextantColumn { Left, Right, Both };
+  auto Flip = [&base_char](SextantColumn column, Rows row) {
+    CHECK_LT(row, kRowsPerScreenLine);
+    if (column == SextantColumn::Left || column == SextantColumn::Both)
+      base_char |= 1 << (row.read() * 2);
+    if (column == SextantColumn::Right || column == SextantColumn::Both)
+      base_char |= 1 << ((row.read() * 2) + 1);
+  };
+
+  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& active_marks =
+      options.buffer.GetLineMarks();
+  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& expired_marks =
+      options.buffer.GetExpiredLineMarks();
+  for (size_t row = 0; row < kRowsPerScreenLine; ++row)
+    if (current + row >= bar_start && current + row < bar_end)
+      Flip((active_marks.empty() && expired_marks.empty())
+               ? SextantColumn::Both
+               : SextantColumn::Left,
+           row);
+  if (base_char != 0)
+    modifiers =
+        MapScreenLineToContentsRange(
+            Range(LineColumn(LineNumber(initial_line(options))),
+                  LineColumn(LineNumber(initial_line(options) + lines_shown))),
+            line, options.buffer.lines_size())
+                .Contains(options.buffer.position())
+            ? Style{.foreground_color = {ColorCube::Yellow}}
+            : Style{.foreground_color = {StandardColor::Cyan}};
+
+  if (!active_marks.empty() || !expired_marks.empty()) {
+    auto HasMarksInRange =
+        [&](const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& marks,
+            size_t row_delta) {
+          const double buffer_lines_per_row =
+              static_cast<double>(lines_size.read()) / total_rows.read();
+          LineMarks::MarkMapKey begin_key{
+              LineColumn{LineNumber{static_cast<size_t>(
+                  (current.read() + row_delta) * buffer_lines_per_row)}},
+              LineNumber{}};
+          LineMarks::MarkMapKey end_key{
+              LineColumn{LineNumber{static_cast<size_t>(
+                  (current.read() + row_delta + 1ul) * buffer_lines_per_row)}},
+              LineNumber{}};
+          return marks.lower_bound(begin_key) != marks.lower_bound(end_key);
+        };
+    std::ranges::for_each(std::views::iota(0, 3), [&](size_t row_delta) {
+      const bool has_active_marks = HasMarksInRange(active_marks, row_delta);
+      const bool has_expired_marks = HasMarksInRange(expired_marks, row_delta);
+      if (has_active_marks || has_expired_marks)
+        Flip(SextantColumn::Right, current + row_delta);
+      if (has_active_marks) modifiers = {StandardColor::Red};
+    });
+  }
+  static constexpr std::wstring_view chars =
       L" 🬀🬁🬂"
       L"🬃🬄🬅🬆"
       L"🬇🬈🬉🬊"
@@ -302,54 +352,8 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       L"🬵🬶🬷🬸"
       L"🬹🬺🬻█";
 
-  size_t base_char = 0;
-
-  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& marks =
-      options.buffer.GetLineMarks();
-  const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>& expired_marks =
-      options.buffer.GetExpiredLineMarks();
-  for (size_t row = 0; row < 3; row++)
-    if (current + row >= start && current + row < end) {
-      base_char |= 1 << (row * 2);
-      if (marks.empty() && expired_marks.empty())
-        base_char |= 1 << (row * 2 + 1);
-    }
-  if (base_char != 0)
-    modifiers =
-        MapScreenLineToContentsRange(
-            Range(LineColumn(LineNumber(initial_line(options))),
-                  LineColumn(LineNumber(initial_line(options) + lines_shown))),
-            line, options.buffer.lines_size())
-                .Contains(options.buffer.position())
-            ? Style({StandardColor::Yellow})
-            : Style({StandardColor::Cyan});
-
-  if (!marks.empty() || !expired_marks.empty()) {
-    double buffer_lines_per_row =
-        static_cast<double>(options.buffer.lines_size().read()) /
-        static_cast<double>(total_rows.read());
-    bool active_marks = false;
-    for (size_t row = 0; row < 3; row++) {
-      LineColumn begin_line(
-          LineNumber((current + row).read() * buffer_lines_per_row));
-      LineColumn end_line(
-          LineNumber((current + row + 1ul).read() * buffer_lines_per_row));
-      if (begin_line == end_line) continue;
-      if (marks.lower_bound(LineMarks::MarkMapKey{begin_line, LineNumber{}}) !=
-          marks.lower_bound(LineMarks::MarkMapKey{end_line, LineNumber{}})) {
-        active_marks = true;
-        base_char |= (1 << (row * 2 + 1));
-      } else if (expired_marks.lower_bound(
-                     LineMarks::MarkMapKey{begin_line, LineNumber{}}) !=
-                 expired_marks.lower_bound(
-                     LineMarks::MarkMapKey{end_line, LineNumber{}})) {
-        base_char |= (1 << (row * 2 + 1));
-      }
-    }
-    if (active_marks) modifiers = {StandardColor::Red};
-  }
-
   CHECK_LT(base_char, chars.size());
+  LineBuilder line_options;
   line_options.AppendString(
       SingleLine{LazyString{ColumnNumberDelta{1}, chars[base_char]}},
       modifiers);

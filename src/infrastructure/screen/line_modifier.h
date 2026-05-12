@@ -36,10 +36,18 @@ enum class StandardColor {
 struct ColorCube {
   uint8_t r, g, b;
 
+  static const ColorCube Yellow;
+  static const ColorCube Cyan;
+  static const ColorCube Magenta;
+
   ColorCube InterpolateTo(ColorCube target, double transition) const;
 
   bool operator==(const ColorCube&) const = default;
 };
+
+inline constexpr ColorCube ColorCube::Yellow{5, 5, 0};
+inline constexpr ColorCube ColorCube::Cyan{0, 5, 5};
+inline constexpr ColorCube ColorCube::Magenta{5, 0, 5};
 
 // TODO(2026-05-11, trivial): Add validator that it's between 0 and 23.
 struct ColorGrayscale : public language::GhostType<ColorGrayscale, uint8_t> {
