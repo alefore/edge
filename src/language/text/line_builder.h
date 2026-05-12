@@ -102,11 +102,6 @@ class LineBuilder {
   bool modifiers_empty() const;
   std::pair<language::lazy_string::ColumnNumber, LinePartMetadata>
   modifiers_last() const;
-#if 0
-  // XXXX
-  void InsertModifier(language::lazy_string::ColumnNumber,
-                      afc::infrastructure::screen::LineModifier);
-#endif
   void InsertModifiers(language::lazy_string::ColumnNumber,
                        const LinePartMetadata&);
   void set_modifiers(language::lazy_string::ColumnNumber, LinePartMetadata);
