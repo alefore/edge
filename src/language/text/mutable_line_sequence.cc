@@ -41,6 +41,10 @@ MutableLineSequence::MutableLineSequence()
     : MutableLineSequence(
           MakeNonNullShared<NullMutableLineSequenceObserver>()) {}
 
+MutableLineSequence::MutableLineSequence(staging::Origin origin)
+    : MutableLineSequence(LineSequence::WithLine(
+          staging::Value{.origin = origin, .value = Line{}})) {}
+
 /* static */ MutableLineSequence MutableLineSequence::WithLine(
     staging::Value<Line> line) {
   MutableLineSequence output;

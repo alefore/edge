@@ -1,5 +1,4 @@
-#ifndef __AFC_LANGUAGE_TEXT_MUTABLE_LINE_SEQUENCE_H__
-#define __AFC_LANGUAGE_TEXT_MUTABLE_LINE_SEQUENCE_H__
+#pragma once
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
@@ -50,6 +49,9 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
  public:
   MutableLineSequence();
+
+  // Uses the origin for the initial line.
+  explicit MutableLineSequence(staging::Origin origin);
 
   explicit MutableLineSequence(
       language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer);
@@ -260,4 +262,3 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 // `MutableLineSequence` to append two `LineSequence` instances.
 LineSequence operator+(const LineSequence&, const LineSequence&);
 }  // namespace afc::language::text
-#endif
