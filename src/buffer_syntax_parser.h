@@ -35,6 +35,8 @@ class BufferSyntaxParser {
     std::optional<LogModel> log_model;
     std::optional<LogTypeName> log_type_name;
     std::optional<LogViewName> log_view_name;
+    // See buffer_variable::tree_parser_screens_buffer.
+    size_t tree_parser_screens_buffer;
   };
   void UpdateParser(ParserOptions options);
 
@@ -88,6 +90,7 @@ class BufferSyntaxParser {
     language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
         NewNullTreeParser();
 
+    size_t tree_parser_screens_buffer;
     ParseInput last_parse_input_scheduled;
 
     language::NonNull<std::shared_ptr<const ParseTree>> tree =

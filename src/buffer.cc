@@ -820,6 +820,9 @@ void OpenBuffer::UpdateTreeParser() {
                             .transform([](NonEmptySingleLine input) {
                               return LogViewName{input};
                             }),
+                    .tree_parser_screens_buffer = static_cast<int>(std::max(
+                        0, root_this->Read(
+                               buffer_variables::tree_parser_screens_buffer))),
                 });
             root_this->MaybeStartUpdatingSyntaxTrees();
             return EmptyValue();
@@ -874,6 +877,12 @@ void OpenBuffer::Initialize() {
       UpdateTreeParser();
       return Observers::State::Alive;
     });
+  variables_.int_variables
+      .ObserveValue(buffer_variables::tree_parser_screens_buffer)
+      .Add([this] {
+        UpdateTreeParser();
+        return Observers::State::Alive;
+      });
   UpdateTreeParser();
 
   execution_context_->environment()->Define(

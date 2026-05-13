@@ -64,6 +64,7 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
       .Transform([options,
                   protected_data = data_](SortedLineSequence dictionary) {
         protected_data->lock([&options, &dictionary](Data& data) {
+          data.tree_parser_screens_buffer = options.tree_parser_screens_buffer;
           data.tree_parser = NewNullTreeParser();
           if (options.parser_name == ParserId::Text()) {
             data.tree_parser = NewLineTreeParser(
@@ -191,8 +192,12 @@ void BufferSyntaxParser::Parse(ParseInput input) const {
 }
 
 void BufferSyntaxParser::ParseInternal(ParseInput input) {
+  size_t tree_parser_screens_buffer;
   language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
-      data_->lock([](const Data& data) { return data.tree_parser; });
+      data_->lock([&](const Data& data) {
+        tree_parser_screens_buffer = data.tree_parser_screens_buffer;
+        return data.tree_parser;
+      });
   if (TreeParser::IsNull(tree_parser.get().get())) return;
 
   if (tree_parser->state_boundary() == TreeParser::StateBoundary::Line &&
@@ -211,8 +216,8 @@ void BufferSyntaxParser::ParseInternal(ParseInput input) {
       using enum TreeParser::StateBoundary;
       case Line: {
         const View& view = input.views[0];
-        // TODO(P1, trivial, 2026-05-01, log): Make the `3` a buffer_variable?
-        const LineNumberDelta margin = view.size * 3;
+        const LineNumberDelta margin = view.size * tree_parser_screens_buffer;
+        VLOG(4) << "Margin: " << margin << " (view.size: " << view.size << ")";
         return input.contents.range().Intersection(Range(
             LineColumn(view.start - std::min(view.start.ToDelta(), margin)),
             LineColumn(std::min(view.start + view.size + margin,

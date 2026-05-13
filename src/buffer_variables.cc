@@ -780,6 +780,21 @@ EdgeVariable<int>* const search_matches_limit =
          .DefaultValue(100)
          .Build();
 
+EdgeVariable<int>* const tree_parser_screens_buffer =
+    &IntStruct()
+         ->Add()
+         .Name(L"tree_parser_screens_buffer")
+         .Description(
+             L"For line-oriented tree parsers (e.g., 'log'), "
+             L"how many screens worth of lines should be pre-parsed "
+             L"(before and after the current view). "
+             L"A small number can cause flickering when the user scrolls "
+             L"quickly outside of this buffer; "
+             L"A large number increases the delay "
+             L"(causes a parse request to take longer).")
+         .DefaultValue(3)
+         .Build();
+
 EdgeStruct<double>* DoubleStruct() {
   static EdgeStruct<double>* output = new EdgeStruct<double>();
   return output;
