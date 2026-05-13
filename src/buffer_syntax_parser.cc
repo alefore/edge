@@ -56,10 +56,11 @@ futures::ValueOrError<SortedLineSequence> LoadDictionary(
 }
 
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
-  // TODO(2026-05-10, P2, trivial): Only load the dictionary for those parsers
-  // that will need it (as an optimization).
-  LoadDictionary(options.editor, options.dictionary_path)
-      .ConsumeErrors([](Error) { return SortedLineSequence{LineSequence{}}; })
+  (options.parser_name == ParserId::Markdown()
+       ? LoadDictionary(options.editor, options.dictionary_path)
+             .ConsumeErrors(
+                 [](Error) { return SortedLineSequence{LineSequence{}}; })
+       : futures::Value<SortedLineSequence>{SortedLineSequence{LineSequence{}}})
       .Transform([options,
                   protected_data = data_](SortedLineSequence dictionary) {
         protected_data->lock([&options, &dictionary](Data& data) {
