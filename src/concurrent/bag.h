@@ -41,6 +41,8 @@ class Bag {
   Bag(Bag&&) = default;
   Bag& operator=(Bag&&) = default;
 
+  const BagOptions& options() const { return options_; }
+
   // When an object is added to a bag, we return a `Regitration` instance. It
   // can be used to remove the object from the bag. The customer doesn't need to
   // remember which bag corresponds to each registration.
@@ -110,6 +112,18 @@ class Bag {
   void ForEachSerial(Callable callable) {
     ForEachShardSerial([&callable](std::list<T>& s) {
       for (auto& t : s) callable(t);
+    });
+  }
+
+  // Efficient way to consume all elements of `other` into ourselves. The
+  // runtime complexity is linear to the number of shards in `other` (which
+  // ideally should be the same as the number of shards in `this`).
+  void Swallow(Bag other) {
+    size_t current = 0;
+    other.ForEachShardSerial([&](std::list<T>& other_shard) {
+      shards_[current++ % options_.shards]->lock([&](std::list<T>& target) {
+        target.splice(target.end(), other_shard);
+      });
     });
   }
 
