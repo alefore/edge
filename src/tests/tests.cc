@@ -60,7 +60,7 @@ struct TestInfoToSchedule {
   std::wstring full_name() const { return group_name + L"." + test_name; }
 };
 
-struct TestCompletionReport {
+struct ExecutionResult {
   std::wstring group_name;
   std::wstring test_name;
   std::optional<int> wait_status = std::nullopt;
@@ -226,7 +226,8 @@ void Run(std::vector<std::wstring> tests_filter) {
     return;
   }
 
-  std::map<std::wstring, std::map<std::wstring, int>> execution_results;
+  std::map<std::wstring, std::map<std::wstring, ExecutionResult>>
+      execution_results;
   std::map<std::wstring, std::set<std::wstring>> failures;
   std::unordered_map<pid_t, TestInfoToSchedule> running_tests;
 
@@ -247,6 +248,11 @@ void Run(std::vector<std::wstring> tests_filter) {
       const pid_t child_pid = ForkTest(test_to_launch);
       running_tests.emplace(child_pid, test_to_launch);
       next_test_to_launch_index++;
+      InsertOrDie(
+          execution_results[test_to_launch.group_name],
+          std::pair{test_to_launch.test_name,
+                    ExecutionResult{.group_name = test_to_launch.group_name,
+                                    .test_name = test_to_launch.test_name}});
     }
 
     if (!running_tests.empty()) {
@@ -273,8 +279,8 @@ void Run(std::vector<std::wstring> tests_filter) {
       const TestInfoToSchedule& info =
           running_tests.find(completed_pid)->second;
 
-      CHECK(!execution_results[info.group_name].contains(info.test_name));
-      execution_results[info.group_name][info.test_name] = wait_status;
+      execution_results[info.group_name][info.test_name].wait_status =
+          wait_status;
 
       if (!WIFEXITED(wait_status) || WEXITSTATUS(wait_status) != 0)
         std::cerr << "Fail: " << info.full_name() << std::endl;
@@ -285,17 +291,21 @@ void Run(std::vector<std::wstring> tests_filter) {
 
   LOG(INFO) << "All tests have completed; producing final output.";
   std::cerr << "# Test Groups" << std::endl << std::endl;
-  for (const std::pair<const std::wstring, std::map<std::wstring, int>>& group :
+  for (const std::pair<const std::wstring,
+                       std::map<std::wstring, ExecutionResult>>& group :
        execution_results) {
     std::cerr << "## Group: " << group.first << std::endl << std::endl;
-    for (const std::pair<const std::wstring, int>& result : group.second) {
+    for (const std::pair<const std::wstring, ExecutionResult>& result :
+         group.second) {
       std::cerr << "* " << result.first;
-      if (!WIFEXITED(result.second)) {
+      CHECK(result.second.wait_status);
+      if (!WIFEXITED(result.second.wait_status.value())) {
         failures[group.first].insert(result.first);
         std::cerr << ": Didn't exit" << std::endl;
-      } else if (WEXITSTATUS(result.second) != 0) {
+      } else if (WEXITSTATUS(result.second.wait_status.value()) != 0) {
         failures[group.first].insert(result.first);
-        std::cerr << ": Exit status: " << WEXITSTATUS(result.second)
+        std::cerr << ": Exit status: "
+                  << WEXITSTATUS(result.second.wait_status.value())
                   << std::endl;
       }
       std::cerr << std::endl;
@@ -305,9 +315,10 @@ void Run(std::vector<std::wstring> tests_filter) {
 
   const size_t executions = container::Sum(
       execution_results | std::views::values |
-      std::views::transform([](const std::map<std::wstring, int>& group_data) {
-        return group_data.size();
-      }));
+      std::views::transform(
+          [](const std::map<std::wstring, ExecutionResult>& group_data) {
+            return group_data.size();
+          }));
 
   // Final summary
   if (!failures.empty()) {
