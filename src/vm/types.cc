@@ -2,7 +2,6 @@
 
 #include <glog/logging.h>
 
-#include "src/language/container.h"
 #include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
 #include "src/language/hash.h"
@@ -13,8 +12,6 @@
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
-
-namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::PossibleError;
@@ -93,11 +90,13 @@ namespace gc = language::gc;
   // questionable. Maybe we should validate that it only occurs in the
   // beginning? We should probably also validate that numbers don't occur in the
   // beginning.
-  static const auto allow_list = container::MaterializeUnorderedSet(
-      std::wstring{L"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                   L"abcdefghijklmnopqrstuvwxyz"
-                   L"0123456789"
-                   L"_~"});
+  static const auto allow_list =
+      std::wstring{
+          L"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+          L"abcdefghijklmnopqrstuvwxyz"
+          L"0123456789"
+          L"_~"} |
+      std::ranges::to<std::unordered_set>();
   if (std::optional<ColumnNumber> position = FindFirstNotOf(input, allow_list);
       position.has_value())
     return Error{
@@ -119,8 +118,8 @@ const Identifier& IdentifierInclude() {
 }
 
 PurityType CombinePurityType(const std::vector<PurityType>& types) {
-  return container::Fold(
-      [](PurityType a, PurityType b) {
+  return std::ranges::fold_left(
+      types, PurityType{}, [](PurityType a, PurityType b) {
         return PurityType{
             .writes_external_outputs =
                 a.writes_external_outputs || b.writes_external_outputs,
@@ -128,8 +127,7 @@ PurityType CombinePurityType(const std::vector<PurityType>& types) {
                 a.writes_local_variables || b.writes_local_variables,
             .reads_external_inputs =
                 a.reads_external_inputs || b.reads_external_inputs};
-      },
-      PurityType{}, types);
+      });
 }
 
 namespace {
