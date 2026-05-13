@@ -6,6 +6,7 @@ cc_library(
     deps = [
         ":dirname_tests",
         ":glob_tests",
+        ":time_human_tests",
     ],
 )
 
@@ -223,6 +224,17 @@ cc_library(
         "//src/language/error:value_or_error",
         "//src/language/lazy_string:single_line",
     ],
+)
+
+cc_library(
+    name = "time_human_tests",
+    srcs = ["time_human_tests.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":time_human",
+        "//src/tests",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
