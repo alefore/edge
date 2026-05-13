@@ -394,10 +394,12 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"Exit"}}}},
-      vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState&, int status) {
-        LOG(INFO) << "Exit: " << status;
-        exit(status);
-      }).ptr());
+      vm::NewCallback(pool, kPurityTypeUnknown,
+                      [](EditorState& editor, int status) {
+                        LOG(INFO) << "Exit: " << status;
+                        editor.set_exit_value(status);
+                      })
+          .ptr());
 
   editor_type.ptr()->AddField(
       Identifier{NonEmptySingleLine{SingleLine{LazyString{L"SetStatus"}}}},
