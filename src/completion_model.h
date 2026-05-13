@@ -52,7 +52,8 @@ class DictionaryManager {
   // Why do we wrap the ListenableValue in a LazyValue? That allows us to insert
   // into the map under a lock, return a reference to the LazyValue, and trigger
   // its execution *outside of the lock*. That helps us avoid deadlocks (in case
-  // the future has listeners that need to re-acquire the lock).
+  // where the future gets a value before the lock is dropped, which could cause
+  // execution of `UpdateReverseTable`, which requires re-acquiring the lock).
   using ModelsMap =
       std::map<infrastructure::Path,
                language::LazyValue<futures::ListenableValue<DictionaryInput>>>;
