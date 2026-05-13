@@ -84,6 +84,7 @@ cc_library(
     deps = [
         "//src/infrastructure:glob",
         "//src/infrastructure:time",
+        "//src/infrastructure:time_human",
         "//src/language:container",
         "//src/language:wstring",
     ],
