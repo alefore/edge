@@ -78,9 +78,9 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
       });
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-BinaryOperator::Expand() const {
-  return {a_.object_metadata(), b_.object_metadata()};
+void BinaryOperator::Expand(gc::ObjectMetadata::Receiver& visit) const {
+  visit(a_);
+  visit(b_);
 }
 
 ValueOrError<gc::Root<Expression>> NewBinaryExpression(

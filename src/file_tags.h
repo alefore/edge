@@ -50,8 +50,7 @@ class FileTags {
   void Add(language::lazy_string::NonEmptySingleLine name,
            language::lazy_string::SingleLine value);
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 
  private:
   static language::ValueOrError<LoadTagsOutput> LoadTags(

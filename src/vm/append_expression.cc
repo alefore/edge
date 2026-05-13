@@ -71,9 +71,9 @@ class AppendExpression : public Expression {
             });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {e0_.object_metadata(), e1_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const {
+    visit(e0_);
+    visit(e1_);
   }
 };
 

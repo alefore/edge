@@ -62,8 +62,7 @@ class MapModeCommands {
            std::function<void()> value,
            language::lazy_string::LazyString description);
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver&) const;
 
  private:
   friend class MapMode;
@@ -84,8 +83,7 @@ class MapMode : public EditorMode {
   void ProcessInput(infrastructure::ExtendedChar) override;
   CursorMode cursor_mode() const override;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override;
+  void Expand(language::gc::ObjectMetadata::Receiver&) const override;
 };
 
 }  // namespace afc::editor

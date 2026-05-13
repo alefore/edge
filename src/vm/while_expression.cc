@@ -57,9 +57,9 @@ class WhileExpression : public Expression {
     return Iterate(trampoline, condition_.ToRoot(), body_.ToRoot());
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {condition_.object_metadata(), body_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const {
+    visit(condition_);
+    visit(body_);
   }
 
  private:

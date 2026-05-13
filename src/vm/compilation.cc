@@ -90,10 +90,9 @@ std::optional<infrastructure::Path> Compilation::current_source_path() const {
   return source_.back().path;
 }
 
-std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-Compilation::Expand() const {
+void Compilation::Expand(gc::ObjectMetadata::Receiver& visit) const {
   // TODO(2026-04-27, P0): Make this thread-safe?
-  return {environment.object_metadata()};
+  visit(environment);
 }
 
 }  // namespace afc::vm

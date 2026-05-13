@@ -79,10 +79,10 @@ class IfExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {cond_.object_metadata(), true_case_.object_metadata(),
-            false_case_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+    visit(cond_);
+    visit(true_case_);
+    visit(false_case_);
   }
 };
 

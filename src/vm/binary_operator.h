@@ -54,8 +54,7 @@ class BinaryOperator : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& evaluation,
                                                    const Type& type) override;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const override;
 };
 
 // A convenience wrapper of BinaryOperator that combines primitive types

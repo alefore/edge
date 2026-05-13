@@ -926,10 +926,7 @@ class OperationMode : public EditorMode {
 
   CursorMode cursor_mode() const override { return CursorMode::Default; }
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
   void ShowStatus() {
     LineBuilder output;

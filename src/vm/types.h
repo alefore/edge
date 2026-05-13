@@ -159,9 +159,7 @@ class ObjectType {
   void ForEachField(
       std::function<void(const Identifier&, const Value&)> callback) const;
 
-  std::vector<afc::language::NonNull<
-      std::shared_ptr<afc::language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 
 language::lazy_string::SingleLine ToSingleLine(const ObjectType&);

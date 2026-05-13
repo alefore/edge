@@ -355,8 +355,7 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
 
   //////////////////////////////////////////////////////////////////////////////
   // Life cycle
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 
   //////////////////////////////////////////////////////////////////////////////
   // Line marks.

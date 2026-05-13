@@ -117,7 +117,9 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
                 MakeNonNullUnique<transformation::Variant>(
                     MakeNonNullUnique<FunctionTransformation>(
                         pool, callback.value())),
-                [expansion] { return expansion; });
+                [expansion](gc::ObjectMetadata::Receiver& visit) {
+                  visit.all(expansion);
+                });
           }));
 
   transformation::RegisterInsert(pool, environment);

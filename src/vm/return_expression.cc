@@ -48,10 +48,7 @@ class ReturnExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {expr_.object_metadata()};
-  }
+  void Expand(gc::ObjectMetadata::Receiver& visit) const { visit(expr_); };
 };
 
 }  // namespace

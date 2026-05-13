@@ -12,6 +12,7 @@
 #include "src/infrastructure/time_human.h"
 #include "src/language/container.h"
 #include "src/language/gc.h"
+#include "src/language/gc_expanders.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/hash.h"
 #include "src/language/lazy_string/single_line.h"
@@ -40,7 +41,8 @@ using afc::infrastructure::HumanReadableDate;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -162,10 +164,11 @@ class FlashcardReviewLog {
     return Success();
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+  void Expand(gc::ObjectMetadata::Receiver& visit) const {
     // TODO(2026-04-27, P0): Make this thread-safe, probably by marking the
     // fields const.
-    return {review_buffer_.object_metadata(), file_tags_.object_metadata()};
+    visit(review_buffer_);
+    visit(file_tags_);
   }
 
  private:
@@ -325,8 +328,8 @@ class Flashcard {
     return review_log_.ToFuture();
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return *object_metadata_->lock();
+  void Expand(gc::ObjectMetadata::Receiver& visit) const {
+    object_metadata_->lock([&](auto& data) { visit.all(data); });
   }
 
  private:
@@ -425,7 +428,9 @@ struct VMTypeMapper<NonNull<
           std::shared_ptr<Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>
           input) {
     return vm::Value::NewObject(pool, object_type_name, input,
-                                [input] { return Expand(input); });
+                                [input](gc::ObjectMetadata::Receiver& visit) {
+                                  return Expand(visit, input);
+                                });
   }
 
   static gc::Root<Value> New(

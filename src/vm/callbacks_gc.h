@@ -27,10 +27,9 @@ struct VMTypeMapper<language::gc::Ptr<T>> {
     auto shared_value =
         language::MakeNonNullShared<language::gc::Ptr<T>>(value);
     return vm::Value::NewObject(
-        pool, object_type_name, shared_value, [shared_value] {
-          return std::vector<
-              language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>{
-              {shared_value->object_metadata()}};
+        pool, object_type_name, shared_value,
+        [shared_value](language::gc::ObjectMetadata::Receiver& visit) {
+          visit(shared_value->object_metadata());
         });
   }
 

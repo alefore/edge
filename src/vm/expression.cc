@@ -72,9 +72,9 @@ Stack& Trampoline::stack() { return stack_.value(); }
 
 gc::Pool& Trampoline::pool() const { return environment_.pool(); }
 
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-Trampoline::Expand() const {
-  return {environment_.object_metadata(), stack_.object_metadata()};
+void Trampoline::Expand(language::gc::ObjectMetadata::Receiver& visit) const {
+  visit(environment_);
+  visit(stack_);
 }
 
 bool Expression::SupportsType(const Type& type) {

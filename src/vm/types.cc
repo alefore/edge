@@ -281,11 +281,9 @@ SingleLine ToQuotedSingleLine(const Type& type) {
   return QuoteExpr(ToSingleLine(type));
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
-    const {
-  return fields_.lock([](const auto& fields) {
-    return fields | ExpandMapPtrValues | std::ranges::to<std::vector>();
-  });
+void ObjectType::Expand(gc::ObjectMetadata::Receiver& visit) const {
+  fields_.lock(
+      [&visit](const auto& fields) { visit.all(fields | std::views::values); });
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {

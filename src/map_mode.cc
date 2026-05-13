@@ -57,10 +57,9 @@ class CommandFromFunction : public Command {
 
   void ProcessInput(ExtendedChar) override { callback_.value()(); }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {
     LOG(INFO) << "CommandFromFunction Expand";
-    return {callback_.object_metadata()};
+    visit(callback_);
   }
 };
 
@@ -164,16 +163,13 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
           .ptr());
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-MapModeCommands::Expand() const {
+void MapModeCommands::Expand(gc::ObjectMetadata::Receiver& visit) const {
   LOG(INFO) << "MapModeCommands Expand";
   // TODO(2026-04-27, P0): Make this thread-safe.
-  return frames_ |
-         std::views::transform(
-             [](const NonNull<std::shared_ptr<Frame>>& frame) {
-               return frame->commands | gc::ExpandMapPtrValues;
-             }) |
-         std::views::join | std::ranges::to<std::vector>();
+  std::ranges::for_each(frames_,
+                        [&](const NonNull<std::shared_ptr<Frame>>& frame) {
+                          visit.all(frame->commands | std::views::values);
+                        });
 }
 
 language::gc::Root<MapMode> MapMode::New(
@@ -207,10 +203,9 @@ void MapMode::ProcessInput(ExtendedChar c) {
 
 MapMode::CursorMode MapMode::cursor_mode() const { return CursorMode::Default; }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> MapMode::Expand()
-    const {
+void MapMode::Expand(gc::ObjectMetadata::Receiver& visit) const {
   LOG(INFO) << "MapMode Expand";
-  return {commands_.object_metadata()};
+  visit(commands_);
 }
 
 namespace {

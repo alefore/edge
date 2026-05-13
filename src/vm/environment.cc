@@ -99,15 +99,11 @@ EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
   });
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-EnvironmentIdentifierTable::Expand() const {
-  return table_.lock([](const Table& table) {
-    return table | std::views::values |
-           container::filter_variant<gc::Ptr<Value>> |
-           std::views::transform([](const gc::Ptr<Value>& entry) {
-             return entry.object_metadata();
-           }) |
-           std::ranges::to<std::vector>();
+void EnvironmentIdentifierTable::Expand(
+    gc::ObjectMetadata::Receiver& visit) const {
+  table_.lock([&visit](const Table& table) {
+    visit.all(table | std::views::values |
+              container::filter_variant<gc::Ptr<Value>>);
   });
 }
 
@@ -423,21 +419,13 @@ EnvironmentIdentifierTable& Environment::GetOrCreateTable(
       .first->second.value();
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Environment::Expand()
-    const {
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-  if (parent_environment().has_value())
-    output.push_back(parent_environment()->object_metadata());
-  data_.lock([&output](const Data& data) {
-    std::ranges::copy(data.namespaces | gc::ExpandMapPtrValues,
-                      std::back_inserter(output));
-    std::ranges::copy(data.table | gc::ExpandMapPtrValues,
-                      std::back_inserter(output));
-    std::ranges::copy(data.object_types | gc::ExpandMapPtrValues,
-                      std::back_inserter(output));
+void Environment::Expand(gc::ObjectMetadata::Receiver& visit) const {
+  if (parent_environment().has_value()) visit(parent_environment().value());
+  data_.lock([&visit](const Data& data) {
+    visit.all(data.namespaces | std::views::values);
+    visit.all(data.table | std::views::values);
+    visit.all(data.object_types | std::views::values);
   });
-
-  return output;
 }
 
 const Environment* Environment::FindNamespace(

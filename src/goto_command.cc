@@ -210,10 +210,7 @@ class GotoCommand : public Command {
             MakeNonNullUnique<GotoCommand>(editor_state_, calls_ + 1)));
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;

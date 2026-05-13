@@ -114,7 +114,9 @@ gc::Root<Value> VMTypeMapper<NonNull<
             concurrent::Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>
             input) {
   return vm::Value::NewObject(pool, object_type_name, input,
-                              [input] { return Expand(input); });
+                              [input](gc::ObjectMetadata::Receiver& receiver) {
+                                return Expand(receiver, input);
+                              });
 }
 
 /* static */ gc::Root<Value> VMTypeMapper<NonNull<

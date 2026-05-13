@@ -79,9 +79,8 @@ class CppCommand : public Command {
     compilation_result_->evaluate();
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {compilation_result_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+    visit(compilation_result_);
   }
 };
 

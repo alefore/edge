@@ -69,9 +69,8 @@ class NamespaceExpression : public Expression {
             });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {body_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+    visit(body_);
   }
 };
 }  // namespace

@@ -37,23 +37,19 @@ struct SlowExpandContainer {
   mutable size_t expansions = 0;
   std::vector<gc::Ptr<Node>> nodes;
 
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand() const {
+  void Expand(ObjectMetadata::Receiver& visit) const {
     LOG(INFO) << "Expand timeout.";
     ++expansions;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    return nodes | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
+    visit.all(nodes);
   }
 };
 }  // namespace
 
 template <>
 struct ExpandHelper<Node> {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const Node& node) {
-    auto output =
-        container::MaterializeVector(node.children | gc::view::ObjectMetadata);
-    VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
-    return output;
+  void operator()(const Node& node, ObjectMetadata::Receiver& visit) {
+    visit.all(node.children);
   }
 };
 
@@ -677,15 +673,14 @@ bool concurrency_tests = tests::Register(
 
                  explicit DeadlockContainer(Ptr<Node> n) : child_node(n) {}
 
-                 std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand()
-                     const {
+                 void Expand(ObjectMetadata::Receiver& visit) const {
                    LOG(INFO) << "Expand execution begins.";
                    gc_holding_data_lock = true;
                    while (!mutator_at_eden_gate)
                      std::this_thread::sleep_for(std::chrono::milliseconds(1));
                    LOG(INFO) << "Triggering deadlock.";
                    gc::Ptr<Node> trigger = child_node;  // Deadlock.
-                   return {trigger.object_metadata()};
+                   visit(trigger);
                  }
                };
 

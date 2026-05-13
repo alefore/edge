@@ -27,9 +27,7 @@ class InputReceiver {
   enum class CursorMode { Default, Inserting, Overwriting };
   virtual CursorMode cursor_mode() const = 0;
 
-  virtual std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const = 0;
+  virtual void Expand(language::gc::ObjectMetadata::Receiver&) const = 0;
 };
 
 // TODO(2023-11-29, trivial): Rename this class to `SimpleInputReceiver`.

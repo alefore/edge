@@ -154,9 +154,9 @@ class FunctionCall : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {func_.object_metadata(), args_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+    visit(func_);
+    visit(args_);
   }
 
  private:
@@ -360,12 +360,9 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
             });
       }
 
-      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-          const override {
-        std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output =
-            gc::Expand(delegates_);
-        output.push_back(obj_expr_.object_metadata());
-        return output;
+      void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+        visit.all(delegates_);
+        visit(obj_expr_);
       }
 
      private:

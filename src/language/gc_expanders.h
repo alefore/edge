@@ -14,18 +14,12 @@
 
 namespace afc::language::gc {
 template <typename V>
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand(
-    const std::vector<gc::Ptr<V>>& input) {
-  return input | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
-}
-
-template <typename V>
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand(
-    const NonNull<
-        std::shared_ptr<concurrent::Protected<std::vector<gc::Ptr<V>>>>>&
-        input) {
-  return input->lock(
-      [](const std::vector<gc::Ptr<V>>& contents) { return Expand(contents); });
+void Expand(ObjectMetadata::Receiver& visit,
+            const NonNull<std::shared_ptr<
+                concurrent::Protected<std::vector<gc::Ptr<V>>>>>& input) {
+  input->lock([&visit](const std::vector<gc::Ptr<V>>& contents) {
+    visit.all(contents);
+  });
 }
 
 // Map must be any kind of map where the values are gc::Ptr<T>.

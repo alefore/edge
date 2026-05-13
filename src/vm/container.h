@@ -106,19 +106,13 @@ struct Traits<std::set<ValueType>> : public TraitsBase {
 
 template <typename NestedType>
 struct NestedTypeTraits {
-  static std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand(const auto&) {
-    return {};
-  }
+  static void Expand(gc::ObjectMetadata::Receiver&, const auto&) {}
 };
 
 template <typename NestedType>
 struct NestedTypeTraits<gc::Ptr<NestedType>> {
-  static std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand(const auto& value) {
-    return value | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
+  static void Expand(gc::ObjectMetadata::Receiver& visit, const auto& value) {
+    visit.all(value);
   }
 };
 
@@ -141,12 +135,14 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             CHECK(args.empty());
             auto value =
                 language::MakeNonNullShared<concurrent::Protected<Container>>();
-            return Value::NewObject(pool, object_type_name, value, [value]() {
-              return value->lock([](auto& data) {
-                return NestedTypeTraits<typename Container::value_type>::Expand(
-                    data);
-              });
-            });
+            return Value::NewObject(
+                pool, object_type_name, value,
+                [value](language::gc::ObjectMetadata::Receiver& visit) {
+                  value->lock([&](auto& data) {
+                    NestedTypeTraits<typename Container::value_type>::Expand(
+                        visit, data);
+                  });
+                });
           }));
 
   object_type.ptr()->AddField(

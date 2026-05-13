@@ -96,10 +96,7 @@ class AssignExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {value_.object_metadata()};
-  }
+  void Expand(gc::ObjectMetadata::Receiver& visit) const { visit(value_); }
 };
 
 class StackFrameAssign : public Expression {
@@ -148,9 +145,8 @@ class StackFrameAssign : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {value_expression_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const {
+    visit(value_expression_);
   }
 };
 }  // namespace

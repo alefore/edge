@@ -2599,15 +2599,12 @@ void OpenBuffer::set_filter(gc::Root<Value> filter) {
   filter_version_++;
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> OpenBuffer::Expand()
-    const {
+void OpenBuffer::Expand(language::gc::ObjectMetadata::Receiver& visit) const {
   LOG(INFO) << "Buffer::Expand: " << name();
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output = {
-      default_commands_.object_metadata(), execution_context_.object_metadata(),
-      hooks_.object_metadata()};
-  data_.lock(
-      [&output](auto& data) { output.push_back(data.mode.object_metadata()); });
-  return output;
+  visit(default_commands_);
+  visit(execution_context_);
+  visit(hooks_);
+  visit(data_.lock([](auto& data) { return data.mode.object_metadata(); }));
 }
 
 const std::multimap<LineMarks::MarkMapKey, LineMarks::Mark>&

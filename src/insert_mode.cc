@@ -336,10 +336,7 @@ class FindCompletionCommand : public Command {
         [] {});
   }
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 };
 
 NonNull<std::unique_ptr<MutableLineSequence,
@@ -792,9 +789,8 @@ class InsertMode : public InputReceiver,
     return CursorMode::Inserting;
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {buffers_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+    visit(buffers_);
   }
 
  private:

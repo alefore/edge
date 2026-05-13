@@ -42,9 +42,8 @@ class ConstantExpression : public Expression {
     return EvaluationOutput::New(value_.ToRoot());
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {value_.object_metadata()};
+  virtual void Expand(gc::ObjectMetadata::Receiver& visit) const override {
+    visit(value_);
   }
 };
 

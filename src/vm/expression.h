@@ -70,8 +70,7 @@ class Trampoline {
 
   language::gc::Pool& pool() const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 
 class Expression {
@@ -114,9 +113,7 @@ class Expression {
   // Used by the garbage collector to find objects reachable from this one.
   // This should be overridden in subclasses that hold gc::Ptr<> or gc::Root<>
   // to return all such objects.
-  virtual std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const = 0;
+  virtual void Expand(language::gc::ObjectMetadata::Receiver& visit) const = 0;
 };
 
 struct EvaluationOutput {

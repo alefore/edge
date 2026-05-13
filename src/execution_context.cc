@@ -134,10 +134,11 @@ ExecutionContext::CompilationResult::evaluate() const {
                   });
 };
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-ExecutionContext::CompilationResult::Expand() const {
+void ExecutionContext::CompilationResult::Expand(
+    language::gc::ObjectMetadata::Receiver& visit) const {
   LOG(INFO) << "ExecutionContext Expand";
-  return {expression_.object_metadata(), environment_.object_metadata()};
+  visit(expression_);
+  visit(environment_);
 }
 
 futures::ValueOrError<gc::Root<vm::Value>> ExecutionContext::EvaluateString(
@@ -231,9 +232,9 @@ ExecutionContext::FunctionCall(gc::Ptr<vm::Value> function_value,
       environment_, work_queue());
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-ExecutionContext::Expand() const {
-  return {environment_.object_metadata()};
+void ExecutionContext::Expand(
+    language::gc::ObjectMetadata::Receiver& visit) const {
+  visit(environment_);
 }
 
 ValueOrError<gc::Root<ExecutionContext::CompilationResult>>

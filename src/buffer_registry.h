@@ -114,8 +114,7 @@ class BufferRegistry {
   language::gc::Root<OpenBuffer> GetListedBuffer(size_t index) const;
   std::optional<size_t> GetListedBufferIndex(const OpenBuffer& buffer) const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver&) const;
 
   void SetListedCount(std::optional<size_t> value);
   std::optional<size_t> listed_count() const;

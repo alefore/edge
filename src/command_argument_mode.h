@@ -103,9 +103,8 @@ class CommandArgumentMode : public EditorMode {
 
   CursorMode cursor_mode() const override { return CursorMode::Default; }
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
-    return language::gc::Expand(buffers_);
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const override {
+    visit.all(buffers_);
   }
 
  private:

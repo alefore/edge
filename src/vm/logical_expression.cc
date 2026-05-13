@@ -81,9 +81,9 @@ class LogicalExpression : public Expression {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {expr_a_.object_metadata(), expr_b_.object_metadata()};
+  void Expand(gc::ObjectMetadata::Receiver& visit) const {
+    visit(expr_a_);
+    visit(expr_b_);
   }
 };
 }  // namespace

@@ -53,10 +53,8 @@ class HookRegistry {
         std::ranges::to<std::vector>());
   }
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const {
-    return hooks_ | std::views::values | language::gc::view::ObjectMetadata |
-           std::ranges::to<std::vector>();
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const {
+    visit.all(hooks_ | std::views::values);
   }
 };
 
@@ -80,9 +78,8 @@ class BufferHooks {
 
   SaveRegistry& save_hook() { return save_.value(); }
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const {
-    return {save_.object_metadata()};
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const {
+    visit(save_);
   }
 };
 }  // namespace afc::editor

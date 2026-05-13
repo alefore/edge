@@ -87,8 +87,7 @@ struct Compilation {
   void SetSourceColumnInLine(language::lazy_string::ColumnNumber column);
   std::optional<infrastructure::Path> current_source_path() const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 
 }  // namespace afc::vm

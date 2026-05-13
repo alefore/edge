@@ -192,18 +192,12 @@ ValueOrError<double> Value::ToDouble() const {
       type_);
 }
 
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-Value::Expand() const {
+void Value::Expand(gc::ObjectMetadata::Receiver& visit) const {
   if (const gc::Ptr<CallbackWithDependencies>* value =
           std::get_if<gc::Ptr<CallbackWithDependencies>>(&value_);
-      value) {
-    CHECK(!expand_callback_);
-    return {value->object_metadata()};
-  }
-  return expand_callback_
-             ? expand_callback_()
-             : std::vector<language::NonNull<
-                   std::shared_ptr<language::gc::ObjectMetadata>>>{};
+      value)
+    visit(*value);
+  if (expand_callback_) expand_callback_(visit);
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
@@ -232,10 +226,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
 
 namespace {
 struct Node {
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const {}
 };
 
 bool value_gc_tests_registration = tests::Register(
@@ -320,9 +311,9 @@ bool value_gc_tests_registration = tests::Register(
           return Value::NewObject(
               pool, types::ObjectName{IDENTIFIER_CONSTANT(L"TestNode")},
               NonNull<std::unique_ptr<Node>>(),
-              [intermediate_ptr = intermediate.ptr()]
-              -> std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> {
-                return {intermediate_ptr.object_metadata()};
+              [intermediate_ptr =
+                   intermediate.ptr()](gc::ObjectMetadata::Receiver& visit) {
+                visit(intermediate_ptr);
               });
         });
 

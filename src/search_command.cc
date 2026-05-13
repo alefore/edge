@@ -21,8 +21,10 @@ using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
 using afc::futures::IterationControlCommand;
 using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
-using afc::infrastructure::screen::Style;using afc::infrastructure::screen::StyleAttribute;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Style;
+using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
@@ -386,10 +388,7 @@ class SearchCommand : public Command {
          .predictor = SearchHandlerPredictor,
          .status = PromptOptions::Status::Buffer});
   }
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(

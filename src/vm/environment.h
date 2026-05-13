@@ -58,8 +58,7 @@ class EnvironmentIdentifierTable {
       Type, std::variant<UninitializedValue, language::gc::Root<Value>>>
   GetMapTypeVariantRootValue() const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 
 class Environment {
@@ -146,8 +145,7 @@ class Environment {
           const std::variant<UninitializedValue, language::gc::Ptr<Value>>&)>
           callback) const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 
  private:
   static EnvironmentIdentifierTable& GetOrCreateTable(language::gc::Pool& pool,

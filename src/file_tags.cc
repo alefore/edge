@@ -109,9 +109,8 @@ void FileTags::Add(language::lazy_string::NonEmptySingleLine name,
   AddTag(name, value, tags_);
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> FileTags::Expand()
-    const {
-  return {buffer_.object_metadata()};
+void FileTags::Expand(gc::ObjectMetadata::Receiver& visit) const {
+  visit(buffer_);
 }
 
 /* static */ ValueOrError<FileTags::LoadTagsOutput> FileTags::LoadTags(

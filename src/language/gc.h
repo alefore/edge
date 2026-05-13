@@ -129,10 +129,29 @@ class Pool;
 // `std::weak_ptr<>` references. By clearing up the `expand_callback`, we
 // effectively allow objects to be deleted.
 class ObjectMetadata {
+ public:
+  class Receiver {
+   public:
+    // TODO(2026-05-13, P2): Don't make this virtual; just provide a concrete
+    // implementation.
+    virtual void operator()(
+        language::NonNull<std::shared_ptr<ObjectMetadata>>) = 0;
+
+    template <typename T>
+    void operator()(Ptr<T> ptr) {
+      return (*this)(ptr.object_metadata());
+    }
+
+    template <typename R>
+    void all(R&& range) {
+      std::ranges::for_each(range, [&](auto& v) { (*this)(v); });
+    }
+  };
+
+ private:
   friend Pool;
 
-  using ExpandCallback = std::function<
-      std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>()>;
+  using ExpandCallback = std::function<void(Receiver&)>;
 
   struct ConstructorAccessKey {
    private:
@@ -230,8 +249,9 @@ class Pool {
   Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value_unique) {
     language::NonNull<std::shared_ptr<T>> value = std::move(value_unique);
     Root<T> output =
-        Ptr<T>(std::weak_ptr<T>(value.get_shared()), NewObjectMetadata([value] {
-                 return ExpandHelper<T>()(value.value());
+        Ptr<T>(std::weak_ptr<T>(value.get_shared()),
+               NewObjectMetadata([value](ObjectMetadata::Receiver& visit) {
+                 return ExpandHelper<T>()(value.value(), visit);
                }))
             .ToRoot();
     if constexpr (std::is_base_of_v<EnableRootFromThis<T>, T>) {
@@ -617,24 +637,19 @@ bool operator<(const Root<T>& a, const Root<T>& b) {
 
 // Convenience declarations for Expand methods /////////////////////////////////
 
-template <typename T>
-using ExpandMethodType = decltype(std::declval<const T&>().Expand());
-
 template <typename T, typename = void>
 struct HasExpandMethod : std::false_type {};
 
 template <typename T>
-struct HasExpandMethod<
-    T, std::enable_if_t<std::is_same_v<
-           decltype(std::declval<const T&>().Expand()),
-           std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>>>>
-    : std::true_type {};
+struct HasExpandMethod<T, std::enable_if_t<std::is_same_v<
+                              decltype(std::declval<const T&>().Expand(
+                                  std::declval<ObjectMetadata::Receiver&>())),
+                              void>>> : std::true_type {};
 
 template <typename T>
 struct ExpandHelper<T, std::enable_if_t<HasExpandMethod<T>::value>> {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const T& object) {
-    return object.Expand();
+  void operator()(const T& object, ObjectMetadata::Receiver& visit) {
+    object.Expand(visit);
   }
 };
 

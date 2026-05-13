@@ -44,10 +44,8 @@ class BindFrontImpl {
                   std::forward<Args>(args)...);
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-    PtrExpandHelper<0>(output, bound_args_);
-    return output;
+  void Expand(ObjectMetadata::Receiver& visit) const {
+    PtrExpandHelper<0>(bound_args_, visit);
   }
 
  private:
@@ -104,14 +102,13 @@ class BindFrontImpl {
   };
 
   template <size_t index, typename... Args>
-  static void PtrExpandHelper(
-      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>& output,
-      const std::tuple<Args...>& tup) {
+  static void PtrExpandHelper(const std::tuple<Args...>& tup,
+                              ObjectMetadata::Receiver& visit) {
     if constexpr (index < sizeof...(Args)) {
       if constexpr (is_gc_ptr<
                         std::decay_t<decltype(std::get<index>(tup))>>::value)
-        output.push_back(std::get<index>(tup).object_metadata());
-      PtrExpandHelper<index + 1>(output, tup);
+        visit(std::get<index>(tup));
+      PtrExpandHelper<index + 1>(tup, visit);
     }
   }
 };
@@ -189,8 +186,8 @@ class WithDependencies {
   Value* operator->() const { return value_; }
   const Value& value() const { return value_; }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return dependencies_;
+  void Expand(ObjectMetadata::Receiver& visit) const {
+    visit.all(dependencies_);
   }
 };
 

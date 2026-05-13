@@ -52,9 +52,7 @@ class ExecutionContext {
 
     futures::ValueOrError<language::gc::Root<vm::Value>> evaluate() const;
 
-    std::vector<
-        language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-    Expand() const;
+    void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
   };
 
   static language::gc::Root<ExecutionContext> New(
@@ -106,8 +104,7 @@ class ExecutionContext {
       language::gc::Ptr<vm::Value> function_value,
       std::vector<language::gc::Ptr<vm::Value>> arguments);
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 
  private:
   language::ValueOrError<language::gc::Root<CompilationResult>>

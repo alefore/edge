@@ -30,10 +30,9 @@ struct TestData {
 
   ~TestData() { LOG(INFO) << "Delete: " << entry; }
 
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand() const {
+  void Expand(ObjectMetadata::Receiver& visit) const {
     LOG(INFO) << "Expand: " << entry;
-    if (next.has_value()) return {next->object_metadata()};
-    return {};
+    if (next) visit(next.value());
   }
 };
 

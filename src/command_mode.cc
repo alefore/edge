@@ -125,10 +125,7 @@ class UndoCommand : public Command {
         });
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -153,10 +150,7 @@ class EnterInsertModeCommand : public Command {
     EnterInsertMode(InsertModeOptions{.editor_state = editor_state_});
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -190,10 +184,7 @@ class InsertionModifierCommand : public Command {
     }
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -226,10 +217,7 @@ class SetStructureCommand : public Command {
     }
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -260,10 +248,7 @@ class SetStrengthCommand : public Command {
     editor_state_.set_modifiers(modifiers);
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -290,10 +275,7 @@ class NumberMode : public Command {
     editor_state_.ProcessInput({c});
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 };
 
 class ActivateLink : public Command {
@@ -360,10 +342,7 @@ class ActivateLink : public Command {
         [] {});
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -390,10 +369,7 @@ class ResetStateCommand : public Command {
     editor_state_.set_modifiers(Modifiers());
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;
@@ -411,10 +387,7 @@ class HardRedrawCommand : public Command {
     editor_state_.set_screen_needs_hard_redraw(true);
   }
 
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 
  private:
   EditorState& editor_state_;

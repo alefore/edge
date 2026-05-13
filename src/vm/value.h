@@ -28,8 +28,8 @@ class Value {
   // TODO(2026-05-11, GC, medium): Get rid of this. That requires changing
   // ObjectInstance to a gc::WithDependencies<NonNull<shared<void>>> or such.
   // Or maybe ObjectInstance should use gc::Ptr somehow.
-  using ExpandCallback = std::function<std::vector<
-      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
+  using ExpandCallback =
+      std::function<void(language::gc::ObjectMetadata::Receiver&)>;
 
   // TODO(2026-05-11, AccessKey): Convert to language::AccessKey.
   class ConstructorAccessTag {
@@ -71,11 +71,8 @@ class Value {
   static language::gc::Root<Value> NewObject(
       language::gc::Pool& pool, types::ObjectName name,
       language::NonNull<std::shared_ptr<void>> value,
-      ExpandCallback expand_callback = []
-      -> std::vector<
-          language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> {
-        return {};
-      });
+      ExpandCallback expand_callback =
+          [](language::gc::ObjectMetadata::Receiver&) {});
   static language::gc::Root<Value> NewFunction(language::gc::Pool& pool,
                                                PurityType purity_type,
                                                Type output,
@@ -136,8 +133,7 @@ class Value {
   // integer.
   language::ValueOrError<double> ToDouble() const;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& value);

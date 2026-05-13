@@ -301,6 +301,12 @@ bool operator==(const NonNull<std::shared_ptr<T>>& a,
   return a.get() == b.get();
 }
 
+template <typename T>
+bool operator!=(const NonNull<std::shared_ptr<T>>& a,
+                const NonNull<std::shared_ptr<T>>& b) {
+  return a.get() != b.get();
+}
+
 template <typename T, typename... Arg>
 NonNull<std::unique_ptr<T>> MakeNonNullUnique(Arg&&... arg) {
   return NonNull<std::unique_ptr<T>>::Unsafe(
@@ -375,6 +381,14 @@ template <typename T>
 struct hash<afc::language::NonNull<T*>> {
   std::size_t operator()(const afc::language::NonNull<T*>& ptr) const {
     return hash<T*>()(ptr.get());
+  }
+};
+
+template <typename T>
+struct hash<afc::language::NonNull<std::shared_ptr<T>>> {
+  size_t operator()(
+      const afc::language::NonNull<std::shared_ptr<T>>& obj) const noexcept {
+    return std::hash<T*>{}(obj.get_shared().get());
   }
 };
 }  // namespace std

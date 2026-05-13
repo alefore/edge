@@ -39,10 +39,9 @@ StackFrame::StackFrame(ConstructorAccessTag,
 
 gc::Ptr<Value>& StackFrame::get(size_t index) { return arguments_[index]; }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> StackFrame::Expand()
-    const {
+void StackFrame::Expand(gc::ObjectMetadata::Receiver& visit) const {
   // TODO(P0, 2026-04-27): Ugh, make this thread-safe.
-  return gc::Expand(arguments_);
+  visit.all(arguments_);
 }
 
 /* static */ gc::Root<Stack> Stack::New(gc::Pool& pool) {
@@ -73,9 +72,11 @@ void Stack::Pop() {
   stack_.lock([](auto& stack) { stack.pop_back(); });
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Stack::Expand()
-    const {
-  return stack_.lock([](const auto& stack) { return gc::Expand(stack); });
+void Stack::Expand(gc::ObjectMetadata::Receiver& visit) const {
+  return stack_.lock(
+      [&](const std::vector<language::gc::Ptr<StackFrame>>& stack) {
+        visit.all(stack);
+      });
 }
 
 }  // namespace afc::vm

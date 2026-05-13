@@ -19,10 +19,7 @@ class DelayInputReceiver : public EditorMode {
 
   CursorMode cursor_mode() const override;
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
-    return {};
-  };
+  void Expand(language::gc::ObjectMetadata::Receiver&) const override {};
 
   const std::vector<infrastructure::ExtendedChar>& input() const;
 };

@@ -57,10 +57,7 @@ class OpenDirectoryCommand : public Command {
             [] { return Path::LocalDirectory(); }))});
   }
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 };
 
 }  // namespace

@@ -38,8 +38,7 @@ class StackFrame {
 
   language::gc::Ptr<Value>& get(size_t index);
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 
 class Stack {
@@ -58,8 +57,7 @@ class Stack {
   void Push(language::gc::Ptr<StackFrame> frame);
   void Pop();
 
-  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-  Expand() const;
+  void Expand(language::gc::ObjectMetadata::Receiver& visit) const;
 };
 }  // namespace afc::vm
 #endif

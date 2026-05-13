@@ -9,9 +9,9 @@
 namespace afc::language::gc {
 template <typename T>
 struct ExpandHelper<std::vector<gc::Ptr<T>>> {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const std::vector<gc::Ptr<T>>& input) {
-    return input | gc::view::ObjectMetadata | std::ranges::to<std::vector>();
+  void operator()(const std::vector<gc::Ptr<T>>& input,
+                  ObjectMetadata::Receiver& visit) {
+    visit.all(input);
   }
 };
 

@@ -73,10 +73,7 @@ class VariableLookup : public Expression {
         trampoline.environment()->Lookup(symbol_namespace_, symbol_, type));
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {}
 };
 
 class StackFrameLookup : public Expression {
@@ -110,10 +107,7 @@ class StackFrameLookup : public Expression {
         trampoline.stack().get_from_current_frame(index_));
   }
 
-  std::vector<NonNull<std::shared_ptr<language::gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
+  void Expand(gc::ObjectMetadata::Receiver& visit) const override {}
 };
 
 }  // namespace
