@@ -45,6 +45,16 @@ cc_library(
 )
 
 cc_library(
+    name = "factory",
+    hdrs = ["factory.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":tests",
+        "//src/language/lazy_string:single_line",
+    ],
+)
+
+cc_library(
     name = "fuzz",
     srcs = ["fuzz.cc"],
     hdrs = ["fuzz.h"],
