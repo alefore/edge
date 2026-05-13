@@ -13,6 +13,9 @@ HumanReadableTime(const Time& time);
 // YYYY-MM-DD.
 language::ValueOrError<language::lazy_string::NonEmptySingleLine>
 HumanReadableDate(const Time& time);
+
+language::lazy_string::NonEmptySingleLine DurationToString(
+    double duration_seconds);
 }  // namespace afc::infrastructure
 
 #endif  // __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_HUMAN_H__

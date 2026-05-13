@@ -20,6 +20,7 @@ extern "C" {
 #include "src/buffer_registry.h"
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/time_human.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/functional.h"
@@ -28,13 +29,15 @@ extern "C" {
 namespace gc = afc::language::gc;
 
 using afc::futures::DeleteNotification;
+using afc::infrastructure::DurationToString;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::ProcessId;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
@@ -254,22 +257,6 @@ futures::Value<PossibleError> GenerateContents(
         time(&data->time_end);
         return Success();
       });
-}
-
-NonEmptySingleLine DurationToString(size_t duration) {
-  static const std::vector<std::pair<size_t, NonEmptySingleLine>> time_units = {
-      {60, NonEmptySingleLine{SingleLine::Char<L's'>()}},
-      {60, NonEmptySingleLine{SingleLine::Char<L'm'>()}},
-      {24, NonEmptySingleLine{SingleLine::Char<L'h'>()}},
-      {99999999, NonEmptySingleLine{SingleLine::Char<L'd'>()}}};
-  size_t factor = 1;
-  for (auto& entry : time_units) {
-    if (duration < factor * entry.first) {
-      return NonEmptySingleLine(duration / factor) + entry.second;
-    }
-    factor *= entry.first;
-  }
-  return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"very-long")};
 }
 
 std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,

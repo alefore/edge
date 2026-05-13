@@ -42,4 +42,22 @@ language::ValueOrError<NonEmptySingleLine> HumanReadableTime(const Time& time) {
 language::ValueOrError<NonEmptySingleLine> HumanReadableDate(const Time& time) {
   return strftime(time, "%Y-%m-%d", NanosecondsBehavior::Ignore);
 }
+
+NonEmptySingleLine DurationToString(double duration_seconds) {
+  static const std::vector<std::pair<size_t, NonEmptySingleLine>> time_units = {
+      {1000, NON_EMPTY_SINGLE_LINE_CONSTANT(L"ms")},
+      {60, NON_EMPTY_SINGLE_LINE_CONSTANT(L"s")},
+      {60, NON_EMPTY_SINGLE_LINE_CONSTANT(L"m")},
+      {24, NON_EMPTY_SINGLE_LINE_CONSTANT(L"h")},
+      {99999999, NON_EMPTY_SINGLE_LINE_CONSTANT(L"d")}};
+  size_t factor = 1;
+  duration_seconds *= 1000;
+  for (auto& entry : time_units) {
+    if (duration_seconds < factor * entry.first) {
+      return NonEmptySingleLine(duration_seconds / factor) + entry.second;
+    }
+    factor *= entry.first;
+  }
+  return NonEmptySingleLine{SINGLE_LINE_CONSTANT(L"very-long")};
+}
 }  // namespace afc::infrastructure
