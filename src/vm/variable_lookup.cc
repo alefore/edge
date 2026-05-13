@@ -73,7 +73,7 @@ class VariableLookup : public Expression {
         trampoline.environment()->Lookup(symbol_namespace_, symbol_, type));
   }
 
-  void Expand(gc::ObjectMetadata::Receiver& visit) const override {}
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 };
 
 class StackFrameLookup : public Expression {
@@ -107,7 +107,7 @@ class StackFrameLookup : public Expression {
         trampoline.stack().get_from_current_frame(index_));
   }
 
-  void Expand(gc::ObjectMetadata::Receiver& visit) const override {}
+  void Expand(gc::ObjectMetadata::Receiver&) const override {}
 };
 
 }  // namespace
