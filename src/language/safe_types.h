@@ -321,7 +321,7 @@ NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg&&... arg) {
 
 // Convenience wrapper to avoid having to specify the type explicitly.
 template <typename T>
-auto WrapNonNullShared(T value) {
+NonNull<std::shared_ptr<T>> WrapNonNullShared(T value) {
   return MakeNonNullShared<T>(std::move(value));
 }
 
