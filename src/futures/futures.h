@@ -225,16 +225,19 @@ class Value {
     }
 
     void SetConsumer(Consumer final_consumer) {
+      std::optional<Type> value;
       data_.lock([&](Data& data) {
         CHECK(std::holds_alternative<ConsumerNotReceived>(data.consumer));
         if (data.value.has_value()) {
-          std::move(final_consumer)(std::move(*data.value));
+          value.emplace(std::move(*data.value));
           data.consumer = ConsumerExecuted{};
           data.value = std::nullopt;
         } else {
           data.consumer = std::move(final_consumer);
         }
       });
+      if (value)
+        std::invoke(std::move(final_consumer), std::move(value.value()));
     }
 
    private:
