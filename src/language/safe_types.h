@@ -319,6 +319,12 @@ NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg&&... arg) {
       std::make_shared<T>(std::forward<Arg>(arg)...));
 }
 
+// Convenience wrapper to avoid having to specify the type explicitly.
+template <typename T>
+auto WrapNonNullShared(T value) {
+  return MakeNonNullShared<T>(std::move(value));
+}
+
 template <typename T, typename Callable, typename NullCallable>
 decltype(std::declval<Callable>()(std::declval<NonNull<T>>())) VisitPointer(
     T t, Callable&& callable, NullCallable&& null_callable) {
