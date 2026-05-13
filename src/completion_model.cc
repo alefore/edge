@@ -185,35 +185,32 @@ DictionaryManager::FindWordDataWithIndex(
     });
 
   futures::ListenableValue<SortedLineSequence> current_future =
-      data->lock([&](Data& locked_data) {
-        Path path = models_list->at(index);
-        if (auto it = locked_data.models.find(path);
-            it != locked_data.models.end())
-          return it->second;
-        auto output =
-            locked_data.models
-                .insert(
-                    {path, futures::ListenableValue<SortedLineSequence>(
-                               buffer_loader(path).Transform(PrepareBuffer))})
-                .first->second;
-        // TODO(P2, 2023-09-08, RaceCondition): There's a race here where output
-        // may get a value after this check but before the execution of
-        // AddListener below. If that happens, we'll deadlock. Figure out a
-        // better solution.
-        if (output.has_value()) {
-          UpdateReverseTable(locked_data, path,
-                             output.get_copy().value().lines());
-        } else {
-          LOG(INFO) << "Adding listener to update reverse table.";
-          output.AddListener([data, path](const SortedLineSequence& contents) {
-            LOG(INFO) << "Updating reverse table.";
-            data->lock([&](Data& data_locked) {
-              UpdateReverseTable(data_locked, path, contents.lines());
-            });
-          });
-        }
-        return output;
-      });
+      data->lock([&](Data& locked_data)
+                     -> language::LazyValue<
+                         futures::ListenableValue<DictionaryInput>>* {
+            Path path = models_list->at(index);
+            if (auto it = locked_data.models.find(path);
+                it != locked_data.models.end())
+              return &it->second;
+            return &locked_data.models
+                        .insert({path, language::MakeLazyValue([data, path,
+                                                                buffer_loader] {
+                                   futures::ListenableValue<SortedLineSequence>
+                                       output(buffer_loader(path).Transform(
+                                           PrepareBuffer));
+                                   output.AddListener(
+                                       [data, path](
+                                           const SortedLineSequence& contents) {
+                                         data->lock([&](Data& data_locked) {
+                                           UpdateReverseTable(data_locked, path,
+                                                              contents.lines());
+                                         });
+                                       });
+                                   return output;
+                                 })})
+                        .first->second;
+          })
+          ->get();
 
   return std::move(current_future)
       .ToFuture()
@@ -236,6 +233,7 @@ DictionaryManager::FindWordDataWithIndex(
 
 /* static */ void DictionaryManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
+  LOG(INFO) << "Updating reverse table.";
   std::ranges::for_each(
       contents |
           std::views::transform([](const staging::Value<Line>& staging_line) {

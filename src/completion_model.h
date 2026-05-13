@@ -11,6 +11,7 @@
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
+#include "src/language/lazy_value.h"
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
@@ -48,8 +49,13 @@ class DictionaryManager {
 
  private:
   using DictionaryInput = language::text::SortedLineSequence;
+  // Why do we wrap the ListenableValue in a LazyValue? That allows us to insert
+  // into the map under a lock, return a reference to the LazyValue, and trigger
+  // its execution *outside of the lock*. That helps us avoid deadlocks (in case
+  // the future has listeners that need to re-acquire the lock).
   using ModelsMap =
-      std::map<infrastructure::Path, futures::ListenableValue<DictionaryInput>>;
+      std::map<infrastructure::Path,
+               language::LazyValue<futures::ListenableValue<DictionaryInput>>>;
 
   struct Data;
 
