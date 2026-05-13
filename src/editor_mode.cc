@@ -1,7 +1,7 @@
 #include "src/editor_mode.h"
 
 namespace afc::editor {
-size_t EditorMode::Receive(
+size_t SimpleInputReceiver::Receive(
     const std::vector<infrastructure::ExtendedChar>& input,
     size_t start_index) {
   CHECK_LT(start_index, input.size());

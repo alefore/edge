@@ -16,7 +16,7 @@ using afc::language::overload;
 
 namespace afc::editor {
 namespace {
-class RepeatMode : public EditorMode {
+class RepeatMode : public SimpleInputReceiver {
  public:
   RepeatMode(EditorState& editor_state, std::function<void(int)> consumer)
       : editor_state_(editor_state), consumer_(consumer), result_(0) {}

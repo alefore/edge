@@ -251,7 +251,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                WithHash<std::optional<const Line>> line_contents_with_hash,
                BufferContentsViewLayout::Line screen_line_inner,
                bool atomic_lines, bool multiple_cursors, LineColumn position,
-               EditorMode::CursorMode cursor_mode,
+               InputReceiver::CursorMode cursor_mode,
                std::optional<StyleAttribute> style_attribute_to_apply) {
               TRACK_OPERATION(ProduceBufferView_GeneratorBody);
               LineWithCursor::ViewOptions options{
@@ -282,15 +282,15 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                   case Widget::OutputProducerOptions::MainCursorDisplay::
                       kActive:
                     switch (cursor_mode) {
-                      case EditorMode::CursorMode::Default:
+                      case InputReceiver::CursorMode::Default:
                         options.modifiers_main_cursor = {
                             multiple_cursors ? StandardColor::Green
                                              : StandardColor::White};
                         break;
-                      case EditorMode::CursorMode::Inserting:
+                      case InputReceiver::CursorMode::Inserting:
                         options.modifiers_main_cursor = {StandardColor::Yellow};
                         break;
-                      case EditorMode::CursorMode::Overwriting:
+                      case InputReceiver::CursorMode::Overwriting:
                         options.modifiers_main_cursor =
                             Style{.foreground_color = StandardColor::Red,
                                   .attributes = StyleAttribute::Underline};

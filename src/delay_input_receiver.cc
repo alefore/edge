@@ -8,7 +8,7 @@ DelayInputReceiver::DelayInputReceiver(CursorMode cursor_mode)
 
 void DelayInputReceiver::ProcessInput(ExtendedChar c) { input_.push_back(c); }
 
-EditorMode::CursorMode DelayInputReceiver::cursor_mode() const {
+InputReceiver::CursorMode DelayInputReceiver::cursor_mode() const {
   return cursor_mode_;
 }
 

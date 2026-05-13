@@ -31,7 +31,7 @@ class InputReceiver {
 };
 
 // TODO(2023-11-29, trivial): Rename this class to `SimpleInputReceiver`.
-class EditorMode : public InputReceiver {
+class SimpleInputReceiver : public InputReceiver {
  public:
   size_t Receive(const std::vector<infrastructure::ExtendedChar>& input,
                  size_t start_index) override;

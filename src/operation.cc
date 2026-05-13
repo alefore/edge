@@ -913,7 +913,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
                      }});
 }
 
-class OperationMode : public EditorMode {
+class OperationMode : public SimpleInputReceiver {
  public:
   OperationMode(TopCommand top_command, EditorState& editor_state)
       : editor_state_(editor_state),

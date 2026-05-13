@@ -8,7 +8,7 @@
 #include "src/infrastructure/extended_char.h"
 
 namespace afc::editor {
-class DelayInputReceiver : public EditorMode {
+class DelayInputReceiver : public SimpleInputReceiver {
   const CursorMode cursor_mode_;
   std::vector<infrastructure::ExtendedChar> input_;
 

@@ -24,7 +24,7 @@ struct CommandCategory
   static const CommandCategory& kView();
 };
 
-class Command : public EditorMode {
+class Command : public SimpleInputReceiver {
  public:
   virtual ~Command() {}
   virtual CommandCategory Category() const = 0;

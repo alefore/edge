@@ -838,12 +838,12 @@ void Prompt(PromptOptions options) {
           std::invoke([insertion = editor_state.modifiers().insertion] {
             switch (insertion) {
               case Modifiers::ModifyMode::Shift:
-                return EditorMode::CursorMode::Inserting;
+                return InputReceiver::CursorMode::Inserting;
               case Modifiers::ModifyMode::Overwrite:
-                return EditorMode::CursorMode::Overwriting;
+                return InputReceiver::CursorMode::Overwriting;
             }
             LOG(FATAL) << "Invalid insertion mode.";
-            return EditorMode::CursorMode::Default;
+            return InputReceiver::CursorMode::Default;
           }));
 
   editor_state.set_keyboard_redirect(

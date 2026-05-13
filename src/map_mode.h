@@ -68,7 +68,7 @@ class MapModeCommands {
   friend class MapMode;
 };
 
-class MapMode : public EditorMode {
+class MapMode : public SimpleInputReceiver {
   struct ConstructorAccessTag {};
 
   std::vector<infrastructure::ExtendedChar> current_input_;

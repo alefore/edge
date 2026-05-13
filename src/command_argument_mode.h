@@ -31,7 +31,7 @@ enum class CommandArgumentModeApplyMode {
 // Every time the argument is modified, the transformation is executed, just in
 // Preview mode.
 template <typename Argument>
-class CommandArgumentMode : public EditorMode {
+class CommandArgumentMode : public SimpleInputReceiver {
  public:
   struct Options {
     EditorState& editor_state;
