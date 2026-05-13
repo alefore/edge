@@ -295,21 +295,22 @@ void Run(std::vector<std::wstring> tests_filter) {
                        std::map<std::wstring, ExecutionResult>>& group :
        execution_results) {
     std::cerr << "## Group: " << group.first << std::endl << std::endl;
-    for (const std::pair<const std::wstring, ExecutionResult>& result :
-         group.second) {
-      std::cerr << "* " << result.first;
-      CHECK(result.second.wait_status);
-      if (!WIFEXITED(result.second.wait_status.value())) {
-        failures[group.first].insert(result.first);
-        std::cerr << ": Didn't exit" << std::endl;
-      } else if (WEXITSTATUS(result.second.wait_status.value()) != 0) {
-        failures[group.first].insert(result.first);
-        std::cerr << ": Exit status: "
-                  << WEXITSTATUS(result.second.wait_status.value())
-                  << std::endl;
-      }
-      std::cerr << std::endl;
-    }
+    std::ranges::for_each(
+        group.second,
+        [&](const std::pair<const std::wstring, ExecutionResult>& result) {
+          std::cerr << "* " << result.first;
+          CHECK(result.second.wait_status);
+          if (!WIFEXITED(result.second.wait_status.value())) {
+            failures[group.first].insert(result.first);
+            std::cerr << ": Didn't exit" << std::endl;
+          } else if (WEXITSTATUS(result.second.wait_status.value()) != 0) {
+            failures[group.first].insert(result.first);
+            std::cerr << ": Exit status: "
+                      << WEXITSTATUS(result.second.wait_status.value())
+                      << std::endl;
+          }
+          std::cerr << std::endl;
+        });
     std::cerr << std::endl;
   }
 
