@@ -820,7 +820,7 @@ void OpenBuffer::UpdateTreeParser() {
                             .transform([](NonEmptySingleLine input) {
                               return LogViewName{input};
                             }),
-                    .tree_parser_screens_buffer = static_cast<int>(std::max(
+                    .tree_parser_screens_buffer = static_cast<size_t>(std::max(
                         0, root_this->Read(
                                buffer_variables::tree_parser_screens_buffer))),
                 });
