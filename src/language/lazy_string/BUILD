@@ -95,6 +95,7 @@ cc_library(
     deps = [
         ":lazy_string",
         "//src/tests",
+        "//src/tests:factory",
     ],
     alwayslink = 1,
 )
