@@ -119,12 +119,15 @@ class Bag {
   // runtime complexity is linear to the number of shards in `other` (which
   // ideally should be the same as the number of shards in `this`).
   void Swallow(Bag other) {
-    size_t current = 0;
-    other.ForEachShardSerial([&](std::list<T>& other_shard) {
-      shards_[current++ % options_.shards]->lock([&](std::list<T>& target) {
-        target.splice(target.end(), other_shard);
-      });
+    CHECK_EQ(other.options_.shards, options_.shards);
+    std::vector<std::list<T>> other_shards;
+    other.ForEachShardSerial(
+        [&](std::list<T>& shard) { other_shards.push_back(std::move(shard)); });
+    ForEachShardSerial([&other_shards](std::list<T>& shard) {
+      shard.splice(shard.end(), other_shards.back());
+      other_shards.pop_back();
     });
+    CHECK(other_shards.empty());
   }
 
  private:
