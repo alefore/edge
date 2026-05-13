@@ -253,11 +253,21 @@ Pool::CollectOutput Pool::Collect(bool full) {
           stats.begin_total = SumContainedSizes(data.object_metadata_list);
           stats.roots = SumContainedSizes(data.roots_list);
 
+          // To avoid deadlocks, let ScheduleExpandRoots into a temporary bag
+          // (while it holds locks on `roots`), and only afterwards move that
+          // data into `data.expansion_schedule`.
+          Bag<ObjectExpandVector> tmp(concurrent::BagOptions{
+              .name = LazyString{L"GCTmp"},
+              .shards = data.expansion_schedule.options().shards});
+
           ScheduleExpandRoots(
               options_.operation_factory
                   ->New(INLINE_TRACKER(gc_Pool_ScheduleExpandRoots))
                   .value(),
-              data.roots_list, data.expansion_schedule);
+              data.roots_list, tmp);
+
+          data.expansion_schedule.Swallow(std::move(tmp));
+
           VLOG(5) << "Roots registered: " << data.expansion_schedule.size();
 
           Expand(options_.operation_factory->New(INLINE_TRACKER(gc_Pool_Expand))
@@ -571,8 +581,14 @@ Pool::Eden::Eden(size_t bag_shards,
           input_consecutive_unfinished_collect_calls) {}
 
 std::ostream& operator<<(std::ostream& os, const Pool& pool) {
-  os << "[Pool: <objects: " << pool.count_objects() << "> "
-     << *pool.eden_.lock() << "; " << *pool.data_.lock() << "]";
+  // It would seem as if this expression could be simplified, turned into a
+  // single long `os << ...` statement (and using `lock()` instead of
+  // `lock(callable)`). Doing so introduces deadlocks.
+  os << "[Pool: <objects: " << pool.count_objects() << "> ";
+  pool.eden_.lock([&](const Pool::Eden& eden) { os << eden; });
+  os << "; ";
+  pool.data_.lock([&](const Pool::Data& data) { os << data; });
+  os << "]";
   return os;
 }
 
