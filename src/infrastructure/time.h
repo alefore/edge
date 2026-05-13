@@ -2,8 +2,8 @@
 #define __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__
 
 #include <compare>
+#include <ctime>
 #include <optional>
-#include <string>
 
 namespace afc::infrastructure {
 using Time = struct timespec;
