@@ -2,7 +2,6 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
-#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/callbacks.h"
@@ -14,8 +13,8 @@ using afc::concurrent::Protected;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
 using afc::language::EmptyValue;
-using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::WrapNonNullShared;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NonEmptySingleLine;
 using afc::language::lazy_string::SingleLine;
@@ -44,13 +43,11 @@ void RegisterFileSystemFunctions(
                 [](std::vector<Path> input)
                     -> language::ValueOrError<NonNull<
                         std::shared_ptr<Protected<std::vector<LazyString>>>>> {
-                  return language::Success(
-                      MakeNonNullShared<Protected<std::vector<LazyString>>>(
-                          MakeProtected(language::container::MaterializeVector(
-                              input | std::views::transform([](Path& path) {
-                                return language::lazy_string::ToLazyString(
-                                    path);
-                              })))));
+                  return WrapNonNullShared(MakeProtected(
+                      input | std::views::transform([](Path& path) {
+                        return language::lazy_string::ToLazyString(path);
+                      }) |
+                      std::ranges::to<std::vector>()));
                 });
           }));
 }

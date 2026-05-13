@@ -202,13 +202,11 @@ void FindBoundariesBezier(
     NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output_right,
     NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output_down) {
   std::vector<Point> points = positions->lock([](std::vector<LineColumn> data) {
-    return container::MaterializeVector(data |
-                                        std::views::transform(Point::New));
+    return data | std::views::transform(Point::New) |
+           std::ranges::to<std::vector>();
   });
 
-  if (points.size() < 2) {
-    return;
-  }
+  if (points.size() < 2) return;
 
   std::vector<LineColumn> journey;
   InternalFindBoundariesBezier(points, 0.0, 1.0, points.front().ToLineColumn(),

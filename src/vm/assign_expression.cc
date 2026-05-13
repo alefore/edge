@@ -253,9 +253,10 @@ ValueOrError<gc::Root<Expression>> NewAssignExpression(
             LazyString{L"Unable to assign a value to a variable supporting "
                        L"types: \""} +
             TypesToString(value->Types()) + LazyString{L"\". Value types: "} +
-            TypesToString(container::MaterializeVector(
+            TypesToString(
                 std::move(variables) |
-                std::views::transform(&Environment::LookupResult::type)))});
+                std::views::transform(&Environment::LookupResult::type) |
+                std::ranges::to<std::vector>())});
       },
       container::FindFirstIf(
           variables, [&value](const Environment::LookupResult& lookup_result) {

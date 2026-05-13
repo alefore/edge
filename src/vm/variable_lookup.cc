@@ -145,10 +145,12 @@ ValueOrError<gc::Root<Expression>> NewVariableLookup(
   std::vector<Type> types;
   // We can't use `MaterializeVector` here: we need to ensure that the filtering
   // is done in an order-preserving way.
-  for (const Type& type :
-       std::move(result) |
-           std::views::transform(&Environment::LookupResult::type))
-    if (already_seen.insert(type).second) types.push_back(type);
+  std::ranges::for_each(
+      std::move(result) |
+          std::views::transform(&Environment::LookupResult::type),
+      [&](const Type& type) {
+        if (already_seen.insert(type).second) types.push_back(type);
+      });
   return VariableLookup::New(compilation.pool, std::move(symbol_namespace),
                              std::move(symbol), types);
 }

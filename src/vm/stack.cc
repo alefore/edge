@@ -15,12 +15,12 @@ namespace afc::vm {
 
 StackFrameHeader::StackFrameHeader(
     std::vector<std::pair<Identifier, Type>> arguments)
-    : arguments_(container::MaterializeUnorderedMap(
-          std::views::iota(0uz, arguments.size()) |
-          std::views::transform([&arguments](size_t index) {
-            const std::pair<Identifier, Type>& data = arguments[index];
-            return std::pair{data.first, std::pair(index, data.second)};
-          }))) {}
+    : arguments_(std::views::iota(0uz, arguments.size()) |
+                 std::views::transform([&arguments](size_t index) {
+                   const std::pair<Identifier, Type>& data = arguments[index];
+                   return std::pair{data.first, std::pair(index, data.second)};
+                 }) |
+                 std::ranges::to<std::unordered_map>()) {}
 
 std::optional<std::pair<size_t, Type>> StackFrameHeader::Find(
     const Identifier& identifier) {

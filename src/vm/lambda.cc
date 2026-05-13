@@ -2,7 +2,6 @@
 
 #include <glog/logging.h>
 
-#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc_view.h"
 #include "src/vm/delegating_expression.h"
@@ -10,7 +9,6 @@
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
-namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
@@ -103,7 +101,7 @@ class LambdaExpression : public Expression {
               trampoline.stack().Push(
                   StackFrame::New(
                       trampoline.pool(),
-                      container::MaterializeVector(args | gc::view::Ptr))
+                      args | gc::view::Ptr | std::ranges::to<std::vector>())
                       .ptr());
               gc::Root<Environment> environment =
                   Environment::New(parent_environment);
@@ -145,10 +143,11 @@ std::unique_ptr<UserFunction> UserFunction::New(
 
   types::Function function_type{
       .output = *return_type_def,
-      .inputs = container::MaterializeVector(
-          *args |
-          std::views::transform(
-              [](const std::pair<Type, Identifier>& a) { return a.first; }))};
+      .inputs = *args |
+                std::views::transform([](const std::pair<Type, Identifier>& a) {
+                  return a.first;
+                }) |
+                std::ranges::to<std::vector>()};
 
   return std::make_unique<UserFunction>(compilation, name,
                                         std::move(function_type), *args);
@@ -161,22 +160,20 @@ UserFunction::UserFunction(Compilation& compilation,
       name_(std::move(name)),
       type_(type),
       argument_names_(MakeNonNullShared<std::vector<Identifier>>(
-          container::MaterializeVector(
-              args |
-              std::views::transform([](const std::pair<Type, Identifier>& a) {
-                return a.second;
-              })))) {
+          std::from_range, args | std::views::transform(
+                                      [](const std::pair<Type, Identifier>& a) {
+                                        return a.second;
+                                      }))) {
   if (name_.has_value())
     compilation_.environment->DefineUninitialized(name_.value(), type_);
   compilation_.environment = Environment::New(compilation_.environment).ptr();
   for (const std::pair<Type, Identifier>& arg : args)
     compilation_.environment->DefineUninitialized(arg.second, arg.first);
-  compilation.PushStackFrameHeader(
-      StackFrameHeader{container::MaterializeVector(
-          args |
-          std::views::transform([](const std::pair<Type, Identifier>& data) {
-            return std::pair{data.second, data.first};
-          }))});
+  compilation.PushStackFrameHeader(StackFrameHeader{
+      args | std::views::transform([](const std::pair<Type, Identifier>& data) {
+        return std::pair{data.second, data.first};
+      }) |
+      std::ranges::to<std::vector>()});
 }
 
 gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {

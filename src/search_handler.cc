@@ -146,8 +146,8 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
 
 SingleLine RegexEscape(SingleLine str) {
   SingleLine results;
-  static const std::unordered_set<wchar_t> literal_characters =
-      container::MaterializeUnorderedSet(std::wstring{L" ()<>{}+_-;\"':,?#%"});
+  static const std::unordered_set<wchar_t> literal_characters(
+      std::from_range, std::wstring{L" ()<>{}+_-;\"':,?#%"});
 
   ForEachColumn(str, [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.contains(c))

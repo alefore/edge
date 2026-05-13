@@ -76,26 +76,26 @@ void EnvironmentIdentifierTable::clear() {
 std::unordered_map<Type, std::variant<UninitializedValue, gc::Root<Value>>>
 EnvironmentIdentifierTable::GetMapTypeVariantRootValue() const {
   return table_.lock([](const Table& table) {
-    return container::MaterializeUnorderedMap(
-        table |
-        std::views::transform([](const std::pair<
-                                  const Type&, std::variant<UninitializedValue,
-                                                            gc::Ptr<Value>>>&
-                                     entry) {
-          return std::make_pair(
-              entry.first,
-              std::visit(
-                  overload{
-                      [](const gc::Ptr<Value>& value)
-                          -> std::variant<UninitializedValue, gc::Root<Value>> {
-                        return value.ToRoot();
-                      },
-                      [](UninitializedValue)
-                          -> std::variant<UninitializedValue, gc::Root<Value>> {
-                        return UninitializedValue{};
-                      }},
-                  entry.second));
-        }));
+    return table |
+           std::views::transform(
+               [](const std::pair<
+                   const Type&,
+                   std::variant<UninitializedValue, gc::Ptr<Value>>>& entry) {
+                 return std::make_pair(
+                     entry.first,
+                     std::visit(overload{[](const gc::Ptr<Value>& value)
+                                             -> std::variant<UninitializedValue,
+                                                             gc::Root<Value>> {
+                                           return value.ToRoot();
+                                         },
+                                         [](UninitializedValue)
+                                             -> std::variant<UninitializedValue,
+                                                             gc::Root<Value>> {
+                                           return UninitializedValue{};
+                                         }},
+                                entry.second));
+               }) |
+           std::ranges::to<std::unordered_map>();
   });
 }
 

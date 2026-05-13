@@ -443,8 +443,8 @@ struct VMTypeMapper<NonNull<
           Protected<std::vector<gc::Ptr<editor::Flashcard>>>>>>::
           New(pool, MakeNonNullShared<
                         Protected<std::vector<gc::Ptr<editor::Flashcard>>>>(
-                        MakeProtected(language::container::MaterializeVector(
-                            roots | gc::view::Ptr))));
+                        MakeProtected(roots | gc::view::Ptr |
+                                      std::ranges::to<std::vector>())));
     });
   }
   static const types::ObjectName object_type_name;
@@ -571,7 +571,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                 MakeProtected(buffers->lock(
                     [&default_predicted_recall_score](
                         std::vector<gc::Ptr<OpenBuffer>>& buffers_data) {
-                      return container::MaterializeVector(
+                      return 
                           buffers_data |
                           std::views::transform(
                               [&default_predicted_recall_score](
@@ -580,7 +580,7 @@ void RegisterFlashcard(gc::Pool& pool, vm::Environment& environment) {
                                     .buffer = buffer,
                                     .predicted_recall_score =
                                         default_predicted_recall_score});
-                              }));
+                              })| std::ranges::to<std::vector>();
                     })));
           }));
 #endif

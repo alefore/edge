@@ -4,7 +4,6 @@
 
 #include <unordered_set>
 
-#include "src/language/container.h"
 #include "src/language/error/view.h"
 #include "src/language/gc_container.h"
 #include "src/language/gc_expanders.h"
@@ -21,7 +20,6 @@
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
-namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::language::EmptyValue;
@@ -75,13 +73,13 @@ PossibleError CheckFunctionArguments(
 
 std::vector<Type> DeduceTypes(Expression& func,
                               const std::vector<gc::Ptr<Expression>>& args) {
-  return container::MaterializeVector(container::MaterializeUnorderedSet(
-      func.Types() |
-      std::views::transform([&args](const Type& type) -> ValueOrError<Type> {
-        RETURN_IF_ERROR(CheckFunctionArguments(type, args));
-        return std::get<types::Function>(type).output.get();
-      }) |
-      SkipErrors));
+  return func.Types() |
+         std::views::transform([&args](const Type& type) -> ValueOrError<Type> {
+           RETURN_IF_ERROR(CheckFunctionArguments(type, args));
+           return std::get<types::Function>(type).output.get();
+         }) |
+         SkipErrors | std::ranges::to<std::unordered_set>() |
+         std::ranges::to<std::vector>();
 }
 
 class FunctionCall : public Expression {
@@ -112,33 +110,33 @@ class FunctionCall : public Expression {
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override {
-    return CombinePurityType(container::MaterializeVector(
-        std::vector<std::vector<PurityType>>{
-            {func_->purity()},
-            container::MaterializeVector(
-                args_.value() |
-                std::views::transform(
-                    [](const gc::Ptr<Expression>& a) { return a->purity(); })),
-            container::MaterializeVector(
-                func_->Types() |
-                std::views::transform([](const auto& callback_type) {
-                  return std::get<types::Function>(callback_type)
-                      .function_purity;
-                }))} |
-        std::views::join));
+    auto impl = [this]() -> std::generator<PurityType> {
+      co_yield func_->purity();
+
+      co_yield std::ranges::elements_of(
+          args_.value() |
+          std::views::transform([](auto& a) { return a->purity(); }));
+
+      co_yield std::ranges::elements_of(
+          func_->Types() | std::views::transform([](auto& t) {
+            return std::get<types::Function>(t).function_purity;
+          }));
+    };
+    return CombinePurityType(impl() | std::ranges::to<std::vector>());
   }
 
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
       Trampoline& trampoline, const Type& type) override {
     DVLOG(3) << "Function call evaluation starts.";
     return trampoline
-        .Bounce(func_, types::Function{.output = type,
-                                       .inputs = container::MaterializeVector(
-                                           args_.value() |
-                                           std::views::transform([](auto& arg) {
-                                             return arg->Types()[0];
-                                           })),
-                                       .function_purity = purity()})
+        .Bounce(func_,
+                types::Function{.output = type,
+                                .inputs = args_.value() |
+                                          std::views::transform([](auto& arg) {
+                                            return arg->Types()[0];
+                                          }) |
+                                          std::ranges::to<std::vector>(),
+                                .function_purity = purity()})
         .Transform([&trampoline,
                     args_root = args_.ToRoot()](EvaluationOutput callback)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -170,9 +168,8 @@ class FunctionCall : public Expression {
       DVLOG(4) << "No more parameters, performing function call: "
                << callback.ptr().value();
       trampoline.stack().Push(
-          StackFrame::New(
-              trampoline.pool(),
-              container::MaterializeVector(values.value() | gc::view::Ptr))
+          StackFrame::New(trampoline.pool(), values.value() | gc::view::Ptr |
+                                                 std::ranges::to<std::vector>())
               .ptr());
       return callback->RunFunction(std::move(values.value()), trampoline)
           .Transform([&trampoline](gc::Root<Value> return_value)
@@ -297,13 +294,13 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
 
       BindObjectExpression(ConstructorAccessTag, gc::Ptr<Expression> obj_expr,
                            const std::vector<gc::Root<Value>>& delegates)
-          : delegates_(container::MaterializeVector(delegates | gc::view::Ptr)),
+          : delegates_(std::from_range, delegates | gc::view::Ptr),
             external_types_(MakeNonNullShared<std::vector<Type>>(
-                container::MaterializeVector(
-                    delegates_ |
+                std::from_range,
+                delegates_ |
                     std::views::transform([](const gc::Ptr<Value>& delegate) {
                       return RemoveObjectFirstArgument(delegate->type());
-                    })))),
+                    }))),
             obj_expr_(std::move(obj_expr)) {}
 
       std::vector<Type> Types() override { return external_types_.value(); }
@@ -313,12 +310,13 @@ ValueOrError<gc::Root<Expression>> NewMethodLookup(
       PurityType purity() override {
         return CombinePurityType(
             {obj_expr_->purity(),
-             CombinePurityType(container::MaterializeVector(
+             CombinePurityType(
                  external_types_.value() |
                  std::views::transform([](const Type& delegate_type) {
                    return std::get<types::Function>(delegate_type)
                        .function_purity;
-                 })))});
+                 }) |
+                 std::ranges::to<std::vector>())});
       }
 
       futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
@@ -396,19 +394,17 @@ futures::ValueOrError<gc::Root<Value>> Call(
   CHECK(std::holds_alternative<types::Function>(func.type()))
       << "Invalid type passed to `Call`: " << func.type();
   CHECK_EQ(std::get<types::Function>(func.type()).inputs.size(), args.size());
-  std::vector<gc::Root<Expression>> args_expr =
-      args | std::views::transform([](gc::Root<Value> value) {
-        return NewConstantExpression(value.ptr());
-      }) |
-      std::ranges::to<std::vector>();
+  std::vector<gc::Root<Expression>> args_expr(
+      std::from_range, args | std::views::transform([](gc::Root<Value> value) {
+                         return NewConstantExpression(value.ptr());
+                       }));
   return Evaluate(
       FunctionCall::New(
           NewConstantExpression(
               pool.NewRoot(MakeNonNullUnique<Value>(func)).ptr())
               .ptr(),
-          pool
-              .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<Expression>>>(
-                  container::MaterializeVector(args_expr | gc::view::Ptr)))
+          pool.NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<Expression>>>(
+                           std::from_range, args_expr | gc::view::Ptr))
               .ptr())
           .ptr(),
       Environment::New(pool).ptr(), yield_callback);
