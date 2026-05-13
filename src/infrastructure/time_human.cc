@@ -1,5 +1,7 @@
 #include "src/infrastructure/time_human.h"
 
+#include <glog/logging.h>
+
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
 
@@ -54,7 +56,8 @@ NonEmptySingleLine DurationToString(double duration_seconds) {
   duration_seconds *= 1000;
   for (auto& entry : time_units) {
     if (duration_seconds < factor * entry.first) {
-      return NonEmptySingleLine(duration_seconds / factor) + entry.second;
+      return NonEmptySingleLine(static_cast<int>(duration_seconds / factor)) +
+             entry.second;
     }
     factor *= entry.first;
   }
