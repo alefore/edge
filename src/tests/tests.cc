@@ -15,10 +15,12 @@
 
 #include "src/infrastructure/glob.h"
 #include "src/infrastructure/time.h"
+#include "src/infrastructure/time_human.h"
 #include "src/language/container.h"
 
 namespace container = afc::language::container;
 
+using afc::infrastructure::DurationToString;
 using afc::infrastructure::GlobMatcher;
 using afc::infrastructure::Now;
 using afc::infrastructure::SecondsBetween;
@@ -64,6 +66,8 @@ struct ExecutionResult {
   std::wstring group_name;
   std::wstring test_name;
   std::optional<int> wait_status = std::nullopt;
+  std::optional<Time> run_start = std::nullopt;
+  std::optional<Time> run_end = std::nullopt;
 };
 
 std::vector<TestInfoToSchedule> GetSchedule(
@@ -245,6 +249,7 @@ void Run(std::vector<std::wstring> tests_filter) {
            next_test_to_launch_index < tests_to_schedule.size()) {
       const TestInfoToSchedule& test_to_launch =
           tests_to_schedule[next_test_to_launch_index];
+      const Time run_start = Now();
       const pid_t child_pid = ForkTest(test_to_launch);
       running_tests.emplace(child_pid, test_to_launch);
       next_test_to_launch_index++;
@@ -252,7 +257,8 @@ void Run(std::vector<std::wstring> tests_filter) {
           execution_results[test_to_launch.group_name],
           std::pair{test_to_launch.test_name,
                     ExecutionResult{.group_name = test_to_launch.group_name,
-                                    .test_name = test_to_launch.test_name}});
+                                    .test_name = test_to_launch.test_name,
+                                    .run_start = run_start}});
     }
 
     if (!running_tests.empty()) {
@@ -279,8 +285,12 @@ void Run(std::vector<std::wstring> tests_filter) {
       const TestInfoToSchedule& info =
           running_tests.find(completed_pid)->second;
 
-      execution_results[info.group_name][info.test_name].wait_status =
-          wait_status;
+      ExecutionResult& output =
+          execution_results[info.group_name][info.test_name];
+      CHECK(!output.wait_status);
+      CHECK(!output.run_end);
+      output.wait_status = wait_status;
+      output.run_end = Now();
 
       if (!WIFEXITED(wait_status) || WEXITSTATUS(wait_status) != 0)
         std::cerr << "Fail: " << info.full_name() << std::endl;
@@ -300,6 +310,8 @@ void Run(std::vector<std::wstring> tests_filter) {
         [&](const std::pair<const std::wstring, ExecutionResult>& result) {
           std::cerr << "* " << result.first;
           CHECK(result.second.wait_status);
+          CHECK(result.second.run_start);
+          CHECK(result.second.run_end);
           if (!WIFEXITED(result.second.wait_status.value())) {
             failures[group.first].insert(result.first);
             std::cerr << ": Didn't exit" << std::endl;
@@ -308,6 +320,12 @@ void Run(std::vector<std::wstring> tests_filter) {
             std::cerr << ": Exit status: "
                       << WEXITSTATUS(result.second.wait_status.value())
                       << std::endl;
+          } else {
+            std::cerr << " ("
+                      << ToLazyString(DurationToString(
+                             SecondsBetween(result.second.run_start.value(),
+                                            result.second.run_end.value())))
+                      << ")";
           }
           std::cerr << std::endl;
         });
