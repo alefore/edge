@@ -508,6 +508,8 @@ src/infrastructure/glob.cc \
 src/infrastructure/glob.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
+src/infrastructure/time_human.cc \
+src/infrastructure/time_human.h \
 src/language/wstring.cc \
 src/language/wstring.h \
 src/tests/benchmarks.cc \
