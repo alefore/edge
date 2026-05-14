@@ -19,17 +19,16 @@
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/operation_bisect.h"
+#include "src/operation_find_local.h"
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
-#include "src/transformation_bisect.h"
 #include "src/transformation_composite.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
 #include "src/transformation_noop.h"
 #include "src/transformation_paste.h"
-#include "src/transformation_reach_query.h"
 #include "src/transformation_stack.h"
 
 namespace gc = afc::language::gc;
@@ -132,8 +131,6 @@ static const Description kHomeUp =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👆")};
 static const Description kHomeDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👇")};
-static const Description kReachQuery =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🔮")};
 static const Description kDescriptionShell =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🌀")};
 static const Description kDescriptionPaste =
@@ -167,15 +164,6 @@ void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
   commands::SerializeCall(
       reach_line.repetitions.get() >= 0 ? kPageDown.read() : kPageUp.read(),
       {reach_line.repetitions.ToString()}, output);
-}
-
-void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
-  commands::SerializeCall(
-      kReachQuery.read(),
-      {c.query + SingleLine::Padding<L'_'>(
-                     ColumnNumberDelta(3) -
-                     std::min(ColumnNumberDelta(3), c.query.size()))},
-      output);
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
@@ -310,17 +298,6 @@ transformation::Stack GetTransformation(
     transformation::Stack&, CommandReachPage reach_page) {
   return ApplyRepetitions(reach_page.repetitions, Structure::Page,
                           NewMoveTransformation(operation_scope));
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
-    CommandReachQuery reach_query) {
-  if (reach_query.query.empty()) return transformation::Stack{};
-  transformation::Stack transformation;
-  transformation.push_back(
-      MakeNonNullUnique<transformation::ReachQueryTransformation>(
-          std::move(reach_query.query)));
-  return transformation;
 }
 
 transformation::Stack GetTransformation(
@@ -758,30 +735,6 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
            .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
-                       State*) {
-  if (output->query.size() < ColumnNumberDelta{3})
-    cmap.SetFallback({L'\n', ControlChar::Escape, ControlChar::Backspace},
-                     [output](ExtendedChar extended_c) {
-                       std::visit(overload{[](ControlChar) {},
-                                           [&](wchar_t c) {
-                                             output->query +=
-                                                 SingleLine{LazyString{
-                                                     ColumnNumberDelta{1}, c}};
-                                           }},
-                                  extended_c);
-                     });
-  cmap.Insert(
-      ControlChar::Backspace,
-      {.category = KeyCommandsMap::Category::StringControl,
-       .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
-       .active = !output->query.empty(),
-       .handler = [output](ExtendedChar) {
-         output->query = output->query.Substring(
-             ColumnNumber{}, output->query.size() - ColumnNumberDelta{1});
-       }});
-}
-
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(ControlChar::Backspace,
               {.category = KeyCommandsMap::Category::StringControl,
@@ -1174,7 +1127,8 @@ class OperationMode : public SimpleInputReceiver {
                        }
                        state.set_top_command(top_command);
                      }})
-        .Insert(L'f', push(kReachQuery, CommandReachQuery{}))
+        .Insert(L'f',
+                push(commands::FindLocalDescription(), commands::FindLocal()))
         .Insert(ControlChar::PageDown, PageHandler(ControlChar::PageDown))
         .Insert(ControlChar::PageUp, PageHandler(ControlChar::PageUp))
         .Insert(L'j', MoveHandler('j'))

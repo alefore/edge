@@ -83,11 +83,6 @@ struct CommandReachPage {
   CommandArgumentRepetitions repetitions = {0};
 };
 
-// Finds occurrences of a given string.
-struct CommandReachQuery {
-  language::lazy_string::SingleLine query;
-};
-
 struct CommandSetShell {
   language::lazy_string::SingleLine input;
 };
@@ -111,8 +106,7 @@ class MoveOperationCommand {
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
     std::variant<CommandReach, CommandReachBegin, CommandReachLine,
-                 CommandReachPage, CommandReachQuery, CommandSetShell,
-                 CommandPaste,
+                 CommandReachPage, CommandSetShell, CommandPaste,
                  language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(

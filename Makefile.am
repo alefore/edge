@@ -300,6 +300,8 @@ src/operation.cc \
 src/operation.h \
 src/operation_bisect.cc \
 src/operation_bisect.h \
+src/operation_find_local.cc \
+src/operation_find_local.h \
 src/operation_scope.cc \
 src/operation_scope.h \
 src/operation_scope_buffer_information.h \

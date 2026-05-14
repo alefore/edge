@@ -40,6 +40,7 @@
 #include "src/open_directory_command.h"
 #include "src/open_file_command.h"
 #include "src/operation.h"
+#include "src/operation_find_local.h"
 #include "src/parse_tree.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
@@ -563,7 +564,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    LazyString{L"reaches the next occurrence of a specific "
                               L"character in the current line"},
                    operation::TopCommand(), editor_state,
-                   {operation::CommandReachQuery{}})
+                   {operation::commands::FindLocal()})
                    .ptr());
   commands.Add(
       {L'R'},
