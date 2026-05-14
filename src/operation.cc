@@ -107,7 +107,7 @@ Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
 }
 
 Modifiers GetModifiers(std::optional<Structure> structure,
-                       const CommandArgumentRepetitions& repetitions,
+                       const commands::Repetitions& repetitions,
                        Direction direction) {
   return GetModifiers(structure, repetitions.get(), direction);
 }
@@ -218,10 +218,10 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 }  // namespace
-// TODO(2026-05-14, P2): Make this a method of CommandArgumentRepetitions?
+// TODO(2026-05-14, P2): Make this a method of Repetitions?
 namespace commands {
 transformation::Stack ApplyRepetitions(
-    const CommandArgumentRepetitions& repetitions,
+    const commands::Repetitions& repetitions,
     std::optional<Structure> structure,
     language::NonNull<std::shared_ptr<CompositeTransformation>>
         inner_transformation) {
@@ -248,12 +248,12 @@ bool apply_repetitions_test = tests::Register(
               [] {
                 NonNull<std::shared_ptr<OperationScope>> operation_scope;
                 LOG(INFO) << ToString(commands::ApplyRepetitions(
-                    CommandArgumentRepetitions(1), Structure::Line,
+                    commands::Repetitions(1), Structure::Line,
                     NewMoveTransformation(operation_scope)));
               }},
          {.name = L"LongRepetitionsList", .callback = [] {
             NonNull<std::shared_ptr<OperationScope>> operation_scope;
-            CommandArgumentRepetitions repetitions(1);
+            commands::Repetitions repetitions(1);
             repetitions.sum(1);
             repetitions.sum(-1);
             repetitions.sum(1);
@@ -482,14 +482,14 @@ class State {
       MakeNonNullShared<std::optional<gc::Root<OpenBuffer>>>();
 };
 
-std::optional<CommandArgumentRepetitions*> GetRepetitions(Command& command) {
-  using Ret = std::optional<CommandArgumentRepetitions*>;
+std::optional<commands::Repetitions*> GetRepetitions(Command& command) {
+  using Ret = std::optional<commands::Repetitions*>;
   return std::visit(
       overload{[](CommandReach& c) -> Ret { return &c.repetitions; },
                [](CommandReachBegin& c) -> Ret { return &c.repetitions; },
                [](CommandReachPage& c) -> Ret { return &c.repetitions; },
                [](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
-                 CommandArgumentRepetitions* output = c->repetitions();
+                 commands::Repetitions* output = c->repetitions();
                  return output ? Ret(output) : Ret();
                },
                [](auto) -> Ret { return std::nullopt; }},
@@ -508,7 +508,7 @@ const std::unordered_map<wchar_t, Structure>& structure_bindings() {
 
 void CheckStructureChar(KeyCommandsMap& cmap,
                         std::optional<Structure>* structure,
-                        CommandArgumentRepetitions* repetitions) {
+                        commands::Repetitions* repetitions) {
   CHECK(structure != nullptr);
   CHECK(repetitions != nullptr);
 
@@ -538,8 +538,7 @@ void CheckStructureChar(KeyCommandsMap& cmap,
   };
 }
 
-void CheckIncrementsChar(KeyCommandsMap& cmap,
-                         CommandArgumentRepetitions* output) {
+void CheckIncrementsChar(KeyCommandsMap& cmap, commands::Repetitions* output) {
   cmap.Insert(L'h', {.category = KeyCommandsMap::Category::Repetitions,
                      .description = kMoveLeft,
                      .handler = [output](ExtendedChar) { output->sum(-1); }})
@@ -557,9 +556,8 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
 }
 }  // namespace
 namespace commands {
-// TODO(2026-05-14, P2): Make it a method of CommandArgumentRepetitions?
-void CheckRepetitionsChar(KeyCommandsMap& cmap,
-                          CommandArgumentRepetitions* output) {
+// TODO(2026-05-14, P2): Make it a method of Repetitions?
+void CheckRepetitionsChar(KeyCommandsMap& cmap, commands::Repetitions* output) {
   cmap.Insert(
       ControlChar::Backspace,
       {.category = KeyCommandsMap::Category::StringControl,
@@ -838,8 +836,8 @@ class OperationMode : public SimpleInputReceiver {
            .handler = [this, structure = entry.second](ExtendedChar) {
              int last_repetitions = 0;
              if (!state_.empty()) {
-               if (const std::optional<CommandArgumentRepetitions*>
-                       repetitions = GetRepetitions(state_.GetLastCommand());
+               if (const std::optional<commands::Repetitions*> repetitions =
+                       GetRepetitions(state_.GetLastCommand());
                    repetitions.has_value() && !(*repetitions)->empty()) {
                  last_repetitions = (*repetitions)->get_list().back();
                }
@@ -946,7 +944,7 @@ class OperationMode : public SimpleInputReceiver {
               state.UndoLast();
             }
             state.Push(CommandReachPage{
-                .repetitions = operation::CommandArgumentRepetitions(
+                .repetitions = operation::commands::Repetitions(
                     c == ControlChar::PageUp ? -1 : 1)});
           }};
     };
@@ -969,7 +967,7 @@ class OperationMode : public SimpleInputReceiver {
                 reach->repetitions.empty()) {
               state.UndoLast();
             }
-            state.Push(commands::MoveLine(operation::CommandArgumentRepetitions(
+            state.Push(commands::MoveLine(operation::commands::Repetitions(
                 c == ExtendedChar(L'k') ||
                         c == ExtendedChar(ControlChar::UpArrow)
                     ? -1
@@ -1158,69 +1156,6 @@ class OperationMode : public SimpleInputReceiver {
   State state_;
 };
 }  // namespace
-
-SingleLine CommandArgumentRepetitions::ToString() const {
-  return TrimLeft(
-      Concatenate(get_list() | std::views::transform([](int r) -> SingleLine {
-                    return (r > 0 ? SingleLine::Char<L'+'>() : SingleLine{}) +
-                           NonEmptySingleLine(r);
-                  })),
-      {L'+'});
-}
-
-int CommandArgumentRepetitions::get() const {
-  return container::Sum(get_list());
-}
-
-std::list<int> CommandArgumentRepetitions::get_list() const {
-  return container::MaterializeList(
-      entries_ | std::views::transform(Flatten) |
-      std::views::filter([](int c) { return c != 0; }));
-}
-
-void CommandArgumentRepetitions::sum(int value) {
-  if (entries_.empty() || (Flatten(entries_.back()) != 0 &&
-                           Flatten(entries_.back()) >= 0) != (value >= 0)) {
-    if (!entries_.empty()) {
-      auto& entry_to_freeze = entries_.back();
-      entry_to_freeze.additive +=
-          entry_to_freeze.additive_default + entry_to_freeze.multiplicative;
-      entry_to_freeze.additive_default = 0;
-      entry_to_freeze.multiplicative = 0;
-    }
-    entries_.push_back({});  // Change of sign.
-  }
-  auto& last_entry = entries_.back();
-  last_entry.additive +=
-      value + last_entry.additive_default + last_entry.multiplicative;
-  last_entry.additive_default = 0;
-  last_entry.multiplicative = 0;
-  last_entry.multiplicative_sign = value >= 0 ? 1 : -1;
-}
-
-void CommandArgumentRepetitions::factor(int value) {
-  if (entries_.empty() || entries_.back().multiplicative == 0) {
-    entries_.push_back(
-        {.multiplicative_sign =
-             entries_.empty() || Flatten(entries_.back()) >= 0 ? 1 : -1});
-  }
-  auto& last_entry = entries_.back();
-  last_entry.additive_default = 0;
-  last_entry.multiplicative =
-      last_entry.multiplicative * 10 + last_entry.multiplicative_sign * value;
-}
-
-bool CommandArgumentRepetitions::empty() const { return entries_.empty(); }
-
-bool CommandArgumentRepetitions::PopValue() {
-  if (entries_.empty()) return false;
-  entries_.pop_back();
-  return true;
-}
-
-/* static */ int CommandArgumentRepetitions::Flatten(const Entry& entry) {
-  return entry.additive_default + entry.additive + entry.multiplicative;
-}
 
 gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
                                                   LazyString description,

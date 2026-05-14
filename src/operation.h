@@ -15,6 +15,7 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
+#include "src/operation_repetitions.h"
 #include "src/transformation_stack.h"
 
 namespace afc::editor {
@@ -28,50 +29,21 @@ struct TopCommand {
   bool show_help = false;
 };
 
-class CommandArgumentRepetitions {
- public:
-  CommandArgumentRepetitions(int repetitions)
-      : entries_({{.additive_default = repetitions,
-                   .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
-
-  language::lazy_string::SingleLine ToString() const;
-  // Returns the total sum of all entries.
-  int get() const;
-  std::list<int> get_list() const;
-  void sum(int value);
-  void factor(int value);
-
-  bool empty() const;
-  bool PopValue();
-
- private:
-  enum class FactorDirection { kNegative, kPositive };
-  struct Entry {
-    int additive = 0;
-    int additive_default = 0;
-    int multiplicative = 0;
-    int multiplicative_sign;
-  };
-  static int Flatten(const Entry& entry);
-
-  std::list<Entry> entries_;
-};
-
 // A sequence of arguments becomes a command.
 struct CommandReach {
   std::optional<Structure> structure = std::nullopt;
-  CommandArgumentRepetitions repetitions = {0};
+  commands::Repetitions repetitions = {0};
 };
 
 struct CommandReachBegin {
   std::optional<Structure> structure = std::nullopt;
-  CommandArgumentRepetitions repetitions = {1};
+  commands::Repetitions repetitions = {1};
   Direction direction = Direction::Forwards;
 };
 
 // Similar to CommandReachLine.
 struct CommandReachPage {
-  CommandArgumentRepetitions repetitions = {0};
+  commands::Repetitions repetitions = {0};
 };
 
 struct CommandSetShell {
@@ -79,7 +51,7 @@ struct CommandSetShell {
 };
 
 struct CommandPaste {
-  CommandArgumentRepetitions repetitions = {1};
+  commands::Repetitions repetitions = {1};
   std::vector<language::lazy_string::LazyString> queries;
   std::optional<language::lazy_string::SingleLine> query_input;
 };
@@ -97,7 +69,7 @@ class MoveOperationCommand {
   using Receiver = std::function<void(
       language::NonNull<std::shared_ptr<MoveOperationCommand>>)>;
   virtual KeyCommandsMap key_commands_map(Receiver push_command) = 0;
-  virtual CommandArgumentRepetitions* repetitions() = 0;
+  virtual commands::Repetitions* repetitions() = 0;
 };
 
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
@@ -121,11 +93,10 @@ void SerializeCall(language::lazy_string::NonEmptySingleLine name,
 language::lazy_string::NonEmptySingleLine StructureToString(
     std::optional<Structure> structure);
 
-void CheckRepetitionsChar(KeyCommandsMap& cmap,
-                          CommandArgumentRepetitions* output);
+void CheckRepetitionsChar(KeyCommandsMap& cmap, commands::Repetitions* output);
 
 transformation::Stack ApplyRepetitions(
-    const CommandArgumentRepetitions& repetitions,
+    const commands::Repetitions& repetitions,
     std::optional<Structure> structure,
     language::NonNull<std::shared_ptr<CompositeTransformation>>
         inner_transformation);

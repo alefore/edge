@@ -14,5 +14,5 @@ namespace afc::editor::operation::commands {
 const Description& MoveUpDescription();
 const Description& MoveDownDescription();
 language::NonNull<std::shared_ptr<MoveOperationCommand>> MoveLine(
-    CommandArgumentRepetitions repetitions);
+    Repetitions repetitions);
 }  // namespace afc::editor::operation::commands

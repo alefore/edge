@@ -605,16 +605,16 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                                editor_state, Structure::Tree))
                            .ptr());
 
-  commands.Add(
-      {L'e'}, operation::NewTopLevelCommand(
-                  L"delete", LazyString{L"starts a new delete command"},
-                  operation::TopCommand{
-                      .post_transformation_behavior = transformation::Stack::
-                          PostTransformationBehavior::DeleteRegion},
-                  editor_state,
-                  {operation::CommandReach{
-                      .repetitions = operation::CommandArgumentRepetitions(1)}})
-                  .ptr());
+  commands.Add({L'e'},
+               operation::NewTopLevelCommand(
+                   L"delete", LazyString{L"starts a new delete command"},
+                   operation::TopCommand{
+                       .post_transformation_behavior = transformation::Stack::
+                           PostTransformationBehavior::DeleteRegion},
+                   editor_state,
+                   {operation::CommandReach{
+                       .repetitions = operation::commands::Repetitions(1)}})
+                   .ptr());
   commands.Add(
       {L'p'},
       operation::NewTopLevelCommand(
@@ -643,14 +643,14 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                           L"down", LazyString{L"moves down one line"},
                           operation::TopCommand(), editor_state,
                           {operation::commands::MoveLine(
-                              operation::CommandArgumentRepetitions(1))})
+                              operation::commands::Repetitions(1))})
                           .ptr());
   for (ExtendedChar x : std::vector<ExtendedChar>({L'k', ControlChar::UpArrow}))
     commands.Add({x}, operation::NewTopLevelCommand(
                           L"up", LazyString{L"moves up one line"},
                           operation::TopCommand(), editor_state,
                           {operation::commands::MoveLine(
-                              operation::CommandArgumentRepetitions(-1))})
+                              operation::commands::Repetitions(-1))})
                           .ptr());
 
   // commands.Add({L'j'}, std::make_unique<LineDown>());
@@ -661,22 +661,22 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   // std::make_unique<MoveForwards>(Direction::Backwards));
   for (ExtendedChar x :
        std::vector<ExtendedChar>({L'l', ControlChar::RightArrow}))
-    commands.Add(
-        {x}, operation::NewTopLevelCommand(
-                 L"right", LazyString{L"moves right one position"},
-                 operation::TopCommand(), editor_state,
-                 {operation::CommandReach{
-                     .repetitions = operation::CommandArgumentRepetitions(1)}})
-                 .ptr());
+    commands.Add({x},
+                 operation::NewTopLevelCommand(
+                     L"right", LazyString{L"moves right one position"},
+                     operation::TopCommand(), editor_state,
+                     {operation::CommandReach{
+                         .repetitions = operation::commands::Repetitions(1)}})
+                     .ptr());
   for (ExtendedChar x :
        std::vector<ExtendedChar>({L'h', ControlChar::LeftArrow}))
-    commands.Add(
-        {x}, operation::NewTopLevelCommand(
-                 L"left", LazyString{L"moves left one position"},
-                 operation::TopCommand(), editor_state,
-                 {operation::CommandReach{
-                     .repetitions = operation::CommandArgumentRepetitions(-1)}})
-                 .ptr());
+    commands.Add({x},
+                 operation::NewTopLevelCommand(
+                     L"left", LazyString{L"moves left one position"},
+                     operation::TopCommand(), editor_state,
+                     {operation::CommandReach{
+                         .repetitions = operation::commands::Repetitions(-1)}})
+                     .ptr());
 
   for (ExtendedChar x : std::vector<ExtendedChar>({L'H', ControlChar::Home}))
     commands.Add(
@@ -686,7 +686,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
             operation::TopCommand(), editor_state,
             {operation::CommandReachBegin{
                 .structure = Structure::Char,
-                .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .repetitions = operation::commands::Repetitions(1)}})
             .ptr());
 
   for (ExtendedChar x : std::vector<ExtendedChar>({L'L', ControlChar::End}))
@@ -696,18 +696,18 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                  operation::TopCommand(), editor_state,
                  {operation::CommandReachBegin{
                      .structure = Structure::Char,
-                     .repetitions = operation::CommandArgumentRepetitions(1),
+                     .repetitions = operation::commands::Repetitions(1),
                      .direction = Direction::Backwards}})
                  .ptr());
-  commands.Add(
-      {L'K'}, operation::NewTopLevelCommand(
-                  L"file-home",
-                  LazyString{L"moves to the beginning of the current file"},
-                  operation::TopCommand(), editor_state,
-                  {operation::CommandReachBegin{
-                      .structure = Structure::Line,
-                      .repetitions = operation::CommandArgumentRepetitions(1)}})
-                  .ptr());
+  commands.Add({L'K'},
+               operation::NewTopLevelCommand(
+                   L"file-home",
+                   LazyString{L"moves to the beginning of the current file"},
+                   operation::TopCommand(), editor_state,
+                   {operation::CommandReachBegin{
+                       .structure = Structure::Line,
+                       .repetitions = operation::commands::Repetitions(1)}})
+                   .ptr());
   commands.Add(
       {L'J'},
       operation::NewTopLevelCommand(
@@ -715,30 +715,30 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           operation::TopCommand(), editor_state,
           {operation::CommandReachBegin{
               .structure = Structure::Line,
-              .repetitions = operation::CommandArgumentRepetitions(1),
+              .repetitions = operation::commands::Repetitions(1),
               .direction = Direction::Backwards}})
           .ptr());
-  commands.Add(
-      {L'~'}, operation::NewTopLevelCommand(
-                  L"switch-case",
-                  LazyString{L"switches the case of the current character."},
-                  operation::TopCommand{
-                      .post_transformation_behavior = transformation::Stack::
-                          PostTransformationBehavior::CapitalsSwitch},
-                  editor_state,
-                  {operation::CommandReach{
-                      .repetitions = operation::CommandArgumentRepetitions(1)}})
-                  .ptr());
+  commands.Add({L'~'},
+               operation::NewTopLevelCommand(
+                   L"switch-case",
+                   LazyString{L"switches the case of the current character."},
+                   operation::TopCommand{
+                       .post_transformation_behavior = transformation::Stack::
+                           PostTransformationBehavior::CapitalsSwitch},
+                   editor_state,
+                   {operation::CommandReach{
+                       .repetitions = operation::commands::Repetitions(1)}})
+                   .ptr());
 
-  commands.Add(
-      {L'%'}, operation::NewTopLevelCommand(
-                  L"tree-navigate",
-                  LazyString{L"moves past the next token in the syntax tree"},
-                  operation::TopCommand{}, editor_state,
-                  {operation::CommandReach{
-                      .structure = Structure::Tree,
-                      .repetitions = operation::CommandArgumentRepetitions(1)}})
-                  .ptr());
+  commands.Add({L'%'},
+               operation::NewTopLevelCommand(
+                   L"tree-navigate",
+                   LazyString{L"moves past the next token in the syntax tree"},
+                   operation::TopCommand{}, editor_state,
+                   {operation::CommandReach{
+                       .structure = Structure::Tree,
+                       .repetitions = operation::commands::Repetitions(1)}})
+                   .ptr());
 
   commands.Add({L's', L'r'}, NewRecordCommand(editor_state).ptr());
   commands.Add({L'\t'}, NewFindCompletionCommand(editor_state).ptr());
@@ -798,22 +798,20 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                            .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
                            .ptr());
 
-  commands.Add(
-      {ControlChar::PageDown},
-      operation::NewTopLevelCommand(
-          L"page_down", LazyString{L"moves down one page"},
-          operation::TopCommand(), editor_state,
-          {operation::CommandReachPage{
-              .repetitions = operation::CommandArgumentRepetitions(1)}})
-          .ptr());
-  commands.Add(
-      {ControlChar::PageUp},
-      operation::NewTopLevelCommand(
-          L"page_up", LazyString{L"moves up one page"}, operation::TopCommand(),
-          editor_state,
-          {operation::CommandReachPage{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}})
-          .ptr());
+  commands.Add({ControlChar::PageDown},
+               operation::NewTopLevelCommand(
+                   L"page_down", LazyString{L"moves down one page"},
+                   operation::TopCommand(), editor_state,
+                   {operation::CommandReachPage{
+                       .repetitions = operation::commands::Repetitions(1)}})
+                   .ptr());
+  commands.Add({ControlChar::PageUp},
+               operation::NewTopLevelCommand(
+                   L"page_up", LazyString{L"moves up one page"},
+                   operation::TopCommand(), editor_state,
+                   {operation::CommandReachPage{
+                       .repetitions = operation::commands::Repetitions(-1)}})
+                   .ptr());
   return commands_root;
 }
 

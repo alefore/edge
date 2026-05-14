@@ -304,6 +304,8 @@ src/operation_find_local.cc \
 src/operation_find_local.h \
 src/operation_move_line.cc \
 src/operation_move_line.h \
+src/operation_repetitions.cc \
+src/operation_repetitions.h \
 src/operation_scope.cc \
 src/operation_scope.h \
 src/operation_scope_buffer_information.h \

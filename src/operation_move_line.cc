@@ -24,11 +24,10 @@ const Description& MoveDownDescription() {
 
 namespace {
 class Impl : public MoveOperationCommand {
-  CommandArgumentRepetitions repetitions_ = {0};
+  Repetitions repetitions_ = {0};
 
  public:
-  Impl(CommandArgumentRepetitions repetitions)
-      : repetitions_(std::move(repetitions)) {}
+  Impl(Repetitions repetitions) : repetitions_(std::move(repetitions)) {}
 
   LineBuilder status() const override {
     LineBuilder output;
@@ -91,11 +90,11 @@ class Impl : public MoveOperationCommand {
     return cmap;
   }
 
-  CommandArgumentRepetitions* repetitions() override { return &repetitions_; }
+  Repetitions* repetitions() override { return &repetitions_; }
 };
 }  // namespace
 NonNull<std::shared_ptr<MoveOperationCommand>> MoveLine(
-    CommandArgumentRepetitions repetitions) {
+    Repetitions repetitions) {
   return MakeNonNullShared<Impl>(std::move(repetitions));
 }
 }  // namespace afc::editor::operation::commands

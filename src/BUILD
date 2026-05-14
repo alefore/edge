@@ -287,6 +287,7 @@ cc_binary(
         ":buffer_flag_map",
         ":child_process_tracker",
         ":log_model",
+        ":operation_repetitions",
         "//src/concurrent:tests",
         "//src/concurrent:version_property_receiver",
         "//src/futures:serializer",
@@ -779,6 +780,19 @@ cc_library(
     deps = [
         ":line_marks",
         "//src/language/text:line_column",
+    ],
+)
+
+cc_library(
+    name = "operation_repetitions",
+    srcs = ["operation_repetitions.cc"],
+    hdrs = ["operation_repetitions.h"],
+    deps = [
+        "//src/language:container",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:append",
+        "//src/language/lazy_string:single_line",
+        "//src/language/lazy_string:trim",
     ],
 )
 

@@ -117,7 +117,7 @@ class Impl : public MoveOperationCommand {
     return cmap;
   }
 
-  CommandArgumentRepetitions* repetitions() override { return nullptr; }
+  commands::Repetitions* repetitions() override { return nullptr; }
 };
 }  // namespace
 NonNull<std::shared_ptr<MoveOperationCommand>> Bisect(BisectOptions options) {

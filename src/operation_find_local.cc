@@ -68,7 +68,7 @@ class Impl : public MoveOperationCommand {
     return cmap;
   }
 
-  CommandArgumentRepetitions* repetitions() override { return nullptr; }
+  Repetitions* repetitions() override { return nullptr; }
 };
 }  // namespace
 NonNull<std::shared_ptr<MoveOperationCommand>> FindLocal() {
