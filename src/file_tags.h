@@ -13,20 +13,23 @@
 #include "src/vm/environment.h"
 
 namespace afc::editor {
-// TODO(2025-06-08, trivial): Make this class thread-safe.
 class FileTags {
   struct ConstructorAccessKey {};
 
   const language::gc::Ptr<OpenBuffer> buffer_;
 
-  language::text::LineNumber start_line_;
-  language::text::LineNumber end_line_;
-
   using TagsMap =
       std::map<language::lazy_string::NonEmptySingleLine,
                language::NonNull<std::shared_ptr<concurrent::Protected<
                    std::vector<language::lazy_string::LazyString>>>>>;
-  TagsMap tags_ = {};
+  struct Data {
+    language::text::LineNumber start_line;
+    language::text::LineNumber end_line;
+
+    TagsMap tags = {};
+  };
+
+  concurrent::Protected<Data> data_;
 
   struct LoadTagsOutput {
     language::text::LineNumber end_line;

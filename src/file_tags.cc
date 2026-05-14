@@ -79,18 +79,21 @@ namespace afc::editor {
 FileTags::FileTags(ConstructorAccessKey, gc::Ptr<OpenBuffer> buffer,
                    LineNumber start_line, LoadTagsOutput load_tags_output)
     : buffer_(std::move(buffer)),
-      start_line_(start_line),
-      end_line_(load_tags_output.end_line),
-      tags_(std::move(load_tags_output).tags_map) {}
+      data_(MakeProtected(Data{.start_line = start_line,
+                               .end_line = load_tags_output.end_line,
+                               .tags = std::move(load_tags_output).tags_map})) {
+}
 
 NonNull<std::shared_ptr<Protected<std::vector<LazyString>>>> FileTags::Find(
     NonEmptySingleLine tag_name) {
-  if (auto it = tags_.find(LowerCase(tag_name)); it != tags_.end())
-    return it->second;
-  static const auto kEmptyValues =
-      MakeNonNullShared<Protected<std::vector<LazyString>>>(
-          MakeProtected(std::vector<LazyString>{}));
-  return kEmptyValues;
+  return data_.lock([&](Data& data) {
+    if (auto it = data.tags.find(LowerCase(tag_name)); it != data.tags.end())
+      return it->second;
+    static const auto kEmptyValues =
+        MakeNonNullShared<Protected<std::vector<LazyString>>>(
+            MakeProtected(std::vector<LazyString>{}));
+    return kEmptyValues;
+  });
 }
 
 const gc::Ptr<OpenBuffer>& FileTags::buffer() const { return buffer_; }
@@ -102,11 +105,13 @@ void FileTags::Add(language::lazy_string::NonEmptySingleLine name,
   // Obviously, handling redundant schedules.
   const Line line_to_add{name + SINGLE_LINE_CONSTANT(L": ") + value};
   LOG(INFO) << buffer_->name() << ": Adding line: " << line_to_add;
+  LineNumber insert_line = data_.lock([&](Data& data) {
+    AddTag(name, value, data.tags);
+    return data.end_line++;
+  });
   buffer_->InsertInPosition(
       LineSequence::WithLine(staging::CleanValue(line_to_add)) + LineSequence{},
-      LineColumn{end_line_}, std::nullopt);
-  ++end_line_;
-  AddTag(name, value, tags_);
+      LineColumn{insert_line}, std::nullopt);
 }
 
 void FileTags::Expand(gc::ObjectMetadata::Receiver& visit) const {
