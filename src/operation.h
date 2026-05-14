@@ -69,15 +69,6 @@ struct CommandReachBegin {
   Direction direction = Direction::Forwards;
 };
 
-// Similar to CommandReach with structure = StructureLine.
-//
-// We separate them to avoid clashes of 'h' and 'l'. With CommandReach, 'h' and
-// 'l' should advance by the structure; with CommandReachLine, they switch us
-// back to CommandReach (to move left or right).
-struct CommandReachLine {
-  CommandArgumentRepetitions repetitions = {0};
-};
-
 // Similar to CommandReachLine.
 struct CommandReachPage {
   CommandArgumentRepetitions repetitions = {0};
@@ -100,13 +91,19 @@ class MoveOperationCommand {
   virtual transformation::Stack GetTransformation(
       const language::NonNull<std::shared_ptr<OperationScope>>& scope,
       transformation::Stack& stack) const = 0;
-  virtual KeyCommandsMap key_commands_map() = 0;
+
+  // `push_command` can be invoked by a key command in order to push a new
+  // MoveOperationCommand into the stack.
+  using Receiver = std::function<void(
+      language::NonNull<std::shared_ptr<MoveOperationCommand>>)>;
+  virtual KeyCommandsMap key_commands_map(Receiver push_command) = 0;
+  virtual CommandArgumentRepetitions* repetitions() = 0;
 };
 
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
-    std::variant<CommandReach, CommandReachBegin, CommandReachLine,
-                 CommandReachPage, CommandSetShell, CommandPaste,
+    std::variant<CommandReach, CommandReachBegin, CommandReachPage,
+                 CommandSetShell, CommandPaste,
                  language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
@@ -114,12 +111,24 @@ language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     TopCommand top_command, EditorState& editor_state, Command command);
 
 namespace commands {
-// TODO(easy, 2026-05-14): Change this to return a Line instead.
+// Functions for implementations of MoveOperationCommand.
+
+// TODO(easy, 2026-05-14): Change this to return a LineBuilder instead.
 void SerializeCall(language::lazy_string::NonEmptySingleLine name,
                    std::vector<language::lazy_string::SingleLine> arguments,
                    language::text::LineBuilder& output);
+
 language::lazy_string::NonEmptySingleLine StructureToString(
     std::optional<Structure> structure);
+
+void CheckRepetitionsChar(KeyCommandsMap& cmap,
+                          CommandArgumentRepetitions* output);
+
+transformation::Stack ApplyRepetitions(
+    const CommandArgumentRepetitions& repetitions,
+    std::optional<Structure> structure,
+    language::NonNull<std::shared_ptr<CompositeTransformation>>
+        inner_transformation);
 }  // namespace commands
 }  // namespace operation
 }  // namespace afc::editor

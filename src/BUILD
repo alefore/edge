@@ -145,6 +145,8 @@ cc_binary(
         "operation_bisect.h",
         "operation_find_local.cc",
         "operation_find_local.h",
+        "operation_move_line.cc",
+        "operation_move_line.h",
         "operation_scope.cc",
         "operation_scope.h",
         "operation_scope_buffer_information.h",

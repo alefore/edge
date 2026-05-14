@@ -79,7 +79,7 @@ class Impl : public MoveOperationCommand {
     return transformation;
   }
 
-  KeyCommandsMap key_commands_map() override {
+  KeyCommandsMap key_commands_map(Receiver) override {
     KeyCommandsMap cmap;
     cmap.Insert(
         ControlChar::Backspace,
@@ -116,6 +116,8 @@ class Impl : public MoveOperationCommand {
     }
     return cmap;
   }
+
+  CommandArgumentRepetitions* repetitions() override { return nullptr; }
 };
 }  // namespace
 NonNull<std::shared_ptr<MoveOperationCommand>> Bisect(BisectOptions options) {

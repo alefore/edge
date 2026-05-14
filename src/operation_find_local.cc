@@ -43,7 +43,7 @@ class Impl : public MoveOperationCommand {
             query_)}};
   }
 
-  KeyCommandsMap key_commands_map() override {
+  KeyCommandsMap key_commands_map(Receiver) override {
     KeyCommandsMap cmap;
     // TODO(2026-05-14, P2): Maybe exclude `?`?. Let that generate help.
     if (query_.size() < ColumnNumberDelta{3})
@@ -67,6 +67,8 @@ class Impl : public MoveOperationCommand {
                  }});
     return cmap;
   }
+
+  CommandArgumentRepetitions* repetitions() override { return nullptr; }
 };
 }  // namespace
 NonNull<std::shared_ptr<MoveOperationCommand>> FindLocal() {

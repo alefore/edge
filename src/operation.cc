@@ -20,6 +20,7 @@
 #include "src/language/wstring.h"
 #include "src/operation_bisect.h"
 #include "src/operation_find_local.h"
+#include "src/operation_move_line.h"
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
@@ -111,10 +112,6 @@ Modifiers GetModifiers(std::optional<Structure> structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
-static const Description kMoveDown =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🧗👇")};
-static const Description kMoveUp =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🧗👆")};
 static const Description kPageDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
 static const Description kPageUp =
@@ -152,12 +149,6 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
       {commands::StructureToString(reach.structure).read(),
        reach.repetitions.ToString()},
       output);
-}
-
-void AppendStatus(const CommandReachLine& reach_line, LineBuilder& output) {
-  commands::SerializeCall(
-      reach_line.repetitions.get() >= 0 ? kMoveDown.read() : kMoveUp.read(),
-      {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
@@ -226,7 +217,9 @@ futures::Value<UndoCallback> ExecuteTransformation(
         });
       });
 }
-
+}  // namespace
+// TODO(2026-05-14, P2): Make this a method of CommandArgumentRepetitions?
+namespace commands {
 transformation::Stack ApplyRepetitions(
     const CommandArgumentRepetitions& repetitions,
     std::optional<Structure> structure,
@@ -244,6 +237,7 @@ transformation::Stack ApplyRepetitions(
       std::back_inserter(output));
   return output;
 }
+}  // namespace commands
 
 namespace {
 bool apply_repetitions_test = tests::Register(
@@ -253,7 +247,7 @@ bool apply_repetitions_test = tests::Register(
           .callback =
               [] {
                 NonNull<std::shared_ptr<OperationScope>> operation_scope;
-                LOG(INFO) << ToString(ApplyRepetitions(
+                LOG(INFO) << ToString(commands::ApplyRepetitions(
                     CommandArgumentRepetitions(1), Structure::Line,
                     NewMoveTransformation(operation_scope)));
               }},
@@ -264,17 +258,16 @@ bool apply_repetitions_test = tests::Register(
             repetitions.sum(-1);
             repetitions.sum(1);
             repetitions.sum(-1);
-            LOG(INFO) << ToString(
-                ApplyRepetitions(repetitions, Structure::Line,
-                                 NewMoveTransformation(operation_scope)));
+            LOG(INFO) << ToString(commands::ApplyRepetitions(
+                repetitions, Structure::Line,
+                NewMoveTransformation(operation_scope)));
           }}}));
-}  // namespace
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReach reach) {
-  return ApplyRepetitions(reach.repetitions, reach.structure,
-                          NewMoveTransformation(operation_scope));
+  return commands::ApplyRepetitions(reach.repetitions, reach.structure,
+                                    NewMoveTransformation(operation_scope));
 }
 
 transformation::ModifiersAndComposite GetTransformation(
@@ -288,16 +281,9 @@ transformation::ModifiersAndComposite GetTransformation(
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
-    transformation::Stack&, CommandReachLine reach_line) {
-  return ApplyRepetitions(reach_line.repetitions, Structure::Line,
-                          NewMoveTransformation(operation_scope));
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachPage reach_page) {
-  return ApplyRepetitions(reach_page.repetitions, Structure::Page,
-                          NewMoveTransformation(operation_scope));
+  return commands::ApplyRepetitions(reach_page.repetitions, Structure::Page,
+                                    NewMoveTransformation(operation_scope));
 }
 
 transformation::Stack GetTransformation(
@@ -312,7 +298,7 @@ transformation::Stack GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandPaste paste) {
-  return ApplyRepetitions(
+  return commands::ApplyRepetitions(
       paste.repetitions, std::nullopt,
       MakeNonNullShared<transformation::Paste>(
           transformation::Paste{FindFragmentQuery{
@@ -501,8 +487,11 @@ std::optional<CommandArgumentRepetitions*> GetRepetitions(Command& command) {
   return std::visit(
       overload{[](CommandReach& c) -> Ret { return &c.repetitions; },
                [](CommandReachBegin& c) -> Ret { return &c.repetitions; },
-               [](CommandReachLine& c) -> Ret { return &c.repetitions; },
                [](CommandReachPage& c) -> Ret { return &c.repetitions; },
+               [](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
+                 CommandArgumentRepetitions* output = c->repetitions();
+                 return output ? Ret(output) : Ret();
+               },
                [](auto) -> Ret { return std::nullopt; }},
       command);
 }
@@ -566,7 +555,9 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
                .description = kMoveRight,
                .handler = [output](ExtendedChar) { output->sum(1); }});
 }
-
+}  // namespace
+namespace commands {
+// TODO(2026-05-14, P2): Make it a method of CommandArgumentRepetitions?
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
   cmap.Insert(
@@ -584,7 +575,8 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
              Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Repetitions")},
          .handler = [output, i](ExtendedChar) { output->factor(i); }});
 }
-
+}  // namespace commands
+namespace {
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
   if (output->structure.value_or(Structure::Char) == Structure::Char &&
@@ -630,7 +622,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
-  CheckRepetitionsChar(cmap, &output->repetitions);
+  commands::CheckRepetitionsChar(cmap, &output->repetitions);
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
@@ -663,66 +655,18 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
-  CheckRepetitionsChar(cmap, &output->repetitions);
+  commands::CheckRepetitionsChar(cmap, &output->repetitions);
 
   if (output->structure.value_or(Structure::Char) == Structure::Char ||
       output->structure == Structure::Line) {
-    // Don't let CheckRepetitionsChar below handle these; we'd
-    // rather preserve the usual meaning (of scrolling by a
-    // character).
+    // Don't let CheckRepetitionsChar below handle these; we'd rather preserve
+    // the usual meaning (of scrolling by a character).
     cmap.Erase(L'h').Erase(L'l');
   }
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
-                       State* state) {
-  cmap.Insert(L'K', {.category = KeyCommandsMap::Category::NewCommand,
-                     .description =
-                         Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👆")},
-                     .active = !output->repetitions.empty() &&
-                               output->repetitions.get_list().back() < 0,
-                     .handler =
-                         [state](ExtendedChar) {
-                           state->Push(Bisect(commands::BisectOptions{
-                               .structure = Structure::Line,
-                               .directions = {Direction::Backwards}}));
-                         }})
-      .Insert(L'J', {.category = KeyCommandsMap::Category::NewCommand,
-                     .description =
-                         Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👇")},
-                     .active = !output->repetitions.empty() &&
-                               output->repetitions.get_list().back() > 0,
-                     .handler = [state](ExtendedChar) {
-                       state->Push(Bisect(commands::BisectOptions{
-                           .structure = Structure::Line,
-                           .directions = {Direction::Forwards}}));
-                     }});
-
-  CheckRepetitionsChar(cmap, &output->repetitions);
-  cmap.Insert(
-          L'j',
-          {.category = KeyCommandsMap::Category::Repetitions,
-           .description = kMoveDown,
-           .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
-      .Insert(
-          ControlChar::DownArrow,
-          {.category = KeyCommandsMap::Category::Repetitions,
-           .description = kMoveDown,
-           .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
-      .Insert(
-          L'k',
-          {.category = KeyCommandsMap::Category::Repetitions,
-           .description = kMoveUp,
-           .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }})
-      .Insert(
-          ControlChar::UpArrow,
-          {.category = KeyCommandsMap::Category::Repetitions,
-           .description = kMoveUp,
-           .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
-}
-
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
-  CheckRepetitionsChar(cmap, &output->repetitions);
+  commands::CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(
           ControlChar::PageDown,
           {.category = KeyCommandsMap::Category::NewCommand,
@@ -790,7 +734,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
         });
     return;
   }
-  CheckRepetitionsChar(cmap, &output->repetitions);
+  commands::CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(
           L'p',
           {.category = KeyCommandsMap::Category::Repetitions,
@@ -807,8 +751,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap,
                        NonNull<std::shared_ptr<MoveOperationCommand>>* output,
-                       State*) {
-  cmap = (*output)->key_commands_map();
+                       State* state) {
+  cmap = (*output)->key_commands_map(
+      [state](NonNull<std::shared_ptr<MoveOperationCommand>> command) {
+        state->Push(std::move(command));
+      });
 }
 
 class OperationMode : public SimpleInputReceiver {
@@ -1011,8 +958,8 @@ class OperationMode : public SimpleInputReceiver {
           .category = KeyCommandsMap::Category::NewCommand,
           .description = (c == ExtendedChar(L'j') ||
                           c == ExtendedChar(ControlChar::DownArrow))
-                             ? kMoveDown
-                             : kMoveUp,
+                             ? commands::MoveDownDescription()
+                             : commands::MoveUpDescription(),
           .handler = [&state = state_, c](ExtendedChar) {
             if (CommandReach* reach =
                     state.empty()
@@ -1022,12 +969,11 @@ class OperationMode : public SimpleInputReceiver {
                 reach->repetitions.empty()) {
               state.UndoLast();
             }
-            state.Push(CommandReachLine{
-                .repetitions = operation::CommandArgumentRepetitions(
-                    c == ExtendedChar(L'k') ||
-                            c == ExtendedChar(ControlChar::UpArrow)
-                        ? -1
-                        : 1)});
+            state.Push(commands::MoveLine(operation::CommandArgumentRepetitions(
+                c == ExtendedChar(L'k') ||
+                        c == ExtendedChar(ControlChar::UpArrow)
+                    ? -1
+                    : 1)));
           }};
     };
     KeyCommandsMap cmap;

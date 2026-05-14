@@ -41,6 +41,7 @@
 #include "src/open_file_command.h"
 #include "src/operation.h"
 #include "src/operation_find_local.h"
+#include "src/operation_move_line.h"
 #include "src/parse_tree.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
@@ -638,21 +639,19 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
 
   for (ExtendedChar x :
        std::vector<ExtendedChar>({L'j', ControlChar::DownArrow}))
-    commands.Add(
-        {x}, operation::NewTopLevelCommand(
-                 L"down", LazyString{L"moves down one line"},
-                 operation::TopCommand(), editor_state,
-                 {operation::CommandReachLine{
-                     .repetitions = operation::CommandArgumentRepetitions(1)}})
-                 .ptr());
+    commands.Add({x}, operation::NewTopLevelCommand(
+                          L"down", LazyString{L"moves down one line"},
+                          operation::TopCommand(), editor_state,
+                          {operation::commands::MoveLine(
+                              operation::CommandArgumentRepetitions(1))})
+                          .ptr());
   for (ExtendedChar x : std::vector<ExtendedChar>({L'k', ControlChar::UpArrow}))
-    commands.Add(
-        {x}, operation::NewTopLevelCommand(
-                 L"up", LazyString{L"moves up one line"},
-                 operation::TopCommand(), editor_state,
-                 {operation::CommandReachLine{
-                     .repetitions = operation::CommandArgumentRepetitions(-1)}})
-                 .ptr());
+    commands.Add({x}, operation::NewTopLevelCommand(
+                          L"up", LazyString{L"moves up one line"},
+                          operation::TopCommand(), editor_state,
+                          {operation::commands::MoveLine(
+                              operation::CommandArgumentRepetitions(-1))})
+                          .ptr());
 
   // commands.Add({L'j'}, std::make_unique<LineDown>());
   // commands.Add({L'k'}, std::make_unique<LineUp>());
