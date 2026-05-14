@@ -196,7 +196,7 @@ void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
 
 void AppendStatus(const NonNull<std::shared_ptr<MoveOperationCommand>>& op,
                   LineBuilder& output) {
-  return op->AppendStatus(output);
+  return output.Append(op->status());
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
