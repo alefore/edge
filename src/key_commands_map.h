@@ -63,6 +63,7 @@ class KeyCommandsMap {
   KeyCommandsMap() = default;
   KeyCommandsMap(const KeyCommandsMap&) = delete;
   KeyCommandsMap(KeyCommandsMap&&) = default;
+  KeyCommandsMap& operator=(KeyCommandsMap&&) = default;
 
   static language::lazy_string::LazyString ToString(Category category);
 
