@@ -214,6 +214,11 @@ void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
                 output);
 }
 
+void AppendStatus(const NonNull<std::shared_ptr<MoveOperationCommand>>& op,
+                  LineBuilder& output) {
+  return op->AppendStatus(output);
+}
+
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
@@ -365,6 +370,13 @@ transformation::Stack GetTransformation(
       MakeNonNullShared<transformation::Paste>(
           transformation::Paste{FindFragmentQuery{
               .filter = paste.query_input.value_or(SingleLine{})}}));
+}
+
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>& scope,
+    transformation::Stack& stack,
+    NonNull<std::shared_ptr<MoveOperationCommand>>& op) {
+  return op->GetTransformation(scope, stack);
 }
 
 class State {
@@ -911,6 +923,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
                        CHECK(!output->query_input.has_value());
                        output->query_input = SingleLine{};
                      }});
+}
+
+void GetKeyCommandsMap(KeyCommandsMap& cmap,
+                       NonNull<std::shared_ptr<MoveOperationCommand>>* output,
+                       State*) {
+  cmap = (*output)->key_commands_map();
 }
 
 class OperationMode : public SimpleInputReceiver {

@@ -10,6 +10,7 @@
 
 #include "src/command.h"
 #include "src/futures/futures.h"
+#include "src/key_commands_map.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
@@ -102,9 +103,21 @@ struct CommandPaste {
   std::optional<language::lazy_string::SingleLine> query_input;
 };
 
-using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
-                             CommandReachPage, CommandReachQuery,
-                             CommandReachBisect, CommandSetShell, CommandPaste>;
+class MoveOperationCommand {
+ public:
+  virtual void AppendStatus(language::text::LineBuilder&) const = 0;
+  virtual transformation::Stack GetTransformation(
+      const language::NonNull<std::shared_ptr<OperationScope>>& scope,
+      transformation::Stack& stack) const = 0;
+  virtual KeyCommandsMap key_commands_map() = 0;
+};
+
+// TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
+using Command =
+    std::variant<CommandReach, CommandReachBegin, CommandReachLine,
+                 CommandReachPage, CommandReachQuery, CommandReachBisect,
+                 CommandSetShell, CommandPaste,
+                 language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, language::lazy_string::LazyString description,
