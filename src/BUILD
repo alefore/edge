@@ -147,6 +147,8 @@ cc_binary(
         "operation_find_local.h",
         "operation_move_line.cc",
         "operation_move_line.h",
+        "operation_move_page.cc",
+        "operation_move_page.h",
         "operation_repetitions.cc",
         "operation_repetitions.h",
         "operation_scope.cc",

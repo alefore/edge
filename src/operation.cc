@@ -21,6 +21,7 @@
 #include "src/operation_bisect.h"
 #include "src/operation_find_local.h"
 #include "src/operation_move_line.h"
+#include "src/operation_move_page.h"
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
@@ -137,12 +138,6 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
       output);
 }
 
-void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
-  commands::SerializeCall(
-      reach_line.repetitions.get() >= 0 ? kPageDown.read() : kPageUp.read(),
-      {reach_line.repetitions.ToString()}, output);
-}
-
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
   commands::SerializeCall(kDescriptionShell.read(), {c.input}, output);
 }
@@ -232,13 +227,6 @@ transformation::ModifiersAndComposite GetTransformation(
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
                                 reach_begin.direction),
       .transformation = MakeNonNullUnique<GotoTransformation>(0)};
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
-    transformation::Stack&, CommandReachPage reach_page) {
-  return reach_page.repetitions.Apply(Structure::Page,
-                                      NewMoveTransformation(operation_scope));
 }
 
 transformation::Stack GetTransformation(
@@ -442,7 +430,6 @@ std::optional<commands::Repetitions*> GetRepetitions(Command& command) {
   return std::visit(
       overload{[](CommandReach& c) -> Ret { return &c.repetitions; },
                [](CommandReachBegin& c) -> Ret { return &c.repetitions; },
-               [](CommandReachPage& c) -> Ret { return &c.repetitions; },
                [](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
                  commands::Repetitions* output = c->repetitions();
                  return output ? Ret(output) : Ret();
@@ -596,20 +583,6 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
     // the usual meaning (of scrolling by a character).
     cmap.Erase(L'h').Erase(L'l');
   }
-}
-
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
-  output->repetitions.ExtendKeyCommandsMap(cmap);
-  cmap.Insert(
-          ControlChar::PageDown,
-          {.category = KeyCommandsMap::Category::NewCommand,
-           .description = kPageDown,
-           .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
-      .Insert(
-          ControlChar::PageUp,
-          {.category = KeyCommandsMap::Category::NewCommand,
-           .description = kPageUp,
-           .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
@@ -878,9 +851,8 @@ class OperationMode : public SimpleInputReceiver {
                 reach != nullptr && reach->structure == std::nullopt) {
               state.UndoLast();
             }
-            state.Push(CommandReachPage{
-                .repetitions = operation::commands::Repetitions(
-                    c == ControlChar::PageUp ? -1 : 1)});
+            state.Push(commands::MovePage(operation::commands::Repetitions(
+                c == ControlChar::PageUp ? -1 : 1)));
           }};
     };
     auto MoveHandler = [&](ExtendedChar c) {

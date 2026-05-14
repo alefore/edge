@@ -42,6 +42,7 @@
 #include "src/operation.h"
 #include "src/operation_find_local.h"
 #include "src/operation_move_line.h"
+#include "src/operation_move_page.h"
 #include "src/parse_tree.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
@@ -798,20 +799,20 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                            .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
                            .ptr());
 
-  commands.Add({ControlChar::PageDown},
-               operation::NewTopLevelCommand(
-                   L"page_down", LazyString{L"moves down one page"},
-                   operation::TopCommand(), editor_state,
-                   {operation::CommandReachPage{
-                       .repetitions = operation::commands::Repetitions(1)}})
-                   .ptr());
-  commands.Add({ControlChar::PageUp},
-               operation::NewTopLevelCommand(
-                   L"page_up", LazyString{L"moves up one page"},
-                   operation::TopCommand(), editor_state,
-                   {operation::CommandReachPage{
-                       .repetitions = operation::commands::Repetitions(-1)}})
-                   .ptr());
+  commands.Add(
+      {ControlChar::PageDown},
+      operation::NewTopLevelCommand(
+          L"page_down", LazyString{L"moves down one page"},
+          operation::TopCommand(), editor_state,
+          {operation::commands::MovePage(operation::commands::Repetitions(1))})
+          .ptr());
+  commands.Add(
+      {ControlChar::PageUp},
+      operation::NewTopLevelCommand(
+          L"page_up", LazyString{L"moves up one page"}, operation::TopCommand(),
+          editor_state,
+          {operation::commands::MovePage(operation::commands::Repetitions(-1))})
+          .ptr());
   return commands_root;
 }
 

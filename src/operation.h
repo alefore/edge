@@ -41,11 +41,6 @@ struct CommandReachBegin {
   Direction direction = Direction::Forwards;
 };
 
-// Similar to CommandReachLine.
-struct CommandReachPage {
-  commands::Repetitions repetitions = {0};
-};
-
 struct CommandSetShell {
   language::lazy_string::SingleLine input;
 };
@@ -74,8 +69,7 @@ class MoveOperationCommand {
 
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
-    std::variant<CommandReach, CommandReachBegin, CommandReachPage,
-                 CommandSetShell, CommandPaste,
+    std::variant<CommandReach, CommandReachBegin, CommandSetShell, CommandPaste,
                  language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
