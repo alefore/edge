@@ -74,7 +74,8 @@ using Command =
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, language::lazy_string::LazyString description,
-    TopCommand top_command, EditorState& editor_state, Command command);
+    TopCommand top_command, EditorState& editor_state,
+    std::function<Command()> command_factory);
 
 namespace commands {
 // Functions for implementations of MoveOperationCommand.

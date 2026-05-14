@@ -497,8 +497,8 @@ void CheckIncrementsChar(KeyCommandsMap& cmap, commands::Repetitions* output) {
                .handler = [output](ExtendedChar) { output->sum(1); }});
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
-                       State* state) {
+KeyCommandsMap GetKeyCommandsMap(CommandReach* output, State* state) {
+  KeyCommandsMap cmap;
   if (output->structure.value_or(Structure::Char) == Structure::Char &&
       !output->repetitions.empty()) {
     cmap.Insert(L'H', {.category = KeyCommandsMap::Category::NewCommand,
@@ -543,10 +543,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
   output->repetitions.ExtendKeyCommandsMap(cmap);
+  return cmap;
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
-                       State*) {
+KeyCommandsMap GetKeyCommandsMap(CommandReachBegin* output, State*) {
+  KeyCommandsMap cmap;
   if (output->structure == Structure::Line) {
     auto handler = [&](Description description) {
       return KeyCommandsMap::KeyCommand{
@@ -583,9 +584,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
     // the usual meaning (of scrolling by a character).
     cmap.Erase(L'h').Erase(L'l');
   }
+  return cmap;
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
+KeyCommandsMap GetKeyCommandsMap(CommandSetShell* output, State*) {
+  KeyCommandsMap cmap;
   cmap.Insert(ControlChar::Backspace,
               {.category = KeyCommandsMap::Category::StringControl,
                .description =
@@ -607,9 +610,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
                                          }},
                                 extended_c);
                    });
+  return cmap;
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
+KeyCommandsMap GetKeyCommandsMap(CommandPaste* output, State*) {
+  KeyCommandsMap cmap;
   if (output->query_input.has_value()) {
     cmap.SetFallback(
         {'\n', ControlChar::Escape}, [output](ExtendedChar extended_c) {
@@ -638,7 +643,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
                   }},
               extended_c);
         });
-    return;
+    return cmap;
   }
   output->repetitions.ExtendKeyCommandsMap(cmap);
   cmap.Insert(
@@ -653,12 +658,12 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
                        CHECK(!output->query_input.has_value());
                        output->query_input = SingleLine{};
                      }});
+  return cmap;
 }
 
-void GetKeyCommandsMap(KeyCommandsMap& cmap,
-                       NonNull<std::shared_ptr<MoveOperationCommand>>* output,
-                       State* state) {
-  cmap = (*output)->key_commands_map(
+KeyCommandsMap GetKeyCommandsMap(
+    NonNull<std::shared_ptr<MoveOperationCommand>>* output, State* state) {
+  return (*output)->key_commands_map(
       [state](NonNull<std::shared_ptr<MoveOperationCommand>> command) {
         state->Push(std::move(command));
       });
@@ -708,12 +713,12 @@ class OperationMode : public SimpleInputReceiver {
     if (!state_.empty()) {
       std::visit(
           [&](auto& t) {
-            GetKeyCommandsMap(cmap.PushNew().OnHandle([this] {
-              if (state_.empty()) PushCommand(CommandReach{});
-              state_.Update();
-              ShowStatus();
-            }),
-                              &t, &state_);
+            cmap.PushBack(
+                std::move(GetKeyCommandsMap(&t, &state_).OnHandle([this] {
+                  if (state_.empty()) PushCommand(CommandReach{});
+                  state_.Update();
+                  ShowStatus();
+                })));
           },
           state_.GetLastCommand());
     }
@@ -1064,11 +1069,9 @@ class OperationMode : public SimpleInputReceiver {
 };
 }  // namespace
 
-gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
-                                                  LazyString description,
-                                                  TopCommand top_command,
-                                                  EditorState& editor_state,
-                                                  Command command) {
+gc::Root<afc::editor::Command> NewTopLevelCommand(
+    std::wstring, LazyString description, TopCommand top_command,
+    EditorState& editor_state, std::function<Command()> command) {
   return NewSetModeCommand(
       {.editor_state = editor_state,
        .description = description,
@@ -1076,7 +1079,7 @@ gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
        .factory = [top_command, &editor_state, command] {
          auto output =
              MakeNonNullUnique<OperationMode>(top_command, editor_state);
-         output->PushCommand(command);
+         output->PushCommand(command());
          output->ShowStatus();
          return editor_state.gc_pool().NewRoot<InputReceiver>(
              std::move(output));
