@@ -69,7 +69,7 @@ class Impl : public MoveOperationCommand {
                              .directions = {Direction::Forwards}}));
                        }});
 
-    CheckRepetitionsChar(cmap, &repetitions_);
+    repetitions_.ExtendKeyCommandsMap(cmap);
     cmap.Insert(L'j',
                 {.category = KeyCommandsMap::Category::Repetitions,
                  .description = MoveDownDescription(),

@@ -509,27 +509,7 @@ void CheckIncrementsChar(KeyCommandsMap& cmap, commands::Repetitions* output) {
                .description = kMoveRight,
                .handler = [output](ExtendedChar) { output->sum(1); }});
 }
-}  // namespace
-namespace commands {
-// TODO(2026-05-14, P2): Make it a method of Repetitions?
-void CheckRepetitionsChar(KeyCommandsMap& cmap, commands::Repetitions* output) {
-  cmap.Insert(
-      ControlChar::Backspace,
-      {.category = KeyCommandsMap::Category::StringControl,
-       .description =
-           Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"PopRepetitions")},
-       .active = !output->empty(),
-       .handler = [output](ExtendedChar) { output->PopValue(); }});
-  for (int i = 0; i < 10; i++)
-    cmap.Insert(
-        L'0' + i,
-        {.category = KeyCommandsMap::Category::Repetitions,
-         .description =
-             Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Repetitions")},
-         .handler = [output, i](ExtendedChar) { output->factor(i); }});
-}
-}  // namespace commands
-namespace {
+
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
   if (output->structure.value_or(Structure::Char) == Structure::Char &&
@@ -575,7 +555,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
-  commands::CheckRepetitionsChar(cmap, &output->repetitions);
+  output->repetitions.ExtendKeyCommandsMap(cmap);
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
@@ -608,7 +588,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
-  commands::CheckRepetitionsChar(cmap, &output->repetitions);
+  output->repetitions.ExtendKeyCommandsMap(cmap);
 
   if (output->structure.value_or(Structure::Char) == Structure::Char ||
       output->structure == Structure::Line) {
@@ -619,7 +599,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
-  commands::CheckRepetitionsChar(cmap, &output->repetitions);
+  output->repetitions.ExtendKeyCommandsMap(cmap);
   cmap.Insert(
           ControlChar::PageDown,
           {.category = KeyCommandsMap::Category::NewCommand,
@@ -687,7 +667,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
         });
     return;
   }
-  commands::CheckRepetitionsChar(cmap, &output->repetitions);
+  output->repetitions.ExtendKeyCommandsMap(cmap);
   cmap.Insert(
           L'p',
           {.category = KeyCommandsMap::Category::Repetitions,

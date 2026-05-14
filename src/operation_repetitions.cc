@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include "src/infrastructure/extended_char.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/single_line.h"
@@ -9,6 +10,7 @@
 #include "src/operation_scope.h"
 #include "src/tests/tests.h"
 
+using namespace afc::infrastructure;
 using namespace afc::language::container;
 using namespace afc::language::lazy_string;
 using namespace afc::language;
@@ -96,6 +98,23 @@ transformation::Stack Repetitions::Apply(
       }),
       std::back_inserter(output));
   return output;
+}
+
+void Repetitions::ExtendKeyCommandsMap(KeyCommandsMap& cmap) {
+  cmap.Insert(
+      ControlChar::Backspace,
+      {.category = KeyCommandsMap::Category::StringControl,
+       .description =
+           Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"PopRepetitions")},
+       .active = !empty(),
+       .handler = [this](ExtendedChar) { PopValue(); }});
+  for (int i = 0; i < 10; i++)
+    cmap.Insert(
+        L'0' + i,
+        {.category = KeyCommandsMap::Category::Repetitions,
+         .description =
+             Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Repetitions")},
+         .handler = [this, i](ExtendedChar) { factor(i); }});
 }
 
 /* static */ int Repetitions::Flatten(const Entry& entry) {

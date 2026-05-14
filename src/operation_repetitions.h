@@ -2,6 +2,7 @@
 
 #include <list>
 
+#include "src/key_commands_map.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/safe_types.h"
 #include "src/structure.h"
@@ -36,6 +37,8 @@ class Repetitions {
       std::optional<Structure> structure,
       language::NonNull<std::shared_ptr<CompositeTransformation>>
           inner_transformation) const;
+
+  void ExtendKeyCommandsMap(KeyCommandsMap& cmap);
 
  private:
   static int Flatten(const Entry& entry);

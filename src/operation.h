@@ -92,8 +92,6 @@ void SerializeCall(language::lazy_string::NonEmptySingleLine name,
 
 language::lazy_string::NonEmptySingleLine StructureToString(
     std::optional<Structure> structure);
-
-void CheckRepetitionsChar(KeyCommandsMap& cmap, commands::Repetitions* output);
 }  // namespace commands
 }  // namespace operation
 }  // namespace afc::editor
