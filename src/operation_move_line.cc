@@ -41,8 +41,8 @@ class Impl : public MoveOperationCommand {
   transformation::Stack GetTransformation(
       const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
       transformation::Stack&) const override {
-    return ApplyRepetitions(repetitions_, Structure::Line,
-                            NewMoveTransformation(operation_scope));
+    return repetitions_.Apply(Structure::Line,
+                              NewMoveTransformation(operation_scope));
   }
 
   KeyCommandsMap key_commands_map(Receiver push) override {

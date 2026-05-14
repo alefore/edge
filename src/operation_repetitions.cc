@@ -1,12 +1,17 @@
 #include "src/operation_repetitions.h"
 
+#include <glog/logging.h>
+
 #include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/trim.h"
+#include "src/operation_scope.h"
+#include "src/tests/tests.h"
 
 using namespace afc::language::container;
 using namespace afc::language::lazy_string;
+using namespace afc::language;
 
 namespace afc::editor::operation::commands {
 SingleLine Repetitions::ToString() const {
@@ -66,7 +71,58 @@ bool Repetitions::PopValue() {
   return true;
 }
 
+Modifiers GetModifiers(std::optional<Structure> structure,
+                       const commands::Repetitions& repetitions,
+                       Direction direction) {
+  int repetitions_int = repetitions.get();
+  return Modifiers{.structure = structure.value_or(Structure::Char),
+                   .direction = repetitions_int < 0
+                                    ? ReverseDirection(direction)
+                                    : direction,
+                   .repetitions = abs(repetitions_int)};
+}
+
+transformation::Stack Repetitions::Apply(
+    std::optional<Structure> structure,
+    NonNull<std::shared_ptr<CompositeTransformation>> inner_transformation)
+    const {
+  transformation::Stack output;
+  std::ranges::copy(
+      get_list() | std::views::transform([&](int repetitions_value) {
+        return transformation::ModifiersAndComposite{
+            .modifiers =
+                GetModifiers(structure, repetitions_value, Direction::Forwards),
+            .transformation = inner_transformation};
+      }),
+      std::back_inserter(output));
+  return output;
+}
+
 /* static */ int Repetitions::Flatten(const Entry& entry) {
   return entry.additive_default + entry.additive + entry.multiplicative;
 }
+
+namespace {
+using ::operator<<;
+bool apply_repetitions_test = tests::Register(
+    L"operation::ApplyRepetitions",
+    std::vector<tests::Test>(
+        {{.name = L"Empty",
+          .callback =
+              [] {
+                NonNull<std::shared_ptr<OperationScope>> operation_scope;
+                LOG(INFO) << ToString(Repetitions(1).Apply(
+                    Structure::Line, NewMoveTransformation(operation_scope)));
+              }},
+         {.name = L"LongRepetitionsList", .callback = [] {
+            NonNull<std::shared_ptr<OperationScope>> operation_scope;
+            commands::Repetitions repetitions(1);
+            repetitions.sum(1);
+            repetitions.sum(-1);
+            repetitions.sum(1);
+            repetitions.sum(-1);
+            LOG(INFO) << ToString(repetitions.Apply(
+                Structure::Line, NewMoveTransformation(operation_scope)));
+          }}}));
+}  // namespace
 }  // namespace afc::editor::operation::commands

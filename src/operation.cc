@@ -98,20 +98,6 @@ NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
-                       Direction direction) {
-  return Modifiers{
-      .structure = structure.value_or(Structure::Char),
-      .direction = repetitions < 0 ? ReverseDirection(direction) : direction,
-      .repetitions = abs(repetitions)};
-}
-
-Modifiers GetModifiers(std::optional<Structure> structure,
-                       const commands::Repetitions& repetitions,
-                       Direction direction) {
-  return GetModifiers(structure, repetitions.get(), direction);
-}
-
 static const Description kPageDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
 static const Description kPageUp =
@@ -217,62 +203,31 @@ futures::Value<UndoCallback> ExecuteTransformation(
         });
       });
 }
-}  // namespace
-// TODO(2026-05-14, P2): Make this a method of Repetitions?
-namespace commands {
-transformation::Stack ApplyRepetitions(
-    const commands::Repetitions& repetitions,
-    std::optional<Structure> structure,
-    language::NonNull<std::shared_ptr<CompositeTransformation>>
-        inner_transformation) {
-  transformation::Stack output;
-  std::ranges::copy(
-      repetitions.get_list() |
-          std::views::transform([&](int repetitions_value) {
-            return transformation::ModifiersAndComposite{
-                .modifiers = GetModifiers(structure, repetitions_value,
-                                          Direction::Forwards),
-                .transformation = inner_transformation};
-          }),
-      std::back_inserter(output));
-  return output;
-}
-}  // namespace commands
-
-namespace {
-bool apply_repetitions_test = tests::Register(
-    L"operation::ApplyRepetitions",
-    std::vector<tests::Test>(
-        {{.name = L"Empty",
-          .callback =
-              [] {
-                NonNull<std::shared_ptr<OperationScope>> operation_scope;
-                LOG(INFO) << ToString(commands::ApplyRepetitions(
-                    commands::Repetitions(1), Structure::Line,
-                    NewMoveTransformation(operation_scope)));
-              }},
-         {.name = L"LongRepetitionsList", .callback = [] {
-            NonNull<std::shared_ptr<OperationScope>> operation_scope;
-            commands::Repetitions repetitions(1);
-            repetitions.sum(1);
-            repetitions.sum(-1);
-            repetitions.sum(1);
-            repetitions.sum(-1);
-            LOG(INFO) << ToString(commands::ApplyRepetitions(
-                repetitions, Structure::Line,
-                NewMoveTransformation(operation_scope)));
-          }}}));
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReach reach) {
-  return commands::ApplyRepetitions(reach.repetitions, reach.structure,
-                                    NewMoveTransformation(operation_scope));
+  return reach.repetitions.Apply(reach.structure,
+                                 NewMoveTransformation(operation_scope));
 }
 
 transformation::ModifiersAndComposite GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachBegin reach_begin) {
+  // TODO(2026-05-14, P2): Why does reach_begin have its own direction (rather
+  // than use from `repetitions`)? Maybe fix that and then delete this copy of
+  // Repetitions' module's `GetModifiers`?
+  auto GetModifiers = [](std::optional<Structure> structure,
+                         const commands::Repetitions& repetitions,
+                         Direction direction) {
+    int repetitions_int = repetitions.get();
+    return Modifiers{.structure = structure.value_or(Structure::Char),
+                     .direction = repetitions_int < 0
+                                      ? ReverseDirection(direction)
+                                      : direction,
+                     .repetitions = abs(repetitions_int)};
+  };
+
   return transformation::ModifiersAndComposite{
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
                                 reach_begin.direction),
@@ -282,8 +237,8 @@ transformation::ModifiersAndComposite GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachPage reach_page) {
-  return commands::ApplyRepetitions(reach_page.repetitions, Structure::Page,
-                                    NewMoveTransformation(operation_scope));
+  return reach_page.repetitions.Apply(Structure::Page,
+                                      NewMoveTransformation(operation_scope));
 }
 
 transformation::Stack GetTransformation(
@@ -298,8 +253,8 @@ transformation::Stack GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandPaste paste) {
-  return commands::ApplyRepetitions(
-      paste.repetitions, std::nullopt,
+  return paste.repetitions.Apply(
+      std::nullopt,
       MakeNonNullShared<transformation::Paste>(
           transformation::Paste{FindFragmentQuery{
               .filter = paste.query_input.value_or(SingleLine{})}}));

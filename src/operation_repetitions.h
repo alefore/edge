@@ -3,6 +3,9 @@
 #include <list>
 
 #include "src/language/lazy_string/single_line.h"
+#include "src/language/safe_types.h"
+#include "src/structure.h"
+#include "src/transformation_composite.h"
 
 namespace afc::editor::operation::commands {
 class Repetitions {
@@ -28,6 +31,11 @@ class Repetitions {
 
   bool empty() const;
   bool PopValue();
+
+  transformation::Stack Apply(
+      std::optional<Structure> structure,
+      language::NonNull<std::shared_ptr<CompositeTransformation>>
+          inner_transformation) const;
 
  private:
   static int Flatten(const Entry& entry);

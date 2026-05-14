@@ -147,6 +147,8 @@ cc_binary(
         "operation_find_local.h",
         "operation_move_line.cc",
         "operation_move_line.h",
+        "operation_repetitions.cc",
+        "operation_repetitions.h",
         "operation_scope.cc",
         "operation_scope.h",
         "operation_scope_buffer_information.h",
@@ -780,19 +782,6 @@ cc_library(
     deps = [
         ":line_marks",
         "//src/language/text:line_column",
-    ],
-)
-
-cc_library(
-    name = "operation_repetitions",
-    srcs = ["operation_repetitions.cc"],
-    hdrs = ["operation_repetitions.h"],
-    deps = [
-        "//src/language:container",
-        "//src/language/lazy_string",
-        "//src/language/lazy_string:append",
-        "//src/language/lazy_string:single_line",
-        "//src/language/lazy_string:trim",
     ],
 )
 

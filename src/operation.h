@@ -94,12 +94,6 @@ language::lazy_string::NonEmptySingleLine StructureToString(
     std::optional<Structure> structure);
 
 void CheckRepetitionsChar(KeyCommandsMap& cmap, commands::Repetitions* output);
-
-transformation::Stack ApplyRepetitions(
-    const commands::Repetitions& repetitions,
-    std::optional<Structure> structure,
-    language::NonNull<std::shared_ptr<CompositeTransformation>>
-        inner_transformation);
 }  // namespace commands
 }  // namespace operation
 }  // namespace afc::editor
