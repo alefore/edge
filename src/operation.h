@@ -88,11 +88,6 @@ struct CommandReachQuery {
   language::lazy_string::SingleLine query;
 };
 
-struct CommandReachBisect {
-  std::optional<Structure> structure = std::nullopt;
-  std::vector<Direction> directions;
-};
-
 struct CommandSetShell {
   language::lazy_string::SingleLine input;
 };
@@ -115,14 +110,22 @@ class MoveOperationCommand {
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
     std::variant<CommandReach, CommandReachBegin, CommandReachLine,
-                 CommandReachPage, CommandReachQuery, CommandReachBisect,
-                 CommandSetShell, CommandPaste,
+                 CommandReachPage, CommandReachQuery, CommandSetShell,
+                 CommandPaste,
                  language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, language::lazy_string::LazyString description,
     TopCommand top_command, EditorState& editor_state, Command command);
 
+namespace commands {
+// TODO(easy, 2026-05-14): Change this to return a Line instead.
+void SerializeCall(language::lazy_string::NonEmptySingleLine name,
+                   std::vector<language::lazy_string::SingleLine> arguments,
+                   language::text::LineBuilder& output);
+language::lazy_string::NonEmptySingleLine StructureToString(
+    std::optional<Structure> structure);
+}  // namespace commands
 }  // namespace operation
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_OPERATION_H__

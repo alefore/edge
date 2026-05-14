@@ -298,6 +298,8 @@ src/open_files.cc \
 src/open_files.h \
 src/operation.cc \
 src/operation.h \
+src/operation_bisect.cc \
+src/operation_bisect.h \
 src/operation_scope.cc \
 src/operation_scope.h \
 src/operation_scope_buffer_information.h \

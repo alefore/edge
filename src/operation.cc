@@ -18,6 +18,7 @@
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/operation_bisect.h"
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
@@ -65,9 +66,7 @@ using afc::language::text::MutableLineSequence;
 
 namespace afc::editor::operation {
 using ::operator<<;
-namespace {
-using UndoCallback = std::function<futures::Value<EmptyValue>()>;
-
+namespace commands {
 void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
                    LineBuilder& output) {
   output.AppendString(name.read(),
@@ -91,9 +90,13 @@ void SerializeCall(NonEmptySingleLine name, std::vector<SingleLine> arguments,
 }
 
 NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
-  if (structure.has_value()) return ToNonEmptySingleLine(*structure);
-  return NON_EMPTY_SINGLE_LINE_CONSTANT(L"?");
+  return structure
+      .transform([](Structure s) { return ToNonEmptySingleLine(s); })
+      .value_or(NON_EMPTY_SINGLE_LINE_CONSTANT(L"?"));
 }
+}  // namespace commands
+namespace {
+using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
                        Direction direction) {
@@ -137,81 +140,58 @@ static const Description kDescriptionPaste =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📎")};
 
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
-  SerializeCall(
-      NON_EMPTY_SINGLE_LINE_CONSTANT(L"🦀"),
-      {StructureToString(reach.structure).read(), reach.repetitions.ToString()},
-      output);
+  commands::SerializeCall(NON_EMPTY_SINGLE_LINE_CONSTANT(L"🦀"),
+                          {commands::StructureToString(reach.structure).read(),
+                           reach.repetitions.ToString()},
+                          output);
 }
 
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
-  SerializeCall(
+  commands::SerializeCall(
       (reach.direction == Direction::Backwards
            ? (reach.structure == Structure::Line ? kHomeUp : kHomeRight)
            : (reach.structure == Structure::Line ? kHomeDown : kHomeLeft))
           .read(),
-      {StructureToString(reach.structure).read(), reach.repetitions.ToString()},
+      {commands::StructureToString(reach.structure).read(),
+       reach.repetitions.ToString()},
       output);
 }
 
 void AppendStatus(const CommandReachLine& reach_line, LineBuilder& output) {
-  SerializeCall(
+  commands::SerializeCall(
       reach_line.repetitions.get() >= 0 ? kMoveDown.read() : kMoveUp.read(),
       {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
-  SerializeCall(
+  commands::SerializeCall(
       reach_line.repetitions.get() >= 0 ? kPageDown.read() : kPageUp.read(),
       {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
-  SerializeCall(kReachQuery.read(),
-                {c.query + SingleLine::Padding<L'_'>(
-                               ColumnNumberDelta(3) -
-                               std::min(ColumnNumberDelta(3), c.query.size()))},
-                output);
-}
-
-void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
-  NonEmptySingleLine backwards = c.structure == Structure::Line
-                                     ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")
-                                     : NON_EMPTY_SINGLE_LINE_CONSTANT(L"👈");
-  NonEmptySingleLine forwards = c.structure == Structure::Line
-                                    ? NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")
-                                    : NON_EMPTY_SINGLE_LINE_CONSTANT(L"👉");
-  SerializeCall(
-      NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓"),
-      std::vector<SingleLine>{
-          StructureToString(c.structure).read(),
-          Concatenate(c.directions |
-                      std::views::transform(
-                          [&](const Direction& direction) -> SingleLine {
-                            switch (direction) {
-                              case Direction::Forwards:
-                                return forwards.read();
-                              case Direction::Backwards:
-                                return backwards.read();
-                            }
-                            LOG(FATAL) << "Invalid direction.";
-                            return SINGLE_LINE_CONSTANT(L" ");
-                          }))},
+  commands::SerializeCall(
+      kReachQuery.read(),
+      {c.query + SingleLine::Padding<L'_'>(
+                     ColumnNumberDelta(3) -
+                     std::min(ColumnNumberDelta(3), c.query.size()))},
       output);
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
-  SerializeCall(kDescriptionShell.read(), {c.input}, output);
+  commands::SerializeCall(kDescriptionShell.read(), {c.input}, output);
 }
 
 void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
-  SerializeCall(kDescriptionPaste.read(),
-                std::vector<SingleLine>{paste.repetitions.ToString(),
-                                        paste.query_input.has_value()
-                                            ? SINGLE_LINE_CONSTANT(L"\"") +
-                                                  paste.query_input.value() +
-                                                  SINGLE_LINE_CONSTANT(L"\"")
-                                            : SingleLine{}},
-                output);
+  commands::SerializeCall(
+      kDescriptionPaste.read(),
+      std::vector<SingleLine>{paste.repetitions.ToString(),
+                              paste.query_input.has_value()
+                                  ? SINGLE_LINE_CONSTANT(L"\"") +
+                                        paste.query_input.value() +
+                                        SINGLE_LINE_CONSTANT(L"\"")
+                                  : SingleLine{}},
+      output);
 }
 
 void AppendStatus(const NonNull<std::shared_ptr<MoveOperationCommand>>& op,
@@ -340,16 +320,6 @@ transformation::Stack GetTransformation(
   transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
           std::move(reach_query.query)));
-  return transformation;
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
-    CommandReachBisect bisect) {
-  transformation::Stack transformation;
-  transformation.push_back(MakeNonNullUnique<transformation::Bisect>(
-      bisect.structure.value_or(Structure::Char),
-      std::move(bisect.directions)));
   return transformation;
 }
 
@@ -579,7 +549,8 @@ void CheckStructureChar(KeyCommandsMap& cmap,
   for (const std::pair<const wchar_t, Structure>& entry :
        structure_bindings()) {
     VLOG(9) << "Add key: " << entry.second;
-    NonEmptySingleLine structure_name = StructureToString(entry.second);
+    NonEmptySingleLine structure_name =
+        commands::StructureToString(entry.second);
     cmap.Insert(entry.first,
                 {.category = KeyCommandsMap::Category::Structure,
                  .description = Description{structure_name},
@@ -637,51 +608,46 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
          .handler = [output, i](ExtendedChar) { output->factor(i); }});
 }
 
-static const Description kBisectLeft{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👈")};
-static const Description kBisectRight{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👉")};
-static const Description kBisectUp{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👆")};
-static const Description kBisectDown{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🪓👇")};
-
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
   if (output->structure.value_or(Structure::Char) == Structure::Char &&
       !output->repetitions.empty()) {
     cmap.Insert(L'H', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = kBisectLeft,
+                       .description = commands::BisectLeftDescription(),
                        .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](ExtendedChar) {
-                             state->Push(CommandReachBisect{
+                             state->Push(Bisect(commands::BisectOptions{
                                  .structure = Structure::Char,
-                                 .directions = {Direction::Backwards}});
+                                 .directions = {Direction::Backwards}}));
                            }})
         .Insert(L'L', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = kBisectRight,
+                       .description = commands::BisectRightDescription(),
                        .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](ExtendedChar) {
-                         state->Push(CommandReachBisect{
+                         state->Push(Bisect(commands::BisectOptions{
                              .structure = Structure::Char,
-                             .directions = {Direction::Forwards}});
+                             .directions = {Direction::Forwards}}));
                        }});
   }
 
   if (output->structure == Structure::Line && !output->repetitions.empty()) {
     cmap.Insert(L'K', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = kBisectUp,
+                       .description = commands::BisectUpDescription(),
                        .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](ExtendedChar) {
-                             state->Push(CommandReachBisect{
+                             state->Push(Bisect(commands::BisectOptions{
                                  .structure = Structure::Line,
-                                 .directions = {Direction::Backwards}});
+                                 .directions = {Direction::Backwards}}));
                            }})
         .Insert(L'J', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = kBisectDown,
+                       .description = commands::BisectDownDescription(),
                        .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](ExtendedChar) {
-                         state->Push(CommandReachBisect{
+                         state->Push(Bisect(commands::BisectOptions{
                              .structure = Structure::Line,
-                             .directions = {Direction::Forwards}});
+                             .directions = {Direction::Forwards}}));
                        }});
   }
 
@@ -740,9 +706,9 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                                output->repetitions.get_list().back() < 0,
                      .handler =
                          [state](ExtendedChar) {
-                           state->Push(CommandReachBisect{
+                           state->Push(Bisect(commands::BisectOptions{
                                .structure = Structure::Line,
-                               .directions = {Direction::Backwards}});
+                               .directions = {Direction::Backwards}}));
                          }})
       .Insert(L'J', {.category = KeyCommandsMap::Category::NewCommand,
                      .description =
@@ -750,9 +716,9 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() > 0,
                      .handler = [state](ExtendedChar) {
-                       state->Push(CommandReachBisect{
+                       state->Push(Bisect(commands::BisectOptions{
                            .structure = Structure::Line,
-                           .directions = {Direction::Forwards}});
+                           .directions = {Direction::Forwards}}));
                      }});
 
   CheckRepetitionsChar(cmap, &output->repetitions);
@@ -814,45 +780,6 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
          output->query = output->query.Substring(
              ColumnNumber{}, output->query.size() - ColumnNumberDelta{1});
        }});
-}
-
-void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
-                       State*) {
-  cmap.Insert(
-      ControlChar::Backspace,
-      {.category = KeyCommandsMap::Category::StringControl,
-       .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Pop")},
-       .active = !output->directions.empty(),
-       .handler = [output](ExtendedChar) {
-         return output->directions.pop_back();
-       }});
-
-  if (output->structure.value_or(Structure::Char) == Structure::Char) {
-    cmap.Insert(L'h', {.category = KeyCommandsMap::Category::Direction,
-                       .description = kBisectLeft,
-                       .handler =
-                           [output](ExtendedChar) {
-                             output->directions.push_back(Direction::Backwards);
-                           }})
-        .Insert(L'l', {.category = KeyCommandsMap::Category::Direction,
-                       .description = kBisectRight,
-                       .handler = [output](ExtendedChar) {
-                         output->directions.push_back(Direction::Forwards);
-                       }});
-  }
-  if (output->structure == Structure::Line) {
-    cmap.Insert(L'k', {.category = KeyCommandsMap::Category::Direction,
-                       .description = kBisectDown,
-                       .handler =
-                           [output](ExtendedChar) {
-                             output->directions.push_back(Direction::Backwards);
-                           }})
-        .Insert(L'j', {.category = KeyCommandsMap::Category::Direction,
-                       .description = kBisectUp,
-                       .handler = [output](ExtendedChar) {
-                         output->directions.push_back(Direction::Forwards);
-                       }});
-  }
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
@@ -1006,7 +933,8 @@ class OperationMode : public SimpleInputReceiver {
       structure_keys.Insert(
           entry.first,
           {.category = KeyCommandsMap::Category::Structure,
-           .description = Description{StructureToString(entry.second)},
+           .description =
+               Description{commands::StructureToString(entry.second)},
            .handler = [this, structure = entry.second](ExtendedChar) {
              int last_repetitions = 0;
              if (!state_.empty()) {
