@@ -100,6 +100,7 @@ struct CommandPaste {
 
 class MoveOperationCommand {
  public:
+  virtual ~MoveOperationCommand() = default;
   virtual void AppendStatus(language::text::LineBuilder&) const = 0;
   virtual transformation::Stack GetTransformation(
       const language::NonNull<std::shared_ptr<OperationScope>>& scope,
