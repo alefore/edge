@@ -407,7 +407,7 @@ class State {
     TRACK_OPERATION(Operation_State_Commit);
     // We make a copy because Update may delete us.
     EditorState& editor_state = editor_state_;
-    Update(ApplicationType::kCommit);
+    Update(ApplicationType::Commit);
     editor_state.set_keyboard_redirect(std::nullopt);
   }
 
