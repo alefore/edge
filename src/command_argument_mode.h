@@ -164,8 +164,8 @@ void SetOptionsForBufferTransformation(
          argument = std::move(argument)](const gc::Root<OpenBuffer>& buffer) {
           auto cursors_affected = cursors_affected_factory(argument).value_or(
               buffer.ptr()->Read(buffer_variables::multiple_cursors)
-                  ? Modifiers::CursorsAffected::kAll
-                  : Modifiers::CursorsAffected::kOnlyCurrent);
+                  ? Modifiers::CursorsAffected::All
+                  : Modifiers::CursorsAffected::OnlyCurrent);
           return buffer.ptr()
               ->ApplyToCursors(transformation_factory(std::move(argument)),
                                cursors_affected,

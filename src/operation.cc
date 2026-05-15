@@ -118,8 +118,8 @@ futures::Value<UndoCallback> ExecuteTransformation(
         return buffer.ApplyToCursors(
             transformation,
             buffer.Read(buffer_variables::multiple_cursors)
-                ? Modifiers::CursorsAffected::kAll
-                : Modifiers::CursorsAffected::kOnlyCurrent,
+                ? Modifiers::CursorsAffected::All
+                : Modifiers::CursorsAffected::OnlyCurrent,
             application_type == ApplicationType::Preview
                 ? transformation::Input::Mode::Preview
                 : transformation::Input::Mode::Final);

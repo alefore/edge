@@ -118,14 +118,14 @@ struct Modifiers {
 
   enum class CursorsAffected {
     // The transformation only affects the current cursor.
-    kOnlyCurrent,
+    OnlyCurrent,
 
     // The transformation affects all cursors.
-    kAll,
+    All,
   };
 
   static constexpr CursorsAffected kDefaultCursorsAffected =
-      CursorsAffected::kOnlyCurrent;
+      CursorsAffected::OnlyCurrent;
   std::optional<CursorsAffected> cursors_affected = std::nullopt;
 };
 
