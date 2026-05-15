@@ -40,6 +40,7 @@
 #include "src/open_directory_command.h"
 #include "src/open_file_command.h"
 #include "src/operation.h"
+#include "src/operation_boundary.h"
 #include "src/operation_find_local.h"
 #include "src/operation_move.h"
 #include "src/operation_move_line.h"
@@ -688,9 +689,9 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
             L"home", LazyString{L"moves to the beginning of the current line"},
             operation::TopCommand(), editor_state,
             [] {
-              return operation::CommandReachBegin{
-                  .structure = Structure::Char,
-                  .repetitions = operation::commands::Repetitions(1)};
+              return operation::commands::Boundary(
+                  operation::commands::BoundaryOptions{
+                      .structure = Structure::Char, .repetitions = 1});
             })
             .ptr());
 
@@ -700,10 +701,11 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                  L"end", LazyString{L"moves to the end of the current line"},
                  operation::TopCommand(), editor_state,
                  [] {
-                   return operation::CommandReachBegin{
-                       .structure = Structure::Char,
-                       .repetitions = operation::commands::Repetitions(1),
-                       .direction = Direction::Backwards};
+                   return operation::commands::Boundary(
+                       operation::commands::BoundaryOptions{
+                           .structure = Structure::Char,
+                           .repetitions = 1,
+                           .direction = Direction::Backwards});
                  })
                  .ptr());
   commands.Add({L'K'},
@@ -712,23 +714,23 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    LazyString{L"moves to the beginning of the current file"},
                    operation::TopCommand(), editor_state,
                    [] {
-                     return operation::CommandReachBegin{
-                         .structure = Structure::Line,
-                         .repetitions = operation::commands::Repetitions(1)};
+                     return operation::commands::Boundary(
+                         operation::commands::BoundaryOptions{
+                             .structure = Structure::Line, .repetitions = 1});
                    })
                    .ptr());
-  commands.Add(
-      {L'J'},
-      operation::NewTopLevelCommand(
-          L"file-end", LazyString{L"moves to the end of the current file"},
-          operation::TopCommand(), editor_state,
-          [] {
-            return operation::CommandReachBegin{
-                .structure = Structure::Line,
-                .repetitions = operation::commands::Repetitions(1),
-                .direction = Direction::Backwards};
-          })
-          .ptr());
+  commands.Add({L'J'}, operation::NewTopLevelCommand(
+                           L"file-end",
+                           LazyString{L"moves to the end of the current file"},
+                           operation::TopCommand(), editor_state,
+                           [] {
+                             return operation::commands::Boundary(
+                                 operation::commands::BoundaryOptions{
+                                     .structure = Structure::Line,
+                                     .repetitions = 1,
+                                     .direction = Direction::Backwards});
+                           })
+                           .ptr());
   commands.Add({L'~'},
                operation::NewTopLevelCommand(
                    L"switch-case",

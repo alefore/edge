@@ -30,7 +30,7 @@ class Impl : public MoveOperationCommand {
     return output;
   }
 
-  transformation::Stack GetTransformation(
+  transformation::Variant GetTransformation(
       const NonNull<std::shared_ptr<OperationScope>>&,
       transformation::Stack& stack) const override {
     stack.post_transformation_behavior =

@@ -19,6 +19,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/operation_bisect.h"
+#include "src/operation_boundary.h"
 #include "src/operation_find_local.h"
 #include "src/operation_move.h"
 #include "src/operation_move_line.h"
@@ -105,27 +106,8 @@ static const Description kPageDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
 static const Description kPageUp =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👆")};
-static const Description kHomeLeft =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👈")};
-static const Description kHomeRight =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👉")};
-static const Description kHomeUp =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👆")};
-static const Description kHomeDown =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👇")};
 static const Description kDescriptionPaste =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📎")};
-
-void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
-  commands::SerializeCall(
-      (reach.direction == Direction::Backwards
-           ? (reach.structure == Structure::Line ? kHomeUp : kHomeRight)
-           : (reach.structure == Structure::Line ? kHomeDown : kHomeLeft))
-          .read(),
-      {commands::StructureToString(reach.structure.value()).read(),
-       reach.repetitions.ToString()},
-      output);
-}
 
 void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
   commands::SerializeCall(
@@ -184,29 +166,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
-transformation::ModifiersAndComposite GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
-    CommandReachBegin reach_begin) {
-  // TODO(2026-05-14, P2): Why does reach_begin have its own direction (rather
-  // than use from `repetitions`)? Maybe fix that and then delete this copy of
-  // Repetitions' module's `GetModifiers`?
-  auto GetModifiers = [](Structure structure,
-                         const commands::Repetitions& repetitions,
-                         Direction direction) {
-    int repetitions_int = repetitions.get();
-    return Modifiers{.structure = structure,
-                     .direction = repetitions_int < 0
-                                      ? ReverseDirection(direction)
-                                      : direction,
-                     .repetitions = abs(repetitions_int)};
-  };
-
-  return transformation::ModifiersAndComposite{
-      .modifiers = GetModifiers(reach_begin.structure.value(),
-                                reach_begin.repetitions, reach_begin.direction),
-      .transformation = MakeNonNullUnique<GotoTransformation>(0)};
-}
-
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandPaste paste) {
@@ -217,7 +176,7 @@ transformation::Stack GetTransformation(
               .filter = paste.query_input.value_or(SingleLine{})}}));
 }
 
-transformation::Stack GetTransformation(
+transformation::Variant GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& scope,
     transformation::Stack& stack,
     NonNull<std::shared_ptr<MoveOperationCommand>>& op) {
@@ -397,8 +356,7 @@ class State {
 std::optional<commands::Repetitions*> GetRepetitions(Command& command) {
   using Ret = std::optional<commands::Repetitions*>;
   return std::visit(
-      overload{[](CommandReachBegin& c) -> Ret { return &c.repetitions; },
-               [](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
+      overload{[](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
                  commands::Repetitions* output = c->repetitions();
                  return output ? Ret(output) : Ret();
                },
@@ -445,43 +403,6 @@ void AddSetStructureChar(KeyCommandsMap& cmap,
 }
 }  // namespace commands
 namespace {
-KeyCommandsMap GetKeyCommandsMap(CommandReachBegin* output, State*) {
-  KeyCommandsMap cmap;
-  if (output->structure == Structure::Line) {
-    auto handler = [&](Description description) {
-      return KeyCommandsMap::KeyCommand{
-          .category = KeyCommandsMap::Category::Repetitions,
-          .description = description,
-          .handler = [output](ExtendedChar t) {
-            int delta = (t == ExtendedChar(L'j') ||
-                         t == ExtendedChar(ControlChar::DownArrow))
-                            ? 1
-                            : -1;
-            if (output->direction == Direction::Backwards) {
-              delta *= -1;
-            }
-            output->repetitions.sum(delta);
-          }};
-    };
-    cmap.Insert({L'j', ControlChar::DownArrow},
-                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
-        .Insert({L'k', ControlChar::UpArrow},
-                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}));
-  }
-
-  AddSetStructureChar(cmap, output->structure, output->repetitions);
-  output->repetitions.LeftRightKeyCommandsMap(cmap);
-  output->repetitions.ExtendKeyCommandsMap(cmap);
-
-  if (output->structure == Structure::Char ||
-      output->structure == Structure::Line) {
-    // Don't let CheckRepetitionsChar below handle these; we'd rather preserve
-    // the usual meaning (of scrolling by a character).
-    cmap.Erase(L'h').Erase(L'l');
-  }
-  return cmap;
-}
-
 KeyCommandsMap GetKeyCommandsMap(CommandPaste* output, State*) {
   KeyCommandsMap cmap;
   if (output->query_input.has_value()) {
@@ -846,19 +767,20 @@ class OperationMode : public SimpleInputReceiver {
         .Insert(L'k', MoveHandler('k'))
         .Insert(ControlChar::DownArrow, MoveHandler(ControlChar::DownArrow))
         .Insert(ControlChar::UpArrow, MoveHandler(ControlChar::UpArrow))
-        .Insert(L'H', push(kHomeLeft, CommandReachBegin{}))
-        .Insert(ControlChar::Home, push(kHomeLeft, CommandReachBegin{}))
-        .Insert(L'L',
-                push(kHomeRight,
-                     CommandReachBegin{.direction = Direction::Backwards}))
-        .Insert(ControlChar::End,
-                push(kHomeRight,
-                     CommandReachBegin{.direction = Direction::Backwards}))
-        .Insert(L'K',
-                push(kHomeUp, CommandReachBegin{.structure = Structure::Line}))
-        .Insert(L'J', push(kHomeDown, CommandReachBegin{
-                                          .structure = Structure::Line,
-                                          .direction = Direction::Backwards}));
+        .Insert({L'H', ControlChar::Home},
+                push(commands::HomeLeftDescription(),
+                     commands::Boundary(commands::BoundaryOptions{})))
+        .Insert({L'L', ControlChar::End},
+                push(commands::HomeRightDescription(),
+                     commands::Boundary(commands::BoundaryOptions{
+                         .direction = Direction::Backwards})))
+        .Insert(L'K', push(commands::HomeUpDescription(),
+                           commands::Boundary(commands::BoundaryOptions{
+                               .structure = Structure::Line})))
+        .Insert(L'J', push(commands::HomeDownDescription(),
+                           commands::Boundary(commands::BoundaryOptions{
+                               .structure = Structure::Line,
+                               .direction = Direction::Backwards})));
     return cmap;
   }
 
@@ -915,8 +837,7 @@ class OperationMode : public SimpleInputReceiver {
                                .attributes = StyleAttribute::Bold}});
         return;
     }
-    LOG(FATAL) << "Invalid post transformation "
-                  "behavior.";
+    LOG(FATAL) << "Invalid post transformation behavior.";
   }
 
   EditorState& editor_state_;

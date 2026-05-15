@@ -33,7 +33,7 @@ class Impl : public MoveOperationCommand {
     return output;
   }
 
-  transformation::Stack GetTransformation(
+  transformation::Variant GetTransformation(
       const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
       transformation::Stack&) const override {
     return repetitions_.Apply(structure_.value(),

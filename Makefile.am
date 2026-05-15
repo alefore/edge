@@ -302,6 +302,8 @@ src/operation_bisect.cc \
 src/operation_bisect.h \
 src/operation_find_local.cc \
 src/operation_find_local.h \
+src/operation_boundary.cc \
+src/operation_boundary.h \
 src/operation_move.cc \
 src/operation_move.h \
 src/operation_move_line.cc \

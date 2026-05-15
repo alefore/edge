@@ -45,12 +45,6 @@ class ValueWithDefault {
   bool operator==(const Value& v) const { return value() == v; }
 };
 
-struct CommandReachBegin {
-  ValueWithDefault<Structure> structure = ValueWithDefault(Structure::Char);
-  commands::Repetitions repetitions = {1};
-  Direction direction = Direction::Forwards;
-};
-
 struct CommandPaste {
   commands::Repetitions repetitions = {1};
   std::vector<language::lazy_string::LazyString> queries;
@@ -61,7 +55,7 @@ class MoveOperationCommand {
  public:
   virtual ~MoveOperationCommand() = default;
   virtual language::text::LineBuilder status() const = 0;
-  virtual transformation::Stack GetTransformation(
+  virtual transformation::Variant GetTransformation(
       const language::NonNull<std::shared_ptr<OperationScope>>& scope,
       transformation::Stack& stack) const = 0;
 
@@ -75,7 +69,7 @@ class MoveOperationCommand {
 
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
-    std::variant<CommandReachBegin, CommandPaste,
+    std::variant<CommandPaste,
                  language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
