@@ -463,13 +463,9 @@ KeyCommandsMap GetKeyCommandsMap(CommandReachBegin* output, State*) {
             output->repetitions.sum(delta);
           }};
     };
-    cmap.Insert(L'j',
+    cmap.Insert({L'j', ControlChar::DownArrow},
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
-        .Insert(ControlChar::DownArrow,
-                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👇")}))
-        .Insert(L'k',
-                handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}))
-        .Insert(ControlChar::UpArrow,
+        .Insert({L'k', ControlChar::UpArrow},
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}));
   }
 
