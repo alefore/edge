@@ -6,7 +6,7 @@
 namespace afc::language::lazy_string {
 /* static */ language::PossibleError SingleLineValidator::Validate(
     const LazyString& input) {
-  if (FindFirstOf(input, {L'\n'}).has_value())
+  if (!input.Every([](wchar_t c) { return c != L'\n'; }))
     return Error{LazyString{L"SingleLine contained newline character."}};
   return EmptyValue{};
 }
