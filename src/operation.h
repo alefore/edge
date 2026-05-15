@@ -61,9 +61,7 @@ class MoveOperationCommand {
   virtual commands::Repetitions* repetitions() = 0;
 };
 
-// TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
-using Command =
-    std::variant<language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
+using Command = language::NonNull<std::shared_ptr<MoveOperationCommand>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, language::lazy_string::LazyString description,

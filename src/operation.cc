@@ -102,11 +102,6 @@ NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-void AppendStatus(const NonNull<std::shared_ptr<MoveOperationCommand>>& op,
-                  LineBuilder& output) {
-  return output.Append(op->status());
-}
-
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
@@ -147,13 +142,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
-transformation::Variant GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>& scope,
-    transformation::Stack& stack,
-    NonNull<std::shared_ptr<MoveOperationCommand>>& op) {
-  return op->GetTransformation(scope, stack);
-}
-
 class State {
  public:
   State(EditorState& editor_state, TopCommand top_command)
@@ -179,7 +167,7 @@ class State {
   void AppendStatusString(LineBuilder& output) const {
     for (const auto& op : commands_) {
       output.AppendString(SingleLine::Char<L' '>(), std::nullopt);
-      std::visit([&output](auto& t) { AppendStatus(t, output); }, op);
+      output.Append(op->status());
     }
   }
 
@@ -269,12 +257,7 @@ class State {
     std::optional<transformation::Variant> separator;
     for (auto& command : commands_) {
       if (separator.has_value()) stack.push_back(separator.value());
-      stack.push_back(std::visit(
-          [&](auto t) -> transformation::Variant {
-            TRACK_OPERATION(State_PrepareStack_GetTransformation);
-            return GetTransformation(operation_scope_, stack, t);
-          },
-          command));
+      stack.push_back(command->GetTransformation(operation_scope_, stack));
       separator = transformation::VisualOverlay{.visual_overlay_map =
                                                     VisualOverlayMap()};
     }
@@ -324,17 +307,6 @@ class State {
       MakeNonNullShared<std::optional<gc::Root<OpenBuffer>>>();
 };
 
-std::optional<commands::Repetitions*> GetRepetitions(Command& command) {
-  using Ret = std::optional<commands::Repetitions*>;
-  return std::visit(
-      overload{[](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
-                 commands::Repetitions* output = c->repetitions();
-                 return output ? Ret(output) : Ret();
-               },
-               [](auto) -> Ret { return std::nullopt; }},
-      command);
-}
-
 const std::unordered_map<wchar_t, Structure>& structure_bindings() {
   static const std::unordered_map<wchar_t, Structure> output = {
       {L'z', Structure::Char},      {L'x', Structure::Word},
@@ -375,13 +347,6 @@ void AddSetStructureChar(KeyCommandsMap& cmap,
 }
 }  // namespace commands
 namespace {
-KeyCommandsMap GetKeyCommandsMap(
-    NonNull<std::shared_ptr<MoveOperationCommand>>* output, State* state) {
-  return (*output)->key_commands_map(
-      [state](NonNull<std::shared_ptr<MoveOperationCommand>> command) {
-        state->Push(std::move(command));
-      });
-}
 
 class OperationMode : public SimpleInputReceiver {
  public:
@@ -425,17 +390,19 @@ class OperationMode : public SimpleInputReceiver {
     KeyCommandsMapSequence cmap;
 
     if (!state_.empty()) {
-      std::visit(
-          [&](auto& t) {
-            cmap.PushBack(
-                std::move(GetKeyCommandsMap(&t, &state_).OnHandle([this] {
-                  if (state_.empty())
-                    PushCommand(commands::Move(Structure::Char, 1));
-                  state_.Update();
-                  ShowStatus();
-                })));
-          },
-          state_.GetLastCommand());
+      cmap.PushBack(std::move(
+          state_.GetLastCommand()
+              ->key_commands_map(
+                  [&state = state_](
+                      NonNull<std::shared_ptr<MoveOperationCommand>> command) {
+                    state.Push(std::move(command));
+                  })
+              .OnHandle([this] {
+                if (state_.empty())
+                  PushCommand(commands::Move(Structure::Char, 1));
+                state_.Update();
+                ShowStatus();
+              })));
     }
 
     cmap.PushNew()
@@ -465,7 +432,7 @@ class OperationMode : public SimpleInputReceiver {
              int last_repetitions = 0;
              if (!state_.empty()) {
                if (const std::optional<commands::Repetitions*> repetitions =
-                       GetRepetitions(state_.GetLastCommand());
+                       state_.GetLastCommand()->repetitions();
                    repetitions.has_value() && !(*repetitions)->empty()) {
                  last_repetitions = (*repetitions)->get_list().back();
                }
