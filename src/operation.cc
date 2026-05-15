@@ -122,7 +122,7 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
            ? (reach.structure == Structure::Line ? kHomeUp : kHomeRight)
            : (reach.structure == Structure::Line ? kHomeDown : kHomeLeft))
           .read(),
-      {commands::StructureToString(reach.structure).read(),
+      {commands::StructureToString(reach.structure.value()).read(),
        reach.repetitions.ToString()},
       output);
 }
@@ -190,11 +190,11 @@ transformation::ModifiersAndComposite GetTransformation(
   // TODO(2026-05-14, P2): Why does reach_begin have its own direction (rather
   // than use from `repetitions`)? Maybe fix that and then delete this copy of
   // Repetitions' module's `GetModifiers`?
-  auto GetModifiers = [](std::optional<Structure> structure,
+  auto GetModifiers = [](Structure structure,
                          const commands::Repetitions& repetitions,
                          Direction direction) {
     int repetitions_int = repetitions.get();
-    return Modifiers{.structure = structure.value_or(Structure::Char),
+    return Modifiers{.structure = structure,
                      .direction = repetitions_int < 0
                                       ? ReverseDirection(direction)
                                       : direction,
@@ -202,8 +202,8 @@ transformation::ModifiersAndComposite GetTransformation(
   };
 
   return transformation::ModifiersAndComposite{
-      .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
-                                reach_begin.direction),
+      .modifiers = GetModifiers(reach_begin.structure.value(),
+                                reach_begin.repetitions, reach_begin.direction),
       .transformation = MakeNonNullUnique<GotoTransformation>(0)};
 }
 
@@ -418,7 +418,8 @@ const std::unordered_map<wchar_t, Structure>& structure_bindings() {
 
 }  // namespace
 namespace commands {
-void AddSetStructureChar(KeyCommandsMap& cmap, Structure& structure,
+void AddSetStructureChar(KeyCommandsMap& cmap,
+                         ValueWithDefault<Structure>& structure,
                          Repetitions& repetitions) {
   // TODO(trivial, 2026-05-15): Use std::ranges::for_each.
   for (const std::pair<const wchar_t, Structure>& entry :
@@ -426,20 +427,20 @@ void AddSetStructureChar(KeyCommandsMap& cmap, Structure& structure,
     VLOG(9) << "Add key: " << entry.second;
     NonEmptySingleLine structure_name =
         commands::StructureToString(entry.second);
-    cmap.Insert(entry.first,
-                {.category = KeyCommandsMap::Category::Structure,
-                 .description = Description{structure_name},
-                 .handler = [&structure, &repetitions, &entry](ExtendedChar) {
-                   LOG(INFO) << "Running, storing: " << entry.second;
-                   if (structure == entry.second)
-                     repetitions.sum(1);
-                   else if (repetitions.IsClean() && repetitions.get() != 0) {
-                     structure = entry.second;
-                   } else {
-                     structure = entry.second;
-                     repetitions.sum(1);
-                   }
-                 }});
+    cmap.Insert(
+        entry.first,
+        {.category = KeyCommandsMap::Category::Structure,
+         .description = Description{structure_name},
+         .active = structure.value() == entry.second,
+         .handler = [&structure, &repetitions, &entry](ExtendedChar) {
+           LOG(INFO) << "Running, storing: " << entry.second;
+           if (!structure.IsExplicit()) {
+             if (structure.value() == entry.second || repetitions.get() == 0)
+               repetitions.sum(1);
+             structure.Set(entry.second);
+           } else
+             repetitions.sum(1);
+         }});
   };
 }
 }  // namespace commands

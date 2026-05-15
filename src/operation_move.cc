@@ -15,8 +15,9 @@ using namespace afc::infrastructure;
 namespace afc::editor::operation::commands {
 
 namespace {
+
 class Impl : public MoveOperationCommand {
-  Structure structure_;
+  ValueWithDefault<Structure> structure_;
   Repetitions repetitions_;
 
  public:
@@ -26,7 +27,7 @@ class Impl : public MoveOperationCommand {
   LineBuilder status() const override {
     LineBuilder output;
     SerializeCall(NON_EMPTY_SINGLE_LINE_CONSTANT(L"🦀"),
-                  {commands::StructureToString(structure_).read(),
+                  {commands::StructureToString(structure_.value()).read(),
                    repetitions_.ToString()},
                   output);
     return output;
@@ -35,7 +36,7 @@ class Impl : public MoveOperationCommand {
   transformation::Stack GetTransformation(
       const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
       transformation::Stack&) const override {
-    return repetitions_.Apply(structure_,
+    return repetitions_.Apply(structure_.value(),
                               NewMoveTransformation(operation_scope));
   }
 
@@ -61,7 +62,7 @@ class Impl : public MoveOperationCommand {
                          }});
     }
 
-    if (structure_ == Structure::Line && !repetitions_.empty()) {
+    if (structure_.value() == Structure::Line && !repetitions_.empty()) {
       cmap.Insert(L'K', {.category = KeyCommandsMap::Category::NewCommand,
                          .description = commands::BisectUpDescription(),
                          .active = repetitions_.get_list().back() < 0,

@@ -20,12 +20,9 @@ class Repetitions {
     int multiplicative_sign;
   };
   std::list<Entry> entries_;
-  bool clean_ = true;
 
  public:
   Repetitions(int repetitions);
-
-  bool IsClean() const;
 
   language::lazy_string::SingleLine ToString() const;
   // Returns the total sum of all entries.

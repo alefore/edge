@@ -29,8 +29,6 @@ Repetitions::Repetitions(int repetitions)
     : entries_({{.additive_default = repetitions,
                  .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
 
-bool Repetitions::IsClean() const { return clean_; }
-
 SingleLine Repetitions::ToString() const {
   return TrimLeft(
       Concatenate(get_list() | std::views::transform([](int r) -> SingleLine {
@@ -49,7 +47,6 @@ std::list<int> Repetitions::get_list() const {
 }
 
 void Repetitions::sum(int value) {
-  clean_ = false;
   if (entries_.empty() || (Flatten(entries_.back()) != 0 &&
                            Flatten(entries_.back()) >= 0) != (value >= 0)) {
     if (!entries_.empty()) {
@@ -70,7 +67,6 @@ void Repetitions::sum(int value) {
 }
 
 void Repetitions::factor(int value) {
-  clean_ = false;
   if (entries_.empty() || entries_.back().multiplicative == 0) {
     entries_.push_back(
         {.multiplicative_sign =
@@ -85,7 +81,6 @@ void Repetitions::factor(int value) {
 bool Repetitions::empty() const { return entries_.empty(); }
 
 bool Repetitions::PopValue() {
-  clean_ = false;
   if (entries_.empty()) return false;
   entries_.pop_back();
   return true;

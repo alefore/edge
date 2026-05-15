@@ -29,8 +29,24 @@ struct TopCommand {
   bool show_help = false;
 };
 
+// Wrapper around std::optional<Value> but allowing us to provide a default
+// value (and track whether the explicit value has been set).
+template <typename Value>
+class ValueWithDefault {
+  Value default_value_;
+  std::optional<Value> value_ = std::nullopt;
+
+ public:
+  ValueWithDefault(Value default_value)
+      : default_value_(std::move(default_value)) {}
+  bool IsExplicit() const { return value_.has_value(); }
+  Value value() const { return value_.value_or(default_value_); }
+  void Set(Value value) { value_ = value; }
+  bool operator==(const Value& v) const { return value() == v; }
+};
+
 struct CommandReachBegin {
-  Structure structure = Structure::Char;
+  ValueWithDefault<Structure> structure = ValueWithDefault(Structure::Char);
   commands::Repetitions repetitions = {1};
   Direction direction = Direction::Forwards;
 };
@@ -75,7 +91,8 @@ void SerializeCall(language::lazy_string::NonEmptySingleLine name,
                    std::vector<language::lazy_string::SingleLine> arguments,
                    language::text::LineBuilder& output);
 
-void AddSetStructureChar(KeyCommandsMap& cmap, Structure& structure,
+void AddSetStructureChar(KeyCommandsMap& cmap,
+                         ValueWithDefault<Structure>& structure,
                          Repetitions& repetitions);
 
 language::lazy_string::NonEmptySingleLine StructureToString(
