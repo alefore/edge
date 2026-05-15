@@ -10,30 +10,26 @@
 
 namespace afc::language::lazy_string {
 namespace {
-class LowerCaseImpl : public LazyStringImpl {
+using CharTransformFn = wint_t (*)(wint_t);
+
+template <CharTransformFn Transform>
+class Impl : public LazyStringImpl {
   const LazyString input_;
 
  public:
-  LowerCaseImpl(LazyString input) : input_(std::move(input)) {}
+  Impl(LazyString input) : input_(std::move(input)) {}
 
   wchar_t get(ColumnNumber pos) const override {
-    return towlower(input_.get(pos));
+    return static_cast<wchar_t>(Transform(input_.get(pos)));
   }
 
   ColumnNumberDelta size() const override { return input_.size(); }
-};
 
-class UpperCaseImpl : public LazyStringImpl {
-  const LazyString input_;
-
- public:
-  UpperCaseImpl(LazyString input) : input_(std::move(input)) {}
-
-  wchar_t get(ColumnNumber pos) const override {
-    return towupper(input_.get(pos));
+  bool Every(std::function<bool(wchar_t)> callback) const override {
+    return input_.Every([callback](wchar_t c) {
+      return callback(static_cast<wchar_t>(Transform(c)));
+    });
   }
-
-  ColumnNumberDelta size() const override { return input_.size(); }
 };
 
 const bool lower_case_tests_registration = tests::Register(
@@ -62,11 +58,11 @@ const bool upper_case_tests_registration = tests::Register(
 }  // namespace
 
 LazyString LowerCase(LazyString input) {
-  return LazyString(MakeNonNullShared<LowerCaseImpl>(std::move(input)));
+  return LazyString(MakeNonNullShared<Impl<std::towlower>>(std::move(input)));
 }
 
 LazyString UpperCase(LazyString input) {
-  return LazyString(MakeNonNullShared<UpperCaseImpl>(std::move(input)));
+  return LazyString(MakeNonNullShared<Impl<std::towupper>>(std::move(input)));
 }
 
 SingleLine LowerCase(SingleLine input) {

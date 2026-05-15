@@ -10,6 +10,7 @@
 #ifndef __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__
 #define __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -26,6 +27,7 @@ class LazyStringImpl {
   virtual ~LazyStringImpl() {}
   virtual wchar_t get(ColumnNumber pos) const = 0;
   virtual ColumnNumberDelta size() const = 0;
+  virtual bool Every(std::function<bool(wchar_t)>) const = 0;
 };
 
 class AppendImpl;
@@ -85,6 +87,11 @@ class LazyString {
   LazyString Append(LazyString) const;
 
   std::string ToBytes() const;
+
+  // Can be significantly faster than iteration through `begin` and `end`:
+  // depending on the implementation, `begin` and `end` have to walk the tree
+  // fetching each character individual (total runtime complexity: n log n).
+  bool Every(std::function<bool(wchar_t)>) const;
 
   std::strong_ordering operator<=>(const LazyString& x) const;
   bool operator==(const LazyString& other) const;

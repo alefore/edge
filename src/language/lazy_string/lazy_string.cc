@@ -23,8 +23,10 @@ class EmptyStringImpl : public LazyStringImpl {
     return 0;
   }
   ColumnNumberDelta size() const override { return ColumnNumberDelta(0); }
+  bool Every(std::function<bool(wchar_t)>) const override { return true; }
 };
 
+// TODO(2026-05-16, trivial): This is duplicated with logic from char_buffer.cc?
 template <typename Container>
 class StringFromContainer : public LazyStringImpl {
  public:
@@ -36,6 +38,10 @@ class StringFromContainer : public LazyStringImpl {
   }
 
   ColumnNumberDelta size() const { return ColumnNumberDelta(data_.size()); }
+
+  bool Every(std::function<bool(wchar_t)> callback) const override {
+    return std::ranges::all_of(data_, callback);
+  }
 
  protected:
   const Container data_;
@@ -54,6 +60,10 @@ class RepeatedChar : public LazyStringImpl {
 
   ColumnNumberDelta size() const { return times_; }
 
+  bool Every(std::function<bool(wchar_t)> callback) const override {
+    return callback(c_);  // Clever!
+  }
+
  protected:
   const ColumnNumberDelta times_;
   const wchar_t c_;
@@ -70,6 +80,10 @@ class SubstringImpl : public LazyStringImpl {
   }
 
   ColumnNumberDelta size() const override { return delta_; }
+
+  bool Every(std::function<bool(wchar_t)> callback) const override {
+    return buffer_->Every(std::move(callback));
+  }
 
  private:
   const NonNull<std::shared_ptr<const LazyStringImpl>> buffer_;
@@ -92,6 +106,10 @@ class AppendImpl : public LazyStringImpl {
 
   ColumnNumberDelta size() const {
     return ColumnNumberDelta(Tree::Size(tree_));
+  }
+
+  bool Every(std::function<bool(wchar_t)> callback) const override {
+    return Tree::Every(tree_, callback);
   }
 
   const Tree::Ptr& tree() const { return tree_; }
@@ -208,6 +226,10 @@ std::wstring to_wstring(const LazyString& s) { return s.ToString(); }
 LazyString ToLazyString(LazyString x) { return x; }
 
 std::string LazyString::ToBytes() const { return ToByteString(ToString()); }
+
+bool LazyString::Every(std::function<bool(wchar_t)> callback) const {
+  return data_->Every(callback);
+}
 
 bool LazyStringIterator::operator!=(const LazyStringIterator& other) const {
   return !(*this == other);
