@@ -24,6 +24,7 @@
 #include "src/operation_move.h"
 #include "src/operation_move_line.h"
 #include "src/operation_move_page.h"
+#include "src/operation_paste.h"
 #include "src/operation_scope.h"
 #include "src/operation_set_shell.h"
 #include "src/set_mode_command.h"
@@ -37,7 +38,6 @@
 #include "src/transformation_stack.h"
 
 namespace gc = afc::language::gc;
-namespace container = afc::language::container;
 
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
@@ -102,24 +102,12 @@ NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
+// TODO(trivial, 2026-05-15): Remove these ones, they are redundant with stuff
+// from src/operation_move_page.h.
 static const Description kPageDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
 static const Description kPageUp =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👆")};
-static const Description kDescriptionPaste =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📎")};
-
-void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
-  commands::SerializeCall(
-      kDescriptionPaste.read(),
-      std::vector<SingleLine>{paste.repetitions.ToString(),
-                              paste.query_input.has_value()
-                                  ? SINGLE_LINE_CONSTANT(L"\"") +
-                                        paste.query_input.value() +
-                                        SINGLE_LINE_CONSTANT(L"\"")
-                                  : SingleLine{}},
-      output);
-}
 
 void AppendStatus(const NonNull<std::shared_ptr<MoveOperationCommand>>& op,
                   LineBuilder& output) {
@@ -164,16 +152,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
               .Transform([](auto) { return EmptyValue(); });
         });
       });
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
-    CommandPaste paste) {
-  return paste.repetitions.Apply(
-      std::nullopt,
-      MakeNonNullShared<transformation::Paste>(
-          transformation::Paste{FindFragmentQuery{
-              .filter = paste.query_input.value_or(SingleLine{})}}));
 }
 
 transformation::Variant GetTransformation(
@@ -404,54 +382,6 @@ void AddSetStructureChar(KeyCommandsMap& cmap,
 }
 }  // namespace commands
 namespace {
-KeyCommandsMap GetKeyCommandsMap(CommandPaste* output, State*) {
-  KeyCommandsMap cmap;
-  if (output->query_input.has_value()) {
-    cmap.SetFallback(
-        {'\n', ControlChar::Escape}, [output](ExtendedChar extended_c) {
-          std::visit(
-              overload{
-                  [output](ControlChar c) {
-                    switch (c) {
-                      case ControlChar::Backspace:
-                        if (output->query_input->empty())
-                          output->query_input = std::nullopt;
-                        else
-                          output->query_input = output->query_input->Substring(
-                              ColumnNumber{}, output->query_input->size() -
-                                                  ColumnNumberDelta{1});
-                        // TODO(trivial, 2024-09-16): Handle more
-                        // control characters.
-                      default:
-                        break;
-                    }
-                  },
-                  [&](wchar_t c) {
-                    CHECK(c != L'\n');  // Exempted above (in cmap.SetFallback).
-                    output->query_input =
-                        output->query_input.value() +
-                        SingleLine{LazyString{ColumnNumberDelta{1}, c}};
-                  }},
-              extended_c);
-        });
-    return cmap;
-  }
-  output->repetitions.ExtendKeyCommandsMap(cmap);
-  cmap.Insert(
-          L'p',
-          {.category = KeyCommandsMap::Category::Repetitions,
-           .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Paste")},
-           .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
-      .Insert(L'f', {.category = KeyCommandsMap::Category::StringControl,
-                     .description =
-                         Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Filter")},
-                     .handler = [output](ExtendedChar) {
-                       CHECK(!output->query_input.has_value());
-                       output->query_input = SingleLine{};
-                     }});
-  return cmap;
-}
-
 KeyCommandsMap GetKeyCommandsMap(
     NonNull<std::shared_ptr<MoveOperationCommand>>* output, State* state) {
   return (*output)->key_commands_map(
@@ -685,16 +615,17 @@ class OperationMode : public SimpleInputReceiver {
                        }
                        state.set_top_command(top_command);
                      }})
-        .Insert(
-            L'p',
-            KeyCommandsMap::KeyCommand{
-                .category = KeyCommandsMap::Category::NewCommand,
-                .description = kDescriptionPaste,
-                .active = editor_state_.buffer_registry()
-                              .Find(PasteBuffer{})
-                              .has_value(),
-                .handler = [&state = state_](
-                               ExtendedChar) { state.Push(CommandPaste{}); }})
+        .Insert(L'p',
+                KeyCommandsMap::KeyCommand{
+                    .category = KeyCommandsMap::Category::NewCommand,
+                    .description = commands::PasteDescription(),
+                    .active = editor_state_.buffer_registry()
+                                  .Find(PasteBuffer{})
+                                  .has_value(),
+                    .handler =
+                        [&state = state_](ExtendedChar) {
+                          state.Push(commands::Paste());
+                        }})
         .Insert(L'?',
                 {.category = KeyCommandsMap::Category::Top,
                  .description =

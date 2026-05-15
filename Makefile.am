@@ -310,6 +310,8 @@ src/operation_move_line.cc \
 src/operation_move_line.h \
 src/operation_move_page.cc \
 src/operation_move_page.h \
+src/operation_paste.cc \
+src/operation_paste.h \
 src/operation_repetitions.cc \
 src/operation_repetitions.h \
 src/operation_set_shell.cc \

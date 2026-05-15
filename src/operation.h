@@ -45,12 +45,6 @@ class ValueWithDefault {
   bool operator==(const Value& v) const { return value() == v; }
 };
 
-struct CommandPaste {
-  commands::Repetitions repetitions = {1};
-  std::vector<language::lazy_string::LazyString> queries;
-  std::optional<language::lazy_string::SingleLine> query_input;
-};
-
 class MoveOperationCommand {
  public:
   virtual ~MoveOperationCommand() = default;
@@ -69,8 +63,7 @@ class MoveOperationCommand {
 
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
-    std::variant<CommandPaste,
-                 language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
+    std::variant<language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, language::lazy_string::LazyString description,
@@ -80,7 +73,6 @@ language::gc::Root<afc::editor::Command> NewTopLevelCommand(
 namespace commands {
 // Functions for implementations of MoveOperationCommand.
 
-// TODO(easy, 2026-05-14): Change this to return a LineBuilder instead.
 void SerializeCall(language::lazy_string::NonEmptySingleLine name,
                    std::vector<language::lazy_string::SingleLine> arguments,
                    language::text::LineBuilder& output);

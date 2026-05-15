@@ -45,6 +45,7 @@
 #include "src/operation_move.h"
 #include "src/operation_move_line.h"
 #include "src/operation_move_page.h"
+#include "src/operation_paste.h"
 #include "src/parse_tree.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
@@ -621,7 +622,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                operation::NewTopLevelCommand(
                    L"paste", LazyString{L"paste from the delete buffer"},
                    operation::TopCommand(), editor_state,
-                   [] { return operation::CommandPaste{}; })
+                   [] { return operation::commands::Paste(); })
                    .ptr());
 
   commands.Add({L'u'}, editor_state.gc_pool()
