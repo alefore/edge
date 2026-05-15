@@ -23,6 +23,7 @@
 #include "src/operation_move_line.h"
 #include "src/operation_move_page.h"
 #include "src/operation_scope.h"
+#include "src/operation_set_shell.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
@@ -115,8 +116,6 @@ static const Description kHomeUp =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👆")};
 static const Description kHomeDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👇")};
-static const Description kDescriptionShell =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🌀")};
 static const Description kDescriptionPaste =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📎")};
 
@@ -136,10 +135,6 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
       {commands::StructureToString(reach.structure).read(),
        reach.repetitions.ToString()},
       output);
-}
-
-void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
-  commands::SerializeCall(kDescriptionShell.read(), {c.input}, output);
 }
 
 void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
@@ -227,15 +222,6 @@ transformation::ModifiersAndComposite GetTransformation(
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
                                 reach_begin.direction),
       .transformation = MakeNonNullUnique<GotoTransformation>(0)};
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&,
-    transformation::Stack& stack, CommandSetShell shell) {
-  stack.post_transformation_behavior =
-      transformation::Stack::PostTransformationBehavior::CommandSystem;
-  stack.shell = transformation::ShellCommand(shell.input.read());
-  return transformation::Stack{};
 }
 
 transformation::Stack GetTransformation(
@@ -584,32 +570,6 @@ KeyCommandsMap GetKeyCommandsMap(CommandReachBegin* output, State*) {
     // the usual meaning (of scrolling by a character).
     cmap.Erase(L'h').Erase(L'l');
   }
-  return cmap;
-}
-
-KeyCommandsMap GetKeyCommandsMap(CommandSetShell* output, State*) {
-  KeyCommandsMap cmap;
-  cmap.Insert(ControlChar::Backspace,
-              {.category = KeyCommandsMap::Category::StringControl,
-               .description =
-                   Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Backspace")},
-               .active = !output->input.empty(),
-               .handler =
-                   [output](ExtendedChar) {
-                     output->input = output->input.Substring(
-                         ColumnNumber{0},
-                         output->input.size() - ColumnNumberDelta{1});
-                   }})
-      .SetFallback({'\n', ControlChar::Escape, ControlChar::Backspace},
-                   [output](ExtendedChar extended_c) {
-                     std::visit(overload{[](ControlChar) {},
-                                         [&](wchar_t c) {
-                                           output->input +=
-                                               SingleLine{LazyString{
-                                                   ColumnNumberDelta{1}, c}};
-                                         }},
-                                extended_c);
-                   });
   return cmap;
 }
 
@@ -966,7 +926,8 @@ class OperationMode : public SimpleInputReceiver {
                        }
                        state.set_top_command(top_command);
                      }})
-        .Insert(L'|', push(kDescriptionShell, CommandSetShell{}))
+        .Insert(L'|',
+                push(commands::SetShellDescription(), commands::SetShell()))
         .Insert(L'+',
                 {.category = KeyCommandsMap::Category::Top,
                  .description = Description{NON_EMPTY_SINGLE_LINE_CONSTANT(

@@ -308,6 +308,8 @@ src/operation_move_page.cc \
 src/operation_move_page.h \
 src/operation_repetitions.cc \
 src/operation_repetitions.h \
+src/operation_set_shell.cc \
+src/operation_set_shell.h \
 src/operation_scope.cc \
 src/operation_scope.h \
 src/operation_scope_buffer_information.h \
