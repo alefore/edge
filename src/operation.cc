@@ -20,6 +20,7 @@
 #include "src/language/wstring.h"
 #include "src/operation_bisect.h"
 #include "src/operation_find_local.h"
+#include "src/operation_move.h"
 #include "src/operation_move_line.h"
 #include "src/operation_move_page.h"
 #include "src/operation_scope.h"
@@ -104,10 +105,6 @@ static const Description kPageDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
 static const Description kPageUp =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👆")};
-static const Description kMoveLeft =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👈")};
-static const Description kMoveRight =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👉")};
 static const Description kHomeLeft =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👈")};
 static const Description kHomeRight =
@@ -118,13 +115,6 @@ static const Description kHomeDown =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"🏠👇")};
 static const Description kDescriptionPaste =
     Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📎")};
-
-void AppendStatus(const CommandReach& reach, LineBuilder& output) {
-  commands::SerializeCall(NON_EMPTY_SINGLE_LINE_CONSTANT(L"🦀"),
-                          {commands::StructureToString(reach.structure).read(),
-                           reach.repetitions.ToString()},
-                          output);
-}
 
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
   commands::SerializeCall(
@@ -192,13 +182,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
               .Transform([](auto) { return EmptyValue(); });
         });
       });
-}
-
-transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
-    transformation::Stack&, CommandReach reach) {
-  return reach.repetitions.Apply(reach.structure,
-                                 NewMoveTransformation(operation_scope));
 }
 
 transformation::ModifiersAndComposite GetTransformation(
@@ -305,7 +288,7 @@ class State {
   void UndoLast() {
     TRACK_OPERATION(State_UndoLast);
     commands_.pop_back();
-    if (commands_.empty()) Push(CommandReach());
+    if (commands_.empty()) Push(commands::Move(Structure::Char, 1));
     RunUndoCallback();
     Update();
   }
@@ -414,8 +397,7 @@ class State {
 std::optional<commands::Repetitions*> GetRepetitions(Command& command) {
   using Ret = std::optional<commands::Repetitions*>;
   return std::visit(
-      overload{[](CommandReach& c) -> Ret { return &c.repetitions; },
-               [](CommandReachBegin& c) -> Ret { return &c.repetitions; },
+      overload{[](CommandReachBegin& c) -> Ret { return &c.repetitions; },
                [](NonNull<std::shared_ptr<MoveOperationCommand>>& c) {
                  commands::Repetitions* output = c->repetitions();
                  return output ? Ret(output) : Ret();
@@ -434,12 +416,11 @@ const std::unordered_map<wchar_t, Structure>& structure_bindings() {
   return output;
 }
 
-void CheckStructureChar(KeyCommandsMap& cmap,
-                        std::optional<Structure>* structure,
-                        commands::Repetitions* repetitions) {
-  CHECK(structure != nullptr);
-  CHECK(repetitions != nullptr);
-
+}  // namespace
+namespace commands {
+void AddSetStructureChar(KeyCommandsMap& cmap, Structure& structure,
+                         Repetitions& repetitions) {
+  // TODO(trivial, 2026-05-15): Use std::ranges::for_each.
   for (const std::pair<const wchar_t, Structure>& entry :
        structure_bindings()) {
     VLOG(9) << "Add key: " << entry.second;
@@ -448,90 +429,21 @@ void CheckStructureChar(KeyCommandsMap& cmap,
     cmap.Insert(entry.first,
                 {.category = KeyCommandsMap::Category::Structure,
                  .description = Description{structure_name},
-                 .active = *structure == std::nullopt,
-                 .handler =
-                     [structure, repetitions, &entry](ExtendedChar) {
-                       LOG(INFO) << "Running, storing: " << entry.second;
-                       *structure = entry.second;
-                       if (repetitions->get() == 0) {
-                         repetitions->sum(1);
-                       }
-                     }})
-        .Insert(entry.first, {.category = KeyCommandsMap::Category::Structure,
-                              .description = Description{structure_name},
-                              .active = entry.second == *structure,
-                              .handler = [repetitions](ExtendedChar) {
-                                repetitions->sum(1);
-                              }});
+                 .handler = [&structure, &repetitions, &entry](ExtendedChar) {
+                   LOG(INFO) << "Running, storing: " << entry.second;
+                   if (structure == entry.second)
+                     repetitions.sum(1);
+                   else if (repetitions.IsClean() && repetitions.get() != 0) {
+                     structure = entry.second;
+                   } else {
+                     structure = entry.second;
+                     repetitions.sum(1);
+                   }
+                 }});
   };
 }
-
-void CheckIncrementsChar(KeyCommandsMap& cmap, commands::Repetitions* output) {
-  cmap.Insert(L'h', {.category = KeyCommandsMap::Category::Repetitions,
-                     .description = kMoveLeft,
-                     .handler = [output](ExtendedChar) { output->sum(-1); }})
-      .Insert(ControlChar::LeftArrow,
-              {.category = KeyCommandsMap::Category::Repetitions,
-               .description = kMoveLeft,
-               .handler = [output](ExtendedChar) { output->sum(-1); }})
-      .Insert(L'l', {.category = KeyCommandsMap::Category::Repetitions,
-                     .description = kMoveRight,
-                     .handler = [output](ExtendedChar) { output->sum(1); }})
-      .Insert(ControlChar::RightArrow,
-              {.category = KeyCommandsMap::Category::Repetitions,
-               .description = kMoveRight,
-               .handler = [output](ExtendedChar) { output->sum(1); }});
-}
-
-KeyCommandsMap GetKeyCommandsMap(CommandReach* output, State* state) {
-  KeyCommandsMap cmap;
-  if (output->structure.value_or(Structure::Char) == Structure::Char &&
-      !output->repetitions.empty()) {
-    cmap.Insert(L'H', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = commands::BisectLeftDescription(),
-                       .active = output->repetitions.get_list().back() < 0,
-                       .handler =
-                           [state](ExtendedChar) {
-                             state->Push(Bisect(commands::BisectOptions{
-                                 .structure = Structure::Char,
-                                 .directions = {Direction::Backwards}}));
-                           }})
-        .Insert(L'L', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = commands::BisectRightDescription(),
-                       .active = output->repetitions.get_list().back() > 0,
-                       .handler = [state](ExtendedChar) {
-                         state->Push(Bisect(commands::BisectOptions{
-                             .structure = Structure::Char,
-                             .directions = {Direction::Forwards}}));
-                       }});
-  }
-
-  if (output->structure == Structure::Line && !output->repetitions.empty()) {
-    cmap.Insert(L'K', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = commands::BisectUpDescription(),
-                       .active = output->repetitions.get_list().back() < 0,
-                       .handler =
-                           [state](ExtendedChar) {
-                             state->Push(Bisect(commands::BisectOptions{
-                                 .structure = Structure::Line,
-                                 .directions = {Direction::Backwards}}));
-                           }})
-        .Insert(L'J', {.category = KeyCommandsMap::Category::NewCommand,
-                       .description = commands::BisectDownDescription(),
-                       .active = output->repetitions.get_list().back() > 0,
-                       .handler = [state](ExtendedChar) {
-                         state->Push(Bisect(commands::BisectOptions{
-                             .structure = Structure::Line,
-                             .directions = {Direction::Forwards}}));
-                       }});
-  }
-
-  CheckStructureChar(cmap, &output->structure, &output->repetitions);
-  CheckIncrementsChar(cmap, &output->repetitions);
-  output->repetitions.ExtendKeyCommandsMap(cmap);
-  return cmap;
-}
-
+}  // namespace commands
+namespace {
 KeyCommandsMap GetKeyCommandsMap(CommandReachBegin* output, State*) {
   KeyCommandsMap cmap;
   if (output->structure == Structure::Line) {
@@ -560,11 +472,11 @@ KeyCommandsMap GetKeyCommandsMap(CommandReachBegin* output, State*) {
                 handler(Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"👆")}));
   }
 
-  CheckStructureChar(cmap, &output->structure, &output->repetitions);
-  CheckIncrementsChar(cmap, &output->repetitions);
+  AddSetStructureChar(cmap, output->structure, output->repetitions);
+  output->repetitions.LeftRightKeyCommandsMap(cmap);
   output->repetitions.ExtendKeyCommandsMap(cmap);
 
-  if (output->structure.value_or(Structure::Char) == Structure::Char ||
+  if (output->structure == Structure::Char ||
       output->structure == Structure::Line) {
     // Don't let CheckRepetitionsChar below handle these; we'd rather preserve
     // the usual meaning (of scrolling by a character).
@@ -675,7 +587,8 @@ class OperationMode : public SimpleInputReceiver {
           [&](auto& t) {
             cmap.PushBack(
                 std::move(GetKeyCommandsMap(&t, &state_).OnHandle([this] {
-                  if (state_.empty()) PushCommand(CommandReach{});
+                  if (state_.empty())
+                    PushCommand(commands::Move(Structure::Char, 1));
                   state_.Update();
                   ShowStatus();
                 })));
@@ -715,45 +628,25 @@ class OperationMode : public SimpleInputReceiver {
                  last_repetitions = (*repetitions)->get_list().back();
                }
              }
-             state_.Push(CommandReach{
-                 .structure = structure,
-                 .repetitions = last_repetitions < 0
-                                    ? -1
-                                    : (last_repetitions > 0 ? 1 : 0)});
+             state_.Push(commands::Move(
+                 structure,
+                 last_repetitions < 0 ? -1 : (last_repetitions > 0 ? 1 : 0)));
            }});
 
     structure_keys
-        .Insert(L'h',
+        .Insert({L'h', ControlChar::LeftArrow},
                 {.category = KeyCommandsMap::Category::NewCommand,
-                 .description = kMoveLeft,
+                 .description = commands::MoveLeftDescription(),
                  .handler =
                      [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::Char,
-                                                .repetitions = -1});
+                       state_.Push(commands::Move(Structure::Char, -1));
                      }})
-        .Insert(ControlChar::LeftArrow,
+        .Insert({L'l', ControlChar::RightArrow},
                 {.category = KeyCommandsMap::Category::NewCommand,
-                 .description = kMoveLeft,
+                 .description = commands::MoveRightDescription(),
                  .handler =
                      [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::Char,
-                                                .repetitions = -1});
-                     }})
-        .Insert(L'l',
-                {.category = KeyCommandsMap::Category::NewCommand,
-                 .description = kMoveRight,
-                 .handler =
-                     [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::Char,
-                                                .repetitions = 1});
-                     }})
-        .Insert(ControlChar::RightArrow,
-                {.category = KeyCommandsMap::Category::NewCommand,
-                 .description = kMoveRight,
-                 .handler =
-                     [this](ExtendedChar) {
-                       state_.Push(CommandReach{.structure = Structure::Char,
-                                                .repetitions = 1});
+                       state_.Push(commands::Move(Structure::Char, 1));
                      }})
         .OnHandle([this] {
           state_.Update();
@@ -809,13 +702,15 @@ class OperationMode : public SimpleInputReceiver {
           .category = KeyCommandsMap::Category::NewCommand,
           .description = c == ControlChar::PageUp ? kPageUp : kPageDown,
           .handler = [&state = state_, c](ExtendedChar) {
-            if (CommandReach* reach =
+#if 0
+            if (Move* reach =
                     state.empty()
                         ? nullptr
-                        : std::get_if<CommandReach>(&state.GetLastCommand());
+                        : std::get_if<Move>(&state.GetLastCommand());
                 reach != nullptr && reach->structure == std::nullopt) {
               state.UndoLast();
             }
+#endif
             state.Push(commands::MovePage(operation::commands::Repetitions(
                 c == ControlChar::PageUp ? -1 : 1)));
           }};
@@ -831,14 +726,16 @@ class OperationMode : public SimpleInputReceiver {
                              ? commands::MoveDownDescription()
                              : commands::MoveUpDescription(),
           .handler = [&state = state_, c](ExtendedChar) {
-            if (CommandReach* reach =
+#if 0
+            if (Move* reach =
                     state.empty()
                         ? nullptr
-                        : std::get_if<CommandReach>(&state.GetLastCommand());
+                        : std::get_if<Move>(&state.GetLastCommand());
                 reach != nullptr && reach->structure == std::nullopt &&
                 reach->repetitions.empty()) {
               state.UndoLast();
             }
+#endif
             state.Push(commands::MoveLine(operation::commands::Repetitions(
                 c == ExtendedChar(L'k') ||
                         c == ExtendedChar(ControlChar::UpArrow)

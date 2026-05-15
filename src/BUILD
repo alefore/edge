@@ -144,6 +144,8 @@ cc_binary(
         "operation_bisect.cc",
         "operation_find_local.cc",
         "operation_find_local.h",
+        "operation_move.cc",
+        "operation_move.h",
         "operation_move_line.cc",
         "operation_move_line.h",
         "operation_move_page.cc",

@@ -16,6 +16,21 @@ using namespace afc::language::lazy_string;
 using namespace afc::language;
 
 namespace afc::editor::operation::commands {
+const Description& MoveLeftDescription() {
+  static const Description output = NON_EMPTY_SINGLE_LINE_CONSTANT(L"👈");
+  return output;
+}
+const Description& MoveRightDescription() {
+  static const Description output = NON_EMPTY_SINGLE_LINE_CONSTANT(L"👉");
+  return output;
+}
+
+Repetitions::Repetitions(int repetitions)
+    : entries_({{.additive_default = repetitions,
+                 .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
+
+bool Repetitions::IsClean() const { return clean_; }
+
 SingleLine Repetitions::ToString() const {
   return TrimLeft(
       Concatenate(get_list() | std::views::transform([](int r) -> SingleLine {
@@ -34,6 +49,7 @@ std::list<int> Repetitions::get_list() const {
 }
 
 void Repetitions::sum(int value) {
+  clean_ = false;
   if (entries_.empty() || (Flatten(entries_.back()) != 0 &&
                            Flatten(entries_.back()) >= 0) != (value >= 0)) {
     if (!entries_.empty()) {
@@ -54,6 +70,7 @@ void Repetitions::sum(int value) {
 }
 
 void Repetitions::factor(int value) {
+  clean_ = false;
   if (entries_.empty() || entries_.back().multiplicative == 0) {
     entries_.push_back(
         {.multiplicative_sign =
@@ -68,6 +85,7 @@ void Repetitions::factor(int value) {
 bool Repetitions::empty() const { return entries_.empty(); }
 
 bool Repetitions::PopValue() {
+  clean_ = false;
   if (entries_.empty()) return false;
   entries_.pop_back();
   return true;
@@ -115,6 +133,23 @@ void Repetitions::ExtendKeyCommandsMap(KeyCommandsMap& cmap) {
          .description =
              Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"Repetitions")},
          .handler = [this, i](ExtendedChar) { factor(i); }});
+}
+
+void Repetitions::LeftRightKeyCommandsMap(KeyCommandsMap& cmap) {
+  cmap.Insert(L'h', {.category = KeyCommandsMap::Category::Repetitions,
+                     .description = MoveLeftDescription(),
+                     .handler = [this](ExtendedChar) { sum(-1); }})
+      .Insert(ControlChar::LeftArrow,
+              {.category = KeyCommandsMap::Category::Repetitions,
+               .description = MoveLeftDescription(),
+               .handler = [this](ExtendedChar) { sum(-1); }})
+      .Insert(L'l', {.category = KeyCommandsMap::Category::Repetitions,
+                     .description = MoveRightDescription(),
+                     .handler = [this](ExtendedChar) { sum(1); }})
+      .Insert(ControlChar::RightArrow,
+              {.category = KeyCommandsMap::Category::Repetitions,
+               .description = MoveRightDescription(),
+               .handler = [this](ExtendedChar) { sum(1); }});
 }
 
 /* static */ int Repetitions::Flatten(const Entry& entry) {

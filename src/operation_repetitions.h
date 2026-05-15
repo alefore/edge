@@ -9,6 +9,9 @@
 #include "src/transformation_composite.h"
 
 namespace afc::editor::operation::commands {
+const Description& MoveLeftDescription();
+const Description& MoveRightDescription();
+
 class Repetitions {
   struct Entry {
     int additive = 0;
@@ -17,11 +20,12 @@ class Repetitions {
     int multiplicative_sign;
   };
   std::list<Entry> entries_;
+  bool clean_ = true;
 
  public:
-  Repetitions(int repetitions)
-      : entries_({{.additive_default = repetitions,
-                   .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
+  Repetitions(int repetitions);
+
+  bool IsClean() const;
 
   language::lazy_string::SingleLine ToString() const;
   // Returns the total sum of all entries.
@@ -39,6 +43,8 @@ class Repetitions {
           inner_transformation) const;
 
   void ExtendKeyCommandsMap(KeyCommandsMap& cmap);
+  // Add bindings for `h` and `l` (and left/right arrows) to sum(1) or sum(-1).
+  void LeftRightKeyCommandsMap(KeyCommandsMap& cmap);
 
  private:
   static int Flatten(const Entry& entry);

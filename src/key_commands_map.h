@@ -67,6 +67,15 @@ class KeyCommandsMap {
 
   static language::lazy_string::LazyString ToString(Category category);
 
+  KeyCommandsMap& Insert(std::vector<infrastructure::ExtendedChar> input,
+                         KeyCommand command) {
+    if (command.active)
+      std::ranges::for_each(input, [&](infrastructure::ExtendedChar c) {
+        table_.insert({c, std::move(command)});
+      });
+    return *this;
+  }
+
   KeyCommandsMap& Insert(infrastructure::ExtendedChar c, KeyCommand command) {
     if (command.active) table_.insert({c, std::move(command)});
     return *this;

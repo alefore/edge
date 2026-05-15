@@ -41,6 +41,7 @@
 #include "src/open_file_command.h"
 #include "src/operation.h"
 #include "src/operation_find_local.h"
+#include "src/operation_move.h"
 #include "src/operation_move_line.h"
 #include "src/operation_move_page.h"
 #include "src/parse_tree.h"
@@ -613,10 +614,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                        .post_transformation_behavior = transformation::Stack::
                            PostTransformationBehavior::DeleteRegion},
                    editor_state,
-                   [] {
-                     return operation::CommandReach{
-                         .repetitions = operation::commands::Repetitions(1)};
-                   })
+                   [] { return operation::commands::Move(Structure::Char, 1); })
                    .ptr());
   commands.Add({L'p'},
                operation::NewTopLevelCommand(
@@ -668,26 +666,20 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   // std::make_unique<MoveForwards>(Direction::Backwards));
   for (ExtendedChar x :
        std::vector<ExtendedChar>({L'l', ControlChar::RightArrow}))
-    commands.Add({x},
-                 operation::NewTopLevelCommand(
-                     L"right", LazyString{L"moves right one position"},
-                     operation::TopCommand(), editor_state,
-                     [] {
-                       return operation::CommandReach{
-                           .repetitions = operation::commands::Repetitions(1)};
-                     })
-                     .ptr());
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"right", LazyString{L"moves right one position"},
+                 operation::TopCommand(), editor_state,
+                 [] { return operation::commands::Move(Structure::Char, 1); })
+                 .ptr());
   for (ExtendedChar x :
        std::vector<ExtendedChar>({L'h', ControlChar::LeftArrow}))
-    commands.Add({x},
-                 operation::NewTopLevelCommand(
-                     L"left", LazyString{L"moves left one position"},
-                     operation::TopCommand(), editor_state,
-                     [] {
-                       return operation::CommandReach{
-                           .repetitions = operation::commands::Repetitions(-1)};
-                     })
-                     .ptr());
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"left", LazyString{L"moves left one position"},
+                 operation::TopCommand(), editor_state,
+                 [] { return operation::commands::Move(Structure::Char, -1); })
+                 .ptr());
 
   for (ExtendedChar x : std::vector<ExtendedChar>({L'H', ControlChar::Home}))
     commands.Add(
@@ -745,10 +737,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                        .post_transformation_behavior = transformation::Stack::
                            PostTransformationBehavior::CapitalsSwitch},
                    editor_state,
-                   [] {
-                     return operation::CommandReach{
-                         .repetitions = operation::commands::Repetitions(1)};
-                   })
+                   [] { return operation::commands::Move(Structure::Char, 1); })
                    .ptr());
 
   commands.Add({L'%'},
@@ -756,11 +745,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    L"tree-navigate",
                    LazyString{L"moves past the next token in the syntax tree"},
                    operation::TopCommand{}, editor_state,
-                   [] {
-                     return operation::CommandReach{
-                         .structure = Structure::Tree,
-                         .repetitions = operation::commands::Repetitions(1)};
-                   })
+                   [] { return operation::commands::Move(Structure::Tree, 1); })
                    .ptr());
 
   commands.Add({L's', L'r'}, NewRecordCommand(editor_state).ptr());

@@ -1,4 +1,4 @@
-// Similar to CommandReach with structure = StructureLine.
+// Similar to Move with structure = StructureLine.
 //
 // We separate them to avoid clashes of 'h' and 'l'. With CommandReach, 'h' and
 // 'l' should advance by the structure; with CommandReachLine, they switch us

@@ -29,14 +29,8 @@ struct TopCommand {
   bool show_help = false;
 };
 
-// A sequence of arguments becomes a command.
-struct CommandReach {
-  std::optional<Structure> structure = std::nullopt;
-  commands::Repetitions repetitions = {0};
-};
-
 struct CommandReachBegin {
-  std::optional<Structure> structure = std::nullopt;
+  Structure structure = Structure::Char;
   commands::Repetitions repetitions = {1};
   Direction direction = Direction::Forwards;
 };
@@ -65,7 +59,7 @@ class MoveOperationCommand {
 
 // TODO(2026-05-14, P2): Convert all to MoveOperationCommand.
 using Command =
-    std::variant<CommandReach, CommandReachBegin, CommandPaste,
+    std::variant<CommandReachBegin, CommandPaste,
                  language::NonNull<std::shared_ptr<MoveOperationCommand>>>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
@@ -80,6 +74,9 @@ namespace commands {
 void SerializeCall(language::lazy_string::NonEmptySingleLine name,
                    std::vector<language::lazy_string::SingleLine> arguments,
                    language::text::LineBuilder& output);
+
+void AddSetStructureChar(KeyCommandsMap& cmap, Structure& structure,
+                         Repetitions& repetitions);
 
 language::lazy_string::NonEmptySingleLine StructureToString(
     std::optional<Structure> structure);
