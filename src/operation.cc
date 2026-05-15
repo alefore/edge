@@ -102,13 +102,6 @@ NonEmptySingleLine StructureToString(std::optional<Structure> structure) {
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-// TODO(trivial, 2026-05-15): Remove these ones, they are redundant with stuff
-// from src/operation_move_page.h.
-static const Description kPageDown =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👇")};
-static const Description kPageUp =
-    Description{NON_EMPTY_SINGLE_LINE_CONSTANT(L"📜👆")};
-
 void AppendStatus(const NonNull<std::shared_ptr<MoveOperationCommand>>& op,
                   LineBuilder& output) {
   return output.Append(op->status());
@@ -549,7 +542,9 @@ class OperationMode : public SimpleInputReceiver {
     auto PageHandler = [&](ControlChar c) {
       return KeyCommandsMap::KeyCommand{
           .category = KeyCommandsMap::Category::NewCommand,
-          .description = c == ControlChar::PageUp ? kPageUp : kPageDown,
+          .description = c == ControlChar::PageUp
+                             ? commands::MovePageUpDescription()
+                             : commands::MovePageDownDescription(),
           .handler = [&state = state_, c](ExtendedChar) {
 #if 0
             if (Move* reach =
