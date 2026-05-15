@@ -61,7 +61,7 @@ class RepeatedChar : public LazyStringImpl {
   ColumnNumberDelta size() const { return times_; }
 
   bool Every(std::function<bool(wchar_t)> callback) const override {
-    return callback(c_);  // Clever!
+    return times_.IsZero() || callback(c_);  // Clever!
   }
 
  protected:
@@ -82,7 +82,10 @@ class SubstringImpl : public LazyStringImpl {
   ColumnNumberDelta size() const override { return delta_; }
 
   bool Every(std::function<bool(wchar_t)> callback) const override {
-    return buffer_->Every(std::move(callback));
+    // Ugh, this defeats the optimization!
+    for (ColumnNumberDelta i; i < delta_; ++i)
+      if (!callback(get(ColumnNumber(i.read())))) return false;
+    return true;
   }
 
  private:
