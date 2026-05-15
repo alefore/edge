@@ -38,7 +38,7 @@ futures::Value<gc::Root<OpenBuffer>> GetFragmentsBuffer(EditorState& editor) {
   return VisitOptional(
       [](gc::Root<OpenBuffer> output) -> futures::Value<gc::Root<OpenBuffer>> {
         VLOG(6) << "Reusing previous fragments buffer.";
-        return output;
+        return output->WaitForEndOfFile();
       },
       [&editor] {
         VLOG(5) << "Creating (loading) fragments buffer.";
