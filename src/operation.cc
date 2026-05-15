@@ -379,27 +379,28 @@ namespace commands {
 void AddSetStructureChar(KeyCommandsMap& cmap,
                          ValueWithDefault<Structure>& structure,
                          Repetitions& repetitions) {
-  // TODO(trivial, 2026-05-15): Use std::ranges::for_each.
-  for (const std::pair<const wchar_t, Structure>& entry :
-       structure_bindings()) {
-    VLOG(9) << "Add key: " << entry.second;
-    NonEmptySingleLine structure_name =
-        commands::StructureToString(entry.second);
-    cmap.Insert(
-        entry.first,
-        {.category = KeyCommandsMap::Category::Structure,
-         .description = Description{structure_name},
-         .active = structure.value() == entry.second,
-         .handler = [&structure, &repetitions, &entry](ExtendedChar) {
-           LOG(INFO) << "Running, storing: " << entry.second;
-           if (!structure.IsExplicit()) {
-             if (structure.value() == entry.second || repetitions.get() == 0)
-               repetitions.sum(1);
-             structure.Set(entry.second);
-           } else
-             repetitions.sum(1);
-         }});
-  };
+  std::ranges::for_each(
+      structure_bindings(),
+      [&](const std::pair<const wchar_t, Structure>& entry) {
+        VLOG(9) << "Add key: " << entry.second;
+        NonEmptySingleLine structure_name =
+            commands::StructureToString(entry.second);
+        cmap.Insert(
+            entry.first,
+            {.category = KeyCommandsMap::Category::Structure,
+             .description = Description{structure_name},
+             .active = structure.value() == entry.second,
+             .handler = [&structure, &repetitions, &entry](ExtendedChar) {
+               LOG(INFO) << "Running, storing: " << entry.second;
+               if (!structure.IsExplicit()) {
+                 if (structure.value() == entry.second ||
+                     repetitions.get() == 0)
+                   repetitions.sum(1);
+                 structure.Set(entry.second);
+               } else
+                 repetitions.sum(1);
+             }});
+      });
 }
 }  // namespace commands
 namespace {
