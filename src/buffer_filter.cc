@@ -281,9 +281,7 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
     if (end <= position) return;
     VLOG(8) << "Adding substring with modifiers: " << position << ", "
             << modifiers;
-    // TODO(easy, 2024-09-19): This is suspcious. Why is it safe? Remove the
-    // wrapping (maybe turn `line` into a SingleLine).
-    options.AppendString(SingleLine{line.Substring(position, end - position)},
+    options.AppendString(line.Substring(position, end - position),
                          LinePartMetadata{.style = std::move(modifiers)});
     position = end;
   };
