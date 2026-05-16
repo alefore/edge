@@ -9,6 +9,8 @@
 
 namespace afc::language::lazy_string {
 namespace {
+// TODO(2026-05-16, P2, trivial): Deduplicate with the version in
+// lazy_string.cc.
 template <typename Container>
 class StringFromContainer : public LazyStringImpl {
  public:
@@ -21,8 +23,13 @@ class StringFromContainer : public LazyStringImpl {
 
   ColumnNumberDelta size() const { return ColumnNumberDelta(data_.size()); }
 
-  bool Every(std::function<bool(wchar_t)> callback) const override {
-    return std::ranges::all_of(data_, callback);
+  bool Every(std::function<bool(wchar_t)> callback, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    CHECK_GE(size, ColumnNumberDelta{});
+    CHECK_LE((start + size).ToDelta(), this->size());
+    return std::ranges::all_of(
+        data_ | std::views::drop(start.read()) | std::views::take(size.read()),
+        callback);
   }
 
  protected:

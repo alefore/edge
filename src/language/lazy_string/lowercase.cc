@@ -25,10 +25,13 @@ class Impl : public LazyStringImpl {
 
   ColumnNumberDelta size() const override { return input_.size(); }
 
-  bool Every(std::function<bool(wchar_t)> callback) const override {
-    return input_.Every([callback](wchar_t c) {
-      return callback(static_cast<wchar_t>(Transform(c)));
-    });
+  bool Every(std::function<bool(wchar_t)> callback, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    return input_.Every(
+        [callback](wchar_t c) {
+          return callback(static_cast<wchar_t>(Transform(c)));
+        },
+        start, size);
   }
 };
 

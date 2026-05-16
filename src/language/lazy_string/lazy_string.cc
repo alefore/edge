@@ -23,7 +23,12 @@ class EmptyStringImpl : public LazyStringImpl {
     return 0;
   }
   ColumnNumberDelta size() const override { return ColumnNumberDelta(0); }
-  bool Every(std::function<bool(wchar_t)>) const override { return true; }
+  bool Every(std::function<bool(wchar_t)>, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    CHECK_GE(size, ColumnNumberDelta{});
+    CHECK_LE((start + size).ToDelta(), this->size());
+    return true;
+  }
 };
 
 // TODO(2026-05-16, trivial): This is duplicated with logic from char_buffer.cc?
@@ -39,8 +44,13 @@ class StringFromContainer : public LazyStringImpl {
 
   ColumnNumberDelta size() const { return ColumnNumberDelta(data_.size()); }
 
-  bool Every(std::function<bool(wchar_t)> callback) const override {
-    return std::ranges::all_of(data_, callback);
+  bool Every(std::function<bool(wchar_t)> callback, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    CHECK_GE(size, ColumnNumberDelta{});
+    CHECK_LE((start + size).ToDelta(), this->size());
+    return std::ranges::all_of(
+        data_ | std::views::drop(start.read()) | std::views::take(size.read()),
+        callback);
   }
 
  protected:
@@ -60,8 +70,11 @@ class RepeatedChar : public LazyStringImpl {
 
   ColumnNumberDelta size() const { return times_; }
 
-  bool Every(std::function<bool(wchar_t)> callback) const override {
-    return times_.IsZero() || callback(c_);  // Clever!
+  bool Every(std::function<bool(wchar_t)> callback, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    CHECK_GE(size, ColumnNumberDelta{});
+    CHECK_LE((start + size).ToDelta(), this->size());
+    return size.IsZero() || callback(c_);  // Clever!
   }
 
  protected:
@@ -81,11 +94,12 @@ class SubstringImpl : public LazyStringImpl {
 
   ColumnNumberDelta size() const override { return delta_; }
 
-  bool Every(std::function<bool(wchar_t)> callback) const override {
-    // Ugh, this defeats the optimization!
-    for (ColumnNumberDelta i; i < delta_; ++i)
-      if (!callback(get(ColumnNumber(i.read())))) return false;
-    return true;
+  bool Every(std::function<bool(wchar_t)> callback, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    CHECK_GE(size, ColumnNumberDelta{});
+    CHECK_LE((start + size).ToDelta(), this->size());
+    return buffer_->Every(std::move(callback),
+                          ColumnNumber{column_.read() + start.read()}, size);
   }
 
  private:
@@ -111,8 +125,10 @@ class AppendImpl : public LazyStringImpl {
     return ColumnNumberDelta(Tree::Size(tree_));
   }
 
-  bool Every(std::function<bool(wchar_t)> callback) const override {
-    return Tree::Every(tree_, callback);
+  bool Every(std::function<bool(wchar_t)> callback, ColumnNumber start,
+             ColumnNumberDelta size) const override {
+    return Tree::Every(
+        Tree::Prefix(Tree::Suffix(tree_, start.read()), size.read()), callback);
   }
 
   const Tree::Ptr& tree() const { return tree_; }
@@ -231,7 +247,12 @@ LazyString ToLazyString(LazyString x) { return x; }
 std::string LazyString::ToBytes() const { return ToByteString(ToString()); }
 
 bool LazyString::Every(std::function<bool(wchar_t)> callback) const {
-  return data_->Every(callback);
+  return Every(callback, ColumnNumber{}, data_->size());
+}
+
+bool LazyString::Every(std::function<bool(wchar_t)> callback,
+                       ColumnNumber start, ColumnNumberDelta size) const {
+  return data_->Every(callback, start, size);
 }
 
 bool LazyStringIterator::operator!=(const LazyStringIterator& other) const {
