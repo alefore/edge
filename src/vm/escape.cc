@@ -110,24 +110,41 @@ ValueOrError<wchar_t> URLEscapeDecode(wchar_t first, wchar_t second) {
 // Returns an escaped representation.
 SingleLine EscapedString::EscapedRepresentation() const {
   SingleLine output;
-  ForEachColumn(read(), [&output](ColumnNumber, wchar_t c) {
-    switch (c) {
-      case '\n':
-        output += SingleLine{LazyString{L"\\n"}};
-        break;
-      case '"':
-        output += SingleLine{LazyString{L"\\\""}};
-        break;
-      case '\\':
-        output += SingleLine{LazyString{L"\\\\"}};
-        break;
-      case '\'':
-        output += SingleLine{LazyString{L"\\'"}};
-        break;
-      default:
-        output += SingleLine{LazyString{ColumnNumberDelta(1), c}};
+
+  LazyString input = ToLazyString(read());
+
+  static const std::unordered_set<wchar_t> special_chars = {L'\n', L'"', L'\\',
+                                                            L'\''};
+  ColumnNumber position;
+
+  while (position.ToDelta() < input.size()) {
+    std::optional<ColumnNumber> special_pos =
+        FindFirstOf(input, special_chars, position);
+
+    output += SingleLine{input.Substring(
+        position,
+        special_pos.value_or(ColumnNumber{} + input.size()) - position)};
+
+    position = special_pos.value_or(ColumnNumber{} + input.size());
+    if (special_pos.has_value()) {
+      switch (input.get(position)) {
+        case L'\n':
+          output += SINGLE_LINE_CONSTANT(L"\\n");
+          break;
+        case L'"':
+          output += SINGLE_LINE_CONSTANT(L"\\\"");
+          break;
+        case L'\\':
+          output += SINGLE_LINE_CONSTANT(L"\\--");
+          break;
+        case L'\'':
+          output += SINGLE_LINE_CONSTANT(L"\\'");
+          break;
+      }
+      position = position + ColumnNumberDelta{1};
     }
-  });
+  }
+
   return output;
 }
 
