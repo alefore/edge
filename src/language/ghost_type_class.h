@@ -195,6 +195,16 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
       CHECK(result) << result.error();
     }
   }
+
+  // Fast-path constructor bypassing validation. The validator should control
+  // exactly which code is granted access to its `SkipValidationKey`.
+  template <typename V = Validator>
+  explicit GhostType(typename V::SkipValidationKey, Internal initial_value)
+    requires requires { typename V::SkipValidationKey; }
+      : value(std::move(initial_value)) {
+    // Intentionally skips validation.
+  }
+
   GhostType(const GhostType&) = default;
 
   template <typename T>
