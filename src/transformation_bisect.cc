@@ -1,5 +1,7 @@
 #include "src/transformation_bisect.h"
 
+#include <ranges>
+
 #include "src/buffer.h"
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
@@ -118,82 +120,211 @@ const bool adjust_range_tests_registration = tests::Register(
                   LineColumn(LineNumber(2), ColumnNumber(16))));
       }}});
 
-Range GetRange(const LineSequence& contents, Direction initial_direction,
-               Structure structure, LineColumn position) {
-  if (structure == Structure::Char) {
-    switch (initial_direction) {
-      case Direction::Forwards:
-        return Range(
-            position,
-            LineColumn(position.line, contents.at(position.line)->EndColumn()));
-
-      case Direction::Backwards:
-        return Range(LineColumn(position.line, ColumnNumber()), position);
-    }
-  } else if (structure == Structure::Line) {
-    switch (initial_direction) {
-      case Direction::Forwards:
-        return Range(position, LineColumn(contents.EndLine(),
-                                          contents.back()->EndColumn()));
-      case Direction::Backwards:
-        return Range(LineColumn(), position);
-    }
+template <typename Position, typename PositionDelta>
+Position GetBoundaryOneDimension(Position start, PositionDelta size,
+                                 Direction direction, size_t jumps) {
+  if (jumps > 60)  // Just give up.
+    return direction == Direction::Forwards ? Position{} + size : Position{};
+  // 2 + 4 + 8 + ... 2^n == 2^(n+1) - 2
+  PositionDelta total_jump{static_cast<int>((1 << (jumps + 1)) - 2)};
+  switch (direction) {
+    case Direction::Forwards:
+      return size - start.ToDelta() <= total_jump ? Position{} + size
+                                                  : start + total_jump;
+    case Direction::Backwards:
+      return start.ToDelta() >= total_jump ? start - total_jump : Position{};
   }
-  LOG(FATAL) << "Invalid structure: " << structure;
-  return Range();
+  LOG(FATAL) << "Invalid direction.";
+  std::unreachable();
 }
 
-TEST_GROUP(TransformationBisect_GetRange_Empty, &GetRange)
-    .Add(L"EmptyBufferCharForwards", LineSequence{}, Direction::Forwards,
-         Structure::Char, LineColumn{}, Range{})
-    .Add(L"EmptyBufferCharBackwards", LineSequence{}, Direction::Backwards,
-         Structure::Char, LineColumn{}, Range{})
-    .Add(L"EmptyBufferLineForwards", LineSequence{}, Direction::Forwards,
-         Structure::Line, LineColumn{}, Range{})
-    .Add(L"EmptyBufferLineBackwards", LineSequence{}, Direction::Backwards,
-         Structure::Line, LineColumn{}, Range{});
+LineColumn GetBoundary(LineSequence contents, Direction direction,
+                       size_t prefix_length, Structure structure,
+                       LineColumn position) {
+  switch (structure) {
+    case Structure::Char:
+      return LineColumn{position.line,
+                        GetBoundaryOneDimension(
+                            position.column,
+                            contents.at(position.line)->EndColumn().ToDelta(),
+                            direction, prefix_length)};
+    case Structure::Line:
+      return LineColumn{
+          GetBoundaryOneDimension(position.line, contents.EndLine().ToDelta(),
+                                  direction, prefix_length),
+          position.column};
+    default:
+      LOG(FATAL) << "Invalid structure for Bisect transformation.";
+      std::unreachable();
+  }
+}
 
-TEST_GROUP(TransformationBisect_GetRange_NonEmpty,
-           [](Direction d, Structure s, LineColumn p) {
-             return GetRange(LineSequence::ForTests(
-                                 {L"", L"Alejandro", L"Forero", L"Cuervo"}),
-                             d, s, p);
+TEST_GROUP(TransformationBisect_GetBoundary,
+           [](Direction direction, size_t prefix_length, Structure structure,
+              LineColumn position) {
+             return GetBoundary(
+                 LineSequence::ForTests(
+                     {L"", L"Alejandro likes to go to the park.", L"Forero",
+                      L"Cuervo", L"", L"", L"", L"", L"", L""}),
+                 direction, prefix_length, structure, position);
            })
-    .Add(L"NonEmptyBufferCharForwards", Direction::Forwards, Structure::Char,
+    .Add(L"SingleForwardChar", Direction::Forwards, 1, Structure::Char,
+         LineColumn{LineNumber{1}}, LineColumn{LineNumber{1}, ColumnNumber{2}})
+    .Add(L"SingleBackwardChar", Direction::Backwards, 1, Structure::Char,
          LineColumn{LineNumber{1}, ColumnNumber{4}},
-         Range{LineColumn{LineNumber{1}, ColumnNumber{4}},
-               LineColumn{LineNumber{1}, ColumnNumber{9}}})
-    .Add(L"NonEmptyBufferCharBackwards", Direction::Backwards, Structure::Char,
-         LineColumn{LineNumber{1}, ColumnNumber{4}},
-         Range{LineColumn{LineNumber{1}, ColumnNumber{0}},
-               LineColumn{LineNumber{1}, ColumnNumber{4}}})
-    .Add(L"NonEmptyBufferLineForwards", Direction::Forwards, Structure::Line,
-         LineColumn{LineNumber{1}, ColumnNumber{4}},
-         Range{LineColumn{LineNumber{1}, ColumnNumber{4}},
-               LineColumn{LineNumber{3}, ColumnNumber{6}}})
-    .Add(L"NonEmptyBufferLineBackwards", Direction::Backwards, Structure::Line,
-         LineColumn{LineNumber{1}, ColumnNumber{4}},
-         Range{LineColumn{LineNumber{0}, ColumnNumber{0}},
-               LineColumn{LineNumber{1}, ColumnNumber{4}}});
+         LineColumn{LineNumber{1}, ColumnNumber{2}})
+    .Add(L"TwoForwardChar", Direction::Forwards, 2, Structure::Char,
+         LineColumn{LineNumber{1}}, LineColumn{LineNumber{1}, ColumnNumber{6}})
+    .Add(L"MultiForwardChar", Direction::Forwards, 3, Structure::Char,
+         LineColumn{LineNumber{1}, ColumnNumber{1}},
+         LineColumn{LineNumber{1}, ColumnNumber{15}})
+    .Add(L"MultiBackwardChar", Direction::Backwards, 4, Structure::Char,
+         LineColumn{LineNumber{1}, ColumnNumber{34}},
+         LineColumn{LineNumber{1}, ColumnNumber{34 - 30}})
+    .Add(L"CappedForwardChar", Direction::Forwards, 20, Structure::Char,
+         LineColumn{LineNumber{1}, ColumnNumber{7}},
+         LineColumn{LineNumber{1}, ColumnNumber{34}})
+    .Add(L"CappedBackwardChar", Direction::Backwards, 7, Structure::Char,
+         LineColumn{LineNumber{1}, ColumnNumber{5}}, LineColumn{LineNumber{1}})
+    .Add(L"SingleForwardLine", Direction::Forwards, 1, Structure::Line,
+         LineColumn{LineNumber{1}, ColumnNumber{20}},
+         LineColumn{LineNumber{3}, ColumnNumber{20}})
+    .Add(L"SingleBackwardLine", Direction::Backwards, 1, Structure::Line,
+         LineColumn{LineNumber{3}, ColumnNumber{4}},
+         LineColumn{LineNumber{1}, ColumnNumber{4}})
+    .Add(L"MultiForwardLine", Direction::Forwards, 2, Structure::Line,
+         LineColumn{LineNumber{0}}, LineColumn{LineNumber{6}})
+    .Add(L"MultiBackwardLine", Direction::Backwards, 2, Structure::Line,
+         LineColumn{LineNumber{7}, ColumnNumber{30}},
+         LineColumn{LineNumber{1}, ColumnNumber{30}})
+    .Add(L"CappedForwardLine", Direction::Forwards, 20, Structure::Line,
+         LineColumn{LineNumber{1}, ColumnNumber{7}},
+         LineColumn{LineNumber{9}, ColumnNumber{7}})
+    .Add(L"CappedBackwardLine", Direction::Backwards, 7, Structure::Line,
+         LineColumn{LineNumber{1}}, LineColumn{LineNumber{0}});
+
+struct DirectionsData {
+  Direction initial = Direction::Forwards;
+  size_t prefix_length = 0;
+  std::vector<Direction> tail = {};
+
+  std::variant<Range, LineColumn> ComputeRange(const LineSequence& contents,
+                                               LineColumn position,
+                                               Structure structure) const {
+    LineColumn range_boundary =
+        GetBoundary(contents, initial, prefix_length, structure, position);
+
+    if (tail.empty()) return range_boundary;
+
+    LineColumn range_boundary_prev =
+        GetBoundary(contents, initial, prefix_length - 1, structure, position);
+
+    // Why do we skip the first element of directions.tail? That one is simply
+    // used to set the initial range; if we didn't skip it here, we would be
+    // double-processing it.
+    return std::ranges::fold_left(
+        tail | std::views::drop(1),
+        Range{std::min(range_boundary, range_boundary_prev),
+              std::max(range_boundary, range_boundary_prev)},
+        [structure](Range output, Direction direction) -> Range {
+          return AdjustRange(structure, direction, output);
+        });
+  }
+
+  bool operator==(const DirectionsData&) const = default;
+};
+
+std::ostream& operator<<(std::ostream& os, const DirectionsData& data) {
+  os << "[directions data: initial:"
+     << (data.initial == Direction::Forwards ? "Forwards" : "Backwards")
+     << ", prefix_length: " << data.prefix_length
+     << ",[tail size:" << data.tail.size();
+  return os;
+}
+
+TEST_GROUP(TransformationBisect_DirectionsData_ComputeRange,
+           [](DirectionsData data) {
+             return data.ComputeRange(
+                 LineSequence::ForTests(
+                     {L"Alejandro Cuervo likes to go to the lake."}),
+                 LineColumn{LineNumber{0}, ColumnNumber{2}}, Structure::Char);
+           })
+    .Add(L"NoMove", DirectionsData{},
+         LineColumn{LineNumber{0}, ColumnNumber{2}})
+    .Add(L"Move:1", DirectionsData{.prefix_length = 1},
+         LineColumn{LineNumber{0}, ColumnNumber{4}})
+    .Add(L"Move:2", DirectionsData{.prefix_length = 2},
+         LineColumn{LineNumber{0}, ColumnNumber{8}})
+    .Add(L"Move:3", DirectionsData{.prefix_length = 3},
+         LineColumn{LineNumber{0}, ColumnNumber{16}})
+    .Add(L"SingleTail",
+         DirectionsData{.prefix_length = 3, .tail = {Direction::Backwards}},
+         Range{LineColumn{LineNumber{0}, ColumnNumber{8}},
+               LineColumn{LineNumber{0}, ColumnNumber{16}}})
+    .Add(L"FancyTail",
+         DirectionsData{.prefix_length = 3,
+                        .tail = {Direction::Backwards, Direction::Forwards,
+                                 Direction::Backwards}},
+         Range{LineColumn{LineNumber{0}, ColumnNumber{12}},
+               LineColumn{LineNumber{0}, ColumnNumber{14}}});
+
+DirectionsData ProcessDirections(const std::vector<Direction>& input) {
+  if (input.empty()) return DirectionsData{};
+  auto split_it = std::ranges::adjacent_find(input, std::not_equal_to{});
+  if (split_it != input.end())
+    // adjacent_find returns the iterator to the *first* element of a
+    // non-equal pair, so we advance to the first different element.
+    std::ranges::advance(split_it, 1);
+
+  return DirectionsData{
+      .initial = input[0],
+      .prefix_length = split_it == input.end()
+                           ? input.size()
+                           : std::ranges::distance(input.begin(), split_it),
+      .tail = std::ranges::subrange(split_it, input.end()) |
+              std::ranges::to<std::vector>()};
+}
+
+TEST_GROUP(TransformationBisect_ProcessDirections, &ProcessDirections)
+    .Add(L"Empty", {}, DirectionsData{})
+    .Add(L"SingleForwards", {Direction::Forwards},
+         DirectionsData{
+             .initial = Direction::Forwards, .prefix_length = 1, .tail = {}})
+    .Add(L"TwoForwards", {Direction::Forwards, Direction::Forwards},
+         DirectionsData{
+             .initial = Direction::Forwards, .prefix_length = 2, .tail = {}})
+    .Add(L"SingleBackwards", {Direction::Backwards},
+         DirectionsData{
+             .initial = Direction::Backwards, .prefix_length = 1, .tail = {}})
+    .Add(L"SomeForwardsPrefixNoTail",
+         {Direction::Forwards, Direction::Forwards, Direction::Forwards,
+          Direction::Forwards},
+         DirectionsData{
+             .initial = Direction::Forwards, .prefix_length = 4, .tail = {}})
+    .Add(L"Complex",
+         {Direction::Forwards, Direction::Forwards, Direction::Forwards,
+          Direction::Backwards, Direction::Backwards, Direction::Forwards,
+          Direction::Forwards, Direction::Forwards, Direction::Backwards},
+         DirectionsData{.initial = Direction::Forwards,
+                        .prefix_length = 3,
+                        .tail = {Direction::Backwards, Direction::Backwards,
+                                 Direction::Forwards, Direction::Forwards,
+                                 Direction::Forwards, Direction::Backwards}});
+
 }  // namespace
 
 futures::Value<CompositeTransformation::Output> Bisect::Apply(
     CompositeTransformation::Input input) const {
-  LineSequence snapshot = input.buffer.contents().snapshot();
+  const DirectionsData directions = ProcessDirections(directions_);
+  if (directions.prefix_length == 0) return Output{};
 
-  const std::optional<Range> range = std::ranges::fold_left(
-      directions_, std::optional<Range>{},
-      [this, &snapshot, &input](std::optional<Range> output,
-                                Direction direction) -> std::optional<Range> {
-        if (output)
-          return AdjustRange(structure_, direction, output.value());
-        else
-          return GetRange(snapshot, direction, structure_, input.position);
-      });
+  std::variant<Range, LineColumn> range_or_position = directions.ComputeRange(
+      input.buffer.contents().snapshot(), input.position, structure_);
+  if (auto* position = std::get_if<LineColumn>(&range_or_position); position)
+    return CompositeTransformation::Output::SetPosition(*position);
 
-  if (!range) return Output{};
-
-  LineColumn center = RangeCenter(range.value(), structure_);
+  Range range = std::get<Range>(range_or_position);
+  LineColumn center = RangeCenter(range, structure_);
   CompositeTransformation::Output output =
       CompositeTransformation::Output::SetPosition(center);
 
@@ -204,15 +335,15 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
       break;
     case transformation::Input::Mode::Preview:
       VisualOverlayMap overlays;
-      if (range.value().begin() != center)
+      if (range.begin() != center)
         overlays[kPriority][kKey].insert(
-            {range.value().begin(),
+            {range.begin(),
              afc::infrastructure::screen::VisualOverlay{
                  .content = SingleLine{LazyString{L"⟦"}},
                  .modifiers = Style{.attributes = StyleAttribute::Reverse}}});
-      if (range.value().end() != center)
+      if (range.end() != center)
         overlays[kPriority][kKey].insert(
-            {range.value().end(),
+            {range.end(),
              afc::infrastructure::screen::VisualOverlay{
                  .content = SingleLine{LazyString{L"⟧"}},
                  .modifiers = Style{.attributes = StyleAttribute::Reverse}}});
