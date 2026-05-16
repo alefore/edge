@@ -179,15 +179,20 @@ TEST_GROUP(TransformationBisect_GetRange_NonEmpty,
 
 futures::Value<CompositeTransformation::Output> Bisect::Apply(
     CompositeTransformation::Input input) const {
-  std::optional<Range> range;
-  for (Direction direction : directions_)
-    if (range == std::nullopt)
-      range = GetRange(input.buffer.contents().snapshot(), direction,
-                       structure_, input.position);
-    else
-      range = AdjustRange(structure_, direction, range.value());
+  LineSequence snapshot = input.buffer.contents().snapshot();
 
-  if (range == std::nullopt) return Output{};
+  const std::optional<Range> range = std::ranges::fold_left(
+      directions_, std::optional<Range>{},
+      [this, &snapshot, &input](std::optional<Range> output,
+                                Direction direction) -> std::optional<Range> {
+        if (output)
+          return AdjustRange(structure_, direction, output.value());
+        else
+          return GetRange(snapshot, direction, structure_, input.position);
+      });
+
+  if (!range) return Output{};
+
   LineColumn center = RangeCenter(range.value(), structure_);
   CompositeTransformation::Output output =
       CompositeTransformation::Output::SetPosition(center);
