@@ -1,15 +1,22 @@
 // Example:
 //
 // TEST_GROUP(LazyString_StartsWith,
-//            [](std::pair<LazyString, LazyString> input) {
-//              return StartsWith(input.first, input.second);
+//            [](LazyString x, LazyString y) {
+//              return StartsWith(x, y);
 //            })
-//     .Add(L"AllEmpty", {L"", L""}, true)
-//     .Add(L"EmptyInput", {L"", L"foo"}, false)
-//     .Add(L"EmptyPrefix", {L"foo", L""}, true)
+//     .Add(L"AllEmpty", L"", L"", true)
+//     .Add(L"EmptyInput", L"", L"foo", false)
+//     .Add(L"EmptyPrefix", L"foo", L"", true)
 
-#ifndef __AFC_EDITOR_SRC_TESTS_FACTORY_H__
-#define __AFC_EDITOR_SRC_TESTS_FACTORY_H__
+#pragma once
+
+#include <functional>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/single_line.h"
@@ -41,10 +48,10 @@ std::string Stringify(const T& value) {
 }
 }  // namespace internal
 
-template <typename Input, typename Output>
+template <typename Output, typename... Inputs>
 class TestGroupFactory {
  public:
-  using Callback = std::function<Output(Input)>;
+  using Callback = std::function<Output(Inputs...)>;
 
  private:
   const std::wstring group_name_;
@@ -59,10 +66,12 @@ class TestGroupFactory {
     CHECK(callback_);
   }
 
-  TestGroupFactory& Add(std::wstring name, Input input, Output output) {
+  TestGroupFactory& Add(std::wstring name, Inputs... inputs, Output output) {
     tests_.push_back(Test{
-        .name = name, .callback = [input, output, callback = callback_] {
-          Output result = callback(input);
+        .name = name,
+        .callback = [inputs_tuple = std::make_tuple(std::move(inputs)...),
+                     output, callback = callback_] {
+          Output result = std::apply(callback, inputs_tuple);
           CHECK(result == output) << "Expected " << internal::Stringify(output)
                                   << " but got " << internal::Stringify(result);
         }});
@@ -87,28 +96,20 @@ class TestGroupFactory {
 
 // Internal helpers to deduce types.
 namespace internal {
-template <typename T>
-struct callable_traits;
-
-template <typename R, typename Arg>
-struct callable_traits<R(Arg)> {
-  using Input = std::decay_t<Arg>;
-  using Output = std::decay_t<R>;
-};
-
-template <typename T>
-struct callable_traits : callable_traits<decltype(&T::operator())> {};
-
-template <typename C, typename R, typename Arg>
-struct callable_traits<R (C::*)(Arg) const> : callable_traits<R(Arg)> {};
+template <typename Output, typename... Inputs, typename Callable>
+auto MakeTestGroupFactoryImpl(std::wstring name, Callable&& callback) {
+  return TestGroupFactory<Output, Inputs...>(std::move(name),
+                                             std::forward<Callable>(callback));
+}
 
 template <typename Callable>
 auto MakeTestGroupFactory(std::wstring name, Callable&& callback) {
-  using Traits = callable_traits<std::decay_t<Callable>>;
-  return TestGroupFactory<typename Traits::Input, typename Traits::Output>(
-      std::move(name), std::forward<Callable>(callback));
+  std::function target(std::forward<Callable>(callback));
+  return [&name]<typename Output, typename... Inputs>(
+             Callable&& cb, std::function<Output(Inputs...)>*) {
+    return TestGroupFactory<Output, Inputs...>(std::move(name),
+                                               std::forward<Callable>(cb));
+  }(std::forward<Callable>(callback), &target);
 }
 }  // namespace internal
 }  // namespace afc::tests
-
-#endif  // __AFC_EDITOR_SRC_TESTS_FACTORY_H__
