@@ -5,9 +5,10 @@
 #include "src/buffer_variables.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
-#include "src/tests/tests.h"
+#include "src/tests/factory.h"
 
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::infrastructure::screen::VisualOverlayKey;
@@ -49,33 +50,19 @@ LineColumn RangeCenter(const Range& range, Structure structure) {
   return LineColumn();
 }
 
-const bool range_center_tests_registration = tests::Register(
-    L"Bisect::RangeCenter",
-    {{.name = L"EmptyRangeChar",
-      .callback =
-          [] {
-            CHECK_EQ(
-                RangeCenter(Range(LineColumn(LineNumber(2), ColumnNumber(21)),
-                                  LineColumn(LineNumber(2), ColumnNumber(21))),
-                            Structure::Char),
-                LineColumn(LineNumber(2), ColumnNumber(21)));
-          }},
-     {.name = L"EmptyRangeLine",
-      .callback =
-          [] {
-            CHECK_EQ(
-                RangeCenter(Range(LineColumn(LineNumber(2), ColumnNumber(21)),
-                                  LineColumn(LineNumber(2), ColumnNumber(21))),
-                            Structure::Line),
-                LineColumn(LineNumber(2), ColumnNumber(21)));
-          }},
-     {.name = L"NormalRangeChar", .callback = [] {
-        CHECK_EQ(
-            RangeCenter(Range(LineColumn(LineNumber(21), ColumnNumber(2)),
-                              LineColumn(LineNumber(21), ColumnNumber(10))),
-                        Structure::Char),
-            LineColumn(LineNumber(21), ColumnNumber(6)));
-      }}});
+TEST_GROUP(TransformationBisect_RangeCenter, &RangeCenter)
+    .Add(L"EmptyRangeChar",
+         Range{LineColumn{LineNumber{2}, ColumnNumber{21}},
+               LineColumn{LineNumber{2}, ColumnNumber{21}}},
+         Structure::Char, LineColumn{LineNumber{2}, ColumnNumber{21}})
+    .Add(L"EmptyRangeLine",
+         Range{LineColumn{LineNumber{2}, ColumnNumber{21}},
+               LineColumn{LineNumber{2}, ColumnNumber{21}}},
+         Structure::Line, LineColumn{LineNumber{2}, ColumnNumber{21}})
+    .Add(L"NormalRangeChar",
+         Range{LineColumn{LineNumber{21}, ColumnNumber{2}},
+               LineColumn{LineNumber{21}, ColumnNumber{10}}},
+         Structure::Char, LineColumn{LineNumber{21}, ColumnNumber{6}});
 
 Range AdjustRange(Structure structure, Direction direction, Range range) {
   LineColumn center = RangeCenter(range, structure);
@@ -156,76 +143,38 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
   return Range();
 }
 
-const bool get_range_tests_registration = [] {
-  using afc::language::gc::Root;
-  auto snapshot = [] {
-    return LineSequence::ForTests({L"", L"Alejandro", L"Forero", L"Cuervo"});
-  };
-  return tests::Register(
-      L"Bisect::GetRange",
-      {{.name = L"EmptyBufferCharForwards",
-        .callback =
-            [] {
-              CHECK_EQ(GetRange(LineSequence(), Direction::Forwards,
-                                Structure::Char, LineColumn()),
-                       Range());
-            }},
-       {.name = L"EmptyBufferCharBackwards",
-        .callback =
-            [] {
-              CHECK_EQ(GetRange(LineSequence(), Direction::Backwards,
-                                Structure::Char, LineColumn()),
-                       Range());
-            }},
-       {.name = L"EmptyBufferLineForwards",
-        .callback =
-            [] {
-              CHECK_EQ(GetRange(LineSequence(), Direction::Forwards,
-                                Structure::Line, LineColumn()),
-                       Range());
-            }},
-       {.name = L"EmptyBufferLineBackwards",
-        .callback =
-            [] {
-              CHECK_EQ(GetRange(LineSequence(), Direction::Backwards,
-                                Structure::Line, LineColumn()),
-                       Range());
-            }},
-       {.name = L"NonEmptyBufferCharForwards",
-        .callback =
-            [=] {
-              CHECK_EQ(
-                  GetRange(snapshot(), Direction::Forwards, Structure::Char,
-                           LineColumn(LineNumber(1), ColumnNumber(4))),
-                  Range(LineColumn(LineNumber(1), ColumnNumber(4)),
-                        LineColumn(LineNumber(1), ColumnNumber(9))));
-            }},
-       {.name = L"NonEmptyBufferCharBackwards",
-        .callback =
-            [=] {
-              CHECK_EQ(
-                  GetRange(snapshot(), Direction::Backwards, Structure::Char,
-                           LineColumn(LineNumber(1), ColumnNumber(4))),
-                  Range(LineColumn(LineNumber(1), ColumnNumber(0)),
-                        LineColumn(LineNumber(1), ColumnNumber(4))));
-            }},
-       {.name = L"NonEmptyBufferLineForwards",
-        .callback =
-            [=] {
-              CHECK_EQ(
-                  GetRange(snapshot(), Direction::Forwards, Structure::Line,
-                           LineColumn(LineNumber(1), ColumnNumber(4))),
-                  Range(LineColumn(LineNumber(1), ColumnNumber(4)),
-                        LineColumn(LineNumber(3), ColumnNumber(6))));
-            }},
-       {.name = L"NonEmptyBufferLineBackwards", .callback = [=] {
-          CHECK_EQ(GetRange(snapshot(), Direction::Backwards, Structure::Line,
-                            LineColumn(LineNumber(1), ColumnNumber(4))),
-                   Range(LineColumn(LineNumber(0), ColumnNumber(0)),
-                         LineColumn(LineNumber(1), ColumnNumber(4))));
-        }}});
-}();
+TEST_GROUP(TransformationBisect_GetRange_Empty, &GetRange)
+    .Add(L"EmptyBufferCharForwards", LineSequence{}, Direction::Forwards,
+         Structure::Char, LineColumn{}, Range{})
+    .Add(L"EmptyBufferCharBackwards", LineSequence{}, Direction::Backwards,
+         Structure::Char, LineColumn{}, Range{})
+    .Add(L"EmptyBufferLineForwards", LineSequence{}, Direction::Forwards,
+         Structure::Line, LineColumn{}, Range{})
+    .Add(L"EmptyBufferLineBackwards", LineSequence{}, Direction::Backwards,
+         Structure::Line, LineColumn{}, Range{});
 
+TEST_GROUP(TransformationBisect_GetRange_NonEmpty,
+           [](Direction d, Structure s, LineColumn p) {
+             return GetRange(LineSequence::ForTests(
+                                 {L"", L"Alejandro", L"Forero", L"Cuervo"}),
+                             d, s, p);
+           })
+    .Add(L"NonEmptyBufferCharForwards", Direction::Forwards, Structure::Char,
+         LineColumn{LineNumber{1}, ColumnNumber{4}},
+         Range{LineColumn{LineNumber{1}, ColumnNumber{4}},
+               LineColumn{LineNumber{1}, ColumnNumber{9}}})
+    .Add(L"NonEmptyBufferCharBackwards", Direction::Backwards, Structure::Char,
+         LineColumn{LineNumber{1}, ColumnNumber{4}},
+         Range{LineColumn{LineNumber{1}, ColumnNumber{0}},
+               LineColumn{LineNumber{1}, ColumnNumber{4}}})
+    .Add(L"NonEmptyBufferLineForwards", Direction::Forwards, Structure::Line,
+         LineColumn{LineNumber{1}, ColumnNumber{4}},
+         Range{LineColumn{LineNumber{1}, ColumnNumber{4}},
+               LineColumn{LineNumber{3}, ColumnNumber{6}}})
+    .Add(L"NonEmptyBufferLineBackwards", Direction::Backwards, Structure::Line,
+         LineColumn{LineNumber{1}, ColumnNumber{4}},
+         Range{LineColumn{LineNumber{0}, ColumnNumber{0}},
+               LineColumn{LineNumber{1}, ColumnNumber{4}}});
 }  // namespace
 
 futures::Value<CompositeTransformation::Output> Bisect::Apply(
