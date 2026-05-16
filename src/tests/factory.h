@@ -34,6 +34,15 @@ template <typename T>
 inline constexpr bool is_optional_v = is_optional<T>::value;
 
 template <typename T>
+struct is_variant : std::false_type {};
+
+template <typename... Args>
+struct is_variant<std::variant<Args...>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_variant_v = is_variant<T>::value;
+
+template <typename T>
 std::string Stringify(const T& value) {
   if constexpr (requires(std::ostream& os) { os << value; }) {
     std::stringstream ss;
@@ -42,6 +51,8 @@ std::string Stringify(const T& value) {
   } else if constexpr (is_optional_v<T>) {
     if (!value) return "nullopt";
     return "optional(" + Stringify(*value) + ")";
+  } else if constexpr (is_variant_v<T>) {
+    return std::visit([](const auto& arg) { return Stringify(arg); }, value);
   } else {
     return "{unprintable type}";
   }
