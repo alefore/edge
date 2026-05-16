@@ -111,7 +111,7 @@ ValueOrError<wchar_t> URLEscapeDecode(wchar_t first, wchar_t second) {
 SingleLine EscapedString::EscapedRepresentation() const {
   SingleLine output;
 
-  LazyString input = ToLazyString(read());
+  LazyString input = read();
 
   static const std::unordered_set<wchar_t> special_chars = {L'\n', L'"', L'\\',
                                                             L'\''};
@@ -135,7 +135,7 @@ SingleLine EscapedString::EscapedRepresentation() const {
           output += SINGLE_LINE_CONSTANT(L"\\\"");
           break;
         case L'\\':
-          output += SINGLE_LINE_CONSTANT(L"\\--");
+          output += SINGLE_LINE_CONSTANT(L"\\\\");
           break;
         case L'\'':
           output += SINGLE_LINE_CONSTANT(L"\\'");
