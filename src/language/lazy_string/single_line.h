@@ -9,8 +9,23 @@
 #include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::language::lazy_string {
+class SingleLine;
+SingleLine LowerCase(SingleLine input);
+SingleLine UpperCase(SingleLine input);
+
 struct SingleLineValidator {
   static language::PossibleError Validate(const LazyString& input);
+
+  class SkipValidationKey {
+    SkipValidationKey() = default;
+    friend SingleLine LowerCase(SingleLine);
+    friend SingleLine UpperCase(SingleLine);
+
+   public:
+    SkipValidationKey(const SkipValidationKey&) = delete;
+    SkipValidationKey(SkipValidationKey&&) = default;
+    SkipValidationKey& operator=(const SkipValidationKey&) = delete;
+  };
 };
 
 namespace internal {

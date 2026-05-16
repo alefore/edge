@@ -69,11 +69,17 @@ LazyString UpperCase(LazyString input) {
 }
 
 SingleLine LowerCase(SingleLine input) {
-  return SingleLine{LowerCase(input.read())};
+  return SingleLine{SingleLineValidator::SkipValidationKey{},
+                    LowerCase(input.read())};
 }
 
+struct Custom {
+  struct SkipValidationKey {};
+};
+
 SingleLine UpperCase(SingleLine input) {
-  return SingleLine{UpperCase(input.read())};
+  return SingleLine{SingleLineValidator::SkipValidationKey{},
+                    UpperCase(input.read())};
 }
 
 NonEmptySingleLine LowerCase(NonEmptySingleLine input) {
