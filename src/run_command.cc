@@ -25,6 +25,7 @@ extern "C" {
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/tests/factory.h"
 
 namespace gc = afc::language::gc;
 
@@ -370,4 +371,27 @@ gc::Root<OpenBuffer> RunCommand(EditorState& editor_state,
   editor_state.buffer_registry().Add(name, buffer.ptr().ToWeakPtr());
   return buffer;
 }
+
+namespace {
+TEST_GROUP(RunCommandSurvives,
+           [](BuffersList::AddBufferType insertion_type) -> bool {
+             NonNull<std::unique_ptr<EditorState>> editor =
+                 EditorForTests(std::nullopt);
+             std::optional<gc::Root<OpenBuffer>> buffer = RunCommand(
+                 editor.value(),
+                 RunCommandOptions{.command = L"sleep 60",
+                                   .insertion_type = insertion_type});
+             gc::WeakPtr<OpenBuffer> buffer_weak = buffer->ptr().ToWeakPtr();
+             CHECK(buffer_weak.Lock());
+             buffer = std::nullopt;
+             LOG(INFO) << "Triggering collection.";
+             editor->gc_pool().FullCollect();
+             editor->gc_pool().BlockUntilDone();
+             LOG(INFO) << "About to return: " << buffer_weak.Lock().has_value();
+             return buffer_weak.Lock().has_value();
+           })
+    .Add(L"Ignore", BuffersList::AddBufferType::Ignore, false)
+    .Add(L"Visit", BuffersList::AddBufferType::Visit, true);
+}  // namespace
+
 }  // namespace afc::editor
