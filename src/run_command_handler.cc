@@ -32,17 +32,10 @@
 namespace gc = afc::language::gc;
 namespace staging = afc::language::staging;
 
+using namespace afc::infrastructure;
+using namespace afc::infrastructure::screen;
+
 using afc::futures::DeleteNotification;
-using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::FileDescriptor;
-using afc::infrastructure::GetElapsedSecondsSince;
-using afc::infrastructure::Path;
-using afc::infrastructure::PathComponent;
-using afc::infrastructure::ProcessId;
-using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::StandardColor;
-using afc::infrastructure::screen::Style;
-using afc::infrastructure::screen::StyleAttribute;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -140,7 +133,6 @@ ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
 }
 
 class ForkEditorCommand : public Command {
- private:
   // Holds information about the current state of the prompt.
   struct PromptState {
     const gc::Root<OpenBuffer> original_buffer;
@@ -283,19 +275,20 @@ class ForkEditorCommand : public Command {
           }
 
           prompt_state.base_command = base_command;
-          RunCommandOptions options;
-          options.command = base_command;
-          options.name = BufferName{LazyString{L"- preview: "} + base_command};
-          options.insertion_type = BuffersList::AddBufferType::Ignore;
-          gc::Root<OpenBuffer> help_buffer_root = RunCommand(editor, options);
-          OpenBuffer& help_buffer = help_buffer_root.ptr().value();
-          help_buffer.Set(buffer_variables::follow_end_of_file, false);
-          help_buffer.Set(buffer_variables::show_in_buffers_list, false);
-          help_buffer.Set(buffer_variables::allow_dirty_delete, true);
-          help_buffer.set_position({});
-          return ColorizePromptOptions{.context =
-                                           ColorizePromptOptions::ContextBuffer{
-                                               .buffer = help_buffer_root}};
+          gc::Root<OpenBuffer> help_buffer = RunCommand(
+              editor,
+              RunCommandOptions{
+                  .command = base_command,
+                  .name = BufferName{LazyString{L"- preview: "} + base_command},
+                  .insertion_type = BuffersList::AddBufferType::Ignore});
+          help_buffer->Set(buffer_variables::follow_end_of_file, false);
+          help_buffer->Set(buffer_variables::show_in_buffers_list, false);
+          help_buffer->Set(buffer_variables::allow_dirty_delete, true);
+          help_buffer->Set(buffer_variables::term_on_close, true);
+          help_buffer->set_position({});
+          return ColorizePromptOptions{
+              .context =
+                  ColorizePromptOptions::ContextBuffer{.buffer = help_buffer}};
         })
         .ConsumeErrors([](Error) { return ColorizePromptOptions{}; });
   }
