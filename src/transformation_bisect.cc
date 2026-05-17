@@ -24,6 +24,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
@@ -79,54 +80,34 @@ Range AdjustRange(Structure structure, Direction direction, Range range) {
   return range;
 }
 
-const bool adjust_range_tests_registration = tests::Register(
-    L"Bisect::AdjustRange",
-    {{.name = L"EmptyRangeCharForwards",
-      .callback =
-          [] {
-            CHECK_EQ(
-                AdjustRange(Structure::Char, Direction::Forwards,
-                            Range(LineColumn(LineNumber(2), ColumnNumber(21)),
-                                  LineColumn(LineNumber(2), ColumnNumber(21)))),
-                Range(LineColumn(LineNumber(2), ColumnNumber(21)),
-                      LineColumn(LineNumber(2), ColumnNumber(21))));
-          }},
-     {.name = L"EmptyRangeCharBackwards",
-      .callback =
-          [] {
-            CHECK_EQ(
-                AdjustRange(Structure::Char, Direction::Backwards,
-                            Range(LineColumn(LineNumber(2), ColumnNumber(21)),
-                                  LineColumn(LineNumber(2), ColumnNumber(21)))),
-                Range(LineColumn(LineNumber(2), ColumnNumber(21)),
-                      LineColumn(LineNumber(2), ColumnNumber(21))));
-          }},
-     {.name = L"NormalRangeCharForwards",
-      .callback =
-          [] {
-            CHECK_EQ(
-                AdjustRange(Structure::Char, Direction::Forwards,
-                            Range(LineColumn(LineNumber(2), ColumnNumber(12)),
-                                  LineColumn(LineNumber(2), ColumnNumber(20)))),
-                Range(LineColumn(LineNumber(2), ColumnNumber(16)),
-                      LineColumn(LineNumber(2), ColumnNumber(20))));
-          }},
-     {.name = L"NormalRangeCharBackwards", .callback = [] {
-        CHECK_EQ(
-            AdjustRange(Structure::Char, Direction::Backwards,
-                        Range(LineColumn(LineNumber(2), ColumnNumber(12)),
-                              LineColumn(LineNumber(2), ColumnNumber(20)))),
-            Range(LineColumn(LineNumber(2), ColumnNumber(12)),
-                  LineColumn(LineNumber(2), ColumnNumber(16))));
-      }}});
+TEST_GROUP(TransformationBisect_AdjustRange, &AdjustRange)
+    .Add(L"EmptyRangeCharForwards", Structure::Char, Direction::Forwards,
+         Range{LineColumn{LineNumber{2}, ColumnNumber{21}},
+               LineColumn{LineNumber{2}, ColumnNumber{21}}},
+         Range{LineColumn{LineNumber{2}, ColumnNumber{21}},
+               LineColumn{LineNumber{2}, ColumnNumber{21}}})
+    .Add(L"EmptyRangeCharBackwards", Structure::Char, Direction::Backwards,
+         Range{LineColumn{LineNumber{2}, ColumnNumber{21}},
+               LineColumn{LineNumber{2}, ColumnNumber{21}}},
+         Range{LineColumn{LineNumber{2}, ColumnNumber{21}},
+               LineColumn{LineNumber{2}, ColumnNumber{21}}})
+    .Add(L"NormalRangeCharForwards", Structure::Char, Direction::Forwards,
+         Range{LineColumn{LineNumber{2}, ColumnNumber{12}},
+               LineColumn{LineNumber{2}, ColumnNumber{20}}},
+         Range{LineColumn{LineNumber{2}, ColumnNumber{16}},
+               LineColumn{LineNumber{2}, ColumnNumber{20}}})
+    .Add(L"NormalRangeCharBackwards", Structure::Char, Direction::Backwards,
+         Range{LineColumn{LineNumber{2}, ColumnNumber{12}},
+               LineColumn{LineNumber{2}, ColumnNumber{20}}},
+         Range{LineColumn{LineNumber{2}, ColumnNumber{12}},
+               LineColumn{LineNumber{2}, ColumnNumber{16}}});
 
 template <typename Position, typename PositionDelta>
 Position GetBoundaryOneDimension(Position start, PositionDelta size,
                                  Direction direction, size_t jumps) {
   if (jumps > 60)  // Just give up.
     return direction == Direction::Forwards ? Position{} + size : Position{};
-  // 2 + 4 + 8 + ... 2^n == 2^(n+1) - 2
-  PositionDelta total_jump{static_cast<int>((1 << (jumps + 1)) - 2)};
+  PositionDelta total_jump{static_cast<int>((1 << (jumps + 2)) - 4)};
   switch (direction) {
     case Direction::Forwards:
       return size - start.ToDelta() <= total_jump ? Position{} + size
@@ -137,6 +118,19 @@ Position GetBoundaryOneDimension(Position start, PositionDelta size,
   LOG(FATAL) << "Invalid direction.";
   std::unreachable();
 }
+
+TEST_GROUP(TransformationBisect_GetBoundaryOneDimension_Basic,
+           [](size_t jumps) {
+             return GetBoundaryOneDimension(LineNumber{0},
+                                            LineNumberDelta{1000},
+                                            Direction::Forwards, jumps)
+                 .read();
+           })
+    .Add(L"Forward:1", 1, 4)
+    .Add(L"Forward:2", 2, 12)
+    .Add(L"Forward:3", 3, 28)
+    .Add(L"Forward:4", 4, 60)
+    .Add(L"Forward:5", 5, 124);
 
 LineColumn GetBoundary(LineSequence contents, Direction direction,
                        size_t prefix_length, Structure structure,
@@ -162,25 +156,25 @@ LineColumn GetBoundary(LineSequence contents, Direction direction,
 TEST_GROUP(TransformationBisect_GetBoundary,
            [](Direction direction, size_t prefix_length, Structure structure,
               LineColumn position) {
-             return GetBoundary(
-                 LineSequence::ForTests(
-                     {L"", L"Alejandro likes to go to the park.", L"Forero",
-                      L"Cuervo", L"", L"", L"", L"", L"", L""}),
-                 direction, prefix_length, structure, position);
+             return GetBoundary(LineSequence::ForTests(
+                                    {L"", L"Alejandro likes to go to the park.",
+                                     L"Forero", L"Cuervo", L"", L"", L"", L"",
+                                     L"", L"", L"", L"", L"", L""}),
+                                direction, prefix_length, structure, position);
            })
     .Add(L"SingleForwardChar", Direction::Forwards, 1, Structure::Char,
-         LineColumn{LineNumber{1}}, LineColumn{LineNumber{1}, ColumnNumber{2}})
+         LineColumn{LineNumber{1}}, LineColumn{LineNumber{1}, ColumnNumber{4}})
     .Add(L"SingleBackwardChar", Direction::Backwards, 1, Structure::Char,
-         LineColumn{LineNumber{1}, ColumnNumber{4}},
-         LineColumn{LineNumber{1}, ColumnNumber{2}})
+         LineColumn{LineNumber{1}, ColumnNumber{5}},
+         LineColumn{LineNumber{1}, ColumnNumber{1}})
     .Add(L"TwoForwardChar", Direction::Forwards, 2, Structure::Char,
-         LineColumn{LineNumber{1}}, LineColumn{LineNumber{1}, ColumnNumber{6}})
+         LineColumn{LineNumber{1}}, LineColumn{LineNumber{1}, ColumnNumber{12}})
     .Add(L"MultiForwardChar", Direction::Forwards, 3, Structure::Char,
          LineColumn{LineNumber{1}, ColumnNumber{1}},
-         LineColumn{LineNumber{1}, ColumnNumber{15}})
+         LineColumn{LineNumber{1}, ColumnNumber{29}})
     .Add(L"MultiBackwardChar", Direction::Backwards, 4, Structure::Char,
-         LineColumn{LineNumber{1}, ColumnNumber{34}},
-         LineColumn{LineNumber{1}, ColumnNumber{34 - 30}})
+         LineColumn{LineNumber{1}, ColumnNumber{64}},
+         LineColumn{LineNumber{1}, ColumnNumber{64 - 60}})
     .Add(L"CappedForwardChar", Direction::Forwards, 20, Structure::Char,
          LineColumn{LineNumber{1}, ColumnNumber{7}},
          LineColumn{LineNumber{1}, ColumnNumber{34}})
@@ -188,18 +182,18 @@ TEST_GROUP(TransformationBisect_GetBoundary,
          LineColumn{LineNumber{1}, ColumnNumber{5}}, LineColumn{LineNumber{1}})
     .Add(L"SingleForwardLine", Direction::Forwards, 1, Structure::Line,
          LineColumn{LineNumber{1}, ColumnNumber{20}},
-         LineColumn{LineNumber{3}, ColumnNumber{20}})
+         LineColumn{LineNumber{5}, ColumnNumber{20}})
     .Add(L"SingleBackwardLine", Direction::Backwards, 1, Structure::Line,
-         LineColumn{LineNumber{3}, ColumnNumber{4}},
+         LineColumn{LineNumber{5}, ColumnNumber{4}},
          LineColumn{LineNumber{1}, ColumnNumber{4}})
     .Add(L"MultiForwardLine", Direction::Forwards, 2, Structure::Line,
-         LineColumn{LineNumber{0}}, LineColumn{LineNumber{6}})
+         LineColumn{LineNumber{0}}, LineColumn{LineNumber{12}})
     .Add(L"MultiBackwardLine", Direction::Backwards, 2, Structure::Line,
-         LineColumn{LineNumber{7}, ColumnNumber{30}},
-         LineColumn{LineNumber{1}, ColumnNumber{30}})
+         LineColumn{LineNumber{17}, ColumnNumber{30}},
+         LineColumn{LineNumber{5}, ColumnNumber{30}})
     .Add(L"CappedForwardLine", Direction::Forwards, 20, Structure::Line,
          LineColumn{LineNumber{1}, ColumnNumber{7}},
-         LineColumn{LineNumber{9}, ColumnNumber{7}})
+         LineColumn{LineNumber{13}, ColumnNumber{7}})
     .Add(L"CappedBackwardLine", Direction::Backwards, 7, Structure::Line,
          LineColumn{LineNumber{1}}, LineColumn{LineNumber{0}});
 
@@ -211,6 +205,32 @@ struct DirectionsData {
   std::variant<Range, LineColumn> ComputeRange(const LineSequence& contents,
                                                LineColumn position,
                                                Structure structure) const {
+    // We assume that the neighboring position is NOT the target (otherwise the
+    // user would have just moved into it, rather than using bisect).
+    if (prefix_length) {
+      auto AdjustPosition = [&](auto& value, const auto& limit) {
+        switch (initial) {
+          case Direction::Forwards:
+            if (value < limit) ++value;
+            break;
+          case Direction::Backwards:
+            if (!value.IsZero()) --value;
+            break;
+        }
+      };
+      switch (structure) {
+        case Structure::Char:
+          AdjustPosition(position.column,
+                         contents.at(position.line)->EndColumn());
+          break;
+        case Structure::Line:
+          AdjustPosition(position.line, contents.EndLine());
+          break;
+        default:
+          LOG(FATAL) << "Invalid structure.";
+      }
+    }
+
     LineColumn range_boundary =
         GetBoundary(contents, initial, prefix_length, structure, position);
 
@@ -252,21 +272,21 @@ TEST_GROUP(TransformationBisect_DirectionsData_ComputeRange,
     .Add(L"NoMove", DirectionsData{},
          LineColumn{LineNumber{0}, ColumnNumber{2}})
     .Add(L"Move:1", DirectionsData{.prefix_length = 1},
-         LineColumn{LineNumber{0}, ColumnNumber{4}})
+         LineColumn{LineNumber{0}, ColumnNumber{7}})
     .Add(L"Move:2", DirectionsData{.prefix_length = 2},
-         LineColumn{LineNumber{0}, ColumnNumber{8}})
+         LineColumn{LineNumber{0}, ColumnNumber{15}})
     .Add(L"Move:3", DirectionsData{.prefix_length = 3},
-         LineColumn{LineNumber{0}, ColumnNumber{16}})
+         LineColumn{LineNumber{0}, ColumnNumber{31}})
     .Add(L"SingleTail",
          DirectionsData{.prefix_length = 3, .tail = {Direction::Backwards}},
-         Range{LineColumn{LineNumber{0}, ColumnNumber{8}},
-               LineColumn{LineNumber{0}, ColumnNumber{16}}})
+         Range{LineColumn{LineNumber{0}, ColumnNumber{15}},
+               LineColumn{LineNumber{0}, ColumnNumber{31}}})
     .Add(L"FancyTail",
          DirectionsData{.prefix_length = 3,
                         .tail = {Direction::Backwards, Direction::Forwards,
                                  Direction::Backwards}},
-         Range{LineColumn{LineNumber{0}, ColumnNumber{12}},
-               LineColumn{LineNumber{0}, ColumnNumber{14}}});
+         Range{LineColumn{LineNumber{0}, ColumnNumber{23}},
+               LineColumn{LineNumber{0}, ColumnNumber{27}}});
 
 DirectionsData ProcessDirections(const std::vector<Direction>& input) {
   if (input.empty()) return DirectionsData{};
