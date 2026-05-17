@@ -78,14 +78,17 @@ class TestGroupFactory {
   }
 
   TestGroupFactory& Add(std::wstring name, Inputs... inputs, Output output) {
-    tests_.push_back(Test{
-        .name = name,
-        .callback = [inputs_tuple = std::make_tuple(std::move(inputs)...),
-                     output, callback = callback_] {
-          Output result = std::apply(callback, inputs_tuple);
-          CHECK(result == output) << "Expected " << internal::Stringify(output)
-                                  << " but got " << internal::Stringify(result);
-        }});
+    tests_.push_back(
+        Test{.name = name,
+             .callback = [group_name = group_name_, name,
+                          inputs_tuple = std::make_tuple(std::move(inputs)...),
+                          output, callback = callback_] {
+               Output result = std::apply(callback, inputs_tuple);
+               CHECK(result == output)
+                   << ": " << group_name << "." << name << ": Expected "
+                   << internal::Stringify(output) << " but got "
+                   << internal::Stringify(result);
+             }});
     return *this;
   };
 
