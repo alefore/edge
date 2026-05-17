@@ -47,6 +47,7 @@ namespace staging = afc::language::staging;
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
+using namespace afc::language;
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::VersionPropertyReceiver;
@@ -355,6 +356,23 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
                           status().set_context(std::nullopt);
                         },
                         [&](const ColorizePromptOptions::ContextBuffer& value) {
+                          // Close the previous context buffer. This matters for
+                          // commands that are no longer relevant.
+                          VisitOptional(
+                              [](gc::Root<OpenBuffer> previous_context) {
+                                // TODO(2026-05-18, P1): Use a better signal for
+                                // "is a preview buffer", probably declare a
+                                // BufferName of a specific type for preview
+                                // buffers.
+                                if (previous_context->Read(
+                                        buffer_variables::allow_dirty_delete) &&
+                                    previous_context->Read(
+                                        buffer_variables::term_on_close))
+                                  previous_context->editor().CloseBuffer(
+                                      previous_context.value());
+                              },
+                              [] {}, status().context());
+
                           status().set_context(value.buffer);
                         }},
                options.context);
