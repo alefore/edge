@@ -32,7 +32,6 @@ Handle links better:
 Correctly handle: '\000'
 
 Support more languages:
-  - Python
   - Directory listings.
     - Perhaps have a bool that toggles 'stat' (show data about files)?
       Ideally this is done by the extensions!
@@ -43,10 +42,6 @@ Have an auto-save mode? Perhaps don't save to the file but to a log that can the
 
 Add structures for English editing:
 - Sentence clause. Initially probably just based on punctuation, ideally would be smart enough to parse the sentence, lol.
-
-For operation: Add '?' (show modifiers available).
-
-Make the delete buffer history (used by `p` paste) a stack; make it possible to pop.
 
 * Improve reflow:
 
@@ -75,7 +70,7 @@ Don't save backups of internal files, perhaps based on a variable.
 
 If autocomplete of files doesn't find any matches, attempt a case-insensitive match? If it matches, expand (correcting invalid characters).
 
-For /-based autocomplete, support globbing?
+If in a `#include` stanza, only autocomplete files ending in .h?
 
 ## Process handling
 
@@ -128,13 +123,9 @@ When the prompt doesn't fit the screen, be smarter about what part to show? If i
 
 Standardize the colorization of prompts (based on prediction), rather than having each prompt implement its own coloring?
 
-For `:` (vm command), improve the highlighter: enable autocompletion with a predictor that looks up available commands (similarish to `/`).
-
 Fix problem with first read of prompt history (at start); doesn't refresh list of matches. [p:20]
 
 Automatically save prompt buffers after a few seconds of inactivity.
-
-P0: For opening a file: support globs. If multiple files match, open them all.
 
 ## Commands
 
@@ -211,10 +202,6 @@ Make aC honor cursors (select based on cursors, similar to search). [p:10]
 ## Misc
 
 If a file is open in a nonexistant directory, ... when the file is saved, consider creating the directory (perhaps based on a variable). Also, warn the user that the directory doesn't exist.
-
-Anonymous buffers should never display "Buffer can't be saved cause `path` is empty" errors.
-
-Add a command-line flag that, when running as a client, causes paths to be resolved by the server, rather than as an absolute path in the client. This allows the server to apply EDGE_PATH and such.
 
 Don't do any blocking operations.
 
