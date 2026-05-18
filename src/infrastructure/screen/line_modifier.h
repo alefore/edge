@@ -30,15 +30,15 @@ enum class StandardColor {
   BrightWhite
 };
 
-// TODO(2026-05-11, easy): Validate at construction that all coordinates are
-// between 0 and 5?
 class ColorCube {
   uint8_t r_, g_, b_;
 
  public:
-  // TODO(2026-05-18, P2): Switch everybody to a factory constructor. That will
-  // enable validation.
-  constexpr ColorCube(uint8_t r, uint8_t g, uint8_t b) : r_(r), g_(g), b_(b) {}
+  constexpr ColorCube(uint8_t r, uint8_t g, uint8_t b) : r_(r), g_(g), b_(b) {
+    CHECK_LE(r_, 5);
+    CHECK_LE(g_, 5);
+    CHECK_LE(b_, 5);
+  }
 
   static const ColorCube Yellow;
   static const ColorCube Cyan;
@@ -52,10 +52,6 @@ class ColorCube {
 
   bool operator==(const ColorCube&) const = default;
 };
-
-inline constexpr ColorCube ColorCube::Yellow(5, 5, 0);
-inline constexpr ColorCube ColorCube::Cyan(0, 5, 5);
-inline constexpr ColorCube ColorCube::Magenta(5, 0, 5);
 
 struct ColorGrayscaleValidator {
   static language::PossibleError Validate(const uint8_t& input);
