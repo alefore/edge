@@ -40,10 +40,12 @@ class ColorRegistry {
                    return static_cast<uint8_t>(std::to_underlying(c));
                  },
                  [](ColorCube c) -> uint8_t {
-                   CHECK_LE(c.r, 5);
-                   CHECK_LE(c.g, 5);
-                   CHECK_LE(c.b, 5);
-                   return 16 + (36 * c.r) + (6 * c.g) + c.b;
+                   // TODO(2026-05-18, P2): These validations belong in the
+                   // ColorCube class, not here.
+                   CHECK_LE(c.r(), 5);
+                   CHECK_LE(c.g(), 5);
+                   CHECK_LE(c.b(), 5);
+                   return 16 + (36 * c.r()) + (6 * c.g()) + c.b();
                  },
                  [](ColorGrayscale g) -> uint8_t { return 232 + g.read(); }},
         color);

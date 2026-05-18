@@ -1,5 +1,4 @@
-#ifndef __AFC_EDITOR_INFRASTRUCTURE_LINE_MODIFIER_H__
-#define __AFC_EDITOR_INFRASTRUCTURE_LINE_MODIFIER_H__
+#pragma once
 
 #include <functional>
 #include <string>
@@ -33,8 +32,13 @@ enum class StandardColor {
 
 // TODO(2026-05-11, easy): Validate at construction that all coordinates are
 // between 0 and 5?
-struct ColorCube {
-  uint8_t r, g, b;
+class ColorCube {
+  uint8_t r_, g_, b_;
+
+ public:
+  // TODO(2026-05-18, P2): Switch everybody to a factory constructor. That will
+  // enable validation.
+  constexpr ColorCube(uint8_t r, uint8_t g, uint8_t b) : r_(r), g_(g), b_(b) {}
 
   static const ColorCube Yellow;
   static const ColorCube Cyan;
@@ -42,15 +46,23 @@ struct ColorCube {
 
   ColorCube InterpolateTo(ColorCube target, double transition) const;
 
+  uint8_t r() const { return r_; }
+  uint8_t g() const { return g_; }
+  uint8_t b() const { return b_; }
+
   bool operator==(const ColorCube&) const = default;
 };
 
-inline constexpr ColorCube ColorCube::Yellow{5, 5, 0};
-inline constexpr ColorCube ColorCube::Cyan{0, 5, 5};
-inline constexpr ColorCube ColorCube::Magenta{5, 0, 5};
+inline constexpr ColorCube ColorCube::Yellow(5, 5, 0);
+inline constexpr ColorCube ColorCube::Cyan(0, 5, 5);
+inline constexpr ColorCube ColorCube::Magenta(5, 0, 5);
 
-// TODO(2026-05-11, trivial): Add validator that it's between 0 and 23.
-struct ColorGrayscale : public language::GhostType<ColorGrayscale, uint8_t> {
+struct ColorGrayscaleValidator {
+  static language::PossibleError Validate(const uint8_t& input);
+};
+
+struct ColorGrayscale : public language::GhostType<ColorGrayscale, uint8_t,
+                                                   ColorGrayscaleValidator> {
   using GhostType::GhostType;
 };
 
@@ -153,5 +165,3 @@ struct hash<afc::infrastructure::screen::ColorCube> {
   std::size_t operator()(const afc::infrastructure::screen::ColorCube&) const;
 };
 }  // namespace std
-
-#endif  // __AFC_EDITOR_INFRASTRUCTURE_LINE_MODIFIER_H__

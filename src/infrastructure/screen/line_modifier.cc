@@ -10,16 +10,16 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/wstring.h"
 
-using afc::language::compute_hash;
-using afc::language::Error;
-using afc::language::FromByteString;
-using afc::language::lazy_string::Concatenate;
-using afc::language::lazy_string::Intersperse;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NonEmptySingleLine;
-using afc::language::lazy_string::SingleLine;
+using namespace afc::language;
+using namespace afc::language::lazy_string;
 
 namespace afc::infrastructure::screen {
+/* static */ language::PossibleError ColorGrayscaleValidator::Validate(
+    const uint8_t& input) {
+  if (input > 23) return Error{L"Invalid grayscale color"};
+  return EmptyValue{};
+}
+
 ColorCube ColorCube::InterpolateTo(ColorCube target, double transition) const {
   // Standard linear interpolation: (1 - t) * a + t * b
   // Using std::lerp for better numerical stability
@@ -32,8 +32,8 @@ ColorCube ColorCube::InterpolateTo(ColorCube target, double transition) const {
     return static_cast<uint8_t>(std::clamp(rounded, 0, 5));
   };
 
-  return ColorCube{interpolate(r, target.r), interpolate(g, target.g),
-                   interpolate(b, target.b)};
+  return ColorCube{interpolate(r_, target.r_), interpolate(g_, target.g_),
+                   interpolate(b_, target.b_)};
 }
 namespace {
 const std::unordered_map<NonEmptySingleLine, Color>& ColorNames() {
@@ -216,6 +216,6 @@ std::size_t hash<afc::infrastructure::screen::Style>::operator()(
 
 std::size_t hash<afc::infrastructure::screen::ColorCube>::operator()(
     const afc::infrastructure::screen::ColorCube& c) const {
-  return compute_hash(c.r, c.g, c.b);
+  return compute_hash(c.r(), c.g(), c.b());
 }
 }  // namespace std
