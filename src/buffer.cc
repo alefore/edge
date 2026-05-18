@@ -320,8 +320,6 @@ class OpenBufferMutableLineSequenceObserver
   void Notify(bool update_disk_state = true) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
-    if (root_this.value()->buffer_saver_.get())
-      root_this.value()->buffer_saver_.get()->QueueChange();
     root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
         .callback =
             gc::LockCallback(gc::BindFront(
@@ -444,7 +442,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       }}),
       execution_context_(std::move(execution_context)),
       buffer_saver_([&] -> std::shared_ptr<BufferSaver> {
-        return nullptr;  // For now!
         if (auto save_callback = options_.get_save_callback(); save_callback)
           return BufferSaver::New(
                      BufferSaver::Options{
@@ -1123,6 +1120,10 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
                  .Transform(
                      [root_buffer = RootFromThis()](EmptyValue)
                          -> futures::ValueOrError<std::vector<PossibleError>> {
+                       root_buffer->status().SetInformationText(
+                           LineBuilder{SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
+                                       ToSingleLine(root_buffer->name())}
+                               .Build());
                        return root_buffer->hooks_->save_hook().Dispatch();
                      })
                  .Transform([](std::vector<PossibleError> errors)
@@ -2500,6 +2501,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
           root_this->undo_state_.CommitCurrent();
 
         root_this->OnCursorMove();
+
+        if (root_this->buffer_saver_.get())
+          root_this->buffer_saver_.get()->QueueChange();
 
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor

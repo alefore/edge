@@ -192,9 +192,6 @@ futures::Value<PossibleError> Save(
                         path](EmptyValue) -> futures::Value<PossibleError> {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
-                  options.buffer->status().SetInformationText(LineBuilder{
-                      SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
-                      SingleLine{path.read()}}.Build());
                   stat(path.ToBytes().c_str(), &stat_buffer.value());
                   break;
                 case OpenBuffer::Options::SaveType::kBackup:
