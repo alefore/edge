@@ -274,6 +274,9 @@ class ForkEditorCommand : public Command {
                 .context = ColorizePromptOptions::ContextClear()};
           }
 
+          // TODO(2026-05-19, P2): Use aggregation::Scheduler to avoid running
+          // the command for every key-press. Instead, run it after a small
+          // amount of inactivity.
           prompt_state.base_command = base_command;
           gc::Root<OpenBuffer> help_buffer = RunCommand(
               editor,
