@@ -51,7 +51,7 @@ void HandleFileTypes(Buffer buffer, string basename, string extension) {
   }
 
   if (extension == "py") {
-    PyMode(buffer);
+    py_mode::Install(buffer);
     buffer.SetStatus("🔡 Py file (" + extension + ")");
     buffer.set_completion_model_paths("format/py iso-639/en");
     return;
