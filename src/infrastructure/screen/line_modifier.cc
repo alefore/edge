@@ -14,9 +14,9 @@ using namespace afc::language;
 using namespace afc::language::lazy_string;
 
 namespace afc::infrastructure::screen {
-/* static */ ColorCube ColorCube::Yellow(5, 5, 0);
-/* static */ ColorCube ColorCube::Cyan(0, 5, 5);
-/* static */ ColorCube ColorCube::Magenta(5, 0, 5);
+/* static */ const ColorCube ColorCube::Yellow(5, 5, 0);
+/* static */ const ColorCube ColorCube::Cyan(0, 5, 5);
+/* static */ const ColorCube ColorCube::Magenta(5, 0, 5);
 
 /* static */ language::PossibleError ColorGrayscaleValidator::Validate(
     const uint8_t& input) {
