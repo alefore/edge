@@ -320,6 +320,8 @@ class OpenBufferMutableLineSequenceObserver
   void Notify(bool update_disk_state = true) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
+    if (root_this.value()->buffer_saver_.get())
+      root_this.value()->buffer_saver_.get()->QueueChange();
     root_this->ptr()->work_queue()->Schedule(WorkQueue::Callback{
         .callback =
             gc::LockCallback(gc::BindFront(
@@ -441,6 +443,29 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
         return true;
       }}),
       execution_context_(std::move(execution_context)),
+      buffer_saver_([&] -> std::shared_ptr<BufferSaver> {
+        return nullptr;  // For now!
+        if (auto save_callback = options_.get_save_callback(); save_callback)
+          return BufferSaver::New(
+                     BufferSaver::Options{
+                         .callback = LockAndVisitCallback(
+                             [save_callback](gc::Root<OpenBuffer> root_this)
+                                 -> futures::Value<PossibleError> {
+                               LOG(INFO) << root_this->name() << ": Auto save.";
+                               root_this->Save(Options::SaveType::kMainFile);
+                               return save_callback.value()(
+                                   Options::SaveOptions{
+                                       .buffer = root_this,
+                                       .save_type =
+                                           Options::SaveType::kMainFile});
+                             },
+                             [] { return EmptyValue{}; }, WeakPtrFromThis()),
+                         .work_queue = work_queue(),
+                         .maximum_inactive_duration = 0.2,
+                         .maximum_duration = 1.0})
+              .get_shared();
+        return nullptr;
+      }),
       hooks_(std::move(hooks)) {
   work_queue()->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution, std::ref(editor()),

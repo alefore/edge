@@ -297,6 +297,7 @@ cc_binary(
     ],
     deps = [
         ":buffer_flag_map",
+        ":buffer_saver",
         ":child_process_tracker",
         ":log_model",
         "//src/concurrent:tests",
@@ -396,6 +397,21 @@ cc_library(
     name = "buffer_contents_view_layout",
     srcs = ["buffer_contents_view_layout.cc"],
     hdrs = ["buffer_contents_view_layout.h"],
+)
+
+cc_library(
+    name = "buffer_saver",
+    srcs = ["buffer_saver.cc"],
+    hdrs = ["buffer_saver.h"],
+    deps = [
+        "//src/concurrent:protected",
+        "//src/concurrent:work_queue",
+        "//src/futures:listenable_value",
+        "//src/infrastructure:time",
+        "//src/language:access_key",
+        "//src/language:safe_types",
+        "//src/language/error:value_or_error",
+    ],
 )
 
 cc_library(

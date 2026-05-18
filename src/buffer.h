@@ -12,6 +12,7 @@
 #include "src/buffer_flag_map.h"
 #include "src/buffer_hooks.h"
 #include "src/buffer_name.h"
+#include "src/buffer_saver.h"
 #include "src/buffer_state.h"
 #include "src/buffer_syntax_parser.h"
 #include "src/buffer_variables.h"
@@ -681,6 +682,10 @@ class OpenBuffer : public language::gc::EnableRootFromThis<OpenBuffer> {
   const language::gc::Ptr<ExecutionContext> execution_context_;
 
   language::text::LineProcessorMap line_processor_map_;
+
+  // LazyValue to enable us to trigger initialization in `Initialize` (because
+  // it needs to take a gc::WeakPtr to this).
+  language::LazyValue<std::shared_ptr<BufferSaver>> buffer_saver_;
 
   const language::gc::Ptr<BufferHooks> hooks_;
 
