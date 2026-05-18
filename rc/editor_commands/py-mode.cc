@@ -16,4 +16,5 @@ void PyMode(Buffer buffer) {
       "is in "
       "int bool float complex str list tuple dict set ");
   buffer.set_tree_parser("py");
+  clang_format::Install(buffer);
 }

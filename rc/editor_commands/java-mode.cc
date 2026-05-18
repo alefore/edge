@@ -23,4 +23,5 @@ void JavaMode(Buffer buffer) {
       // Values
       "true false null");
   buffer.set_tree_parser("java");
+  clang_format::Install(buffer);
 }

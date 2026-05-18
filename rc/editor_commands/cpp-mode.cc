@@ -76,4 +76,5 @@ void CppMode(Buffer buffer) {
   RegisterSimpleCppBinding(buffer, "Su", "std::unique_ptr<>", 1);
   RegisterSimpleCppBinding(buffer, "Ss", "std::shared_ptr<>", 1);
   RegisterSimpleCppBinding(buffer, "Sf", "std::function<()>", 2);
+  clang_format::Install(buffer);
 }

@@ -8,7 +8,6 @@
 #include "../editor_commands/css-mode.cc"
 #include "../editor_commands/java-mode.cc"
 #include "../editor_commands/javascript-mode.cc"
-#include "../editor_commands/lib/clang-format.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/lib/strings.cc"
@@ -35,6 +34,11 @@ void HandleFileTypes(Buffer buffer, string basename, string extension) {
   if (buffer.path() == "/etc/passwd") {
     buffer.set_tree_parser("log");
     buffer.set_log_type("etc_passwd");
+    return;
+  }
+
+  if (basename == "BUILD" && extension == "") {
+    clang_format::Install(buffer);
     return;
   }
 

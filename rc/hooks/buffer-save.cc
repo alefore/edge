@@ -4,8 +4,6 @@ string path = buffer.path();
 number dot = path.find_last_of(".", path.size());
 string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
 
-ClangFormatOnSave();
-
 string git_push_path = Dirname(path) + "/.edge-git-push.txt";
 RunCommandOptions git_push_options;
 git_push_options.set_command("test ! -f " + git_push_path.shell_escape() +

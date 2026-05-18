@@ -19,4 +19,5 @@ void JavaScriptMode(Buffer buffer) {
       "boolean number string symbol object Map Set WeakMap WeakSet Promise Proxy Reflect "
       "Generator GeneratorFunction");
   buffer.set_tree_parser("javascript");
+  clang_format::Install(buffer);
 }
