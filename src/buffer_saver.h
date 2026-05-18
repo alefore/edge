@@ -15,6 +15,7 @@
 
 namespace afc::editor {
 namespace aggregation {
+// TODO(2026-05-19, P2, trivial): Move this to //src/concurrent.
 struct Timeouts {
   // Triggers a flush if the last pending input reaches this age.
   infrastructure::Duration inactive;
