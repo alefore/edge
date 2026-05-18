@@ -462,8 +462,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                              },
                              [] { return LineSequence(); }, WeakPtrFromThis()),
                          .work_queue = work_queue(),
-                         .maximum_inactive_duration = 0.2,
-                         .maximum_duration = 1.0})
+                         .timeouts = aggregation::Timeouts{.inactive = 0.2,
+                                                           .total = 1.0}})
               .get_shared();
         return nullptr;
       }),
@@ -2507,7 +2507,7 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
         root_this->OnCursorMove();
 
         if (root_this->buffer_saver_.get())
-          root_this->buffer_saver_.get()->QueueChange();
+          root_this->buffer_saver_.get()->RecordChange();
 
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor

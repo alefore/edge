@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <variant>
 
 #include "src/concurrent/protected.h"
 #include "src/concurrent/work_queue.h"
@@ -13,41 +14,101 @@
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
+namespace aggregation {
+struct Timeouts {
+  // Triggers a flush if the last pending input reaches this age.
+  infrastructure::Duration inactive;
+  // Triggers a flush when the first pending input reaches this age.
+  infrastructure::Duration total;
+
+  std::strong_ordering operator<=>(const Timeouts&) const = default;
+};
+
+struct ActionFlush {
+  std::strong_ordering operator<=>(const ActionFlush&) const = default;
+};
+struct ActionWait {
+  infrastructure::Time next_check;
+  std::strong_ordering operator<=>(const ActionWait&) const = default;
+};
+struct ActionNone {
+  std::strong_ordering operator<=>(const ActionNone&) const = default;
+};
+
+using CheckResult = std::variant<ActionFlush, ActionWait, ActionNone>;
+
+template <typename Event>
+struct Scheduler {
+  const Timeouts timeouts;
+  std::optional<infrastructure::Time> first_pending_change = std::nullopt;
+  std::optional<infrastructure::Time> last_pending_change = std::nullopt;
+  std::vector<Event> events;
+
+  Scheduler(Timeouts timeouts_input,
+            std::optional<infrastructure::Time> first = std::nullopt,
+            std::optional<infrastructure::Time> last = std::nullopt,
+            std::vector<Event> events_input = {})
+      : timeouts(timeouts_input),
+        first_pending_change(first),
+        last_pending_change(last),
+        events(std::move(events_input)) {}
+
+  void PushEvent(infrastructure::Time now, Event event) {
+    events.push_back(std::move(event));
+    if (!first_pending_change || first_pending_change.value() > now)
+      first_pending_change = now;
+    last_pending_change = std::max(now, last_pending_change.value_or(now));
+  }
+
+  CheckResult Check(infrastructure::Time now) const {
+    CHECK_EQ(first_pending_change.has_value(), !events.empty());
+    CHECK_EQ(last_pending_change.has_value(), !events.empty());
+    if (events.empty()) return ActionNone{};
+    CHECK(first_pending_change.value() <= last_pending_change.value());
+    infrastructure::Time next_flush =
+        std::min(infrastructure::AddSeconds(first_pending_change.value(),
+                                            timeouts.total),
+                 infrastructure::AddSeconds(last_pending_change.value(),
+                                            timeouts.inactive));
+    if (next_flush <= now) return ActionFlush{};
+    return ActionWait{.next_check = next_flush};
+  }
+
+  std::vector<Event> StartFlush() {
+    std::vector<Event> output;
+    events.swap(output);
+    first_pending_change = std::nullopt;
+    last_pending_change = std::nullopt;
+    return output;
+  }
+
+  std::strong_ordering operator<=>(const Scheduler&) const = default;
+};
+}  // namespace aggregation
+
 // Class responsible for saving contents of a buffer.
 class BufferSaver : public std::enable_shared_from_this<BufferSaver> {
  public:
   using SaveCallback = std::function<futures::Value<language::PossibleError>()>;
+
   struct Options {
     SaveCallback callback;
-
     std::function<language::text::LineSequence(void)> contents_callback;
-
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue;
-
-    // Triggers a save after if this duration passes after the last change.
-    infrastructure::Duration maximum_inactive_duration;
-
-    // Triggers a save if this duration passes after a change (even if more
-    // changes are being registered).
-    infrastructure::Duration maximum_duration;
+    aggregation::Timeouts timeouts;
   };
 
  private:
   Options options_;
+
   struct Data {
-    std::optional<infrastructure::Time> first_pending_change;
-    std::optional<infrastructure::Time> last_pending_change;
-    std::optional<infrastructure::Time> last_save_start;
-    std::optional<language::text::LineSequence> last_saved_contents;
+    aggregation::Scheduler<language::EmptyValue> scheduler;
+
+    std::optional<language::text::LineSequence> last_saved_contents =
+        std::nullopt;
 
     bool save_ongoing = false;
-
-    // If a new save request arrives while one is ongoing, we set these two
-    // fields.
-    std::optional<futures::ListenableValue<language::PossibleError>>
-        pending_save_future = std::nullopt;
-    std::optional<futures::Value<language::PossibleError>::Consumer>
-        pending_save_consumer = std::nullopt;
+    bool check_already_scheduled = false;
   };
   mutable concurrent::Protected<Data> data_;
 
@@ -61,12 +122,13 @@ class BufferSaver : public std::enable_shared_from_this<BufferSaver> {
   static language::NonNull<std::shared_ptr<BufferSaver>> New(Options options);
 
   // Forces a save as soon as possible.
-  futures::Value<language::PossibleError> Flush() const;
-  void QueueChange() const;
+  void Flush() const;
+
+  void RecordChange() const;
 
  private:
-  futures::Value<language::PossibleError> FlushWithLock(Data& data) const;
+  void FlushWithLock(Data& data) const;
   void SaveFinished() const;
-  void MaybeSave() const;
+  void CheckScheduler() const;
 };
 }  // namespace afc::editor
