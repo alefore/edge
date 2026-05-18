@@ -39,7 +39,6 @@ A few characteristics of Edge:
     These are a few examples:
     [zk.cc](https://github.com/alefore/edge/blob/master/rc/editor_commands/lib/zk.cc),
     [start.cc](https://github.com/alefore/edge/blob/master/rc/hooks/start.cc),
-    [buffer-save.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-save.cc).
 
   * All buffers have *variables* that control their behavior.
     For example, variable `scrollbar` controls

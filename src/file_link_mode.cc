@@ -195,11 +195,6 @@ futures::Value<PossibleError> Save(
                   options.buffer->status().SetInformationText(LineBuilder{
                       SINGLE_LINE_CONSTANT(L"🖫 Saved: ") +
                       SingleLine{path.read()}}.Build());
-                  for (const auto& dir : editor.edge_path()) {
-                    options.buffer->execution_context()->EvaluateFile(
-                        Path::Join(dir, ValueOrDie(Path::New(LazyString{
-                                            L"hooks/buffer-save.cc"}))));
-                  }
                   stat(path.ToBytes().c_str(), &stat_buffer.value());
                   break;
                 case OpenBuffer::Options::SaveType::kBackup:
