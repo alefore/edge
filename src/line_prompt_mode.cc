@@ -351,32 +351,23 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     prompt_buffer_.ptr()->AppendRawLine(staging::CleanValue(
         ColorizeLine(line->contents().read(), std::move(options.tokens))));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
-    std::visit(overload{[](ColorizePromptOptions::ContextUnmodified) {},
-                        [&](ColorizePromptOptions::ContextClear) {
-                          status().set_context(std::nullopt);
-                        },
-                        [&](const ColorizePromptOptions::ContextBuffer& value) {
-                          // Close the previous context buffer. This matters for
-                          // commands that are no longer relevant.
-                          //
-                          // TODO(2026-05-18, P1, easy): Instead of doing it
-                          // this way, add a parameter to `status.set_context`
-                          // with a callback to run when the context changes.
-                          // Then put the "close buffer" logic in that callback.
-                          VisitOptional(
-                              [](gc::Root<OpenBuffer> previous_context) {
-                                if (previous_context->Read(
-                                        buffer_variables::allow_dirty_delete) &&
-                                    previous_context->Read(
-                                        buffer_variables::term_on_close))
-                                  previous_context->editor().CloseBuffer(
-                                      previous_context.value());
-                              },
-                              [] {}, status().context());
-
-                          status().set_context(value.buffer);
-                        }},
-               options.context);
+    std::visit(
+        overload{
+            [](ColorizePromptOptions::ContextUnmodified) {},
+            [&](ColorizePromptOptions::ContextClear) {
+              status().set_context(std::nullopt);
+            },
+            [&](const ColorizePromptOptions::ContextBuffer& value) {
+              status().set_context(WithExpireCallback<gc::Root<OpenBuffer>>(
+                  value.buffer, [](gc::Root<OpenBuffer>& context) {
+                    // Close the previous context buffer. This matters for
+                    // commands that are no longer relevant.
+                    if (context->Read(buffer_variables::allow_dirty_delete) &&
+                        context->Read(buffer_variables::term_on_close))
+                      context->editor().CloseBuffer(context.value());
+                  }));
+            }},
+        options.context);
   }
 
   const PromptOptions options_;

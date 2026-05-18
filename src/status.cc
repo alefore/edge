@@ -137,7 +137,8 @@ void Status::set_prompt(Line text, gc::Root<OpenBuffer> buffer) {
   });
 }
 
-void Status::set_context(std::optional<gc::Root<OpenBuffer>> context) {
+void Status::set_context(
+    std::optional<WithExpireCallback<gc::Root<OpenBuffer>>> context) {
   data_.lock([&](NonNull<std::shared_ptr<Data>>& data) {
     data->context = std::move(context);
   });
@@ -150,8 +151,12 @@ std::optional<gc::Root<OpenBuffer>> Status::prompt_buffer() const {
 }
 
 std::optional<gc::Root<OpenBuffer>> Status::context() const {
-  return data_.lock(
-      [](const NonNull<std::shared_ptr<Data>>& data) { return data->context; });
+  return data_.lock([](const NonNull<std::shared_ptr<Data>>& data) {
+    return data->context.transform(
+        [](const WithExpireCallback<language::gc::Root<OpenBuffer>>& value) {
+          return value.value();
+        });
+  });
 }
 
 VersionPropertyReceiver* Status::prompt_extra_information() {

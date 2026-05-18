@@ -32,6 +32,48 @@ struct StatusExpirationControl;
 
 using ::operator<<;
 
+template <typename Value>
+class WithExpireCallback {
+  Value value_;
+  std::function<void(Value&)> callback_;
+
+ public:
+  WithExpireCallback(Value value)
+      : WithExpireCallback(std::move(value), nullptr) {}
+
+  WithExpireCallback(Value value, std::function<void(Value&)> callback)
+      : value_(std::move(value)), callback_(std::move(callback)) {}
+
+  // Non-copyable.
+  WithExpireCallback(const WithExpireCallback&) = delete;
+  WithExpireCallback& operator=(const WithExpireCallback&) = delete;
+
+  WithExpireCallback(WithExpireCallback&& other)
+      : value_(std::move(other.value_)), callback_(std::move(other.callback_)) {
+    other.callback_ = nullptr;
+  }
+
+  WithExpireCallback& operator=(WithExpireCallback&& other) {
+    if (this == &other) return *this;
+    if (callback_) std::move(callback_)(value_);
+
+    value_ = std::move(other.value_);
+    callback_ = std::move(other.callback_);
+
+    other.callback_ = nullptr;
+    return *this;
+  }
+
+  ~WithExpireCallback() {
+    if (callback_) std::move(callback_)(value_);
+  }
+
+  template <typename Self>
+  auto&& value(this Self&& self) {
+    return std::forward<Self>(self).value_;
+  }
+};
+
 class Status {
  public:
   Status(infrastructure::audio::Player& audio_player);
@@ -48,7 +90,9 @@ class Status {
   // Sets the context buffer.
   //
   // Can be called with `std::nullopt` to remove the context.
-  void set_context(std::optional<language::gc::Root<OpenBuffer>> context);
+  void set_context(
+      std::optional<WithExpireCallback<language::gc::Root<OpenBuffer>>>
+          context);
   std::optional<language::gc::Root<OpenBuffer>> context() const;
 
   std::optional<language::gc::Root<OpenBuffer>> prompt_buffer() const;
@@ -129,7 +173,8 @@ class Status {
     // When `prompt_buffer` isn't nullptr, `context` may be set to a
     // buffer that contains either a preview of the results of executing the
     // prompt or possible completions.
-    std::optional<language::gc::Root<OpenBuffer>> context = std::nullopt;
+    std::optional<WithExpireCallback<language::gc::Root<OpenBuffer>>> context =
+        std::nullopt;
 
     // Should only be used when type is Type::Prompt.
     std::unique_ptr<concurrent::VersionPropertyReceiver> extra_information =
