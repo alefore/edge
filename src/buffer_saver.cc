@@ -64,6 +64,7 @@ futures::Value<PossibleError> BufferSaver::FlushWithLock(Data& data) const {
   CHECK(!data.pending_save_future);
   CHECK(!data.pending_save_consumer);
   data.save_ongoing = true;
+  data.last_saved_contents = options_.contents_callback();
   futures::Future<PossibleError> output_future;
   // Why do we schedule it in the work queue (rather than run it directly)?
   // To avoid running the user's callback (and SaveFinished) under the lock.
