@@ -411,6 +411,8 @@ cc_library(
         "//src/language:access_key",
         "//src/language:safe_types",
         "//src/language/error:value_or_error",
+        "//src/language/text:line_sequence",
+        "//src/tests:factory",
     ],
 )
 
