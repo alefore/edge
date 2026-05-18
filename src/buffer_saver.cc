@@ -15,18 +15,25 @@ BufferSaver::BufferSaver(ConstructorKey, Options options)
 
 futures::Value<PossibleError> BufferSaver::Flush() const {
   VLOG(2) << "Flush!";
-  return data_.lock([&](Data& data) { return FlushWithLock(data); });
+  return data_.lock([&](Data& data) -> futures::PossibleError {
+    if (data.last_saved_contents == options_.contents_callback())
+      return EmptyValue{};
+    return FlushWithLock(data);
+  });
 }
 
 void BufferSaver::QueueChange() const {
   VLOG(2) << "Queue change!";
   Time now = Now();
-  data_.lock([&](Data& data) {
+  bool change_detected = data_.lock([&](Data& data) {
+    if (data.last_saved_contents == options_.contents_callback()) return false;
     if (!data.first_pending_change) data.first_pending_change = now;
     // Why use std::max? To deal with backward-jumping clocks.
     data.last_pending_change =
         std::max(now, data.last_pending_change.value_or(now));
+    return true;
   });
+  if (!change_detected) return;
   options_.work_queue->Wait(AddSeconds(now, options_.maximum_inactive_duration))
       .Transform([shared_this = shared_from_this()](EmptyValue) {
         VLOG(6) << "Inactive check!";

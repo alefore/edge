@@ -10,6 +10,7 @@
 #include "src/language/access_key.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
 // Class responsible for saving contents of a buffer.
@@ -18,6 +19,9 @@ class BufferSaver : public std::enable_shared_from_this<BufferSaver> {
   using SaveCallback = std::function<futures::Value<language::PossibleError>()>;
   struct Options {
     SaveCallback callback;
+
+    std::function<language::text::LineSequence(void)> contents_callback;
+
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue;
 
     // Triggers a save after if this duration passes after the last change.
@@ -34,6 +38,7 @@ class BufferSaver : public std::enable_shared_from_this<BufferSaver> {
     std::optional<infrastructure::Time> first_pending_change;
     std::optional<infrastructure::Time> last_pending_change;
     std::optional<infrastructure::Time> last_save_start;
+    std::optional<language::text::LineSequence> last_saved_contents;
 
     bool save_ongoing = false;
 

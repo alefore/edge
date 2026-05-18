@@ -449,7 +449,6 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                              [save_callback](gc::Root<OpenBuffer> root_this)
                                  -> futures::Value<PossibleError> {
                                LOG(INFO) << root_this->name() << ": Auto save.";
-                               root_this->Save(Options::SaveType::kMainFile);
                                return save_callback.value()(
                                    Options::SaveOptions{
                                        .buffer = root_this,
@@ -457,6 +456,11 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                                            Options::SaveType::kMainFile});
                              },
                              [] { return EmptyValue{}; }, WeakPtrFromThis()),
+                         .contents_callback = LockAndVisitCallback(
+                             [](gc::Root<OpenBuffer> root_this) {
+                               return root_this->contents().snapshot();
+                             },
+                             [] { return LineSequence(); }, WeakPtrFromThis()),
                          .work_queue = work_queue(),
                          .maximum_inactive_duration = 0.2,
                          .maximum_duration = 1.0})
