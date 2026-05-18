@@ -32,7 +32,6 @@ struct StatusExpirationControl;
 
 using ::operator<<;
 
-// TODO(easy, 2023-08-24): Make this class thread safe.
 class Status {
  public:
   Status(infrastructure::audio::Player& audio_player);
