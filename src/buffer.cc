@@ -128,7 +128,6 @@ using afc::language::Visit;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::WeakPtrLockingObserver;
-using afc::language::WrapAsLazyValue;
 using afc::language::container::head_to_optional;
 using afc::language::container::MaterializeUnorderedSet;
 using afc::language::lazy_string::ColumnNumber;
