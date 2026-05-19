@@ -447,7 +447,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                              [] { return LineSequence(); }, WeakPtrFromThis()),
                          .work_queue = work_queue(),
                          .timeouts = aggregation::Timeouts{.inactive = 0.2,
-                                                           .total = 1.0}})
+                                                           .total = 1.0,
+                                                           .post_flush = 3.0}})
               .get_shared();
         return nullptr;
       }),

@@ -358,12 +358,13 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
             [&](aggregation::ActionFlush) { FlushContext(); },
         },
         context_aggregator_.Check(
-            Now(), aggregation::Timeouts{.inactive = 0.3, .total = 1.0}));
+            Now(), aggregation::Timeouts{
+                       .inactive = 0.3, .total = 1.0, .post_flush = 3.0}));
   }
 
   void FlushContext() {
     const std::vector<LazyValue<ColorizePromptOptions::Context>> events =
-        context_aggregator_.StartFlush();
+        context_aggregator_.StartFlush(Now());
     if (events.empty()) return;
     std::visit(
         overload{

@@ -34,7 +34,7 @@ std::function<void()> BufferSaver::FlushWithLock(Data& data) const {
     return nullptr;
   data.save_ongoing = true;
   data.last_saved_contents = options_.contents_callback();
-  data.scheduler.StartFlush();
+  data.scheduler.StartFlush(Now());
   // Why do we schedule it in the work queue (rather than run it directly)?
   // To avoid running the user's callback (and SaveFinished) under the lock.
   return [&] {
