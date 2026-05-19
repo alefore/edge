@@ -122,6 +122,22 @@ class Protected {
     return std::forward<Callable>(callable)(*lock());
   }
 
+  // Runs callable under the lock and its returned value outside of the lock.
+  // This is a convenience function, roughly equivalent to:
+  //
+  //     std::invoke(my_data.lock(...));
+  //
+  // It is OK for `callable` to return nullptr.
+  //
+  // We define this because we want to lower the friction of running callbacks
+  // outside of the lock.
+  template <typename Self, typename Callable>
+  void LockWithPostInvoke(this Self&& self, Callable&& callable) {
+    auto result =
+        std::forward<Callable>(callable)(*std::forward<Self>(self).lock());
+    if (result) std::invoke(result);
+  }
+
  protected:
   void MaybeRegisterLock() const {
     if constexpr (test_flows_register)
