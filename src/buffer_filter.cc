@@ -268,7 +268,7 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
 }());
 }  // namespace
 
-Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
+Line ColorizeLine(SingleLine line, std::vector<TokenAndModifiers> tokens) {
   TRACK_OPERATION(FilterSortBuffer_ColorizeLine);
   sort(tokens.begin(), tokens.end(),
        [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
@@ -396,9 +396,8 @@ FilterSortBufferOutput FilterSortBuffer(FilterSortBufferInput input) {
           std::views::transform(
               [&](const math::naive_bayes::Event& key)
                   -> ValueOrError<FilterSortBufferOutput::Match> {
-                DECLARE_OR_RETURN(
-                    EscapedString data,
-                    EscapedString::Parse(SingleLine::New(key.read())));
+                DECLARE_OR_RETURN(EscapedString data,
+                                  EscapedString::Parse(key.read()));
                 return FilterSortBufferOutput::Match{
                     .preview = ColorizeLine(
                         key.read(),

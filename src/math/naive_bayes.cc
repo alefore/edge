@@ -10,28 +10,19 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
+#include "src/tests/factory.h"
 #include "src/tests/tests.h"
 
 using ::operator<<;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::GetValueOrDefault;
-using afc::language::GetValueOrDie;
-using afc::language::GhostType;
-using afc::language::overload;
-using afc::language::PossibleError;
-using afc::language::Success;
-using afc::language::ValueOrError;
-using afc::language::lazy_string::LazyString;
+using namespace afc::language;
+using namespace afc::language::lazy_string;
 
 namespace afc::math::naive_bayes {
 struct ProbabilityValidator {
   static PossibleError Validate(const double& input) {
-    if (input < 0)
-      return Error{LazyString{L"Invalid probability value (less than 0.0)."}};
+    if (input < 0) return Error{L"Invalid probability value (less than 0.0)."};
     if (input > 1.0)
-      return Error{
-          LazyString{L"Invalid probability value (greater than 1.0)."}};
+      return Error{L"Invalid probability value (greater than 1.0)."};
     return Success();
   }
 };
@@ -42,32 +33,13 @@ class Probability
 };
 
 namespace {
-const bool probability_constructor_good_inputs_tests_registration =
-    tests::Register(L"ProbabilityConstructorGoodInputs",
-                    {{.name = L"Zero", .callback = [] { Probability{0.0}; }},
-                     {.name = L"One", .callback = [] { Probability{1.0}; }},
-                     {.name = L"Half", .callback = [] { Probability{0.5}; }}});
-
-const bool probability_constructor_bad_inputs_tests_registration =
-    tests::Register(
-        L"ProbabilityConstructorBadInputs",
-        {
-            {.name = L"Negative",
-             .callback = [] { CHECK(!Probability::New(-1.0)); }},
-            {.name = L"NegativeCrash",
-             .callback =
-                 [] {
-                   tests::ForkAndWaitForFailure([] { Probability(-1.0); });
-                 }},
-            {.name = L"TooLarge",
-             .callback = [] { CHECK(!Probability::New(1.01)); }},
-            {.name = L"TooLargeCrash",
-             .callback =
-                 [] {
-                   tests::ForkAndWaitForFailure([] { Probability(1.01); });
-                 }},
-
-        });
+TEST_GROUP(ProbabilityConstructorGoodInputs,
+           [](double v) { return Probability::New(v).has_value(); })
+    .Add(L"Zero", 0.0, true)
+    .Add(L"One", 1.0, true)
+    .Add(L"Half", 0.5, true)
+    .Add(L"Negative", -1.0, false)
+    .Add(L"TooLarge", 1.01, false);
 
 class EventProbabilityMap
     : public GhostType<EventProbabilityMap,
@@ -103,12 +75,16 @@ EventProbabilityMap GetEventProbability(const History& history) {
             Probability::New(static_cast<double>(instances.size()) / count));
       }));
 }
-
 const bool get_probability_of_event_tests_registration =
     tests::Register(L"GetEventProbability", [] {
-      Event e0{LazyString{L"e0"}}, e1{LazyString{L"e1"}}, e2{LazyString{L"e2"}};
-      Feature f1{LazyString{L"f1"}}, f2{LazyString{L"f2"}},
-          f3{LazyString{L"f3"}}, f4{LazyString{L"f4"}}, f5{LazyString{L"f5"}};
+      Event e0{NON_EMPTY_SINGLE_LINE_CONSTANT(L"e0")},
+          e1{NON_EMPTY_SINGLE_LINE_CONSTANT(L"e1")},
+          e2{NON_EMPTY_SINGLE_LINE_CONSTANT(L"e2")};
+      Feature f1{NON_EMPTY_SINGLE_LINE_CONSTANT(L"f1")},
+          f2{NON_EMPTY_SINGLE_LINE_CONSTANT(L"f2")},
+          f3{NON_EMPTY_SINGLE_LINE_CONSTANT(L"f3")},
+          f4{NON_EMPTY_SINGLE_LINE_CONSTANT(L"f4")},
+          f5{NON_EMPTY_SINGLE_LINE_CONSTANT(L"f5")};
       return std::vector<tests::Test>(
           {{.name = L"Empty",
             .callback =

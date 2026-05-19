@@ -1,5 +1,4 @@
-#ifndef __AFC_EDITOR_BUFFER_FILTER_H__
-#define __AFC_EDITOR_BUFFER_FILTER_H__
+#pragma once
 
 #include <vector>
 
@@ -28,7 +27,7 @@ struct TokenAndModifiers {
   infrastructure::screen::Style modifiers;
 };
 
-language::text::Line ColorizeLine(language::lazy_string::LazyString line,
+language::text::Line ColorizeLine(language::lazy_string::SingleLine line,
                                   std::vector<TokenAndModifiers> tokens);
 
 struct FilterSortBufferInput {
@@ -55,4 +54,3 @@ bool operator==(const FilterSortBufferOutput::Match&,
 std::ostream& operator<<(std::ostream& os,
                          const FilterSortBufferOutput::Match&);
 }  // namespace afc::editor
-#endif  // __AFC_EDITOR_BUFFER_FILTER_H__

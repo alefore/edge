@@ -48,6 +48,11 @@ namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using namespace afc::language;
+using namespace afc::language::lazy_string;
+using namespace afc::language::text;
+using namespace afc::infrastructure;
+using namespace afc::infrastructure::screen;
+
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::VersionPropertyReceiver;
@@ -55,42 +60,6 @@ using afc::concurrent::WorkQueueScheduler;
 using afc::futures::DeleteNotification;
 using afc::futures::JoinValues;
 using afc::futures::ListenableValue;
-using afc::infrastructure::AddSeconds;
-using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::Now;
-using afc::infrastructure::Path;
-using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::StandardColor;
-using afc::infrastructure::screen::Style;
-using afc::infrastructure::screen::StyleAttribute;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::IgnoreErrors;
-using afc::language::InsertOrDie;
-using afc::language::MakeNonNullShared;
-using afc::language::MakeNonNullUnique;
-using afc::language::NonNull;
-using afc::language::overload;
-using afc::language::Success;
-using afc::language::ValueOrError;
-using afc::language::VisitOptional;
-using afc::language::VisitPointer;
-using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::SingleLine;
-using afc::language::lazy_string::Token;
-using afc::language::lazy_string::TokenizeBySpaces;
-using afc::language::lazy_string::ToLazyString;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
-using afc::language::text::LineColumn;
-using afc::language::text::LineNumber;
-using afc::language::text::LineNumberDelta;
-using afc::language::text::LineSequence;
-using afc::language::text::MutableLineSequence;
-using afc::language::text::Range;
 using afc::vm::EscapedMap;
 using afc::vm::EscapedString;
 using afc::vm::Identifier;
@@ -314,10 +283,6 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   NonNull<std::unique_ptr<ProgressChannel>> NewProgressChannel(
       NonNull<std::shared_ptr<StatusVersionAdapter>> status_value_viewer);
 
-  // status_buffer is the buffer with the contents of the prompt. tokens_future
-  // is received as a future so that we can detect if the prompt input changes
-  // between the time when `ColorizePrompt` is executed and the time when the
-  // tokens become available.
   void ColorizePrompt(DeleteNotification::Value abort_value,
                       const Line& original_line,
                       ColorizePromptOptions options) {
@@ -345,11 +310,10 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
       return;
     }
 
-    // TODO(easy, 2024-09-19): Avoid read():
     // TODO(2026-05-08, P2): Document why staging::CleanValue is OK here. Or,
     // perhaps better, propagate value from original line?
     prompt_buffer_.ptr()->AppendRawLine(staging::CleanValue(
-        ColorizeLine(line->contents().read(), std::move(options.tokens))));
+        ColorizeLine(line->contents(), std::move(options.tokens))));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
     std::visit(
         overload{

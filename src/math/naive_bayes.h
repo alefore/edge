@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -6,13 +8,16 @@
 
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/wstring.h"
+
 namespace afc::math::naive_bayes {
 using ::operator<<;
 
 // An Event represents an arbitrary action, such as opening a specific file.
 class Event
-    : public language::GhostType<Event, language::lazy_string::LazyString> {
+    : public language::GhostType<Event,
+                                 language::lazy_string::NonEmptySingleLine> {
   using GhostType::GhostType;
 };
 
@@ -24,7 +29,8 @@ class Event
 // - Today is Wednesday.
 // - A given process is currently executing.
 class Feature
-    : public language::GhostType<Feature, language::lazy_string::LazyString> {
+    : public language::GhostType<Feature,
+                                 language::lazy_string::NonEmptySingleLine> {
   using GhostType::GhostType;
 };
 
