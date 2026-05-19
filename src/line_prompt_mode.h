@@ -12,6 +12,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/lazy_value.h"
 #include "src/language/text/line.h"
 #include "src/predictor.h"
 
@@ -28,8 +29,9 @@ struct ColorizePromptOptions {
     language::gc::Root<OpenBuffer> buffer;
   };
 
-  std::variant<ContextUnmodified, ContextClear, ContextBuffer> context =
-      ContextUnmodified{};
+  language::LazyValue<
+      std::variant<ContextUnmodified, ContextClear, ContextBuffer>>
+      context = ContextUnmodified{};
 };
 
 struct PromptOptions {

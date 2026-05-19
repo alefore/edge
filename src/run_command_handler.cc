@@ -34,32 +34,11 @@ namespace staging = afc::language::staging;
 
 using namespace afc::infrastructure;
 using namespace afc::infrastructure::screen;
+using namespace afc::language;
+using namespace afc::language::lazy_string;
+using namespace afc::language::text;
 
 using afc::futures::DeleteNotification;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::FromByteString;
-using afc::language::HasValue;
-using afc::language::IgnoreErrors;
-using afc::language::MakeNonNullShared;
-using afc::language::MakeNonNullUnique;
-using afc::language::NonNull;
-using afc::language::overload;
-using afc::language::PossibleError;
-using afc::language::Success;
-using afc::language::ToByteString;
-using afc::language::ValueOrError;
-using afc::language::VisitPointer;
-using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::Concatenate;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NonEmptySingleLine;
-using afc::language::lazy_string::SingleLine;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
-using afc::language::text::LineNumber;
-using afc::language::text::LinePartMetadata;
-using afc::language::text::LineSequence;
 using afc::vm::EscapedString;
 
 namespace afc {
@@ -274,24 +253,24 @@ class ForkEditorCommand : public Command {
                 .context = ColorizePromptOptions::ContextClear()};
           }
 
-          // TODO(2026-05-19, P2): Use aggregation::Scheduler to avoid running
-          // the command for every key-press. Instead, run it after a small
-          // amount of inactivity.
           prompt_state.base_command = base_command;
-          gc::Root<OpenBuffer> help_buffer = RunCommand(
-              editor,
-              RunCommandOptions{
-                  .command = base_command,
-                  .name = BufferName{LazyString{L"- preview: "} + base_command},
-                  .insertion_type = BuffersList::AddBufferType::Ignore});
-          help_buffer->Set(buffer_variables::follow_end_of_file, false);
-          help_buffer->Set(buffer_variables::show_in_buffers_list, false);
-          help_buffer->Set(buffer_variables::allow_dirty_delete, true);
-          help_buffer->Set(buffer_variables::term_on_close, true);
-          help_buffer->set_position({});
           return ColorizePromptOptions{
-              .context =
-                  ColorizePromptOptions::ContextBuffer{.buffer = help_buffer}};
+              .context = LazyValue([&editor, base_command] {
+                gc::Root<OpenBuffer> help_buffer = RunCommand(
+                    editor,
+                    RunCommandOptions{
+                        .command = base_command,
+                        .name = BufferName{LazyString{L"- preview: "} +
+                                           base_command},
+                        .insertion_type = BuffersList::AddBufferType::Ignore});
+                help_buffer->Set(buffer_variables::follow_end_of_file, false);
+                help_buffer->Set(buffer_variables::show_in_buffers_list, false);
+                help_buffer->Set(buffer_variables::allow_dirty_delete, true);
+                help_buffer->Set(buffer_variables::term_on_close, true);
+                help_buffer->set_position({});
+                return ColorizePromptOptions::ContextBuffer{.buffer =
+                                                                help_buffer};
+              })};
         })
         .ConsumeErrors([](Error) { return ColorizePromptOptions{}; });
   }

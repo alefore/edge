@@ -328,7 +328,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
                       context->editor().CloseBuffer(context.value());
                   }));
             }},
-        options.context);
+        options.context.get());
   }
 
   const PromptOptions options_;
