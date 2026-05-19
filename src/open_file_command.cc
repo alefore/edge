@@ -27,35 +27,17 @@ extern "C" {
 
 namespace gc = afc::language::gc;
 
+using namespace afc::language;
+using namespace afc::language::lazy_string;
+using namespace afc::language::text;
+
 using afc::futures::DeleteNotification;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::IgnoreErrors;
-using afc::language::NonNull;
-using afc::language::OptionalFrom;
-using afc::language::overload;
-using afc::language::Success;
-using afc::language::ValueOrError;
-using afc::language::VisitOptional;
-using afc::language::VisitPointer;
-using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::ForEachColumn;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::SingleLine;
-using afc::language::lazy_string::ToLazyString;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
-using afc::language::text::LineNumber;
-using afc::language::text::LineNumberDelta;
-using afc::language::text::LineSequence;
-using afc::language::text::SortedLineSequence;
-using afc::language::text::SortedLineSequenceUniqueLines;
 using afc::language::view::SkipErrors;
 using afc::vm::EscapedString;
 
