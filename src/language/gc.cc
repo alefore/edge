@@ -398,14 +398,13 @@ void Pool::Expand(const Operation& parallel_operation,
                                                     shard) {
     TRACK_OPERATION(gc_Pool_Expand_shard);
     size_t vectors = 0;
+    ObjectMetadata::Receiver receiver;
     while (!shard.empty() &&
            !(count_down_timer.has_value() && count_down_timer->IsDone())) {
       ++vectors;
       std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
           std::move(shard.back());
       shard.pop_back();
-      ObjectMetadata::Receiver receiver;
-
       for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : elements) {
         TRACK_OPERATION(gc_Pool_Expand_Step);
         VLOG(10) << "Considering obj: " << obj.get_shared();
@@ -429,16 +428,13 @@ void Pool::Expand(const Operation& parallel_operation,
             });
         if (expand_callback) expand_callback(receiver);
       }
-      if (ObjectExpandVector expansion(
-              std::from_range,
-              std::move(receiver).expansion_ |
-                  std::views::filter(
-                      [](const NonNull<std::shared_ptr<ObjectMetadata>>&
-                             candidate) {
-                        return candidate->data_.lock()->MarkReached();
-                      }));
-          !expansion.empty())
-        shard.push_back(std::move(expansion));
+      ObjectExpandVector output =
+          std::move(receiver.expansion_) | std::ranges::to<std::vector>();
+      receiver.expansion_.clear();
+      EraseIf(output, [](NonNull<std::shared_ptr<ObjectMetadata>> candidate) {
+        return !candidate->data_.lock()->MarkReached();
+      });
+      if (!output.empty()) shard.push_back(std::move(output));
     }
     VLOG(6) << "Shard expanded: " << vectors;
   });
