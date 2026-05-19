@@ -40,19 +40,9 @@ using CheckResult = std::variant<ActionFlush, ActionWait, ActionNone>;
 
 template <typename Event>
 struct Scheduler {
-  const Timeouts timeouts;
   std::optional<infrastructure::Time> first_pending_change = std::nullopt;
   std::optional<infrastructure::Time> last_pending_change = std::nullopt;
   std::vector<Event> events;
-
-  Scheduler(Timeouts timeouts_input,
-            std::optional<infrastructure::Time> first = std::nullopt,
-            std::optional<infrastructure::Time> last = std::nullopt,
-            std::vector<Event> events_input = {})
-      : timeouts(timeouts_input),
-        first_pending_change(first),
-        last_pending_change(last),
-        events(std::move(events_input)) {}
 
   void PushEvent(infrastructure::Time now, Event event) {
     events.push_back(std::move(event));
@@ -61,7 +51,7 @@ struct Scheduler {
     last_pending_change = std::max(now, last_pending_change.value_or(now));
   }
 
-  CheckResult Check(infrastructure::Time now) const {
+  CheckResult Check(infrastructure::Time now, const Timeouts& timeouts) const {
     CHECK_EQ(first_pending_change.has_value(), !events.empty());
     CHECK_EQ(last_pending_change.has_value(), !events.empty());
     if (events.empty()) return ActionNone{};
