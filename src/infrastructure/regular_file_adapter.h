@@ -1,5 +1,4 @@
-#ifndef __AFC_INFRASTRUCTURE_REGULAR_FILE_ADAPTER_H__
-#define __AFC_INFRASTRUCTURE_REGULAR_FILE_ADAPTER_H__
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -36,9 +35,8 @@ class RegularFileAdapter : public FileAdapter {
 
   futures::Value<language::EmptyValue> ReceiveInput(
       language::lazy_string::LazyString str,
-      const infrastructure::screen::Style& modifiers) override;
+      const language::text::LinePartMetadata& modifiers) override;
 
   bool WriteSignal(infrastructure::UnixSignal signal) override;
 };
 }  // namespace afc::infrastructure
-#endif  // __AFC_INFRASTRUCTURE_REGULAR_FILE_ADAPTER_H__

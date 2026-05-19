@@ -1,5 +1,4 @@
-#ifndef __AFC_INFRASTRUCTURE_FILE_ADAPTER_H__
-#define __AFC_INFRASTRUCTURE_FILE_ADAPTER_H__
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -11,6 +10,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
 namespace afc::infrastructure {
@@ -37,9 +37,8 @@ class FileAdapter {
   virtual void SetPositionToZero() = 0;
   virtual futures::Value<language::EmptyValue> ReceiveInput(
       language::lazy_string::LazyString str,
-      const infrastructure::screen::Style& modifiers) = 0;
+      const language::text::LinePartMetadata& line_part_metadata) = 0;
 
   virtual bool WriteSignal(infrastructure::UnixSignal signal) = 0;
 };
 }  // namespace afc::infrastructure
-#endif  // __AFC_INFRASTRUCTURE_FILE_ADAPTER_H__

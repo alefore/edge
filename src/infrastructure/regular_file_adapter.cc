@@ -68,12 +68,11 @@ std::vector<Line> CreateLineInstances(LazyString contents,
 }
 
 futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
-    language::lazy_string::LazyString str, const Style& modifiers) {
-  // TODO(2026-05-07, P2, trivial): Don't convert from Style to LinePartMetadata
-  // here. Do it in the customer.
+    language::lazy_string::LazyString str,
+    const LinePartMetadata& line_part_metadata) {
   return options_.thread_pool
       .Run(std::bind_front(CreateLineInstances, std::move(str),
-                           LinePartMetadata{.style = modifiers}))
+                           line_part_metadata))
       .Transform([options = options_](std::vector<Line> lines) {
         TRACK_OPERATION(RegularFileAdapter_ReceiveInput);
         CHECK_GT(lines.size(), 0ul);

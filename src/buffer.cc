@@ -79,6 +79,8 @@ namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
 namespace aggregation = afc::concurrent::aggregation;
 
+using namespace afc::language::text;
+
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
 using afc::futures::OnError;
@@ -138,24 +140,6 @@ using afc::language::lazy_string::Parenthesize;
 using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::ToLazyString;
-using afc::language::text::DelegatingMutableLineSequenceObserver;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
-using afc::language::text::LineColumn;
-using afc::language::text::LineColumnDelta;
-using afc::language::text::LineMetadataKey;
-using afc::language::text::LineMetadataMap;
-using afc::language::text::LineNumber;
-using afc::language::text::LineNumberDelta;
-using afc::language::text::LineProcessorInput;
-using afc::language::text::LineProcessorKey;
-using afc::language::text::LineProcessorMap;
-using afc::language::text::LineProcessorOutputFutureVariant;
-using afc::language::text::LineSequence;
-using afc::language::text::MutableLineSequence;
-using afc::language::text::MutableLineSequenceObserver;
-using afc::language::text::Range;
-using afc::language::text::SortedLineSequence;
 using afc::language::view::GetErrors;
 using afc::language::view::SkipErrors;
 using gc::LockAndVisitCallback;
@@ -2006,7 +1990,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
   });
 
   auto new_reader = [this](std::optional<FileDescriptor> fd,
-                           LazyString name_suffix, Style modifiers,
+                           LazyString name_suffix, LinePartMetadata modifiers,
                            std::unique_ptr<FileDescriptorReader>& reader)
       -> futures::Value<EmptyValue> {
     if (fd == std::nullopt) {
@@ -2055,7 +2039,9 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
       JoinValues(
           new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
           new_reader(input_error_fd, LazyString{L"stderr"},
-                     Style{.attributes = StyleAttribute::Bold}, fd_error_))
+                     LinePartMetadata{
+                         .style = Style{.attributes = StyleAttribute::Bold}},
+                     fd_error_))
           .Transform(LockAndVisitCallback(
               [](std::tuple<EmptyValue, EmptyValue>,
                  gc::Root<OpenBuffer> root_this) {

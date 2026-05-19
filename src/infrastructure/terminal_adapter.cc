@@ -21,6 +21,8 @@ extern "C" {
 
 namespace staging = afc::language::staging;
 
+using namespace afc::language::text;
+
 using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
@@ -34,13 +36,6 @@ using afc::language::Observers;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
-using afc::language::text::LineColumn;
-using afc::language::text::LineColumnDelta;
-using afc::language::text::LineNumber;
-using afc::language::text::LineNumberDelta;
-using afc::language::text::MutableLineSequence;
 
 namespace afc::infrastructure {
 using ::operator<<;
@@ -63,10 +58,10 @@ std::optional<LineColumn> TerminalAdapter::position() const {
 void TerminalAdapter::SetPositionToZero() { data_->position = LineColumn(); }
 
 futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
-    LazyString str, const Style& initial_modifiers) {
+    LazyString str, const LinePartMetadata& initial_metadata) {
   data_->position.line =
       std::min(data_->position.line, data_->receiver->contents().EndLine());
-  Style modifiers = initial_modifiers;
+  Style style = initial_metadata.style;
 
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str;
@@ -89,19 +84,17 @@ futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
       MoveToNextLine();
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
-      read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
-      VLOG(9) << "Modifiers: " << modifiers;
+      read_index = ProcessTerminalEscapeSequence(str, read_index, &style);
+      VLOG(9) << "Style: " << style;
       CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
     } else if (isprint(c) || c == '\t') {
-      VLOG(8) << "Received printable or tab: " << c
-              << " (modifiers: " << modifiers << ", position "
-              << data_->position << ")";
+      VLOG(8) << "Received printable or tab: " << c << " (Style    : " << style
+              << ", position " << data_->position << ")";
       if (data_->position.column >=
           ColumnNumber(0) + LastViewSize(data_.value()).column) {
         MoveToNextLine();
       }
-      data_->contents.SetCharacter(data_->position, c, staging::Clean,
-                                   modifiers);
+      data_->contents.SetCharacter(data_->position, c, staging::Clean, style);
       data_->position.column++;
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";

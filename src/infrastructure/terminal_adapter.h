@@ -1,5 +1,4 @@
-#ifndef __AFC_INFRASTRUCTURE_TERMINAL_ADAPTER_H__
-#define __AFC_INFRASTRUCTURE_TERMINAL_ADAPTER_H__
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -16,6 +15,7 @@
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 #include "src/tests/fuzz_testable.h"
@@ -99,7 +99,7 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
 
   futures::Value<language::EmptyValue> ReceiveInput(
       language::lazy_string::LazyString str,
-      const screen::Style& modifiers) override;
+      const language::text::LinePartMetadata& line_part_metadata) override;
 
   bool WriteSignal(UnixSignal signal) override;
 
@@ -110,13 +110,10 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
 
   language::lazy_string::ColumnNumber ProcessTerminalEscapeSequence(
       language::lazy_string::LazyString str,
-      language::lazy_string::ColumnNumber read_index,
-      screen::Style* modifiers);
+      language::lazy_string::ColumnNumber read_index, screen::Style* modifiers);
 
   void MoveToNextLine();
 
   static language::text::LineColumnDelta LastViewSize(Data& data);
 };
 }  // namespace afc::infrastructure
-
-#endif  // __AFC_INFRASTRUCTURE_TERMINAL_ADAPTER_H__
