@@ -7,6 +7,7 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/math/checked_operation.h"
+#include "src/tests/factory.h"
 #include "src/tests/tests.h"
 
 using afc::language::EmptyValue;
@@ -26,39 +27,21 @@ BigInt::BigInt(std::vector<Digit> digits_input)
 }
 
 namespace {
-const bool constructors_tests_registration =
-    tests::Register(L"numbers::BigInt::Constructors", [] {
-      auto vector_constructor_test = [](std::vector<size_t> digits,
-                                        std::wstring name,
-                                        std::wstring expected) {
-        return tests::Test{.name = name, .callback = [digits, expected] {
-                             std::wstring value =
-                                 afc::math::numbers::BigInt(digits).ToString();
-                             CHECK(value == expected)
-                                 << "Expected: " << expected
-                                 << ", output: " << value;
-                           }};
-      };
+TEST_GROUP(BigInt_DefaultConstructor, []() {
+  return BigInt().ToString();
+}).Add(L"DefaultConstructor", L"0");
 
-      return std::vector<tests::Test>({
-          tests::Test{.name = L"DefaultConstructor",
-                      .callback =
-                          [] {
-                            afc::math::numbers::BigInt bigInt;
-                            std::wstring value = bigInt.ToString();
-                            LOG(INFO)
-                                << "Default constructor output: " << value;
-                            CHECK(value == L"0");
-                          }},
-          vector_constructor_test({1, 2, 3}, L"SimpleNumber", L"321"),
-          vector_constructor_test({0, 1, 2, 3}, L"LeadingZeros", L"3210"),
-          vector_constructor_test({1, 2, 3, 0, 0}, L"TrailingZeros", L"321"),
-          vector_constructor_test({4, 9, 2, 2, 3, 2, 7, 2, 0, 3, 6, 8, 5, 4, 7},
-                                  L"LargeNumber", L"745863027232294"),
-          vector_constructor_test({}, L"EmptyVector", L"0"),
-          vector_constructor_test({0, 0, 0, 0}, L"OnlyZeros", L"0"),
-      });
-    }());
+TEST_GROUP(BigInt_VectorConstructor,
+           [](const std::vector<size_t>& digits) {
+             return BigInt(digits).ToString();
+           })
+    .Add(L"SimpleNumber", {1, 2, 3}, L"321")
+    .Add(L"LeadingZeros", {0, 1, 2, 3}, L"3210")
+    .Add(L"TrailingZeros", {1, 2, 3, 0, 0}, L"321")
+    .Add(L"LargeNumber", {4, 9, 2, 2, 3, 2, 7, 2, 0, 3, 6, 8, 5, 4, 7},
+         L"745863027232294")
+    .Add(L"EmptyVector", {}, L"0")
+    .Add(L"OnlyZeros", {0, 0, 0, 0}, L"0");
 }  // namespace
 
 /* static */ ValueOrError<BigInt> BigInt::FromString(
@@ -88,48 +71,30 @@ const bool constructors_tests_registration =
 }
 
 namespace {
-const bool from_string_tests_registration =
-    tests::Register(L"numbers::BigInt::FromString", [] {
-      auto test = [](std::wstring input,
-                     std::optional<std::wstring> name = std::nullopt,
-                     std::optional<std::wstring> expectation = std::nullopt) {
-        return tests::Test{
-            .name = name.value_or(input), .callback = [input, expectation] {
-              std::wstring value =
-                  ValueOrDie(BigInt::FromString(input)).ToString();
-              LOG(INFO) << "Input: " << input << ", output: " << value;
-              CHECK(value == expectation.value_or(input));
-            }};
-      };
-      auto test_error = [](std::wstring input) {
-        return tests::Test{
-            .name = L"Error" + input, .callback = [input] {
-              ValueOrError<BigInt> value = BigInt::FromString(input);
-              CHECK(!value) << "Expected error but received value: "
-                            << ValueOrDie(std::move(value)).ToString();
-              LOG(INFO) << "Received expected error: " << GetError(value);
-            }};
-      };
-      return std::vector<tests::Test>({
-          test(L"1"),
-          test(L"+1", {}, L"1"),
-          test(L"123456789"),
-          test(L"+123456789", {}, L"123456789"),
-          test(L"0"),
-          test(L"+0", {}, L"0"),
-          test(L"00001234", L"LeadingZeros", L"1234"),
-          test(L"999999999999999999999999999999999999", L"Large",
-               L"999999999999999999999999999999999999"),
-          test(std::wstring(100000, L'6'), L"VeryLarge"),
-          test(L"123.0", {}, L"123"),
-          test(L"123.000000000000000", {}, L"123"),
-          test_error(L"-1"),
-          test_error(L"123x9"),
-          test_error(L""),
-          test_error(L"1.5"),
-          test_error(L"123.00000000000100000"),
-      });
-    }());
+TEST_GROUP(BigInt_FromString,
+           [](const std::wstring& input) {
+             return BigInt::FromString(input)->ToString();
+           })
+    .Add(L"1", L"1", L"1")
+    .Add(L"+1", L"+1", L"1")
+    .Add(L"123456789", L"123456789", L"123456789")
+    .Add(L"+123456789", L"+123456789", L"123456789")
+    .Add(L"0", L"0", L"0")
+    .Add(L"+0", L"+0", L"0")
+    .Add(L"LeadingZeros", L"00001234", L"1234")
+    .Add(L"Large", L"999999999999999999999999999999999999",
+         L"999999999999999999999999999999999999")
+    .Add(L"VeryLarge", std::wstring(100000, L'6'), std::wstring(100000, L'6'))
+    .Add(L"123.0", L"123.0", L"123")
+    .Add(L"123.000000000000000", L"123.000000000000000", L"123");
+
+TEST_GROUP(BigInt_FromString_Errors,
+           [](const std::wstring& input) { return !BigInt::FromString(input); })
+    .Add(L"Negative", L"-1", true)
+    .Add(L"InvalidChar", L"123x9", true)
+    .Add(L"EmptyString", L"", true)
+    .Add(L"Decimal", L"1.5", true)
+    .Add(L"InvalidFractional", L"123.00000000000100000", true);
 }  // namespace
 
 std::wstring BigInt::ToString() const {
@@ -146,32 +111,17 @@ LazyString BigInt::ToLazyString() const { return LazyString{ToString()}; }
 bool BigInt::IsZero() const { return digits.empty(); }
 
 namespace {
-const bool is_zero_tests_registration = tests::Register(
-    L"numbers::BigInt::IsZero",
-    std::vector<tests::Test>({
-        {.name = L"Zero", .callback = [] { CHECK(BigInt().IsZero()); }},
-        {.name = L"One",
-         .callback = [] { CHECK(!BigInt::FromNumber(1).IsZero()); }},
-        {.name = L"OneFromStringLeadingZeros",
-         .callback =
-             [] { CHECK(!ValueOrDie(BigInt::FromString(L"00001")).IsZero()); }},
-        {.name = L"ZeroFromString",
-         .callback = [] { CHECK(BigInt::FromNumber(0).IsZero()); }},
-        {.name = L"ZeroFromStringLeadingZeros",
-         .callback =
-             [] { CHECK(ValueOrDie(BigInt::FromString(L"0000")).IsZero()); }},
-        {.name = L"ZeroFromStringPlus",
-         .callback =
-             [] { CHECK(ValueOrDie(BigInt::FromString(L"+0")).IsZero()); }},
-        {.name = L"ZeroFromStringLarge",
-         .callback =
-             [] {
-               CHECK(
-                   !ValueOrDie(BigInt::FromString(L"9230789434958349578345987"))
-                        .IsZero());
-             }},
-
-    }));
+TEST_GROUP(BigInt_IsZero, [](const BigInt& value) { return value.IsZero(); })
+    .Add(L"Zero", BigInt(), true)
+    .Add(L"One", BigInt::FromNumber(1), false)
+    .Add(L"OneFromStringLeadingZeros", ValueOrDie(BigInt::FromString(L"00001")),
+         false)
+    .Add(L"ZeroFromNumber", BigInt::FromNumber(0), true)
+    .Add(L"ZeroFromStringLeadingZeros", ValueOrDie(BigInt::FromString(L"0000")),
+         true)
+    .Add(L"ZeroFromStringPlus", ValueOrDie(BigInt::FromString(L"+0")), true)
+    .Add(L"LargeNonZero",
+         ValueOrDie(BigInt::FromString(L"9230789434958349578345987")), false);
 }  // namespace
 
 std::strong_ordering BigInt::operator<=>(const BigInt& b) const {
@@ -188,31 +138,16 @@ bool BigInt::operator==(const BigInt& other) const {
 }
 
 namespace {
-const bool greater_than_tests_registration =
-    tests::Register(L"numbers::BigInt::GreaterThan", [] {
-      auto test = [](std::wstring name, int input1, int input2,
-                     bool expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] {
-              BigInt int_1 = BigInt::FromNumber(input1);
-              BigInt int_2 = BigInt::FromNumber(input2);
-              bool result = int_1 > int_2;
-              CHECK(result == expectation)
-                  << "Unexpected comparison result: " << input1 << " > "
-                  << input2 << " yields " << (result ? "true" : "false")
-                  << ", expected: " << (expectation ? "true" : "false");
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"SimpleGreaterThan", 123, 45, true),
-          test(L"PositiveGreaterThanZero", 123, 0, true),
-          test(L"ZeroNotGreaterThanPositive", 0, 123, false),
-          test(L"EqualNumbers", 100, 100, false),
-          test(L"LargeNumbers", 1000000001, 1000000000, true),
-          test(L"DifferentLengthsPositive", 12345, 123, true),
-      });
-    }());
+TEST_GROUP(BigInt_GreaterThan,
+           [](int input1, int input2) {
+             return BigInt::FromNumber(input1) > BigInt::FromNumber(input2);
+           })
+    .Add(L"SimpleGreaterThan", 123, 45, true)
+    .Add(L"PositiveGreaterThanZero", 123, 0, true)
+    .Add(L"ZeroNotGreaterThanPositive", 0, 123, false)
+    .Add(L"EqualNumbers", 100, 100, false)
+    .Add(L"LargeNumbers", 1000000001, 1000000000, true)
+    .Add(L"DifferentLengthsPositive", 12345, 123, true);
 
 const bool tests_order_registration = tests::Register(
     L"numbers::BigInt::Order",
@@ -267,38 +202,25 @@ BigInt BigInt::operator+(BigInt b) && {
 }
 
 namespace {
-const bool addition_tests_registration =
-    tests::Register(L"numbers::BigInt::Addition", [] {
-      auto test = [](std::wstring name, BigInt input1, BigInt input2,
-                     std::wstring expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] mutable {
-              std::wstring output =
-                  (std::move(input1) + std::move(input2)).ToString();
-              CHECK(output == expectation);
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"Normal", BigInt::FromNumber(123), BigInt::FromNumber(456),
-               L"579"),
-          test(L"WithZeroFirst", BigInt::FromNumber(0), BigInt::FromNumber(456),
-               L"456"),
-          test(L"WithZeroSecond", BigInt::FromNumber(123),
-               BigInt::FromNumber(0), L"123"),
-          test(L"LargeNumbers",
-               ValueOrDie(BigInt::FromString(L"999999999999999999")),
-               ValueOrDie(BigInt::FromString(L"111111111111111111")),
-               L"1111111111111111110"),
-          test(L"VeryLargeNumbers",
-               ValueOrDie(
-                   BigInt::FromString(L"999999999999999999999999999999999999")),
-               BigInt::FromNumber(1), L"1000000000000000000000000000000000000"),
-          test(L"EdgeCaseLargeSum",
-               ValueOrDie(BigInt::FromString(L"18446744073709551615")),
-               BigInt::FromNumber(1), L"18446744073709551616"),
-      });
-    }());
+TEST_GROUP(BigInt_Addition,
+           [](BigInt input1, BigInt input2) {
+             return (std::move(input1) + std::move(input2)).ToString();
+           })
+    .Add(L"Normal", BigInt::FromNumber(123), BigInt::FromNumber(456), L"579")
+    .Add(L"WithZeroFirst", BigInt::FromNumber(0), BigInt::FromNumber(456),
+         L"456")
+    .Add(L"WithZeroSecond", BigInt::FromNumber(123), BigInt::FromNumber(0),
+         L"123")
+    .Add(L"LargeNumbers", ValueOrDie(BigInt::FromString(L"999999999999999999")),
+         ValueOrDie(BigInt::FromString(L"111111111111111111")),
+         L"1111111111111111110")
+    .Add(
+        L"VeryLargeNumbers",
+        ValueOrDie(BigInt::FromString(L"999999999999999999999999999999999999")),
+        BigInt::FromNumber(1), L"1000000000000000000000000000000000000")
+    .Add(L"EdgeCaseLargeSum",
+         ValueOrDie(BigInt::FromString(L"18446744073709551615")),
+         BigInt::FromNumber(1), L"18446744073709551616");
 }  // namespace
 
 ValueOrError<BigInt> BigInt::operator-(BigInt b) && {
@@ -324,40 +246,30 @@ ValueOrError<BigInt> BigInt::operator-(BigInt b) && {
 }
 
 namespace {
-const bool subtraction_tests_registration =
-    tests::Register(L"numbers::BigInt::Subtraction", [] {
-      auto test = [](std::wstring name, BigInt input1, BigInt input2,
-                     std::wstring expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] mutable {
-              std::wstring output =
-                  ValueOrDie(std::move(input1) - std::move(input2)).ToString();
-              CHECK(output == expectation);
-            }};
-      };
+TEST_GROUP(
+    BigInt_Subtraction,
+    [](BigInt input1, BigInt input2) {
+      return ValueOrDie(std::move(input1) - std::move(input2)).ToString();
+    })
+    .Add(L"SimpleSubtraction", BigInt::FromNumber(456), BigInt::FromNumber(123),
+         L"333")
+    .Add(L"SubtractionBorrowing", BigInt::FromNumber(500),
+         BigInt::FromNumber(256), L"244")
+    .Add(L"SubtractionEquals", BigInt::FromNumber(123), BigInt::FromNumber(123),
+         L"0")
+    .Add(L"SubtractZero", BigInt::FromNumber(123), BigInt::FromNumber(0),
+         L"123")
+    .Add(L"LargeNumbers",
+         ValueOrDie(BigInt::FromString(L"10000000000000000000")),
+         ValueOrDie(BigInt::FromString(L"1")), L"9999999999999999999");
 
-      return std::vector<tests::Test>({
-          test(L"SimpleSubtraction", BigInt::FromNumber(456),
-               BigInt::FromNumber(123), L"333"),
-          test(L"SubtractionBorrowing", BigInt::FromNumber(500),
-               BigInt::FromNumber(256), L"244"),
-          test(L"SubtractionEquals", BigInt::FromNumber(123),
-               BigInt::FromNumber(123), L"0"),
-          test(L"SubtractZero", BigInt::FromNumber(123), BigInt::FromNumber(0),
-               L"123"),
-          test(L"LargeNumbers",
-               ValueOrDie(BigInt::FromString(L"10000000000000000000")),
-               ValueOrDie(BigInt::FromString(L"1")), L"9999999999999999999"),
-          {.name = L"UnderflowZero",
-           .callback =
-               [] { CHECK(!(BigInt::FromNumber(0) - BigInt::FromNumber(1))); }},
-          {.name = L"UnderflowNormal",
-           .callback =
-               [] {
-                 CHECK(!(BigInt::FromNumber(123) - BigInt::FromNumber(456)));
-               }},
-      });
-    }());
+TEST_GROUP(BigInt_Subtraction_Underflow,
+           [](BigInt input1, BigInt input2) {
+             return !(std::move(input1) - std::move(input2));
+           })
+    .Add(L"UnderflowZero", BigInt::FromNumber(0), BigInt::FromNumber(1), true)
+    .Add(L"UnderflowNormal", BigInt::FromNumber(123), BigInt::FromNumber(456),
+         true);
 }  // namespace
 
 BigInt BigInt::operator*(const BigInt& b) const {
@@ -380,6 +292,8 @@ BigInt BigInt::operator*(const BigInt& b) const {
 }
 
 namespace {
+// TODO(2026-05-20, P2, easy): Continue converting tests to the new TEST_GROUP
+// API.
 const bool multiplication_tests_registration =
     tests::Register(L"numbers::BigInt::Multiplication", [] {
       auto test = [](std::wstring name, BigInt input1, BigInt input2,
@@ -411,7 +325,6 @@ const bool multiplication_tests_registration =
                ValueOrDie(BigInt::FromString(L"2")) +
                    ValueOrDie(BigInt::FromString(L"3")),
                L"25"),
-
       });
     }());
 }  // namespace
