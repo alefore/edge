@@ -29,9 +29,8 @@ struct ColorizePromptOptions {
     language::gc::Root<OpenBuffer> buffer;
   };
 
-  language::LazyValue<
-      std::variant<ContextUnmodified, ContextClear, ContextBuffer>>
-      context = ContextUnmodified{};
+  using Context = std::variant<ContextUnmodified, ContextClear, ContextBuffer>;
+  language::LazyValue<Context> context = ContextUnmodified{};
 };
 
 struct PromptOptions {
