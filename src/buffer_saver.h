@@ -57,7 +57,8 @@ class BufferSaver : public std::enable_shared_from_this<BufferSaver> {
   void RecordChange() const;
 
  private:
-  void FlushWithLock(Data& data) const;
+  std::function<void()> FlushWithLock(Data& data) const;
+  std::function<void()> CheckSchedulerWithLock(Data& data) const;
   void SaveFinished() const;
   void CheckScheduler() const;
 };
