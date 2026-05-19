@@ -25,21 +25,11 @@
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
+using namespace afc::language;
+using namespace afc::language::lazy_string;
+using namespace afc::language::text;
+
 using afc::futures::DeleteNotification;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::FromByteString;
-using afc::language::NonNull;
-using afc::language::ValueOrError;
-using afc::language::VisitOptional;
-using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NonEmptySingleLine;
-using afc::language::lazy_string::SingleLine;
-using afc::language::lazy_string::Trim;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
 
 namespace afc::editor {
 namespace {
