@@ -396,36 +396,22 @@ void Pool::Expand(const Operation& parallel_operation,
       std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
           std::move(shard.back());
       shard.pop_back();
+      struct Receiver : public ObjectMetadata::Receiver {
+        std::unordered_set<NonNull<std::shared_ptr<ObjectMetadata>>> expansion;
+
+        void operator()(language::NonNull<std::shared_ptr<ObjectMetadata>>
+                            object) override {
+          // We deliberately avoid locking here (e.g., don't call MarkReached
+          // here), since this is executed by our customers (who knows what
+          // locks they hold...). So we just collect all objects and filter
+          // later.
+          expansion.insert(object);
+        }
+      };
+      Receiver receiver;
+
       for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : elements) {
         TRACK_OPERATION(gc_Pool_Expand_Step);
-
-        // TODO(2026-05-13, P1, trivial): For efficiency, create the Receiver
-        // *outside* of the parent `for` loop (and consume elements from the
-        // receiver after all `elements` have been processed).
-        struct Receiver : public ObjectMetadata::Receiver {
-          std::unordered_set<NonNull<std::shared_ptr<ObjectMetadata>>>
-              expansion = {};
-
-          void operator()(language::NonNull<std::shared_ptr<ObjectMetadata>>
-                              object) override {
-            // We deliberately avoid locking here, since this is executed by our
-            // customers (who knows what locks they hold...).
-            expansion.insert(object);
-          }
-
-          ObjectExpandVector ToVector() && {
-            ObjectExpandVector output =
-                std::move(expansion) | std::ranges::to<std::vector>();
-            // TODO(2026-05-13, P2): Use a views-based API, not EraseIf.
-            EraseIf(output,
-                    [](NonNull<std::shared_ptr<ObjectMetadata>> candidate) {
-                      return !candidate->data_.lock()->MarkReached();
-                    });
-            return output;
-          }
-        };
-        Receiver receiver;
-
         VLOG(10) << "Considering obj: " << obj.get_shared();
         const std::function<void(ObjectMetadata::Receiver&)> expand_callback =
             obj->data_.lock([&](ObjectMetadata::Data& object_data)
@@ -445,14 +431,18 @@ void Pool::Expand(const Operation& parallel_operation,
               LOG(FATAL) << "Invalid state.";
               std::unreachable();
             });
-        if (!expand_callback) continue;
-        VLOG(10) << "Installing expansion of " << obj.get_shared();
-        expand_callback(receiver);
-
-        if (ObjectExpandVector expansion = std::move(receiver).ToVector();
-            !expansion.empty())
-          shard.push_back(std::move(expansion));
+        if (expand_callback) expand_callback(receiver);
       }
+      if (ObjectExpandVector expansion(
+              std::from_ranges,
+              receiver.expansion |
+                  std::views::filter(
+                      [](const NonNull<std::shared_ptr<ObjectMetadata>>&
+                             candidate) {
+                        return candidate->data_.lock()->MarkReached();
+                      }));
+          !expansion.empty())
+        shard.push_back(std::move(expansion));
     }
     VLOG(6) << "Shard expanded: " << vectors;
   });
