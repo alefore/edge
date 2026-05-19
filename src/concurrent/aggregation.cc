@@ -5,9 +5,15 @@
 using namespace afc::infrastructure;
 
 namespace afc::concurrent::aggregation {
-namespace {
 using StringScheduler = aggregation::Scheduler<std::string>;
 
+bool operator==(const StringScheduler& lhs, const StringScheduler& rhs) {
+  return lhs.first_pending_change == rhs.first_pending_change &&
+         lhs.last_pending_change == rhs.last_pending_change &&
+         lhs.events == rhs.events;
+}
+
+namespace {
 TEST_GROUP(Aggregation_Scheduler_PushEvent,
            [](StringScheduler scheduler, Time now, std::string event) {
              scheduler.PushEvent(now, std::move(event));

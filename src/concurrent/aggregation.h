@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
+#include <compare>
 #include <optional>
 #include <variant>
 #include <vector>
@@ -65,7 +67,5 @@ struct Scheduler {
     last_pending_change = std::nullopt;
     return output;
   }
-
-  std::strong_ordering operator<=>(const Scheduler&) const = default;
 };
 }  // namespace afc::concurrent::aggregation
