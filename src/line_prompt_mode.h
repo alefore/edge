@@ -84,7 +84,7 @@ void Prompt(PromptOptions options);
 
 // options_supplier will only be called if the editor has an active buffer.
 language::gc::Root<Command> NewLinePromptCommand(
-    EditorState& editor_state, std::wstring description,
+    EditorState& editor_state, language::lazy_string::LazyString description,
     std::function<PromptOptions()> options_supplier);
 
 }  // namespace afc::editor

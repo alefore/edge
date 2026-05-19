@@ -52,11 +52,8 @@ using namespace afc::language::lazy_string;
 using namespace afc::language::text;
 using namespace afc::infrastructure;
 using namespace afc::infrastructure::screen;
+using namespace afc::concurrent;
 
-using afc::concurrent::ChannelAll;
-using afc::concurrent::VersionPropertyKey;
-using afc::concurrent::VersionPropertyReceiver;
-using afc::concurrent::WorkQueueScheduler;
 using afc::futures::DeleteNotification;
 using afc::futures::JoinValues;
 using afc::futures::ListenableValue;
@@ -593,7 +590,7 @@ class LinePromptCommand : public Command {
 
  public:
   static gc::Root<LinePromptCommand> New(
-      EditorState& editor_state, std::wstring description,
+      EditorState& editor_state, LazyString description,
       std::function<PromptOptions()> options_supplier) {
     return editor_state.gc_pool().NewRoot(MakeNonNullUnique<LinePromptCommand>(
         ConstructorAccessTag(), editor_state, std::move(description),
@@ -601,11 +598,10 @@ class LinePromptCommand : public Command {
   }
 
   LinePromptCommand(ConstructorAccessTag, EditorState& editor_state,
-                    std::wstring description,
+                    LazyString description,
                     std::function<PromptOptions()> options_supplier)
       : editor_state_(editor_state),
-        // TODO(2024-01-24): Avoid call to LazyString.
-        description_(LazyString{std::move(description)}),
+        description_(std::move(description)),
         options_supplier_(std::move(options_supplier)) {}
 
   LazyString Description() const override { return description_; }
@@ -849,7 +845,7 @@ void Prompt(PromptOptions options) {
 }
 
 gc::Root<Command> NewLinePromptCommand(
-    EditorState& editor_state, std::wstring description,
+    EditorState& editor_state, LazyString description,
     std::function<PromptOptions()> options_supplier) {
   return LinePromptCommand::New(editor_state, std::move(description),
                                 std::move(options_supplier));
