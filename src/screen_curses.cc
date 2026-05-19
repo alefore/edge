@@ -34,7 +34,7 @@ class ColorRegistry {
   std::map<std::pair<short, short>, int> pair_cache_;
   int next_pair_id_ = 1;
 
-  short GetColorIndex(Color color) {
+  static short GetColorIndex(Color color) {
     return std::visit(
         overload{[](StandardColor c) -> uint8_t {
                    return static_cast<uint8_t>(std::to_underlying(c));
@@ -47,9 +47,10 @@ class ColorRegistry {
   }
 
  public:
-  int GetPair(Color foreground, Color background) {
+  int GetPair(Color foreground, std::optional<Color> background) {
     short foreground_index = GetColorIndex(foreground);
-    short background_index = GetColorIndex(background);
+    short background_index =
+        background.transform(&ColorRegistry::GetColorIndex).value_or(-1);
     auto key = std::make_pair(foreground_index, background_index);
     if (auto it = pair_cache_.find(key); it != pair_cache_.end())
       return it->second;
@@ -73,6 +74,7 @@ class ScreenCurses : public Screen {
     nodelay(stdscr, true);
     keypad(stdscr, false);
     start_color();
+    use_default_colors();
   }
 
   ~ScreenCurses() { endwin(); }
@@ -119,7 +121,7 @@ class ScreenCurses : public Screen {
 
     int pair_id = color_registry_.GetPair(
         style.foreground_color.value_or(StandardColor::White),
-        style.background_color.value_or(StandardColor::Black));
+        style.background_color);
     attr_set(n_attrs, pair_id, nullptr);
   }
 
