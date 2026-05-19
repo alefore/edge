@@ -21,11 +21,18 @@ namespace afc::infrastructure {
 /* static */
 std::pair<GlobMatcher::NDGraph, std::vector<GlobMatcher::PatternType>>
 GlobMatcher::BuildNDGraph(std::vector<LazyString> patterns) {
-  std::vector<PatternType> pattern_types;
-  std::vector<NDGraph> graphs =
-      patterns | std::views::transform([&pattern_types](LazyString pattern) {
+  const std::vector<PatternType> pattern_types(
+      std::from_range,
+      patterns | std::views::transform([](const LazyString& pattern) {
+        return std::ranges::any_of(
+                   pattern, [](wchar_t c) { return c == L'*' || c == L'?'; })
+                   ? PatternType::Special
+                   : PatternType::Literal;
+      }));
+
+  const std::vector<NDGraph> graphs =
+      patterns | std::views::transform([](LazyString pattern) {
         NDGraph output;
-        PatternType output_type = PatternType::Literal;
         ForEachColumn(pattern, [&](ColumnNumber i, wchar_t c) {
           NDGraph::NodeId index{i.read()};
           NDGraph::NodeId next = NDGraph::NodeId{index.read() + 1};
@@ -35,10 +42,8 @@ GlobMatcher::BuildNDGraph(std::vector<LazyString> patterns) {
             case '*':
               node.any_value_edges.insert(index);
               node.automatic_edges.insert(next);
-              output_type = PatternType::Special;
               break;
             case '?':
-              output_type = PatternType::Special;
               node.any_value_edges.insert(next);
               break;
             default:
@@ -49,11 +54,11 @@ GlobMatcher::BuildNDGraph(std::vector<LazyString> patterns) {
         output.push_back(
             NDGraph::Node{.value = MatchState{.pattern = pattern,
                                               .position = pattern.size()}});
-        pattern_types.push_back(output_type);
         return output;
       }) |
       std::ranges::to<std::vector>();
-  CHECK_EQ(graphs.size(), pattern_types.size());
+  CHECK_EQ(graphs.size(), patterns.size());
+  CHECK_EQ(pattern_types.size(), patterns.size());
   return {NDGraph::Merge(std::move(graphs)), pattern_types};
 }
 
