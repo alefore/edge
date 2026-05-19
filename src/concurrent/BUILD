@@ -9,6 +9,18 @@ cc_library(
 )
 
 cc_library(
+    name = "aggregation",
+    srcs = ["aggregation.cc"],
+    hdrs = ["aggregation.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/infrastructure:time",
+        "//src/tests:factory",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "bag",
     srcs = ["bag.cc"],
     hdrs = ["bag.h"],

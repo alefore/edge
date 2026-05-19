@@ -68,6 +68,8 @@ src/command_mode.cc \
 src/command_mode.h \
 src/completion_model.cc \
 src/completion_model.h \
+src/concurrent/aggregation.cc \
+src/concurrent/aggregation.h \
 src/concurrent/bag.cc \
 src/concurrent/bag.h \
 src/concurrent/operation.cc \

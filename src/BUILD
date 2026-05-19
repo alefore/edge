@@ -404,6 +404,7 @@ cc_library(
     srcs = ["buffer_saver.cc"],
     hdrs = ["buffer_saver.h"],
     deps = [
+        "//src/concurrent:aggregation",
         "//src/concurrent:protected",
         "//src/concurrent:work_queue",
         "//src/futures:listenable_value",

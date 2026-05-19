@@ -77,6 +77,7 @@ extern "C" {
 namespace staging = afc::language::staging;
 namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
+namespace aggregation = afc::concurrent::aggregation;
 
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
