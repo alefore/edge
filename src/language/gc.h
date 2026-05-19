@@ -131,11 +131,11 @@ class Pool;
 class ObjectMetadata {
  public:
   class Receiver {
+    std::unordered_set<NonNull<std::shared_ptr<ObjectMetadata>>> expansion_;
+    friend Pool;
+
    public:
-    // TODO(2026-05-13, P2): Don't make this virtual; just provide a concrete
-    // implementation.
-    virtual void operator()(
-        language::NonNull<std::shared_ptr<ObjectMetadata>>) = 0;
+    void operator()(language::NonNull<std::shared_ptr<ObjectMetadata>>);
 
     template <typename T>
     void operator()(Ptr<T> ptr) {

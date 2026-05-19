@@ -379,6 +379,14 @@ bool ObjectMetadata::Data::MarkReached() {
   std::unreachable();
 }
 
+void ObjectMetadata::Receiver::operator()(
+    language::NonNull<std::shared_ptr<ObjectMetadata>> object) {
+  // We deliberately avoid locking here (e.g., don't call MarkReached here),
+  // since this is executed by our customers (who knows what locks they
+  // hold...). So we just collect all objects and filter later.
+  expansion_.insert(object);
+}
+
 /* static */
 void Pool::Expand(const Operation& parallel_operation,
                   Bag<ObjectExpandVector>& schedule,
@@ -396,19 +404,7 @@ void Pool::Expand(const Operation& parallel_operation,
       std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
           std::move(shard.back());
       shard.pop_back();
-      struct Receiver : public ObjectMetadata::Receiver {
-        std::unordered_set<NonNull<std::shared_ptr<ObjectMetadata>>> expansion;
-
-        void operator()(language::NonNull<std::shared_ptr<ObjectMetadata>>
-                            object) override {
-          // We deliberately avoid locking here (e.g., don't call MarkReached
-          // here), since this is executed by our customers (who knows what
-          // locks they hold...). So we just collect all objects and filter
-          // later.
-          expansion.insert(object);
-        }
-      };
-      Receiver receiver;
+      ObjectMetadata::Receiver receiver;
 
       for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : elements) {
         TRACK_OPERATION(gc_Pool_Expand_Step);
@@ -434,8 +430,8 @@ void Pool::Expand(const Operation& parallel_operation,
         if (expand_callback) expand_callback(receiver);
       }
       if (ObjectExpandVector expansion(
-              std::from_ranges,
-              receiver.expansion |
+              std::from_range,
+              std::move(receiver).expansion_ |
                   std::views::filter(
                       [](const NonNull<std::shared_ptr<ObjectMetadata>>&
                              candidate) {
