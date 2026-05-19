@@ -30,6 +30,7 @@
 #include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 #include "src/predictor.h"
@@ -227,6 +228,26 @@ futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
 
 // Holds the state required to show and update a prompt.
 class PromptState : public std::enable_shared_from_this<PromptState> {
+  const PromptOptions options_;
+  const gc::Root<OpenBuffer> history_;
+
+  // The buffer we create to hold the prompt.
+  const gc::Root<OpenBuffer> prompt_buffer_;
+
+  // If the status is associated with a buffer, we capture it here; that allows
+  // us to ensure that the status won't be deallocated under our feet (when the
+  // buffer is ephemeral).
+  const std::optional<gc::Root<OpenBuffer>> status_buffer_;
+  Status& status_;
+  const Modifiers original_modifiers_;
+
+  // Notification that can be used by a StatusVersionAdapter (and its customers)
+  // to detect that the corresponding version is stale.
+  NonNull<std::shared_ptr<DeleteNotification>> abort_notification_;
+
+  aggregation::Scheduler<LazyValue<ColorizePromptOptions::Context>>
+      context_aggregator_;
+
  public:
   using ConstructorKey = afc::language::AccessKey<PromptState>;
 
@@ -312,6 +333,38 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     prompt_buffer_.ptr()->AppendRawLine(staging::CleanValue(
         ColorizeLine(line->contents(), std::move(options.tokens))));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
+    bool context_has_value = options.context.has_value();
+    context_aggregator_.PushEvent(Now(), std::move(options.context));
+    if (context_has_value) {
+      FlushContext();
+      return;
+    }
+    CheckContextAggregation();
+  }
+
+  void CheckContextAggregation() {
+    std::visit(
+        overload{
+            [](aggregation::ActionNone) {},
+            [&](aggregation::ActionWait action) {
+              prompt_buffer_->work_queue()->Schedule(WorkQueue::Callback{
+                  .time = action.next_check,
+                  .callback = [weak_this = std::weak_ptr(shared_from_this())] {
+                    IfObj(weak_this, [](PromptState& state) {
+                      state.CheckContextAggregation();
+                    });
+                  }});
+            },
+            [&](aggregation::ActionFlush) { FlushContext(); },
+        },
+        context_aggregator_.Check(
+            Now(), aggregation::Timeouts{.inactive = 0.3, .total = 1.0}));
+  }
+
+  void FlushContext() {
+    const std::vector<LazyValue<ColorizePromptOptions::Context>> events =
+        context_aggregator_.StartFlush();
+    if (events.empty()) return;
     std::visit(
         overload{
             [](ColorizePromptOptions::ContextUnmodified) {},
@@ -328,25 +381,8 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
                       context->editor().CloseBuffer(context.value());
                   }));
             }},
-        options.context.get());
+        events.back().get());
   }
-
-  const PromptOptions options_;
-  const gc::Root<OpenBuffer> history_;
-
-  // The buffer we create to hold the prompt.
-  const gc::Root<OpenBuffer> prompt_buffer_;
-
-  // If the status is associated with a buffer, we capture it here; that allows
-  // us to ensure that the status won't be deallocated under our feet (when the
-  // buffer is ephemeral).
-  const std::optional<gc::Root<OpenBuffer>> status_buffer_;
-  Status& status_;
-  const Modifiers original_modifiers_;
-
-  // Notification that can be used by a StatusVersionAdapter (and its customers)
-  // to detect that the corresponding version is stale.
-  NonNull<std::shared_ptr<DeleteNotification>> abort_notification_;
 };
 
 // Allows asynchronous operations to augment the information displayed in the
