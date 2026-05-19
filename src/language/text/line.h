@@ -121,8 +121,7 @@ class Line {
     // second line.
     LinePartMetadata end_of_line_modifiers = {};
 
-    language::LazyValue<LineMetadataMap> metadata =
-        language::WrapAsLazyValue(LineMetadataMap{});
+    language::LazyValue<LineMetadataMap> metadata = LineMetadataMap{};
 
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;

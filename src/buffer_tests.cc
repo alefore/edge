@@ -178,10 +178,10 @@ const bool buffer_tests_registration = tests::Register(
                    EditorForTests(std::nullopt);
                auto buffer = NewBufferForTests(editor.value());
                LineBuilder options{SingleLine{LazyString{L"foo"}}};
-               options.SetMetadata(WrapAsLazyValue(LineMetadataMap{
+               options.SetMetadata(LineMetadataMap{
                    {{LineMetadataKey{}, futures::Progressive<SingleLine>(
                                             SINGLE_LINE_CONSTANT(L"bar"),
-                                            SINGLE_LINE_CONSTANT(L"quux"))}}}));
+                                            SINGLE_LINE_CONSTANT(L"quux"))}}});
                Line line = std::move(options).Build();
                // This is important: otherwise OpenBuffer will assume that it is
                // safe to override them (recompute them).

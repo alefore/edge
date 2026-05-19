@@ -99,10 +99,10 @@ const bool line_tests_registration = tests::Register(
         futures::Future<SingleLine> future;
         LineBuilder builder;
         const LineMetadataKey key;
-        builder.SetMetadata(WrapAsLazyValue(
+        builder.SetMetadata(
             LineMetadataMap{{{key, futures::Progressive<SingleLine>(
                                        SINGLE_LINE_CONSTANT(L"Foo"),
-                                       std::move(future.value))}}}));
+                                       std::move(future.value))}}});
         Line line = std::move(builder).Build();
         CHECK(line.metadata().get().at(key).current() == LazyString{L"Foo"});
         std::move(future.consumer)(SINGLE_LINE_CONSTANT(L"Bar"));
@@ -227,7 +227,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
                          .Append(std::move(suffix));
   }
 
-  data_.metadata = WrapAsLazyValue(LineMetadataMap{});
+  data_.metadata = LineMetadataMap{};
 
   // Return the modifiers that are effective at a given position.
   auto Read = [&](ColumnNumber position) -> LinePartMetadata {
@@ -378,7 +378,7 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
         std::move(m.second);
   }
   set_modifiers(std::move(new_modifiers));
-  SetMetadata(WrapAsLazyValue(LineMetadataMap{}));
+  SetMetadata(LineMetadataMap{});
   ValidateInvariants();
 }
 
@@ -387,7 +387,7 @@ void LineBuilder::AppendCharacter(wchar_t c, LinePartMetadata modifier) {
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
   data_.contents = std::move(data_.contents) +
                    SingleLine{LazyString{ColumnNumberDelta{1}, c}};
-  SetMetadata(WrapAsLazyValue(LineMetadataMap{}));
+  SetMetadata(LineMetadataMap{});
   ValidateInvariants();
 }
 
@@ -414,7 +414,7 @@ void LineBuilder::Append(LineBuilder line) {
   ColumnNumberDelta original_length = EndColumn().ToDelta();
   data_.contents =
       std::move(data_.contents).Append(std::move(line.data_.contents));
-  SetMetadata(WrapAsLazyValue(LineMetadataMap{}));
+  SetMetadata(LineMetadataMap{});
 
   auto initial_modifier =
       line.data_.modifiers.empty() ||
@@ -480,7 +480,7 @@ LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
     new_modifiers[column] = modifiers_continuation.value();
   }
   set_modifiers(std::move(new_modifiers));
-  SetMetadata(WrapAsLazyValue(LineMetadataMap{}));
+  SetMetadata(LineMetadataMap{});
 
   ValidateInvariants();
   return *this;
