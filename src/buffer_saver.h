@@ -24,7 +24,7 @@ class BufferSaver : public std::enable_shared_from_this<BufferSaver> {
   struct Options {
     SaveCallback callback;
     std::function<language::text::LineSequence(void)> contents_callback;
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue;
+    std::weak_ptr<concurrent::WorkQueue> work_queue;
     concurrent::aggregation::Timeouts timeouts;
   };
 

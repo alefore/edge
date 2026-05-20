@@ -7,6 +7,7 @@ namespace aggregation = afc::concurrent::aggregation;
 
 using namespace afc::language;
 using namespace afc::infrastructure;
+using namespace afc::concurrent;
 
 namespace afc::editor {
 /* static */ NonNull<std::shared_ptr<BufferSaver>> BufferSaver::New(
@@ -38,11 +39,12 @@ std::function<void()> BufferSaver::FlushWithLock(Data& data) const {
   // Why do we schedule it in the work queue (rather than run it directly)?
   // To avoid running the user's callback (and SaveFinished) under the lock.
   return [&] {
-    options_.work_queue->Schedule(
-        {.callback = [shared_this = shared_from_this()] {
-          shared_this->options_.callback().SetConsumer(
-              [shared_this](PossibleError) { shared_this->SaveFinished(); });
-        }});
+    if (std::shared_ptr<WorkQueue> work_queue = options_.work_queue.lock();
+        work_queue)
+      work_queue->Schedule({.callback = [shared_this = shared_from_this()] {
+        shared_this->options_.callback().SetConsumer(
+            [shared_this](PossibleError) { shared_this->SaveFinished(); });
+      }});
   };
 }
 
@@ -61,28 +63,31 @@ void BufferSaver::CheckScheduler() const {
 
 std::function<void()> BufferSaver::CheckSchedulerWithLock(Data& data) const {
   return std::visit(
-      overload{[](aggregation::ActionNone) -> std::function<void()> {
-                 return nullptr;
-               },
-               [&](aggregation::ActionFlush) { return FlushWithLock(data); },
-               [&](aggregation::ActionWait action) -> std::function<void()> {
-                 if (data.check_already_scheduled) return nullptr;
-                 data.check_already_scheduled = true;
-                 return [action, this] {
-                   options_.work_queue->Wait(action.next_check)
-                       .Transform(
-                           [shared_this = shared_from_this()](EmptyValue) {
-                             shared_this->data_.LockWithPostInvoke(
-                                 [&](Data& data_nested) {
-                                   CHECK(data_nested.check_already_scheduled);
-                                   data_nested.check_already_scheduled = false;
-                                   return shared_this->CheckSchedulerWithLock(
-                                       data_nested);
-                                 });
-                             return EmptyValue();
-                           });
-                 };
-               }},
+      overload{
+          [](aggregation::ActionNone) -> std::function<void()> {
+            return nullptr;
+          },
+          [&](aggregation::ActionFlush) { return FlushWithLock(data); },
+          [&](aggregation::ActionWait action) -> std::function<void()> {
+            if (data.check_already_scheduled) return nullptr;
+            data.check_already_scheduled = true;
+            return [action, this] {
+              if (std::shared_ptr<WorkQueue> work_queue =
+                      options_.work_queue.lock();
+                  work_queue)
+                work_queue->Wait(action.next_check)
+                    .Transform([shared_this = shared_from_this()](EmptyValue) {
+                      shared_this->data_.LockWithPostInvoke(
+                          [&](Data& data_nested) {
+                            CHECK(data_nested.check_already_scheduled);
+                            data_nested.check_already_scheduled = false;
+                            return shared_this->CheckSchedulerWithLock(
+                                data_nested);
+                          });
+                      return EmptyValue();
+                    });
+            };
+          }},
       data.scheduler.Check(Now(), options_.timeouts));
 }
 }  // namespace afc::editor
