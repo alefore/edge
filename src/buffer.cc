@@ -1085,6 +1085,7 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   CHECK(options_.get_save_callback != nullptr);
 
+  // TODO(2026-05-20, P2): Don't call get_save_callback; use buffer_saver_.
   DECLARE_OR_RETURN(
       Options::SaveCallback save_callback,
       status_->LogErrors(options_.get_save_callback().or_else(
