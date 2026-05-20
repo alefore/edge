@@ -571,6 +571,17 @@ std::ostream& operator<<(std::ostream& os, const Pool& pool) {
   os << "; ";
   pool.data_.lock([&](const Pool::Data& data) { os << data; });
   os << "]";
+  if (pool.root_backtrace_.has_value()) {
+    os << "\n";
+    size_t shown = 0;
+    pool.root_backtrace_->ForEachSerial(
+        [&os, &shown](const Pool::Backtrace& trace) {
+          if (shown++ > 100) return;
+          os << "backtrace():\n";
+          for (size_t i = 0; trace.get()[i] != nullptr; i++)
+            os << "  " << Demangle(trace.get()[i]) << "\n";
+        });
+  }
   return os;
 }
 
