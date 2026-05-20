@@ -20,6 +20,7 @@ extern "C" {
 #include "src/buffer_registry.h"
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/execution.h"
 #include "src/infrastructure/time_human.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/append.h"
@@ -29,41 +30,14 @@ extern "C" {
 
 namespace gc = afc::language::gc;
 
+using namespace afc::infrastructure;
+using namespace afc::infrastructure::execution;
+using namespace afc::infrastructure::screen;
+using namespace afc::language;
+using namespace afc::language::lazy_string;
+using namespace afc::language::text;
+
 using afc::futures::DeleteNotification;
-using afc::infrastructure::DurationToString;
-using afc::infrastructure::ExtendedChar;
-using afc::infrastructure::FileDescriptor;
-using afc::infrastructure::GetElapsedSecondsSince;
-using afc::infrastructure::Path;
-using afc::infrastructure::PathComponent;
-using afc::infrastructure::ProcessId;
-using afc::infrastructure::screen::Color;
-using afc::infrastructure::screen::StandardColor;
-using afc::infrastructure::screen::Style;
-using afc::infrastructure::screen::StyleAttribute;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::FromByteString;
-using afc::language::HasValue;
-using afc::language::IgnoreErrors;
-using afc::language::MakeNonNullShared;
-using afc::language::MakeNonNullUnique;
-using afc::language::NonNull;
-using afc::language::overload;
-using afc::language::PossibleError;
-using afc::language::Success;
-using afc::language::ToByteString;
-using afc::language::ValueOrError;
-using afc::language::VisitPointer;
-using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::Concatenate;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NonEmptySingleLine;
-using afc::language::lazy_string::SingleLine;
-using afc::language::text::Line;
-using afc::language::text::LineBuilder;
-using afc::language::text::LineNumber;
-using afc::language::text::LineSequence;
 using afc::vm::EscapedString;
 
 namespace afc::editor {
@@ -384,10 +358,38 @@ TEST_GROUP(RunCommandSurvives,
              gc::WeakPtr<OpenBuffer> buffer_weak = buffer->ptr().ToWeakPtr();
              CHECK(buffer_weak.Lock());
              buffer = std::nullopt;
-             LOG(INFO) << "Triggering collection.";
-             editor->gc_pool().FullCollect();
-             editor->gc_pool().BlockUntilDone();
-             LOG(INFO) << "About to return: " << buffer_weak.Lock().has_value();
+             size_t iteration = 0;
+             ExecutionEnvironment(
+                 ExecutionEnvironmentOptions{
+                     .stop_check =
+                         [&] {
+                           const static size_t kRequiredIterations = 10;
+                           return iteration > kRequiredIterations ||
+                                  !buffer_weak.Lock();
+                         },
+                     .get_next_alarm =
+                         [&] {
+                           Time limit = AddSeconds(Now(), 0.1);
+                           if (std::optional<Time> work_queue_time =
+                                   editor->WorkQueueNextExecution();
+                               work_queue_time.has_value())
+                             return std::min(limit, work_queue_time.value());
+                           return limit;
+                         },
+                     .on_signals = [] {},
+                     .on_iteration =
+                         [&](afc::infrastructure::execution::IterationHandler&
+                                 handler) {
+                           LOG(INFO) << "Iteration: " << iteration;
+                           editor->ExecutionIteration(handler);
+                           editor->gc_pool().FullCollect();
+                           editor->gc_pool().BlockUntilDone();
+                           iteration++;
+                           CHECK_LT(iteration, 1000ul);
+                         }})
+                 .Run();
+             LOG(INFO) << "About to return: " << buffer_weak.Lock().has_value()
+                       << editor->gc_pool();
              return buffer_weak.Lock().has_value();
            })
     .Add(L"Ignore", BuffersList::AddBufferType::Ignore, false)
