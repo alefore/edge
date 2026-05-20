@@ -260,8 +260,7 @@ class ForkEditorCommand : public Command {
                     editor,
                     RunCommandOptions{
                         .command = base_command,
-                        .name = BufferName{LazyString{L"- preview: "} +
-                                           base_command},
+                        .name = PreviewBufferName{base_command},
                         .insertion_type = BuffersList::AddBufferType::Ignore});
                 help_buffer->Set(buffer_variables::follow_end_of_file, false);
                 help_buffer->Set(buffer_variables::show_in_buffers_list, false);
