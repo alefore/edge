@@ -645,8 +645,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                               LineSequence{};
         return futures::OnError(
             SaveContentsToFile(path, header + serialized_state,
-                               editor.thread_pool(),
-                               file_system_driver.value()),
+                               editor.thread_pool(), file_system_driver),
             [weak_status](Error error) {
               error = AugmentError(LazyString{L"Unable to persist state"},
                                    std::move(error));

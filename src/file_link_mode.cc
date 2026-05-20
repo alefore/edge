@@ -184,7 +184,7 @@ futures::Value<PossibleError> Save(
                   options](Path path) mutable -> futures::Value<PossibleError> {
         return SaveContentsToFile(path, options.buffer->contents().snapshot(),
                                   editor.thread_pool(),
-                                  options.buffer->file_system_driver().value())
+                                  options.buffer->file_system_driver())
             .Transform(LockAndVisitCallback(
                 [](EmptyValue,
                    gc::Root<OpenBuffer> buffer) -> futures::PossibleError {
@@ -243,13 +243,13 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, LineSequence contents,
     ThreadPoolWithWorkQueue& thread_pool,
-    FileSystemDriver& file_system_driver) {
+    NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver) {
   Path tmp_path = Path::Join(
       ValueOrDie(path.Dirname()),
       ValueOrDie(PathComponent::New(ValueOrDie(path.Basename()).read() +
                                     LazyString{L".tmp"})));
   return futures::OnError(
-             file_system_driver.Stat(path),
+             file_system_driver->Stat(path),
              [](Error error) {
                LOG(INFO)
                    << "Ignoring stat error; maybe a new file is being created: "
@@ -259,29 +259,29 @@ futures::Value<PossibleError> SaveContentsToFile(
                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
                return value;
              })
-      .Transform([path, &file_system_driver, tmp_path](struct stat stat_value) {
+      .Transform([path, file_system_driver, tmp_path](struct stat stat_value) {
         return OnError(
-            file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
-                                    stat_value.st_mode),
+            file_system_driver->Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
+                                     stat_value.st_mode),
             [tmp_path](Error error) {
               LOG(INFO) << tmp_path << ": Error opening file: " << error;
               return error;
             });
       })
       .Transform([&thread_pool, path, contents = std::move(contents), tmp_path,
-                  &file_system_driver](FileDescriptor fd) {
+                  file_system_driver](FileDescriptor fd) {
         CHECK_NE(fd.read(), -1);
         return OnError(SaveContentsToOpenFile(thread_pool, path, tmp_path, fd,
                                               contents),
-                       [&file_system_driver, fd](Error error) {
-                         file_system_driver.Close(fd);
+                       [file_system_driver, fd](Error error) {
+                         file_system_driver->Close(fd);
                          return error;
                        })
-            .Transform([&file_system_driver, fd](EmptyValue) {
-              return file_system_driver.Close(fd);
+            .Transform([file_system_driver, fd](EmptyValue) {
+              return file_system_driver->Close(fd);
             })
-            .Transform([path, &file_system_driver, tmp_path](EmptyValue) {
-              return file_system_driver.Rename(tmp_path, path);
+            .Transform([path, file_system_driver, tmp_path](EmptyValue) {
+              return file_system_driver->Rename(tmp_path, path);
             });
       });
 }

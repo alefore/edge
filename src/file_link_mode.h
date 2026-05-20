@@ -22,7 +22,8 @@ namespace editor {
 futures::Value<language::PossibleError> SaveContentsToFile(
     const infrastructure::Path& path, language::text::LineSequence contents,
     concurrent::ThreadPoolWithWorkQueue& thread_pool,
-    infrastructure::FileSystemDriver& file_system_driver);
+    language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+        file_system_driver);
 
 struct OpenFileOptions {
   EditorState& editor_state;
