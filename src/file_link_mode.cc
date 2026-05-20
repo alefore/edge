@@ -185,12 +185,18 @@ futures::Value<PossibleError> Save(
         return SaveContentsToFile(path, options.buffer->contents().snapshot(),
                                   editor.thread_pool(),
                                   options.buffer->file_system_driver().value())
-            .Transform([options](EmptyValue) mutable {
-              return options.buffer->PersistState();
-            })
-            .Transform([&editor, stat_buffer, options,
+            .Transform(LockAndVisitCallback(
+                [](EmptyValue,
+                   gc::Root<OpenBuffer> buffer) -> futures::PossibleError {
+                  return buffer->PersistState();
+                },
+                [](EmptyValue) -> futures::PossibleError {
+                  return EmptyValue{};
+                },
+                options.buffer.ptr().ToWeakPtr()))
+            .Transform([&editor, stat_buffer, save_type = options.save_type,
                         path](EmptyValue) -> futures::Value<PossibleError> {
-              switch (options.save_type) {
+              switch (save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   stat(path.ToBytes().c_str(), &stat_buffer.value());
                   break;
