@@ -96,6 +96,12 @@ class CommandBufferName
   using GhostType::GhostType;
 };
 
+class PreviewBufferName
+    : public language::GhostType<PreviewBufferName,
+                                 language::lazy_string::LazyString> {
+  using GhostType::GhostType;
+};
+
 class AnonymousBufferName
     : public language::GhostType<AnonymousBufferName, size_t> {
   using GhostType::GhostType;
@@ -115,12 +121,11 @@ struct FilterBufferName {
       std::vector<language::lazy_string::SingleLine> input_filters);
 };
 
-using BufferName =
-    std::variant<BufferFileId, FragmentsBuffer, PasteBuffer, FuturePasteBuffer,
-                 BufferListId, TextInsertion, InitialCommands,
-                 ConsoleBufferName, PredictionsBufferName, HistoryBufferName,
-                 ServerBufferName, CommandBufferName, AnonymousBufferName,
-                 FilterBufferName, language::lazy_string::LazyString>;
+using BufferName = std::variant<
+    BufferFileId, FragmentsBuffer, PasteBuffer, FuturePasteBuffer, BufferListId,
+    TextInsertion, InitialCommands, ConsoleBufferName, PredictionsBufferName,
+    HistoryBufferName, ServerBufferName, CommandBufferName, PreviewBufferName,
+    AnonymousBufferName, FilterBufferName, language::lazy_string::LazyString>;
 
 struct FilterBufferNameFactory {
   // If `source_buffer` is a `FilterBufferName`, joins the filters.

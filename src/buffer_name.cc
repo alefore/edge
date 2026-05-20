@@ -93,6 +93,12 @@ NonEmptySingleLine ToSingleLine(const BufferName& p) {
                    EscapedString::FromString(input.read())
                        .EscapedRepresentation();
           },
+          [](const PreviewBufferName& input) -> NonEmptySingleLine {
+            return NON_EMPTY_SINGLE_LINE_CONSTANT(L"(") +
+                   EscapedString::FromString(input.read())
+                       .EscapedRepresentation() +
+                   NON_EMPTY_SINGLE_LINE_CONSTANT(L")");
+          },
           [](const AnonymousBufferName& input) -> NonEmptySingleLine {
             return NON_EMPTY_SINGLE_LINE_CONSTANT(L"anonymous buffer ") +
                    NonEmptySingleLine{input.read()}.read();
