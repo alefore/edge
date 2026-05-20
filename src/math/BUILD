@@ -9,6 +9,7 @@ cc_library(
         ":checked_operation",
         "//src/language/error:value_or_error",
         "//src/tests",
+        "//src/tests:factory",
     ],
 )
 
@@ -46,6 +47,7 @@ cc_library(
         "//src/language/error:value_or_error",
         "//src/language/lazy_string",
         "//src/tests",
+        "//src/tests:factory",
     ],
 )
 
