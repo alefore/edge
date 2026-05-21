@@ -194,6 +194,21 @@ class ProtectedWithCondition
   }
 
   template <typename Callable>
+  auto wait_for_value(Callable callable) {
+    std::unique_lock<std::mutex> mutex_lock(
+        *Protected<T, Validator, test_flows_register>::mutex_);
+    decltype(callable(
+        Protected<T, Validator, test_flows_register>::data_)) output;
+    condition_.wait(mutex_lock, [this, &callable, &output] {
+      output = callable(Protected<T, Validator, test_flows_register>::data_);
+      return output.has_value();
+    });
+    Protected<T, Validator, test_flows_register>::validator_(
+        Protected<T, Validator, test_flows_register>::data_);
+    return std::move(output).value();
+  }
+
+  template <typename Callable>
   void wait(Callable callable) const {
     std::unique_lock<std::mutex> mutex_lock(
         *Protected<T, Validator, test_flows_register>::mutex_);
