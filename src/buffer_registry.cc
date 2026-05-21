@@ -1,7 +1,6 @@
 #include "src/buffer_registry.h"
 
 #include "src/buffer_variables.h"
-#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc_expanders.h"
 #include "src/language/gc_view.h"
@@ -12,7 +11,6 @@
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
-namespace container = afc::language::container;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
@@ -116,16 +114,15 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::FindBuffersPathEndingIn(
     const Path& path) const {
   return data_.lock([&](const Data& data, std::condition_variable&) {
-    return container::MaterializeVector(
-        data.path_suffix_map.FindPathWithSuffix(path) |
-        std::views::transform(
-            [&data](const Path& buffer_path) -> gc::WeakPtr<OpenBuffer> {
-              if (auto it = data.buffer_map.find(BufferFileId{buffer_path});
-                  it != data.buffer_map.end())
-                return it->second;
-              return gc::WeakPtr<OpenBuffer>();
-            }) |
-        gc::view::Lock);
+    return data.path_suffix_map.FindPathWithSuffix(path) |
+           std::views::transform(
+               [&data](const Path& buffer_path) -> gc::WeakPtr<OpenBuffer> {
+                 if (auto it = data.buffer_map.find(BufferFileId{buffer_path});
+                     it != data.buffer_map.end())
+                   return it->second;
+                 return gc::WeakPtr<OpenBuffer>();
+               }) |
+           gc::view::Lock | std::ranges::to<std::vector>();
   });
 }
 
@@ -143,16 +140,16 @@ AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
 
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
   return data_.lock([](const Data& data, std::condition_variable&) {
-    return container::MaterializeVector(data.buffer_map | std::views::values |
-                                        gc::view::Lock);
+    return data.buffer_map | std::views::values | gc::view::Lock |
+           std::ranges::to<std::vector>();
   });
 }
 
 std::vector<language::gc::Root<OpenBuffer>> BufferRegistry::BuffersWithScreen()
     const {
   return data_.lock([](const Data& data, std::condition_variable&) {
-    return container::MaterializeVector(data.buffers_with_screen |
-                                        gc::view::Lock);
+    return data.buffers_with_screen | gc::view::Lock |
+           std::ranges::to<std::vector>();
   });
 }
 
