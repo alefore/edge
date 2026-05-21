@@ -6,6 +6,7 @@
 #include <list>
 #include <map>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include "src/buffer_name.h"
@@ -13,6 +14,7 @@
 #include "src/infrastructure/path_suffix_map.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_value.h"
 #include "src/language/once_only_function.h"
 
 namespace afc::editor {
@@ -33,6 +35,8 @@ class BufferRegistry {
     // self-reference) or explicit references elsewhere.
     std::map<BufferName, language::gc::WeakPtr<OpenBuffer>> buffer_map = {};
 
+    std::set<BufferName> buffers_under_construction = {};
+
     std::map<BufferName, language::gc::Ptr<OpenBuffer>> retained_buffers = {};
 
     std::vector<language::gc::WeakPtr<OpenBuffer>> buffers_with_screen = {};
@@ -51,7 +55,7 @@ class BufferRegistry {
     BufferComparePredicate listed_order;
   };
 
-  concurrent::Protected<Data> data_;
+  concurrent::ProtectedWithCondition<Data> data_;
 
   // Calls OpenBuffer::dirty. We have to wrap this to avoid a circular
   // dependency from BufferRegistry into OpenBuffer. Ugly.
@@ -101,7 +105,7 @@ class BufferRegistry {
 
   template <typename Callable>
   decltype(auto) LockListedBuffers(Callable callable) {
-    return data_.lock([&callable](Data& data) {
+    return data_.lock([&callable](Data& data, std::condition_variable&) {
       return std::move(callable)(data.listed_buffers);
     });
   }

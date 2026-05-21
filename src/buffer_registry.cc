@@ -39,31 +39,46 @@ BufferRegistry::BufferRegistry(
 
 gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
     const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
-  return data_.lock([id, &factory](Data& data) {
-    // We could avoid the double-tree-traversal by passing an iterator to Add,
-    // but it doesn't seem worth the trouble.
-    if (auto it = data.buffer_map.find(id); it != data.buffer_map.end())
-      if (std::optional<gc::Root<OpenBuffer>> previous_buffer =
-              it->second.Lock();
-          previous_buffer.has_value())
-        return previous_buffer.value();
-
-    // TODO(2026-04-10, difficult, deadlock): `factory` could trigger other
-    // methods of the BufferRegistry, which leads to deadlocks.
-    LOG(INFO) << "Creating buffer: " << id;
-    gc::Root<OpenBuffer> buffer = std::move(factory)();
-    Add(data, id, buffer.ptr().ToWeakPtr());
-    return buffer;
-  });
+  struct RunFactory {};
+  return std::visit(
+      overload{[&](RunFactory) {
+                 gc::Root<OpenBuffer> output = std::move(factory)();
+                 data_.lock([&output, &id](Data& data,
+                                           std::condition_variable& condition) {
+                   EraseOrDie(data.buffers_under_construction, id);
+                   Add(data, id, output.ptr().ToWeakPtr());
+                   condition.notify_all();
+                 });
+                 return output;
+               },
+               [&](gc::Root<OpenBuffer> output) { return output; }},
+      data_.wait_for_value(
+          [id, &factory](Data& data)
+              -> std::optional<std::variant<RunFactory, gc::Root<OpenBuffer>>> {
+            if (data.buffers_under_construction.contains(id))
+              return std::nullopt;
+            if (auto it = data.buffer_map.find(id);
+                it != data.buffer_map.end()) {
+              if (std::optional<gc::Root<OpenBuffer>> output =
+                      it->second.Lock();
+                  output)
+                return output.value();
+              data.buffer_map.erase(it);
+            }
+            data.buffers_under_construction.insert(id);
+            return RunFactory{};
+          }));
 }
 
 void BufferRegistry::Add(const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
-  data_.lock([&name, &buffer](Data& data) { Add(data, name, buffer); });
+  data_.lock([&name, &buffer](Data& data, std::condition_variable&) {
+    Add(data, name, buffer);
+  });
 }
 
 void BufferRegistry::AddListedBuffer(gc::Root<OpenBuffer> buffer) {
-  data_.lock([&](Data& data) {
+  data_.lock([&](Data& data, std::condition_variable&) {
     if (std::find_if(data.listed_buffers.begin(), data.listed_buffers.end(),
                      [buffer_addr = &buffer.ptr().value()](
                          const gc::Root<OpenBuffer>& candidate) {
@@ -77,7 +92,7 @@ void BufferRegistry::AddListedBuffer(gc::Root<OpenBuffer> buffer) {
 
 void BufferRegistry::RemoveListedBuffers(
     const std::unordered_set<NonNull<const OpenBuffer*>>& buffers_to_erase) {
-  data_.lock([&](Data& data) {
+  data_.lock([&](Data& data, std::condition_variable&) {
     EraseIf(data.listed_buffers, [&buffers_to_erase](
                                      const gc::Root<OpenBuffer>& candidate) {
       return buffers_to_erase.contains(
@@ -90,7 +105,8 @@ void BufferRegistry::RemoveListedBuffers(
 std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
     const BufferName& name) const {
   return data_.lock(
-      [&name](const Data& data) -> std::optional<gc::Root<OpenBuffer>> {
+      [&name](const Data& data,
+              std::condition_variable&) -> std::optional<gc::Root<OpenBuffer>> {
         if (auto it = data.buffer_map.find(name); it != data.buffer_map.end())
           return it->second.Lock();
         return std::nullopt;
@@ -99,7 +115,7 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
 
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::FindBuffersPathEndingIn(
     const Path& path) const {
-  return data_.lock([&](const Data& data) {
+  return data_.lock([&](const Data& data, std::condition_variable&) {
     return container::MaterializeVector(
         data.path_suffix_map.FindPathWithSuffix(path) |
         std::views::transform(
@@ -120,11 +136,13 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::FindPath(
 
 AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
   return AnonymousBufferName(
-      data_.lock([](Data& data) { return data.next_anonymous_buffer_name++; }));
+      data_.lock([](Data& data, std::condition_variable&) {
+        return data.next_anonymous_buffer_name++;
+      }));
 }
 
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
-  return data_.lock([](const Data& data) {
+  return data_.lock([](const Data& data, std::condition_variable&) {
     return container::MaterializeVector(data.buffer_map | std::views::values |
                                         gc::view::Lock);
   });
@@ -132,7 +150,7 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
 
 std::vector<language::gc::Root<OpenBuffer>> BufferRegistry::BuffersWithScreen()
     const {
-  return data_.lock([](const Data& data) {
+  return data_.lock([](const Data& data, std::condition_variable&) {
     return container::MaterializeVector(data.buffers_with_screen |
                                         gc::view::Lock);
   });
@@ -140,12 +158,13 @@ std::vector<language::gc::Root<OpenBuffer>> BufferRegistry::BuffersWithScreen()
 
 void BufferRegistry::AddBufferWithScreen(
     language::gc::WeakPtr<OpenBuffer> buffer) {
-  data_.lock(
-      [&buffer](Data& data) { data.buffers_with_screen.push_back(buffer); });
+  data_.lock([&buffer](Data& data, std::condition_variable&) {
+    data.buffers_with_screen.push_back(buffer);
+  });
 }
 
 void BufferRegistry::Clear() {
-  return data_.lock([](Data& data) {
+  return data_.lock([](Data& data, std::condition_variable&) {
     data.buffer_map = {};
     data.retained_buffers = {};
     data.buffers_with_screen = {};
@@ -154,7 +173,7 @@ void BufferRegistry::Clear() {
 }
 
 bool BufferRegistry::Remove(const BufferName& name) {
-  return data_.lock([&name](Data& data) {
+  return data_.lock([&name](Data& data, std::condition_variable&) {
     data.retained_buffers.erase(name);
     if (const auto* id = std::get_if<BufferFileId>(&name); id != nullptr)
       data.path_suffix_map.Erase(id->read());
@@ -163,20 +182,23 @@ bool BufferRegistry::Remove(const BufferName& name) {
 }
 
 size_t BufferRegistry::ListedBuffersCount() const {
-  return data_.lock(
-      [](const Data& data) { return data.listed_buffers.size(); });
+  return data_.lock([](const Data& data, std::condition_variable&) {
+    return data.listed_buffers.size();
+  });
 }
 
 language::gc::Root<OpenBuffer> BufferRegistry::GetListedBuffer(
     size_t index) const {
-  return data_.lock([index](const Data& data) {
+  return data_.lock([index](const Data& data, std::condition_variable&) {
     return data.listed_buffers[index % data.listed_buffers.size()];
   });
 }
 
 std::optional<size_t> BufferRegistry::GetListedBufferIndex(
     const OpenBuffer& buffer) const {
-  return data_.lock([&buffer](const Data& data) -> std::optional<size_t> {
+  return data_.lock([&buffer](
+                        const Data& data,
+                        std::condition_variable&) -> std::optional<size_t> {
     if (auto it =
             std::find_if(data.listed_buffers.begin(), data.listed_buffers.end(),
                          [&buffer](const gc::Root<OpenBuffer>& candidate) {
@@ -189,34 +211,41 @@ std::optional<size_t> BufferRegistry::GetListedBufferIndex(
 }
 
 void BufferRegistry::Expand(gc::ObjectMetadata::Receiver& visit) const {
-  return data_.lock([&visit](const Data& data) {
+  return data_.lock([&visit](const Data& data, std::condition_variable&) {
     LOG(INFO) << "BufferRegistry: Expand: " << data.retained_buffers.size();
     visit.all(data.retained_buffers | std::views::values);
   });
 }
 
 void BufferRegistry::SetListedCount(std::optional<size_t> value) {
-  data_.lock([value](Data& data) { data.listed_count = value; });
+  data_.lock([value](Data& data, std::condition_variable&) {
+    data.listed_count = value;
+  });
 }
 
 std::optional<size_t> BufferRegistry::listed_count() const {
-  return data_.lock([](const Data& data) { return data.listed_count; });
+  return data_.lock([](const Data& data, std::condition_variable&) {
+    return data.listed_count;
+  });
 }
 
 void BufferRegistry::SetShownCount(std::optional<size_t> value) {
-  data_.lock([value, this](Data& data) {
+  data_.lock([value, this](Data& data, std::condition_variable&) {
     data.shown_count = value;
     AdjustListedBuffers(data);
   });
 }
 
 std::optional<size_t> BufferRegistry::shown_count() const {
-  return data_.lock([](const Data& data) { return data.shown_count; });
+  return data_.lock([](const Data& data, std::condition_variable&) {
+    return data.shown_count;
+  });
 }
 
 void BufferRegistry::SetListedSortOrder(BufferComparePredicate predicate) {
-  return data_.lock(
-      [&predicate](Data& data) { data.listed_order = predicate; });
+  return data_.lock([&predicate](Data& data, std::condition_variable&) {
+    data.listed_order = predicate;
+  });
 }
 
 /* static */
