@@ -1,5 +1,4 @@
-#ifndef __AFC_EDITOR_LINE_MARKS_H__
-#define __AFC_EDITOR_LINE_MARKS_H__
+#pragma once
 
 #include <map>
 #include <memory>
@@ -11,9 +10,7 @@
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 struct LineMarks {
  public:
   // First position is target_line_column. Second is source_line.
@@ -58,6 +55,8 @@ struct LineMarks {
   struct MarksMaps {
     std::multimap<MarkMapKey, Mark> marks;
     std::multimap<MarkMapKey, Mark> expired_marks;
+
+    bool IsEmpty() const;
   };
 
   // First key is the source, second key is the target_buffer.
@@ -69,8 +68,4 @@ struct LineMarks {
 };
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lc);
-
-}  // namespace editor
-}  // namespace afc
-
-#endif  // __AFC_EDITOR_LINE_MARKS_H__
+}  // namespace afc::editor

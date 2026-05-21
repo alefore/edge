@@ -31,7 +31,6 @@ using afc::language::text::MutableLineSequence;
 
 namespace afc::editor {
 namespace {
-
 LineSequence ShowMarksForBuffer(const EditorState& editor,
                                 const LineMarks& marks, BufferName name) {
   MutableLineSequence output;
