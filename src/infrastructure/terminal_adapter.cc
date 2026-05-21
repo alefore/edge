@@ -114,8 +114,7 @@ std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
 
   output.push_back(Call(
       std::function<void(ShortRandomString)>([this](ShortRandomString input) {
-        // TODO(easy, 2024-01-02): Remove call to LazyString.
-        return ReceiveInput(LazyString{std::move(input.value)}, {});
+        return ReceiveInput(std::move(input.value), {});
       })));
   return output;
 }
