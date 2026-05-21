@@ -27,6 +27,7 @@ cc_binary(
         "buffer_output_producer.h",
         "buffer_registry.cc",
         "buffer_registry.h",
+        "buffer_registry_tests.cc",
         "buffer_state.cc",
         "buffer_state.h",
         "buffer_subtypes.cc",
