@@ -7,11 +7,16 @@
 //     .Add(L"AllEmpty", L"", L"", true)
 //     .Add(L"EmptyInput", L"", L"foo", false)
 //     .Add(L"EmptyPrefix", L"foo", L"", true)
+//
+// If the lambda form (TEST_GROUP macro's 2nd argument) takes N arguments (2 in
+// the example above), the calls to `Add` take the name of the test, N
+// arguments, and the expected output.
 
 #pragma once
 
 #include <functional>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -43,6 +48,15 @@ template <typename T>
 inline constexpr bool is_variant_v = is_variant<T>::value;
 
 template <typename T>
+struct is_set : std::false_type {};
+
+template <typename... Args>
+struct is_set<std::set<Args...>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_set_v = is_set<T>::value;
+
+template <typename T>
 std::string Stringify(const T& value) {
   if constexpr (requires(std::ostream& os) { os << value; }) {
     std::stringstream ss;
@@ -53,6 +67,18 @@ std::string Stringify(const T& value) {
     return "optional(" + Stringify(*value) + ")";
   } else if constexpr (is_variant_v<T>) {
     return std::visit([](const auto& arg) { return Stringify(arg); }, value);
+  } else if constexpr (is_variant_v<T>) {
+    return std::visit([](const auto& arg) { return Stringify(arg); }, value);
+  } else if constexpr (is_set_v<T>) {
+    std::string result = "{";
+    bool first = true;
+    for (const auto& item : value) {
+      if (!first) result += ", ";
+      result += Stringify(item);
+      first = false;
+    }
+    result += "}";
+    return result;
   } else {
     return "{unprintable type}";
   }
