@@ -17,9 +17,10 @@ namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
 using afc::concurrent::Protected;
-using afc::infrastructure::screen::Color;using afc::infrastructure::screen::StandardColor;
+using afc::infrastructure::screen::Color;
 using afc::infrastructure::screen::HashToStyle;
 using afc::infrastructure::screen::HashToStyleBold;
+using afc::infrastructure::screen::StandardColor;
 using afc::infrastructure::screen::Style;
 using afc::infrastructure::screen::StyleAttribute;
 using afc::language::compute_hash;
