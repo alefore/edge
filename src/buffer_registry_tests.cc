@@ -46,8 +46,8 @@ const bool maybe_add_tests_registration = tests::Register(
             },
             [](const OpenBuffer&) { return false; }, [](OpenBuffer&) {});
 
-        std::atomic<int> factory_calls{0};
-        std::atomic<int> threads_running{0};
+        std::atomic<size_t> factory_calls{0};
+        std::atomic<size_t> threads_running{0};
         const size_t concurrent_calls = 10;
         std::vector<std::optional<gc::Root<OpenBuffer>>> outputs(
             concurrent_calls, std::nullopt);
@@ -75,7 +75,7 @@ const bool maybe_add_tests_registration = tests::Register(
           LOG(INFO) << "Allowing pool to be deleted.";
         }
 
-        CHECK_EQ(factory_calls.load(), 1);
+        CHECK_EQ(factory_calls.load(), 1ul);
         std::ranges::for_each(outputs, [&outputs](auto& output) {
           CHECK_EQ(&outputs[0]->ptr().value(), &output->ptr().value());
         });
