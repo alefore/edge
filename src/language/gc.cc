@@ -126,11 +126,11 @@ Pool::Pool(Options options)
       data_(Data{.expansion_schedule = concurrent::Bag<ObjectExpandVector>(
                      {.name = LazyString{L"GCPoolExpansionSchedule"},
                       .shards = options_.max_bag_shards})}),
-      root_backtrace_(VLOG_IS_ON(9)
-                          ? std::make_optional(Bag<Backtrace>(
+      root_backtrace_(getenv("EDGE_GC_TRACE") != nullptr
+                          ? std::make_optional(Bag<RawBacktrace>(
                                 BagOptions{.name = LazyString{L"RootBacktrace"},
                                            .shards = options_.max_bag_shards}))
-                          : std::optional<Bag<Backtrace>>()),
+                          : std::optional<Bag<RawBacktrace>>()),
       async_work_(options_.operation_factory->New(nullptr)) {
   LOG(INFO) << "GC: root_backtrace: "
             << (root_backtrace_.has_value() ? "enabled" : "disabled");
@@ -148,10 +148,8 @@ Pool::~Pool() {
 
   if (root_backtrace_.has_value()) {
     size_t shown = 0;
-    root_backtrace_->ForEachSerial([&shown](const Backtrace& trace) {
-      VLOG(9) << "backtrace():";
-      for (size_t i = 0; trace.get()[i] != nullptr; i++)
-        VLOG(9) << "  " << Demangle(trace.get()[i]);
+    root_backtrace_->ForEachSerial([&shown](const RawBacktrace& trace) {
+      LOG(INFO) << "backtrace():" << trace;
       shown++;
     });
     CHECK_EQ(shown, 0ul);
@@ -509,20 +507,11 @@ Pool::RootRegistration Pool::AddRoot(
         };
   });
   if (root_backtrace_.has_value()) {
-    static const size_t kBufferSize = 128;
-    void* buffer[kBufferSize];
-    int nptrs = backtrace(buffer, kBufferSize);
-    CHECK_GE(nptrs, 0);
-    char** strings = backtrace_symbols(buffer, nptrs);
-    CHECK(strings != nullptr);
-    // We need to somehow store the size. Might as well just lose the last
-    // item, it's probably not that relevant.
-    strings[static_cast<size_t>(nptrs) - 1] = nullptr;
-    auto backtrace_iterator =
-        root_backtrace_->Add(Backtrace(strings, std::free));
-    deletor = [deletor = std::move(deletor), backtrace_iterator,
-               &container = root_backtrace_.value()](bool* value) mutable {
-      backtrace_iterator.Erase();
+    RawBacktrace trace;
+    trace.count = backtrace(trace.frames, RawBacktrace::kMaxFrames);
+    auto iterator = root_backtrace_->Add(trace);
+    deletor = [deletor = std::move(deletor), iterator](bool* value) mutable {
+      iterator.Erase();
       deletor(value);
     };
   }
@@ -575,11 +564,9 @@ std::ostream& operator<<(std::ostream& os, const Pool& pool) {
     os << "\n";
     size_t shown = 0;
     pool.root_backtrace_->ForEachSerial(
-        [&os, &shown](const Pool::Backtrace& trace) {
+        [&os, &shown](const Pool::RawBacktrace& trace) {
           if (shown++ > 100) return;
-          os << "backtrace():\n";
-          for (size_t i = 0; trace.get()[i] != nullptr; i++)
-            os << "  " << Demangle(trace.get()[i]) << "\n";
+          os << "backtrace():\n" << trace;
         });
   }
   return os;
@@ -629,5 +616,20 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const Pool::RawBacktrace& trace) {
+  if (trace.count <= 0) return os << "[Empty backtrace]\n";
+  char** symbols = backtrace_symbols(trace.frames, trace.count);
+  if (symbols == nullptr) {
+    os << "[Failed to resolve symbols. Raw addresses:]\n";
+    for (int i = 0ul; i < trace.count; ++i)
+      os << "  #" << i << " " << trace.frames[i] << "\n";
+    return os;
+  }
+
+  for (int i = 0; i < trace.count; ++i)
+    os << "#" << i << " " << Demangle(symbols[i]) << "\n";
+  std::free(symbols);
+  return os;
+}
 }  // namespace gc
 }  // namespace afc::language

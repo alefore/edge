@@ -243,6 +243,75 @@ class Pool {
     size_t max_bag_shards = 64;
   };
 
+ private:
+  using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
+  using ObjectExpandVector =
+      std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
+
+  // The eden area holds information about recent activity. This is optimized to
+  // be locked only very briefly, to avoid blocking progress.
+  struct Eden {
+    Eden(size_t bag_shards, size_t consecutive_unfinished_collect_calls,
+         std::optional<ObjectExpandVector> initial_expansion_schedule);
+
+    bool IsEmpty() const;
+
+    ObjectMetadataBag object_metadata;
+
+    ObjectMetadataBag roots;
+
+    // Normally is absent. If a `Collect` operation is interrupted, set to a
+    // list to which `AddToEdenExpandList` will add objects (so that when the
+    // collection is resumed, those expansions happen). See `Ptr::Protect`.
+    std::optional<ObjectExpandVector> expansion_schedule;
+
+    // Incremented each time a call to `Collect` stops without finishing, and
+    // reset as soon as the call finishes. Used to adjust the execution
+    // threshold dynamically.
+    size_t consecutive_unfinished_collect_calls;
+  };
+
+  // Data holds all the information of objects that have survived a collection.
+  // This should only be locked by `Collect` (and may be held for a long
+  // interval, as collection progresses). Should never be locked while holding
+  // eden locked.
+  struct Data {
+    std::list<ObjectMetadataBag> object_metadata_list = {};
+
+    std::list<ObjectMetadataBag> roots_list = {};
+
+    // After inserting from the eden and updating roots, we copy objects from
+    // `roots` into `expansion_schedule` (in `ScheduleExpandRoots`). We then
+    // recursively visit all objects here. Once the list is empty, we'll know
+    // a set of unreachable objects.
+    //
+    // If we reach a deadline while traversing this list, we stop. The next
+    // execution will avoid (most of) the work we've done: we remove objects
+    // from here (marking them as already expanded).
+    concurrent::Bag<ObjectExpandVector> expansion_schedule;
+  };
+
+  struct RawBacktrace {
+    static constexpr size_t kMaxFrames = 16;
+    void* frames[kMaxFrames];
+    int count = 0;
+  };
+
+  const Options options_;
+
+  concurrent::Protected<Eden> eden_;
+  concurrent::Protected<Data> data_;
+
+  // If VLOG(10) is on, we'll store back traces of creation of roots here. When
+  // the pool is deleted, if roots are leaked, we'll show where they were
+  // created.
+  std::optional<concurrent::Bag<RawBacktrace>> root_backtrace_;
+
+  // When then pool is deleted, we need to ensure that any pending background
+  // work is done before we allow internal classes to be deleted.
+  const language::NonNull<std::unique_ptr<concurrent::Operation>> async_work_;
+
+ public:
   Pool(Options options);
 
   template <typename T>
@@ -290,14 +359,17 @@ class Pool {
 
   using RootRegistration = std::shared_ptr<bool>;
 
-  friend std::ostream& operator<<(std::ostream& os, const Pool& stats);
-
  private:
   template <typename T>
   friend class Root;
 
   template <typename T>
   friend class Ptr;
+
+  friend std::ostream& operator<<(std::ostream& os, const Pool& stats);
+  friend std::ostream& operator<<(std::ostream& os, const Eden& eden);
+  friend std::ostream& operator<<(std::ostream& os, const Data& data);
+  friend std::ostream& operator<<(std::ostream& os, const RawBacktrace& data);
 
   CollectOutput Collect(bool full);
 
@@ -308,55 +380,6 @@ class Pool {
       ObjectMetadata::ExpandCallback expand_callback);
 
   RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
-
-  using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
-  using ObjectExpandVector =
-      std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
-
-  // The eden area holds information about recent activity. This is optimized to
-  // be locked only very briefly, to avoid blocking progress.
-  struct Eden {
-    Eden(size_t bag_shards, size_t consecutive_unfinished_collect_calls,
-         std::optional<ObjectExpandVector> initial_expansion_schedule);
-
-    bool IsEmpty() const;
-
-    ObjectMetadataBag object_metadata;
-
-    ObjectMetadataBag roots;
-
-    // Normally is absent. If a `Collect` operation is interrupted, set to a
-    // list to which `AddToEdenExpandList` will add objects (so that when the
-    // collection is resumed, those expansions happen). See `Ptr::Protect`.
-    std::optional<ObjectExpandVector> expansion_schedule;
-
-    // Incremented each time a call to `Collect` stops without finishing, and
-    // reset as soon as the call finishes. Used to adjust the execution
-    // threshold dynamically.
-    size_t consecutive_unfinished_collect_calls;
-  };
-  friend std::ostream& operator<<(std::ostream& os, const Eden& eden);
-
-  // Data holds all the information of objects that have survived a collection.
-  // This should only be locked by `Collect` (and may be held for a long
-  // interval, as collection progresses). Should never be locked while holding
-  // eden locked.
-  struct Data {
-    std::list<ObjectMetadataBag> object_metadata_list = {};
-
-    std::list<ObjectMetadataBag> roots_list = {};
-
-    // After inserting from the eden and updating roots, we copy objects from
-    // `roots` into `expansion_schedule` (in `ScheduleExpandRoots`). We then
-    // recursively visit all objects here. Once the list is empty, we'll know
-    // a set of unreachable objects.
-    //
-    // If we reach a deadline while traversing this list, we stop. The next
-    // execution will avoid (most of) the work we've done: we remove objects
-    // from here (marking them as already expanded).
-    concurrent::Bag<ObjectExpandVector> expansion_schedule;
-  };
-  friend std::ostream& operator<<(std::ostream& os, const Data& data);
 
   // Moves objects from `eden` into `data`.
   //
@@ -383,20 +406,6 @@ class Pool {
       std::list<ObjectMetadataBag>& object_metadata_list,
       concurrent::Bag<std::vector<ObjectMetadata::ExpandCallback>>&
           expired_objects_callbacks);
-
-  const Options options_;
-  concurrent::Protected<Eden> eden_;
-  concurrent::Protected<Data> data_;
-
-  // If VLOG(10) is on, we'll store back traces of creation of roots here. When
-  // the pool is deleted, if roots are leaked, we'll show where they were
-  // created.
-  using Backtrace = std::unique_ptr<char*, decltype(std::free)*>;
-  std::optional<concurrent::Bag<Backtrace>> root_backtrace_;
-
-  // When then pool is deleted, we need to ensure that any pending background
-  // work is done before we allow internal classes to be deleted.
-  const language::NonNull<std::unique_ptr<concurrent::Operation>> async_work_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Pool::FullCollectStats& stats);
