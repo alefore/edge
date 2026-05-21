@@ -42,6 +42,7 @@ src/widget_list.cc \
 src/widget_list.h \
 src/buffer_registry.cc \
 src/buffer_registry.h \
+src/buffer_registry_tests.cc \
 src/buffer_subtypes.cc \
 src/buffer_subtypes.h \
 src/buffer_syntax_parser.cc \
