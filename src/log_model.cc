@@ -9,6 +9,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/text/line.h"
+#include "src/tests/factory.h"
 #include "src/vm/default_environment.h"
 #include "src/vm/vm.h"
 
@@ -53,6 +54,20 @@ std::map<LogEntryName, std::vector<LogEntryValue>> LogLine::ValueGroups()
     output[entry.name].push_back(entry);
   });
   return output;
+}
+
+std::ostream& operator<<(std::ostream& os, const LogEntryValue& value) {
+  os << "[Entry: " << value.name << ": ";
+  std::visit([&os](auto& t) { os << t; }, value.value);
+  os << "]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const LogLine& value) {
+  os << "LogLine: ";
+  std::ranges::for_each(
+      value.values, [&](const LogEntryValue& entry) { os << entry << "\n"; });
+  return os;
 }
 
 void LogViewValueSpec::Merge(const LogViewValueSpec& overlay) {
@@ -111,6 +126,8 @@ std::expected<LogLine, language::Error> LogLineFormat::Parse(
             size_t index = 1 + configuration.capturing_group->read();
             if (index >= matches.size() || !matches[index].matched)
               return Error{L"No match"};
+            CHECK_GE(matches[index].length(), 0);
+            CHECK_LE(matches[index].length(), 10000);
             return LogEntryValue{
                 .name = configuration.name,
                 .value = LazyString{matches[index].str()},
@@ -121,6 +138,33 @@ std::expected<LogLine, language::Error> LogLineFormat::Parse(
           }) |
           SkipErrors | std::ranges::to<std::vector>()};
 }
+
+TEST_GROUP(LogLineFormatParse,
+           ([](std::wstring regex, int group, LazyString input) {
+             return LogLineFormat(
+                        LogTypeName{L"foo"}, std::wregex{regex},
+                        {LogEntryConfiguration{
+                            .name = {LogEntryName{L"description"}},
+                            .capturing_group = LogCapturingGroup{group},
+                            .value_type = LogEntryValueType::String}})
+                 .Parse(input);
+           }))
+    .Add(L"Simple", L"^ *(a*)$", 0, L"    aaa",
+         LogLine{.values = std::vector{LogEntryValue{
+                     .name = LogEntryName{L"description"},
+                     .value = L"aaa",
+                     .position = ColumnNumber{4},
+                     .size = ColumnNumberDelta{3},
+                     .value_type = LogEntryValueType::String}}})
+    .Add(L"Empty", L"^ *(a*)$", 0, L"    ",
+         LogLine{.values = std::vector{LogEntryValue{
+                     .name = LogEntryName{L"description"},
+                     .value = L"",
+                     .position = ColumnNumber{4},
+                     .size = ColumnNumberDelta{},
+                     .value_type = LogEntryValueType::String}}})
+    .Add(L"NestedEmpty", L"^ *(b(a*))?$", 1, L"",
+         LogLine{.values = std::vector<LogEntryValue>{}});
 
 std::ostream& operator<<(std::ostream& os, const LogLineFormat& value) {
   os << value.name();

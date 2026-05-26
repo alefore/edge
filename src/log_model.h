@@ -43,6 +43,8 @@ struct LogEntryValue {
   language::lazy_string::ColumnNumber position;
   language::lazy_string::ColumnNumberDelta size;
   LogEntryValueType value_type;
+
+  std::strong_ordering operator<=>(const LogEntryValue&) const = default;
 };
 
 struct LogLine {
@@ -50,7 +52,10 @@ struct LogLine {
   std::vector<LogEntryValue> values;
 
   std::map<LogEntryName, std::vector<LogEntryValue>> ValueGroups() const;
+  std::strong_ordering operator<=>(const LogLine&) const = default;
 };
+
+std::ostream& operator<<(std::ostream& os, const LogLine& value);
 
 class LogTypeName
     : public language::GhostType<LogTypeName,
