@@ -64,9 +64,7 @@ class LogTreeParser : public TreeParser {
       SingleLine line_contents = contents.at(i)->contents().read();
       VisitValue(log_type_.Parse(line_contents), [&](LogLine line) {
         ParseTree line_output(
-            LineRange(LineColumn{i},
-                      std::numeric_limits<ColumnNumberDelta>::max())
-                .read());
+            LineRange(LineColumn{i}, line_contents.size()).read());
         std::expected<std::unordered_map<LogEntryName, LogViewValueSpec>, Error>
             modifiers_map = compiled_log_view.Evaluate(
                 line.values | std::views::transform(&LogEntryValue::name) |
