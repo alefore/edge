@@ -23,29 +23,13 @@ namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 namespace staging = afc::language::staging;
 
+using namespace afc::language;
+using namespace afc::language::lazy_string;
+using namespace afc::language::text;
+using namespace afc::language::view;
+
 using afc::futures::UnwrapVectorFuture;
 using afc::infrastructure::Path;
-using afc::language::AugmentError;
-using afc::language::EmptyValue;
-using afc::language::Error;
-using afc::language::FromByteString;
-using afc::language::PossibleError;
-using afc::language::ValueOrError;
-using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NonEmptySingleLine;
-using afc::language::lazy_string::SingleLine;
-using afc::language::lazy_string::ToLazyString;
-using afc::language::lazy_string::Trim;
-using afc::language::text::Line;
-using afc::language::text::LineColumn;
-using afc::language::text::LineNumber;
-using afc::language::text::LineNumberDelta;
-using afc::language::text::LineSequence;
-using afc::language::text::Range;
-using afc::language::view::GetErrors;
-using afc::language::view::SkipErrors;
 using afc::vm::Identifier;
 
 namespace afc::editor {
@@ -228,6 +212,23 @@ PossibleError DispatchLine(
   return Error{LazyString{L"Invalid directive: "} + key_value.key};
 }
 
+PossibleError DispatchLinesAndCollectErrors(
+    const LineSequence& block,
+    std::unordered_map<NonEmptySingleLine,
+                       std::function<PossibleError(NonEmptySingleLine)>>
+        handlers) {
+  std::vector<Error> errors{
+      std::from_range, block | std::views::drop(1) |
+                           std::views::transform(
+                               [&](staging::Value<Line> line) -> PossibleError {
+                                 return DispatchLine(handlers,
+                                                     line->contents());
+                               }) |
+                           GetErrors};
+  if (errors.empty()) return EmptyValue{};
+  return MergeErrors(errors, L", ");
+}
+
 std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
   if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
   DECLARE_OR_RETURN(SectionHeader header,
@@ -237,31 +238,24 @@ std::expected<LogView, Error> ParseLogView(const LineSequence& block) {
   std::unordered_map<LogEntryName,
                      std::vector<language::lazy_string::NonEmptySingleLine>>
       expressions;
-  std::vector<Error> errors =
-      block | std::views::drop(1) |
-      std::views::transform([&](staging::Value<Line> line) -> PossibleError {
-        return DispatchLine(
-            {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"variable"),
-              [&expressions](NonEmptySingleLine value) -> PossibleError {
-                std::optional<ColumnNumber> name_end =
-                    FindFirstOf(value, Space);
-                DECLARE_OR_RETURN(
-                    Identifier name_identifier,
-                    Identifier::New(NonEmptySingleLine::New(
-                        value.Substring(ColumnNumber{}, name_end->ToDelta()))));
-                std::optional<SingleLine> expr_str =
-                    name_end.transform([&](ColumnNumber pos) {
-                      return Trim(value.Substring(pos), Space);
-                    });
-                if (!expr_str) return Error{L"Expected: expression."};
-                expressions[LogEntryName{name_identifier}].push_back(
-                    expr_str.value());
-                return EmptyValue{};
-              }}},
-            line->contents());
-      }) |
-      GetErrors | std::ranges::to<std::vector>();
-  if (!errors.empty()) return MergeErrors(errors, L", ");
+  RETURN_IF_ERROR(DispatchLinesAndCollectErrors(
+      block, {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"variable"),
+               [&expressions](NonEmptySingleLine value) -> PossibleError {
+                 std::optional<ColumnNumber> name_end =
+                     FindFirstOf(value, Space);
+                 DECLARE_OR_RETURN(
+                     Identifier name_identifier,
+                     Identifier::New(NonEmptySingleLine::New(value.Substring(
+                         ColumnNumber{}, name_end->ToDelta()))));
+                 std::optional<SingleLine> expr_str =
+                     name_end.transform([&](ColumnNumber pos) {
+                       return Trim(value.Substring(pos), Space);
+                     });
+                 if (!expr_str) return Error{L"Expected: expression."};
+                 expressions[LogEntryName{name_identifier}].push_back(
+                     expr_str.value());
+                 return EmptyValue{};
+               }}}));
   LOG(INFO) << "Created view " << log_view_name
             << " with expressions: " << expressions.size();
   return LogView{.name = log_view_name, .expressions = std::move(expressions)};
@@ -274,119 +268,136 @@ std::expected<LogEntryValueType, Error> ParseValueType(SingleLine input) {
   return Error{LazyString{L"Unknown value type: "} + input};
 }
 
-std::expected<LogType, Error> ParseLogType(const LineSequence& block) {
+std::expected<LogLineFormat, Error> ParseLogLineFormat(
+    const LineSequence& block) {
   if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
 
   // Each block starts with the [type Name] line
   // TODO(P2, 2026-04-28): Remove comments.
   DECLARE_OR_RETURN(SectionHeader header,
                     ParseSectionHeader(block.at(LineNumber{})->contents()));
-  CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"type"));
+  CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"format"));
   LogTypeName log_type_name{header.value};
-  LogTypeActivationPolicy activation_policy = LogTypeActivationPolicy::Explicit;
   std::vector<NonEmptySingleLine> patterns;
   std::vector<LogEntryConfiguration> entries;
-  std::vector<Error> errors =
-      block | std::views::drop(1) |
-      std::views::transform([&](staging::Value<Line> line) -> PossibleError {
-        return DispatchLine(
-            {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"group"),
-              [&entries](NonEmptySingleLine value) -> PossibleError {
-                // Value looks like this: 0 src_path path
-                // group_id entry_name [entry_type]
-                std::optional<ColumnNumber> group_id_end =
-                    FindFirstOf(value, Space);
-                std::optional<ColumnNumber> entry_name_end =
-                    group_id_end.transform([&value](ColumnNumber pos) {
-                      return FindFirstOf(value, Space,
-                                         pos + ColumnNumberDelta{1})
-                          .value_or(ColumnNumber{} + value.size());
-                    });
-                std::optional<SingleLine> entry_name_str =
-                    group_id_end.transform([&](ColumnNumber pos) {
-                      return Trim(
-                          value.Substring(pos, entry_name_end.value() - pos),
-                          Space);
-                    });
-                if (!entry_name_str) return Error{L"Expected: entry name."};
-                DECLARE_OR_RETURN(Identifier entry_name_identifier,
-                                  Identifier::New(NonEmptySingleLine::New(
-                                      entry_name_str.value())));
-                DECLARE_OR_RETURN(
-                    LogEntryValueType value_type,
-                    ParseValueType(
-                        Trim(value.Substring(entry_name_end.value()), Space)));
-                return Visit(
-                    AsInt(ToLazyString(value.Substring(
-                        ColumnNumber{}, group_id_end->ToDelta()))),
-                    [&](int group_id) -> PossibleError {
-                      entries.push_back(LogEntryConfiguration{
-                          .name = LogEntryName{entry_name_identifier},
-                          .capturing_group = LogCapturingGroup{group_id},
-                          .value_type = value_type});
-                      return EmptyValue{};
-                    },
-                    [](Error error) -> PossibleError {
-                      return AugmentError(L"Invalid group ID", error);
-                    });
-              }},
-             {NON_EMPTY_SINGLE_LINE_CONSTANT(L"pattern"),
-              [&patterns](NonEmptySingleLine value) {
-                patterns.push_back(value);
-                return EmptyValue{};
-              }},
-             {NON_EMPTY_SINGLE_LINE_CONSTANT(L"activation"),
-              [&activation_policy](NonEmptySingleLine value) -> PossibleError {
-                if (value == NON_EMPTY_SINGLE_LINE_CONSTANT(L"implicit"))
-                  activation_policy = LogTypeActivationPolicy::Implicit;
-                else if (value == NON_EMPTY_SINGLE_LINE_CONSTANT(L"explicit"))
-                  activation_policy = LogTypeActivationPolicy::Explicit;
-                else
-                  return Error(LazyString{L"Invalid activation policy: "} +
-                               value);
-                return EmptyValue{};
-              }}},
-            line->contents());
-      }) |
-      GetErrors | std::ranges::to<std::vector>();
+  RETURN_IF_ERROR(DispatchLinesAndCollectErrors(
+      block,
+      {
+          {NON_EMPTY_SINGLE_LINE_CONSTANT(L"group"),
+           [&entries](NonEmptySingleLine value) -> PossibleError {
+             // Value looks like this: 0 src_path path
+             // group_id entry_name [entry_type]
+             std::optional<ColumnNumber> group_id_end =
+                 FindFirstOf(value, Space);
+             std::optional<ColumnNumber> entry_name_end =
+                 group_id_end.transform([&value](ColumnNumber pos) {
+                   return FindFirstOf(value, Space, pos + ColumnNumberDelta{1})
+                       .value_or(ColumnNumber{} + value.size());
+                 });
+             std::optional<SingleLine> entry_name_str =
+                 group_id_end.transform([&](ColumnNumber pos) {
+                   return Trim(
+                       value.Substring(pos, entry_name_end.value() - pos),
+                       Space);
+                 });
+             if (!entry_name_str) return Error{L"Expected: entry name."};
+             DECLARE_OR_RETURN(Identifier entry_name_identifier,
+                               Identifier::New(NonEmptySingleLine::New(
+                                   entry_name_str.value())));
+             DECLARE_OR_RETURN(
+                 LogEntryValueType value_type,
+                 ParseValueType(
+                     Trim(value.Substring(entry_name_end.value()), Space)));
+             return Visit(
+                 AsInt(ToLazyString(
+                     value.Substring(ColumnNumber{}, group_id_end->ToDelta()))),
+                 [&](int group_id) -> PossibleError {
+                   entries.push_back(LogEntryConfiguration{
+                       .name = LogEntryName{entry_name_identifier},
+                       .capturing_group = LogCapturingGroup{group_id},
+                       .value_type = value_type});
+                   return EmptyValue{};
+                 },
+                 [](Error error) -> PossibleError {
+                   return AugmentError(L"Invalid group ID", error);
+                 });
+           }},
+          {NON_EMPTY_SINGLE_LINE_CONSTANT(L"pattern"),
+           [&patterns](NonEmptySingleLine value) {
+             patterns.push_back(value);
+             return EmptyValue{};
+           }},
+      }));
   std::wregex pattern;
   if (patterns.empty())
-    errors.push_back(Error{L"No pattern specified."});
+    return Error{L"No pattern specified."};
   else if (patterns.size() != 1)
-    errors.push_back(Error{L"Multiple patterns specified."});
+    return Error{L"Multiple patterns specified."};
   else
     try {
       pattern = std::wregex(ToLazyString(patterns[0]).ToString());
     } catch (const std::regex_error& e) {
-      errors.push_back(Error{LazyString{L"Invalid regex found: "} +
-                             patterns[0] + LazyString{L": "} +
-                             LazyString{FromByteString(e.what())}});
+      return Error{LazyString{L"Invalid regex found: "} + patterns[0] +
+                   LazyString{L": "} + LazyString{FromByteString(e.what())}};
     }
-  if (!errors.empty()) return MergeErrors(errors, L", ");
-  return LogType(log_type_name, std::move(pattern), std::move(entries),
-                 activation_policy);
+  return LogLineFormat(log_type_name, std::move(pattern), std::move(entries));
+}
+
+struct LogTypeOptions {
+  LogTypeName name;
+  LogTypeActivationPolicy activation_policy = LogTypeActivationPolicy::Explicit;
+};
+
+std::expected<LogTypeOptions, Error> ParseLogType(LineSequence block) {
+  if (block.size() < LineNumberDelta{2}) return Error{L"Short block found."};
+  DECLARE_OR_RETURN(SectionHeader header,
+                    ParseSectionHeader(block.at(LineNumber{})->contents()));
+  LogTypeOptions output{.name = header.value};
+  CHECK_EQ(header.header_type, NON_EMPTY_SINGLE_LINE_CONSTANT(L"type"));
+  RETURN_IF_ERROR(DispatchLinesAndCollectErrors(
+      block, {{NON_EMPTY_SINGLE_LINE_CONSTANT(L"activation"),
+               [&output](NonEmptySingleLine value) -> PossibleError {
+                 value = LowerCase(value);
+                 if (value == NON_EMPTY_SINGLE_LINE_CONSTANT(L"implicit"))
+                   output.activation_policy = LogTypeActivationPolicy::Implicit;
+                 else if (value == NON_EMPTY_SINGLE_LINE_CONSTANT(L"explicit"))
+                   output.activation_policy = LogTypeActivationPolicy::Explicit;
+                 else
+                   return Error(LazyString{L"Invalid activation policy: "} +
+                                value);
+                 return EmptyValue{};
+               }}}));
+  return output;
 }
 
 std::expected<LogModel, language::Error> ParseLogConfig(
     const LineSequence& lines) {
-  std::unordered_map<LogTypeName, LogType> log_types;
+  std::unordered_map<LogTypeName, std::vector<LogLineFormat>> formats;
   std::unordered_map<LogViewName, LogView> views;
+  std::unordered_map<LogTypeName, LogTypeOptions> log_types;
 
   std::vector<Error> errors =
       PartitionIntoBlocks(lines) |
-      std::views::transform([&log_types,
-                             &views](LineSequence block) -> PossibleError {
+      std::views::transform([&formats, &views,
+                             &log_types](LineSequence block) -> PossibleError {
         DECLARE_OR_RETURN(
             SectionHeader header,
             ParseSectionHeader(block.at(LineNumber{})->contents()));
-        if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")) {
-          DECLARE_OR_RETURN(LogType log_type, ParseLogType(block));
-          log_types.insert({log_type.name(), log_type});
+        if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"format")) {
+          DECLARE_OR_RETURN(LogLineFormat format, ParseLogLineFormat(block));
+          formats[format.name()].push_back(format);
+          log_types.insert(
+              {format.name(), LogTypeOptions{.name = format.name()}});
           return EmptyValue{};
         }
         if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"view")) {
           DECLARE_OR_RETURN(LogView log_view, ParseLogView(block));
           views.insert({log_view.name, log_view});
+          return EmptyValue{};
+        }
+        if (header.header_type == NON_EMPTY_SINGLE_LINE_CONSTANT(L"type")) {
+          DECLARE_OR_RETURN(LogTypeOptions options, ParseLogType(block));
+          log_types[options.name] = options;
           return EmptyValue{};
         }
         return Error{LazyString{L"Invalid directive: "} + header.header_type};
@@ -398,7 +409,17 @@ std::expected<LogModel, language::Error> ParseLogConfig(
     return error;
   }
   LOG(INFO) << "Returning model";
-  return LogModel{.log_types = std::move(log_types), .views = std::move(views)};
+  return LogModel{
+      .log_types = std::move(log_types) |
+                   std::views::transform(
+                       [&](std::pair<LogTypeName, LogTypeOptions> data) {
+                         return std::pair{
+                             data.first,
+                             LogType(data.first, formats[data.first],
+                                     data.second.activation_policy)};
+                       }) |
+                   std::ranges::to<std::unordered_map>(),
+      .views = std::move(views)};
 }
 
 futures::ValueOrError<LogModel> LoadModelFromPaths(

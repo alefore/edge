@@ -72,9 +72,8 @@ void LogViewValueSpec::Merge(const LogViewValueSpec& overlay) {
   }
 }
 
-LogType::LogType(LogTypeName name, std::wregex pattern,
-                 std::vector<LogEntryConfiguration> entries,
-                 LogTypeActivationPolicy activation_policy)
+LogLineFormat::LogLineFormat(LogTypeName name, std::wregex pattern,
+                             std::vector<LogEntryConfiguration> entries)
     : name_(std::move(name)),
       regex_(std::move(pattern)),
       entries_(std::invoke([&] {
@@ -83,18 +82,13 @@ LogType::LogType(LogTypeName name, std::wregex pattern,
       })),
       entry_names_(entries_ |
                    std::views::transform(&LogEntryConfiguration::name) |
-                   std::ranges::to<std::set>()),
-      activation_policy_(activation_policy) {
+                   std::ranges::to<std::set>()) {
   LOG(INFO) << "Created LogType with name: [" << name_ << "]";
 }
 
-LogTypeName LogType::name() const { return name_; }
+LogTypeName LogLineFormat::name() const { return name_; }
 
-LogTypeActivationPolicy LogType::activation_policy() const {
-  return activation_policy_;
-}
-
-std::set<LogEntryName> LogType::entry_names() const {
+std::set<LogEntryName> LogLineFormat::entry_names() const {
   return entries_ |
          std::views::transform([](const LogEntryConfiguration& configuration) {
            return configuration.name;
@@ -102,12 +96,13 @@ std::set<LogEntryName> LogType::entry_names() const {
          std::ranges::to<std::set>();
 }
 
-std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
-  TRACK_OPERATION(LogType_Parse);
+std::expected<LogLine, language::Error> LogLineFormat::Parse(
+    SingleLine line) const {
+  TRACK_OPERATION(LogLineFormat_Parse);
   std::wstring line_str = ToLazyString(line).ToString();
   std::wsmatch matches;
   if (!std::regex_match(line_str, matches, regex_)) return Error{L"No match."};
-  TRACK_OPERATION(LogType_Parse_Process);
+  TRACK_OPERATION(LogLineFormat_Parse_Process);
   return LogLine{
       .values =
           entries_ |
@@ -125,6 +120,44 @@ std::expected<LogLine, language::Error> LogType::Parse(SingleLine line) const {
                 .value_type = configuration.value_type};
           }) |
           SkipErrors | std::ranges::to<std::vector>()};
+}
+
+std::ostream& operator<<(std::ostream& os, const LogLineFormat& value) {
+  os << value.name();
+  // TODO(P2, 2026-04-28): Output more information.
+  return os;
+}
+
+LogType::LogType(LogTypeName name, std::vector<LogLineFormat> formats,
+                 LogTypeActivationPolicy activation_policy)
+    : name_(std::move(name)),
+      formats_(std::move(formats)),
+      activation_policy_(activation_policy) {}
+
+std::expected<LogLine, language::Error> LogType::Parse(
+    language::lazy_string::SingleLine line) const {
+  auto valid_results = formats_ |
+                       std::views::transform([&](const LogLineFormat& format) {
+                         return format.Parse(line);
+                       }) |
+                       SkipErrors;
+  if (auto it = std::ranges::begin(valid_results);
+      it != std::ranges::end(valid_results))
+    return *it;
+  return Error{L"No match"};
+}
+
+LogTypeName LogType::name() const { return name_; }
+
+std::set<LogEntryName> LogType::entry_names() const {
+  return formats_ | std::views::transform([](const LogLineFormat& format) {
+           return format.entry_names();
+         }) |
+         std::views::join | std::ranges::to<std::set>();
+}
+
+LogTypeActivationPolicy LogType::activation_policy() const {
+  return activation_policy_;
 }
 
 std::ostream& operator<<(std::ostream& os, const LogType& value) {

@@ -1,5 +1,4 @@
-#ifndef __AFC_EDITOR_SRC_LOG_MODEL_H__
-#define __AFC_EDITOR_SRC_LOG_MODEL_H__
+#pragma once
 
 #include <expected>
 #include <optional>
@@ -86,26 +85,43 @@ struct LogView {
       expressions;
 };
 
-enum class LogTypeActivationPolicy { Implicit, Explicit };
-
-class LogType {
- private:
+class LogLineFormat {
   LogTypeName name_;
   std::wregex regex_;
   // Must be sorted by capturing_group.
   std::vector<LogEntryConfiguration> entries_;
   std::set<LogEntryName> entry_names_;
+
+ public:
+  LogLineFormat(LogTypeName name, std::wregex pattern,
+                std::vector<LogEntryConfiguration> entries);
+
+  LogTypeName name() const;
+
+  std::set<LogEntryName> entry_names() const;
+
+  std::expected<LogLine, language::Error> Parse(
+      language::lazy_string::SingleLine line) const;
+};
+
+std::ostream& operator<<(std::ostream& os, const LogLineFormat& value);
+
+enum class LogTypeActivationPolicy { Implicit, Explicit };
+
+class LogType {
+  LogTypeName name_;
+  std::vector<LogLineFormat> formats_;
   LogTypeActivationPolicy activation_policy_;
 
  public:
-  LogType(LogTypeName name, std::wregex pattern,
-          std::vector<LogEntryConfiguration> entries,
+  LogType(LogTypeName name, std::vector<LogLineFormat> formats,
           LogTypeActivationPolicy activation_policy);
 
   LogTypeName name() const;
-  LogTypeActivationPolicy activation_policy() const;
 
   std::set<LogEntryName> entry_names() const;
+
+  LogTypeActivationPolicy activation_policy() const;
 
   std::expected<LogLine, language::Error> Parse(
       language::lazy_string::SingleLine line) const;
@@ -174,5 +190,3 @@ struct VMTypeMapper<editor::LogViewValueSpec> {
   static const types::ObjectName object_type_name;
 };
 }  // namespace afc::vm
-
-#endif
