@@ -173,7 +173,8 @@ void PrepareTokenPartition(
     trees.pop_back();
     const std::vector<ParseTree>& children = head.value().children();
     if (children.empty() &&
-        head->range().begin().line == head->range().end().line) {
+        head->range().begin().line == head->range().end().line &&
+        !head->range().empty()) {
       auto insert_results = contents_to_id.insert(
           {GetSymbol(head->range(), contents), output_token_partition.size()});
       if (insert_results.second) output_token_partition.push_back({});
