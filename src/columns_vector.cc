@@ -61,6 +61,7 @@ LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
                             ColumnNumberDelta size) {
   LineBuilder options;
   CHECK(!padding.body.size().IsZero());
+  CHECK_GE(size, ColumnNumberDelta{});
   SingleLine contents = padding.head;
   while (contents.size() < size)
     contents = std::move(contents).Append(padding.body);
