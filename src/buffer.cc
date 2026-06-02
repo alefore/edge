@@ -375,28 +375,20 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
           MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
               .thread_pool = editor().thread_pool(), .insert_lines = nullptr})),
       load_visual_state_(LazyValue<bool>{[this] {
-        LOG(INFO) << "Loading visual state: " << Read(buffer_variables::name);
-        VisitValue(
-            Path::New(Read(buffer_variables::path)), [&](Path buffer_path) {
-              for (const auto& dir : options_.editor.edge_path()) {
-                Path state_path = Path::Join(
-                    Path::Join(dir, EditorState::StatePathComponent()),
-                    Path::Join(buffer_path,
-                               PathComponent::FromString(L".edge_state")));
-                file_system_driver()
-                    ->Stat(state_path)
-                    .Transform(LockAndVisitCallback(
-                        [state_path](struct stat,
-                                     gc::Root<ExecutionContext> context) {
-                          return context->EvaluateFile(state_path);
-                        },
-                        [](struct stat)
-                            -> futures::ValueOrError<gc::Root<Value>> {
-                          return Error{L"Buffer has been deleted."};
-                        },
-                        execution_context_.ToWeakPtr()));
-              }
-            });
+        LOG(INFO) << "Loading visual state: " << Read(buffer_variables::name)
+                  << ": " << Read(buffer_variables::path);
+        GetEdgeStateDirectory().Transform(LockAndVisitCallback(
+            [](Path edge_state_directory, gc::Root<ExecutionContext> context) {
+              Path state_path =
+                  Path::Join(edge_state_directory,
+                             PathComponent::FromString(L".edge_state"));
+              LOG(INFO) << "Evaluating state file: " << state_path;
+              return context->EvaluateFile(state_path);
+            },
+            [](Path) -> futures::ValueOrError<gc::Root<Value>> {
+              return Error{L"Buffer has been deleted."};
+            },
+            execution_context_.ToWeakPtr()));
         auto paths = editor().edge_path();
         futures::ForEach(
             paths.begin(), paths.end(),
