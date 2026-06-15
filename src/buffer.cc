@@ -2611,6 +2611,8 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
               }})
       .Transform([root_this = RootFromThis()](EmptyValue) {
         StartAdjustingStatusContext(root_this);
+        if (root_this->buffer_saver_.get())
+          root_this->buffer_saver_.get()->RecordChange();
         return EmptyValue();
       });
 }
