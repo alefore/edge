@@ -19,8 +19,9 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
 
   std::vector<language::lazy_string::LazyString> commands_to_fork;
 
-  // Contains C++ (VM) code to execute.
-  language::lazy_string::LazyString commands_to_run;
+  // Contains C++ (VM) statements to execute.
+  language::lazy_string::LazyString statements_to_run;
+  std::vector<language::lazy_string::LazyString> exprs_to_evaluate;
 
   bool server = false;
   std::optional<infrastructure::Path> server_path = {};

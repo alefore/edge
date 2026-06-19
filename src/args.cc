@@ -84,16 +84,28 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .PushBackTo(&CommandLineValues::commands_to_fork),
 
       Handler<CommandLineValues>({FlagName{L"run"}},
-                                 FlagShortHelp{L"Run a VM command"})
+                                 FlagShortHelp{L"Run a VM statement"})
           .SetHelp(LazyString{
               L"The `--run` command-line argument must be followed by a string "
-              L"with a VM command to run.\n\n"
+              L"with a VM statement to run.\n\n"
               L"Example:\n\n"
               L"    edge --run 'string flags = \"-R\"; editor.RunCommand(\"ls "
               L"\" + "
               L"flags, true);'\n\n"})
           .Require(L"vmcmd", L"VM command to run")
-          .AppendTo(&CommandLineValues::commands_to_run),
+          .AppendTo(&CommandLineValues::statements_to_run),
+
+      Handler<CommandLineValues>({FlagName{L"eval"}},
+                                 FlagShortHelp{L"Eval a VM expression"})
+          .SetHelp(LazyString{
+              L"The `--eval` command-line argument must be followed by a "
+              L"string with a VM expression to evaluate.\n\n"
+              L"The difference with `--run` is that after printing the value "
+              L"that all `--eval` expressions evaluate to, Edge will exit.\n\n"
+              L"Example:\n\n"
+              L"    edge -eval '56 * 12 / 3.45' -eval '1/3'\n\n"})
+          .Require(L"vmexpr", L"VM expression to evaluate")
+          .PushBackTo(&CommandLineValues::exprs_to_evaluate),
 
       Handler<CommandLineValues>({FlagName{L"load"}, FlagName{L"l"}},
                                  FlagShortHelp{L"Load a file with VM commands"})
@@ -105,7 +117,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                        .read() +
                    LazyString{L");"};
           })
-          .AppendTo(&CommandLineValues::commands_to_run),
+          .AppendTo(&CommandLineValues::statements_to_run),
 
       Handler<CommandLineValues>(
           {FlagName{L"server"}, FlagName{L"s"}},
@@ -271,8 +283,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 LazyString CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
   LazyString commands_to_run =
-      args.commands_to_run + LazyString{L"VectorBuffer buffers_to_watch;\n"};
-  bool start_shell = args.commands_to_run.empty();
+      args.statements_to_run +
+      LazyString{L"; VectorBuffer buffers_to_watch;\n"};
+  bool start_shell = args.statements_to_run.empty();
   for (LazyString path : args.naked_arguments) {
     LazyString full_path;
     if (!path.empty() && std::wstring(L"/~").find(path.get(ColumnNumber{})) !=

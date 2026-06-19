@@ -45,6 +45,10 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
+using namespace afc::language;
+using namespace afc::language::text;
+using namespace afc::language::lazy_string;
+
 namespace audio = afc::infrastructure::audio;
 namespace vm = afc::vm;
 
@@ -57,20 +61,6 @@ using afc::infrastructure::UnixSignal;
 using afc::infrastructure::execution::ExecutionEnvironment;
 using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::infrastructure::screen::Screen;
-using afc::language::Error;
-using afc::language::FromByteString;
-using afc::language::IgnoreErrors;
-using afc::language::MakeNonNullShared;
-using afc::language::NonNull;
-using afc::language::overload;
-using afc::language::ValueOrError;
-using afc::language::VisitOptional;
-using afc::language::VisitPointer;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NonEmptySingleLine;
-using afc::language::lazy_string::SingleLine;
-using afc::language::text::Line;
-using afc::language::text::LineColumnDelta;
 using afc::tests::BenchmarkName;
 
 namespace gc = afc::language::gc;
@@ -283,7 +273,7 @@ int main(int argc, const char** argv) {
                 [](Error) { return std::optional<FileDescriptor>(); });
 
   std::shared_ptr<Screen> screen_curses;
-  if (!args.server) {
+  if (!args.server && args.exprs_to_evaluate.empty()) {
     LOG(INFO) << "Creating curses screen.";
     screen_curses = std::move(NewScreenCurses().get_unique());
   }
@@ -302,56 +292,84 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
+  if (!args.exprs_to_evaluate.empty()) {
+    UnwrapVectorFuture(
+        args.exprs_to_evaluate | std::views::transform([](LazyString expr) {
+          return editor_state().execution_context()->EvaluateString(expr);
+        }) |
+        std::ranges::to<std::vector>())
+        .Transform(
+            [](std::vector<std::expected<gc::Root<vm::Value>, Error>> values) {
+              int exit_status = 0;
+              std::ranges::for_each(
+                  values, [&exit_status](
+                              std::expected<gc::Root<vm::Value>, Error> value) {
+                    if (value)
+                      std::cout << value->value() << "\n";
+                    else {
+                      std::cerr << value.error() << "\n";
+                      exit_status = 1;
+                    }
+                  });
+              editor_state().set_exit_value(exit_status);
+              return EmptyValue{};
+            });
+  }
+
   while (editor_state().WorkQueueNextExecution().has_value() &&
          editor_state().WorkQueueNextExecution().value() < Now()) {
     editor_state().ExecutePendingWork();
   }
 
-  LazyString commands_to_run = CommandsToRun(args);
-  if (!commands_to_run.empty()) {
-    if (connected_to_parent) {
-      commands_to_run += LazyString{L"editor.SendExitTo("} +
-                         afc::vm::EscapedString::FromString(server_path.read())
-                             .CppRepresentation()
-                             .read() +
-                         LazyString{L");"};
+  if (!editor_state().exit_value()) {
+    LazyString commands_to_run = CommandsToRun(args);
+    if (!commands_to_run.empty()) {
+      if (connected_to_parent) {
+        commands_to_run +=
+            LazyString{L"editor.SendExitTo("} +
+            afc::vm::EscapedString::FromString(server_path.read())
+                .CppRepresentation()
+                .read() +
+            LazyString{L");"};
+      }
+
+      LOG(INFO) << "Sending commands.";
+      if (remote_server_fd.has_value()) {
+        CHECK(SyncSendCommandsToServer(remote_server_fd.value(),
+                                       commands_to_run));
+      } else {
+        gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
+            .editor = editor_state(), .name = InitialCommands{}});
+        Visit(
+            buffer_root->execution_context()->CompileString(commands_to_run),
+            [](gc::Root<ExecutionContext::CompilationResult> result) {
+              result->evaluate();
+            },
+            [](Error errors) { LOG(FATAL) << "Errors: " << errors.read(); });
+        editor_state().buffer_registry().Add(buffer_root->name(),
+                                             buffer_root.ptr().ToWeakPtr());
+      }
     }
 
-    LOG(INFO) << "Sending commands.";
-    if (remote_server_fd.has_value()) {
-      CHECK(
-          SyncSendCommandsToServer(remote_server_fd.value(), commands_to_run));
-    } else {
-      gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
-          .editor = editor_state(), .name = InitialCommands{}});
-      Visit(
-          buffer_root->execution_context()->CompileString(commands_to_run),
-          [](gc::Root<ExecutionContext::CompilationResult> result) {
-            result->evaluate();
-          },
-          [](Error errors) { LOG(FATAL) << "Errors: " << errors.read(); });
-      editor_state().buffer_registry().Add(buffer_root->name(),
-                                           buffer_root.ptr().ToWeakPtr());
+    LOG(INFO) << "Creating terminal.";
+    if (!args.server) {
+      default_interrupt_handler = signal(SIGINT, &SignalHandler);
+      default_stop_handler = signal(SIGTSTP, &SignalHandler);
     }
+
+    audio::BeepFrequencies(audio_player.value(), 0.1,
+                           {audio::Frequency(783.99), audio::Frequency(723.25),
+                            audio::Frequency(783.99)});
+    editor_state().status().SetInformationText(GetGreetingMessage());
   }
 
-  LOG(INFO) << "Creating terminal.";
   std::mbstate_t mbstate = std::mbstate_t();
   Terminal terminal;
-  if (!args.server) {
-    default_interrupt_handler = signal(SIGINT, &SignalHandler);
-    default_stop_handler = signal(SIGTSTP, &SignalHandler);
-  }
 
-  // This is only meaningful if we're running with args.client: it contains the
-  // last observed size of our screen (to detect that we need to propagate
+  // This is only meaningful if we're running with args.client: it contains
+  // the last observed size of our screen (to detect that we need to propagate
   // changes to the server).
   std::optional<LineColumnDelta> last_screen_size;
-
-  audio::BeepFrequencies(audio_player.value(), 0.1,
-                         {audio::Frequency(783.99), audio::Frequency(723.25),
-                          audio::Frequency(783.99)});
-  editor_state().status().SetInformationText(GetGreetingMessage());
 
   LOG(INFO) << "Main loop starting.";
   ExecutionEnvironment(
