@@ -32,6 +32,8 @@ void CommitAll(string message) {
 }
 
 void Install(Buffer target_buffer) {
-  internal::MaybeCommitAndPush(target_buffer.path());
+  target_buffer.AddSaveHook("GitCommitAndPush", []() -> void {
+    internal::MaybeCommitAndPush(target_buffer.path());
+  });
 }
 }  // namespace git
